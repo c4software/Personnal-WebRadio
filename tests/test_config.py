@@ -19,7 +19,7 @@ from webradio.adapters.config import (
     lire_env,
     valider,
 )
-from webradio.adapters.config.chargement import charger_toml
+from webradio.adapters.config.loading import charger_toml
 from webradio.adapters.config.schema import (
     JOURS,
     RESULTATS_ARTISTE_DEFAUT,

@@ -4,7 +4,7 @@ Le format RSS, ses `enclosure` et ses redirections restent confinés ici
 (ARCHITECTURE.md §2.1) : au-dessus, le noyau ne connaît qu'un `Episode`.
 """
 
-from webradio.adapters.podcast.flux import (
+from webradio.adapters.podcast.feed import (
     Episode,
     FluxPodcast,
     LecteurHttp,

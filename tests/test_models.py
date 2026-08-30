@@ -5,7 +5,7 @@ from datetime import timedelta
 import pytest
 
 from tests.fakes import piste
-from webradio.core.modeles import Piste
+from webradio.core.models import Piste
 
 
 def test_une_piste_porte_ce_qu_il_faut_pour_decider() -> None:

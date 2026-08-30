@@ -6,12 +6,12 @@ from pathlib import Path
 
 import pytest
 
-from webradio.adapters.etat.base import EtatSQLite
-from webradio.adapters.podcast.flux import Episode as EpisodeDuFlux
-from webradio.adapters.podcast.flux import PodcastIndisponible
-from webradio.app.antenne_emissions import Emissions
+from webradio.adapters.state.database import EtatSQLite
+from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
+from webradio.adapters.podcast.feed import PodcastIndisponible
+from webradio.app.show_scheduler import Emissions
 from webradio.core.clock import HorlogeFigee
-from webradio.core.emissions import Emission, GrilleDesEmissions
+from webradio.core.shows import Emission, GrilleDesEmissions
 
 VENDREDI_20H = datetime(2026, 8, 28, 20, 0, tzinfo=UTC)  # 2026-08-28 est un vendredi
 EMISSION = Emission(nom="A la French", jours=("vendredi",), heure=time(20, 0))

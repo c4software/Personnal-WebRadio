@@ -7,7 +7,7 @@ import threading
 
 import pytest
 
-from webradio.adapters.http.diffusion import Abonne, Diffusion
+from webradio.adapters.http.broadcast import Abonne, Diffusion
 
 DELAI = 5.0
 

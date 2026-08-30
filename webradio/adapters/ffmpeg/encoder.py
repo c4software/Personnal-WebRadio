@@ -20,7 +20,7 @@ from dataclasses import dataclass
 from typing import IO, Protocol
 from urllib.parse import urlsplit, urlunsplit
 
-from webradio.adapters.ffmpeg.decodeur import (
+from webradio.adapters.ffmpeg.decoder import (
     DecodageImpossible,
     Decodeur,
     FormatPcm,

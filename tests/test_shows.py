@@ -4,7 +4,7 @@ from datetime import UTC, datetime, time, timedelta
 
 import pytest
 
-from webradio.core.emissions import (
+from webradio.core.shows import (
     Emission,
     EmissionsEnConflit,
     Episode,

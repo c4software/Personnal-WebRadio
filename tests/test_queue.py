@@ -5,8 +5,8 @@ from typing import TypeVar
 import pytest
 
 from tests.fakes import FakeSource, piste
-from webradio.core.file import File, FileVide
-from webradio.core.repetition import Fenetre
+from webradio.core.queue import File, FileVide
+from webradio.core.rotation import Fenetre
 from webradio.core.rng import HasardReel, HasardScripte
 from webradio.core.sources import SourceIndisponible
 

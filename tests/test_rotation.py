@@ -3,7 +3,7 @@
 import pytest
 
 from tests.fakes import piste
-from webradio.core.repetition import DEFAUT_NON_REPETITION, Fenetre
+from webradio.core.rotation import DEFAUT_NON_REPETITION, Fenetre
 
 
 def test_la_largeur_par_defaut_est_celle_de_la_specification() -> None:

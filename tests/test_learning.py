@@ -7,12 +7,12 @@ from pathlib import Path
 import pytest
 
 from tests.fakes import piste
-from webradio.adapters.etat.base import EtatSQLite
-from webradio.adapters.etat.base import Portee as PorteeBase
-from webradio.app.apprentissage import Apprentissage
+from webradio.adapters.state.database import EtatSQLite
+from webradio.adapters.state.database import Portee as PorteeBase
+from webradio.app.learning import Apprentissage
 from webradio.core.clock import HorlogeFigee
-from webradio.core.controle import Commande
-from webradio.core.ponderation import Portee
+from webradio.core.control import Commande
+from webradio.core.weighting import Portee
 
 MIDI = datetime(2026, 8, 30, 12, 0, tzinfo=UTC)
 

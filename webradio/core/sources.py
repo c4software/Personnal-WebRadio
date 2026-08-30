@@ -15,7 +15,7 @@ anticipation, celle-là non consignée.
 
 from typing import Protocol
 
-from webradio.core.modeles import Piste
+from webradio.core.models import Piste
 
 
 class SourceIndisponible(Exception):

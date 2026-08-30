@@ -10,7 +10,7 @@ un artiste qui réapparaît toutes les deux pistes s'entend comme un défaut.
 
 from dataclasses import dataclass, field
 
-from webradio.core.modeles import Piste
+from webradio.core.models import Piste
 
 DEFAUT_NON_REPETITION = 5
 

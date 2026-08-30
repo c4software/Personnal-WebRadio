@@ -18,8 +18,8 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Protocol
 
-from webradio.adapters.ffmpeg.encodeur import ChaineIndisponible, FormatFlux
-from webradio.adapters.http.diffusion import Abonne, Diffusion
+from webradio.adapters.ffmpeg.encoder import ChaineIndisponible, FormatFlux
+from webradio.adapters.http.broadcast import Abonne, Diffusion
 
 logger = logging.getLogger(__name__)
 

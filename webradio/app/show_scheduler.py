@@ -15,11 +15,11 @@ savoir si l'on s'en servira.
 import logging
 from datetime import timedelta
 
-from webradio.adapters.etat.base import EtatIndisponible, EtatSQLite
-from webradio.adapters.podcast.flux import Episode as EpisodeDuFlux
-from webradio.adapters.podcast.flux import FluxPodcast, PodcastIndisponible
+from webradio.adapters.state.database import EtatIndisponible, EtatSQLite
+from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
+from webradio.adapters.podcast.feed import FluxPodcast, PodcastIndisponible
 from webradio.core.clock import Horloge
-from webradio.core.emissions import Emission, Episode, GrilleDesEmissions, episode_a_diffuser
+from webradio.core.shows import Emission, Episode, GrilleDesEmissions, episode_a_diffuser
 
 logger = logging.getLogger(__name__)
 

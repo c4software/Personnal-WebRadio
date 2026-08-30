@@ -12,7 +12,7 @@ from webradio.adapters.web.api import (
     Vote,
     creer_api,
 )
-from webradio.adapters.web.vues import creer_application, creer_vue
+from webradio.adapters.web.views import creer_application, creer_vue
 
 __all__ = [
     "Antenne",

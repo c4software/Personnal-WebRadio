@@ -15,8 +15,8 @@ from collections.abc import Callable
 
 from webradio.adapters.web.api import Antenne, Radio, Verdict, Vote
 from webradio.adapters.web.api import Nature as NatureWeb
-from webradio.core.controle import Commande, Controle, Nature
-from webradio.core.modeles import Piste
+from webradio.core.control import Commande, Controle, Nature
+from webradio.core.models import Piste
 
 
 class RadioEnDirect(Radio):

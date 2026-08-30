@@ -6,11 +6,11 @@ import pytest
 
 from tests.fakes import FakeSource, piste
 from webradio.core.clock import HorlogeFigee
-from webradio.core.controle import Commande, Controle, Nature
-from webradio.core.file import File, FileVide
+from webradio.core.control import Commande, Controle, Nature
+from webradio.core.queue import File, FileVide
 from webradio.core.jingles import JINGLE_ENCORE, Jingles
-from webradio.core.modeles import Piste
-from webradio.core.repetition import Fenetre
+from webradio.core.models import Piste
+from webradio.core.rotation import Fenetre
 from webradio.core.rng import HasardScripte
 
 BOWIE_1 = piste("1", "Bowie", "rock")

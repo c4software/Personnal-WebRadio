@@ -15,8 +15,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import cast
 
-from webradio.core.modeles import Piste
-from webradio.core.repetition import Fenetre
+from webradio.core.models import Piste
+from webradio.core.rotation import Fenetre
 from webradio.core.rng import Hasard, HasardPondere
 from webradio.core.sources import SourceMusicale
 

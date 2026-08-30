@@ -5,7 +5,7 @@ from datetime import UTC, datetime, time, timedelta
 import pytest
 
 from webradio.core.clock import HorlogeFigee
-from webradio.core.grille import Grille, Plage
+from webradio.core.bands import Grille, Plage
 from webradio.core.rng import HasardReel, HasardScripte
 
 MATIN = Plage(debut=time(8), fin=time(10), genres=("jazz",))

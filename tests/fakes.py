@@ -6,7 +6,7 @@ se pas-à-pas, et son comportement est écrit une fois pour toutes.
 
 from datetime import timedelta
 
-from webradio.core.modeles import Piste
+from webradio.core.models import Piste
 from webradio.core.sources import SourceIndisponible
 
 

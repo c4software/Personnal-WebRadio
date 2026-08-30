@@ -5,7 +5,7 @@ et les scores de vote. La garde d'ARCHITECTURE.md §5.0 reste en vigueur pour la
 troisième — elle n'arrive qu'avec une décision écrite.
 """
 
-from webradio.adapters.etat.base import (
+from webradio.adapters.state.database import (
     Diffusion,
     EtatIndisponible,
     EtatSQLite,

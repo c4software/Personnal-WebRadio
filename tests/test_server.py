@@ -16,9 +16,9 @@ from pathlib import Path
 import pytest
 
 from tests.test_ffmpeg import FakeProgramme, fabriquer, processus_du_groupe
-from webradio.adapters.ffmpeg.encodeur import Chaine, ChaineIndisponible, FormatFlux
-from webradio.adapters.http.diffusion import Diffusion
-from webradio.adapters.http.serveur import Alimentation, ServeurFlux, Station
+from webradio.adapters.ffmpeg.encoder import Chaine, ChaineIndisponible, FormatFlux
+from webradio.adapters.http.broadcast import Diffusion
+from webradio.adapters.http.server import Alimentation, ServeurFlux, Station
 
 FORMAT = FormatFlux(conteneur="mp3", debit_kbps=128, frequence_hz=44100, canaux=2)
 CHEMIN = "/flux"

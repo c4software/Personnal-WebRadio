@@ -17,8 +17,8 @@ from pathlib import Path
 
 import pytest
 
-from webradio.adapters.ffmpeg.decodeur import DecodageImpossible, Decodeur, FormatPcm
-from webradio.adapters.ffmpeg.encodeur import (
+from webradio.adapters.ffmpeg.decoder import DecodageImpossible, Decodeur, FormatPcm
+from webradio.adapters.ffmpeg.encoder import (
     Chaine,
     ChaineIndisponible,
     Encodeur,
@@ -389,7 +389,7 @@ def test_le_journal_de_la_chaine_ne_porte_aucun_jeton(caplog: pytest.LogCaptureF
     """Le contrôle au bon endroit : ce qui sort réellement du logger."""
     import logging
 
-    from webradio.adapters.ffmpeg import encodeur
+    from webradio.adapters.ffmpeg import encoder as encodeur
 
     with caplog.at_level(logging.INFO, logger=encodeur.__name__):
         encodeur.logger.info(

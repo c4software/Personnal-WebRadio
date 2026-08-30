@@ -25,7 +25,7 @@ from webradio.adapters.sources.navidrome import (
     SourceNavidrome,
     TransportUrllib,
 )
-from webradio.core.modeles import Piste
+from webradio.core.models import Piste
 from webradio.core.rng import HasardScripte
 from webradio.core.sources import SourceIndisponible
 

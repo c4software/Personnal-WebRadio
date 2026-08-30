@@ -10,7 +10,7 @@ La frontière entre les deux fichiers est nette (SPECS.md §6) : le `.env` ne po
 séparation ne tiendrait pas une semaine.
 """
 
-from webradio.adapters.config.chargement import charger, identifiants_depuis, lire_env
+from webradio.adapters.config.loading import charger, identifiants_depuis, lire_env
 from webradio.adapters.config.schema import (
     Configuration,
     ConfigurationEtat,

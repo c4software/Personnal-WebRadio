@@ -16,18 +16,18 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from webradio.core.clock import Horloge
-from webradio.core.controle import Nature
-from webradio.core.file import File, FileVide
-from webradio.core.grille import Grille
+from webradio.core.control import Nature
+from webradio.core.queue import File, FileVide
+from webradio.core.bands import Grille
 from webradio.core.jingles import Jingles
-from webradio.core.modeles import Piste
+from webradio.core.models import Piste
 from webradio.core.programmes import Programmation
-from webradio.core.repetition import Fenetre
+from webradio.core.rotation import Fenetre
 from webradio.core.rng import Hasard
 from webradio.core.sources import SourceIndisponible, SourceMusicale
 
 if TYPE_CHECKING:
-    from webradio.app.antenne_emissions import Emissions
+    from webradio.app.show_scheduler import Emissions
 
 logger = logging.getLogger(__name__)
 

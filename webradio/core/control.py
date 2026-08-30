@@ -19,9 +19,9 @@ Trois règles tranchées portent ce module :
 from dataclasses import dataclass
 from enum import Enum
 
-from webradio.core.file import Choix, FileVide
+from webradio.core.queue import Choix, FileVide
 from webradio.core.jingles import Jingles
-from webradio.core.modeles import Piste
+from webradio.core.models import Piste
 from webradio.core.rng import Hasard
 from webradio.core.sources import SourceMusicale
 

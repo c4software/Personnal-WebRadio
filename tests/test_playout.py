@@ -7,15 +7,15 @@ from pathlib import Path
 import pytest
 
 from tests.fakes import FakeSource, piste
-from webradio.app.programme import ProgrammeRadio
+from webradio.app.playout import ProgrammeRadio
 from webradio.core.clock import HorlogeFigee
-from webradio.core.controle import Nature
-from webradio.core.file import File
-from webradio.core.grille import Grille, Plage
+from webradio.core.control import Nature
+from webradio.core.queue import File
+from webradio.core.bands import Grille, Plage
 from webradio.core.jingles import Jingles
-from webradio.core.modeles import Piste
+from webradio.core.models import Piste
 from webradio.core.programmes import Programmation, Programme
-from webradio.core.repetition import Fenetre
+from webradio.core.rotation import Fenetre
 from webradio.core.rng import HasardScripte
 
 CATALOGUE = [

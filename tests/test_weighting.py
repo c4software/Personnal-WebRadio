@@ -4,8 +4,8 @@ from datetime import timedelta
 
 import pytest
 
-from webradio.core.controle import Commande
-from webradio.core.ponderation import (
+from webradio.core.control import Commande
+from webradio.core.weighting import (
     DEMI_VIE_PAR_DEFAUT,
     PLAFOND_PAR_DEFAUT,
     PLANCHER_PAR_DEFAUT,

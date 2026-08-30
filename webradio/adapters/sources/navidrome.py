@@ -35,7 +35,7 @@ from datetime import timedelta
 from typing import Any, Protocol
 
 from webradio.adapters.config.schema import ConfigurationNavidrome, IdentifiantsNavidrome
-from webradio.core.modeles import Piste
+from webradio.core.models import Piste
 from webradio.core.rng import Hasard
 from webradio.core.sources import SourceIndisponible
 

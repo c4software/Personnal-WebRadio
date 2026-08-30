@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from webradio.adapters.config.chargement import charger
+from webradio.adapters.config.loading import charger
 from webradio.adapters.config.schema import ErreurConfiguration
 from webradio.app import main as module_main
 from webradio.app.main import _arguments, construire, version

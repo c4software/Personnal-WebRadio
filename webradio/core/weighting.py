@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 
-from webradio.core.controle import Commande
+from webradio.core.control import Commande
 
 DEMI_VIE_PAR_DEFAUT = timedelta(days=90)
 PLANCHER_PAR_DEFAUT = 0.25

@@ -16,11 +16,11 @@ cassera ici plutôt qu'en base.
 
 import logging
 
-from webradio.adapters.etat.base import EtatIndisponible, EtatSQLite
-from webradio.adapters.etat.base import Portee as PorteeBase
-from webradio.core.controle import Commande
-from webradio.core.modeles import Piste
-from webradio.core.ponderation import Portee, Scores, poids_de_la_piste, poids_du_vote
+from webradio.adapters.state.database import EtatIndisponible, EtatSQLite
+from webradio.adapters.state.database import Portee as PorteeBase
+from webradio.core.control import Commande
+from webradio.core.models import Piste
+from webradio.core.weighting import Portee, Scores, poids_de_la_piste, poids_du_vote
 
 logger = logging.getLogger(__name__)
 
