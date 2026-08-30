@@ -16,7 +16,7 @@ from webradio.adapters.web import (
     create_app,
     create_view,
 )
-from webradio.adapters.web.api import VoteScore
+from webradio.adapters.web.api import PlayedEntry, VoteScore
 
 RAFRAICHISSEMENT = timedelta(seconds=5)
 
@@ -41,6 +41,7 @@ class FakeRadio:
         self._erasable: list[tuple[str, str]] = []
         self.forgotten: list[tuple[str, str]] = []
         self._moment: str | None = None
+        self._history: list[PlayedEntry] = []
 
     def on_air(self) -> bool:
         return self._antenne is not None
@@ -61,6 +62,9 @@ class FakeRadio:
 
     def moment(self) -> str | None:
         return self._moment
+
+    def history(self) -> list[PlayedEntry]:
+        return list(self._history)
 
 
 def client(radio: FakeRadio) -> FlaskClient:
@@ -264,3 +268,26 @@ def test_le_moment_declare_accompagne_l_antenne() -> None:
     radio._moment = "Moment · Rock, Pop"
     answer = client(radio).get("/api/on-air")
     assert answer.get_json()["moment"] == "Moment · Rock, Pop"
+
+
+# ── Le journal des titres (GOAL-027, SPECS §7 n°27) ─────────────────────────
+
+
+def test_l_historique_se_lit_du_plus_recent_au_plus_ancien() -> None:
+    radio = FakeRadio()
+    radio._history = [
+        PlayedEntry(at="22:49", kind="emission", title="Alcatraz", artist=""),
+        PlayedEntry(at="22:45", kind="musique", title="Radiate", artist="Jack Johnson"),
+    ]
+    answer = client(radio).get("/api/history")
+    assert answer.status_code == 200
+    assert answer.get_json() == {
+        "history": [
+            {"at": "22:49", "kind": "emission", "title": "Alcatraz", "artist": ""},
+            {"at": "22:45", "kind": "musique", "title": "Radiate", "artist": "Jack Johnson"},
+        ]
+    }
+
+
+def test_sans_historique_la_liste_est_vide_pas_une_erreur() -> None:
+    assert client(FakeRadio()).get("/api/history").get_json() == {"history": []}

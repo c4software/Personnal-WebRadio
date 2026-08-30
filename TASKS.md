@@ -146,6 +146,7 @@ Goals sont découpables.
 | GOAL-024 | `encore` force réellement le même artiste | `[x]` |
 | GOAL-025 | Une chaîne YouTube comme émission | `[-]` — seule l'écoute réelle reste |
 | GOAL-026 | Les votes ne portent que sur l'artiste (n°16 révisée) | `[x]` |
+| GOAL-027 | Le journal des titres, visible dans l'interface | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -991,3 +992,19 @@ les surpondérations »
 - [x] `GOAL-026-T01` `vote_weight` : 1 sur l'artiste, 0 sur la piste, `stop` comme `encore` — et un poids nul ne s'écrit pas en base (plus de lignes à zéro)
 - [x] `GOAL-026-T02` La clé `cross_weight` disparaît du schéma et des TOML — une clé sans effet serait un mensonge
 - [x] `GOAL-026-T03` SPECS §4.12 et n°16 révisés ; les anciennes lignes « piste » en base s'éteignent par la demi-vie, ou d'un ✕ sur la page
+
+---
+
+## GOAL-027 — Le journal des titres, visible dans l'interface
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30 (SPECS §7 n°27)
+
+- [x] `GOAL-027-T01` La table `historique`, écrite quand un titre **commence** (jamais les jingles), bornée à 200 lignes — un journal, pas une archive (§2 tient)
+- [x] `GOAL-027-T02` `GET /api/history` et l'onglet Historique, du plus récent au plus ancien
+
+> **Constaté pendant ce Goal, à la première diffusion YouTube réelle**
+> (docs/youtube.md §4) : mime `audio/webm` inconnu du diffuseur et résolution
+> bornée à 29 s pour un fichier qu'elle télécharge — corrigés (m4a préféré,
+> table complétée, délai à 120 s). Et une faiblesse consignée : la trace
+> « diffusé » s'écrit à la décision, pas au démarrage du son — deux essais
+> perdus ainsi.

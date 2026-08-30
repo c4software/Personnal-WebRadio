@@ -55,7 +55,9 @@ def _resoudre_par_ytdlp(video_url: str, timeout: float) -> Resolved:
                 "yt-dlp",
                 "-g",
                 "-f",
-                "bestaudio",
+                # m4a d'abord : son mime (audio/mp4) est connu du diffuseur,
+                # celui du webm ne l'était pas (docs/youtube.md §3).
+                "bestaudio[ext=m4a]/bestaudio",
                 "--print",
                 "duration",
                 "--print",

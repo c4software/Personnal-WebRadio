@@ -24,7 +24,7 @@ from webradio.adapters.podcast.feed import PodcastFeed, UrllibReader
 from webradio.adapters.sources.navidrome import NavidromeSource, UrllibTransport
 from webradio.adapters.state.database import Scope as StateScope
 from webradio.adapters.state.database import SqliteState, StateUnavailable
-from webradio.adapters.web.api import VoteScore
+from webradio.adapters.web.api import PlayedEntry, VoteScore
 from webradio.adapters.web.views import create_app
 from webradio.adapters.youtube.channel import YoutubeChannel
 from webradio.app.learning import Learning
@@ -166,6 +166,27 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             return f"Moment · {', '.join(band.artists or band.genres)}"
         return None
 
+    def journaliser_le_titre(kind: str, title: str, artist: str) -> None:
+        try:
+            state.record_play(kind, title, artist)
+        except StateUnavailable as failure:
+            logger.warning("titre non journalisé, la radio continue : %s", failure)
+
+    def lister_l_historique() -> list[PlayedEntry]:
+        try:
+            return [
+                PlayedEntry(
+                    at=joue_le.astimezone().strftime("%H:%M"),
+                    kind=nature,
+                    title=titre,
+                    artist=artiste,
+                )
+                for joue_le, nature, titre, artiste in state.history()
+            ]
+        except StateUnavailable as failure:
+            logger.warning("historique illisible, page vide : %s", failure)
+            return []
+
     def oublier_le_vote(scope: str, target: str) -> bool:
         try:
             return state.delete_vote(
@@ -183,6 +204,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         demander_le_saut,
         oublier_le_vote,
         moment_courant,
+        journaliser_le_titre,
+        lister_l_historique,
     )
     # Le programme déclare la nature de ce qu'il choisit ; la charnière ne la
     # transmet à la façade que lorsque Liquidsoap commence réellement le morceau.

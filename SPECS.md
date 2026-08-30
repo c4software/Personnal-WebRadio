@@ -979,6 +979,13 @@ fond, sert, et gère les auditeurs.
 > d'une version à l'autre : le script est validé par `liquidsoap --check` dans
 > la vérification, contre la version épinglée.
 
+**n°27 — Un journal des titres ? Oui, borné.** Tranchée le 2026-08-30 par
+l'auteur. Ce qui commence — musique et émissions, pas l'habillage — s'inscrit
+dans un journal chronologique de deux cents lignes, visible dans l'interface.
+> *Raison* : « c'était quoi, tout à l'heure ? » est une question légitime.
+> §2 tient toujours : c'est un journal des **titres**, jamais l'audio — rien
+> ne se rejoue, rien ne s'archive.
+
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :
 elle appelle la même API que tout autre client (§4.8).

@@ -37,6 +37,13 @@ CREATE TABLE IF NOT EXISTS emissions_diffusees (
     diffuse_le TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS historique (
+    joue_le TEXT NOT NULL,
+    nature  TEXT NOT NULL,
+    titre   TEXT NOT NULL,
+    artiste TEXT NOT NULL DEFAULT ''
+);
+
 CREATE TABLE IF NOT EXISTS votes (
     portee       TEXT NOT NULL,
     cible        TEXT NOT NULL,
@@ -302,6 +309,37 @@ class SqliteState:
         ]
         entries.sort(key=lambda e: e[3].stop + e[3].encore, reverse=True)
         return entries
+
+    def record_play(self, kind: str, title: str, artist: str = "") -> None:
+        """Un titre vient de commencer : une ligne, et le journal reste borné.
+
+        SPECS.md §2 excluait l'archivage du FLUX ; ceci est un journal des
+        titres, décidé par l'auteur le 2026-08-30 (§7 n°27). Deux cents
+        lignes suffisent à répondre « c'était quoi, tout à l'heure ? » —
+        au-delà, c'est une archive, et ce n'en est pas une.
+        """
+        now = self._horloge.now()
+        with self._transaction() as connection:
+            connection.execute(
+                "INSERT INTO historique (joue_le, nature, titre, artiste) VALUES (?, ?, ?, ?)",
+                (now.isoformat(), kind, title, artist),
+            )
+            connection.execute(
+                """
+                DELETE FROM historique WHERE rowid NOT IN (
+                    SELECT rowid FROM historique ORDER BY joue_le DESC, rowid DESC LIMIT 200
+                )
+                """
+            )
+
+    def history(self) -> list[tuple[datetime, str, str, str]]:
+        """Le journal, du plus récent au plus ancien."""
+        with self._connexion() as connection:
+            rows = connection.execute(
+                "SELECT joue_le, nature, titre, artiste FROM historique"
+                " ORDER BY joue_le DESC, rowid DESC"
+            ).fetchall()
+        return [(datetime.fromisoformat(str(r[0])), str(r[1]), str(r[2]), str(r[3])) for r in rows]
 
     def delete_vote(self, scope: Scope, target: str) -> bool:
         """Efface une cible votée par erreur. Vrai si quelque chose a disparu.

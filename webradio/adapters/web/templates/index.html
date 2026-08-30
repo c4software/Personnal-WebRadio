@@ -101,6 +101,7 @@
         <button type="button" :class="{ actif: onglet === 'antenne' }" @click="onglet = 'antenne'">À l'antenne</button>
         <button type="button" :class="{ actif: onglet === 'votes' }" @click="ouvrirVotes()">Votes</button>
         <button type="button" :class="{ actif: onglet === 'planning' }" @click="ouvrirPlanning()">Planning</button>
+        <button type="button" :class="{ actif: onglet === 'historique' }" @click="ouvrirHistorique()">Historique</button>
       </nav>
 
       <section v-if="onglet === 'antenne'">
@@ -128,6 +129,15 @@
             <div class="scores"><span>stop [[ vote.stop ]]</span><span>encore [[ vote.encore ]]</span></div>
           </article>
         </template>
+      </section>
+
+      <section v-else-if="onglet === 'historique'">
+        <p v-if="historique.length === 0" class="vide">Rien encore : le journal commence maintenant.</p>
+        <div v-for="(e, i) in historique" :key="i" class="evenement" :class="e.kind === 'musique' ? 'moment-b' : 'emission-b'">
+          <span class="heure">[[ e.at ]]</span>
+          <span class="nom">[[ e.title ]]<span v-if="e.artist" class="detail"> — [[ e.artist ]]</span></span>
+          <span class="detail">[[ e.kind === 'musique' ? '' : e.kind ]]</span>
+        </div>
       </section>
 
       <section v-else>
@@ -168,6 +178,7 @@
         antenne: {{ url_antenne | tojson }},
         votes: {{ url_votes | tojson }},
         planning: {{ url_planning | tojson }},
+        history: {{ url_history | tojson }},
         stop: {{ url_stop | tojson }},
         encore: {{ url_encore | tojson }},
       };
@@ -182,6 +193,7 @@
             moment: null,
             votes: [],
             planning: null,
+            historique: [],
             urls: URLS,
             message: "",
             issue: "",
@@ -259,6 +271,13 @@
             }
           },
           ouvrirVotes() { this.onglet = "votes"; this.chargerVotes(); },
+          async ouvrirHistorique() {
+            this.onglet = "historique";
+            try {
+              const reponse = await fetch(this.urls.history, { headers: { Accept: "application/json" } });
+              this.historique = (await reponse.json()).history;
+            } catch (erreur) { this.historique = []; }
+          },
           async ouvrirPlanning() {
             this.onglet = "planning";
             try {
@@ -295,6 +314,7 @@
           setInterval(() => {
             this.rafraichir();
             if (this.onglet === "votes") { this.chargerVotes(); }
+            if (this.onglet === "historique") { this.ouvrirHistorique(); }
           }, RAFRAICHISSEMENT_MS);
         },
       }).mount("#app");

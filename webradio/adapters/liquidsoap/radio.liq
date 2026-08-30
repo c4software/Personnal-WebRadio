@@ -11,6 +11,13 @@
 
 settings.log.stdout := true
 settings.log.level := 3
+# Une émission YouTube est un fichier de ~30 Mo que la résolution TÉLÉCHARGE
+# avant de jouer : 29 s (le défaut) ne suffisent pas toujours — constaté le
+# 2026-08-30, la vidéo a été abandonnée à la seconde près (docs/youtube.md).
+settings.request.timeout := 120.
+# Et audio/webm manque à la table des extensions : sans elle, le fichier
+# téléchargé n'a pas de nom et la résolution échoue.
+settings.http.mime.extnames := list.add(("audio/webm", ".webm"), settings.http.mime.extnames())
 settings.harbor.bind_addrs := ["0.0.0.0"]
 
 # ── Ce que l'environnement fournit ──────────────────────────────────────────

@@ -85,6 +85,16 @@ class VoteScore:
 
 
 @dataclass(frozen=True, slots=True)
+class PlayedEntry:
+    """Une ligne du journal : quand, quoi, par qui."""
+
+    at: str
+    kind: str
+    title: str
+    artist: str
+
+
+@dataclass(frozen=True, slots=True)
 class Verdict:
     """La réponse du noyau à un vote.
 
@@ -131,6 +141,10 @@ class Radio(Protocol):
 
     def forget_vote(self, scope: str, target: str) -> bool:
         """Efface une cible votée par erreur. Faux si elle n'existait pas."""
+        ...
+
+    def history(self) -> list[PlayedEntry]:
+        """Ce qui est passé, du plus récent au plus ancien (§7 n°27)."""
         ...
 
     def moment(self) -> str | None:
@@ -208,6 +222,18 @@ def create_api(radio: Radio, planning: dict[str, object] | None = None) -> Bluep
             logger.info("vote effacé : %s « %s »", scope, target)
             return jsonify({"deleted": True})
         return jsonify({"deleted": False, "reason": "aucun vote pour cette cible"}), 404
+
+    @api.get("/history")
+    def history_view() -> ResponseReturnValue:
+        """Le journal des titres — jamais l'audio (SPECS.md §2 tient toujours)."""
+        return jsonify(
+            {
+                "history": [
+                    {"at": e.at, "kind": e.kind, "title": e.title, "artist": e.artist}
+                    for e in radio.history()
+                ]
+            }
+        )
 
     @api.post(VOTE_PATH)
     def vote(name: str) -> ResponseReturnValue:

@@ -46,6 +46,7 @@ def create_view(*, refresh: timedelta) -> Blueprint:
             url_antenne=url_for("api.on_air_now"),
             url_votes=url_for("api.votes_list"),
             url_planning=url_for("api.planning_view"),
+            url_history=url_for("api.history_view"),
             url_stop=url_for("api.vote", name=str(Vote.SKIP)),
             url_encore=url_for("api.vote", name=str(Vote.MORE)),
             rafraichissement_ms=int(refresh.total_seconds() * MILLISECONDES),

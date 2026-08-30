@@ -240,3 +240,36 @@ def test_un_vote_efface_disparait_et_le_dit(tmp_path: Path) -> None:
     assert e.delete_vote(Scope.TRACK, "t1") is True
     assert e.all_scores() == []
     assert e.delete_vote(Scope.TRACK, "t1") is False
+
+
+# ── Le journal des titres (GOAL-027) ────────────────────────────────────────
+
+
+def test_le_journal_rend_le_plus_recent_d_abord(tmp_path: Path) -> None:
+    clock = FrozenClock(DEPART)
+    e = state(tmp_path / "etat.sqlite", clock)
+    e.record_play("musique", "Radiate", "Jack Johnson")
+    clock.advance(timedelta(minutes=4))
+    e.record_play("emission", "Alcatraz")
+
+    journal = e.history()
+
+    assert [(titre, artiste) for _, _, titre, artiste in journal] == [
+        ("Alcatraz", ""),
+        ("Radiate", "Jack Johnson"),
+    ]
+
+
+def test_le_journal_reste_borne_a_deux_cents_lignes(tmp_path: Path) -> None:
+    """Un journal, pas une archive (SPECS.md §2 tient toujours)."""
+    clock = FrozenClock(DEPART)
+    e = state(tmp_path / "etat.sqlite", clock)
+    for i in range(205):
+        clock.advance(timedelta(minutes=1))
+        e.record_play("musique", f"titre {i}")
+
+    journal = e.history()
+
+    assert len(journal) == 200
+    assert journal[0][2] == "titre 204"
+    assert journal[-1][2] == "titre 5"

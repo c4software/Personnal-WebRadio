@@ -14,7 +14,7 @@ import threading
 from collections.abc import Callable
 
 from webradio.adapters.web.api import Kind as NatureWeb
-from webradio.adapters.web.api import OnAir, Radio, Verdict, Vote, VoteScore
+from webradio.adapters.web.api import OnAir, PlayedEntry, Radio, Verdict, Vote, VoteScore
 from webradio.core.control import Command, Control, Kind
 from webradio.core.models import Track
 
@@ -35,6 +35,8 @@ class LiveRadio(Radio):
         skip: Callable[[], None] | None = None,
         forget: Callable[[str, str], bool] | None = None,
         moment: Callable[[], str | None] | None = None,
+        journal: Callable[[str, str, str], None] | None = None,
+        list_history: Callable[[], "list[PlayedEntry]"] | None = None,
     ) -> None:
         self._controle = control
         self._station = on_air
@@ -43,6 +45,8 @@ class LiveRadio(Radio):
         self._passer = skip
         self._oublier = forget
         self._moment = moment
+        self._journaliser = journal
+        self._lister_historique = list_history
         self._verrou = threading.Lock()
         self._nature = Kind.MUSIC
         self._piste: Track | None = None
@@ -70,6 +74,12 @@ class LiveRadio(Radio):
             self._libelle = label
             self._artiste_libelle = artist_label
         self._controle.declare(kind)
+        # Le journal des titres (SPECS.md §7 n°27) : ce qui COMMENCE, hors
+        # jingles — dix secondes d'habillage ne sont pas « une chanson ».
+        titre = track.title if track is not None else label
+        artiste = track.artist if track is not None else (artist_label or "")
+        if self._journaliser is not None and kind is not Kind.JINGLE and titre:
+            self._journaliser(str(kind.value), titre, artiste)
 
     def on_air(self) -> bool:
         return self._station.on_air
@@ -91,6 +101,11 @@ class LiveRadio(Radio):
         if self._lister_votes is None:
             return []
         return self._lister_votes()
+
+    def history(self) -> "list[PlayedEntry]":
+        if self._lister_historique is None:
+            return []
+        return self._lister_historique()
 
     def playing_track(self) -> Track | None:
         """La piste à l'antenne — l'ancre d'un « encore » (SPECS.md §4.6).

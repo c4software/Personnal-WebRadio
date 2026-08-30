@@ -133,3 +133,18 @@ def test_un_stop_refuse_n_ordonne_aucun_saut() -> None:
     radio.declare(Kind.JINGLE, None)
     assert not radio.vote(Vote.SKIP).accepted
     assert sauts == []
+
+
+def test_ce_qui_commence_entre_au_journal_sauf_les_jingles() -> None:
+    """GOAL-027 : le journal note ce qui commence — pas l'habillage."""
+    lignes: list[tuple[str, str, str]] = []
+    radio, _ = _radio()
+    radio._journaliser = lambda kind, titre, artiste: lignes.append((kind, titre, artiste))
+    radio.declare(Kind.MUSIC, Track("1", "Sexy Boy", "Air", None, timedelta(seconds=90)))
+    radio.declare(Kind.JINGLE, None)
+    radio.declare(Kind.SHOW, None, "Flash franceinfo")
+    radio.declare(Kind.MUSIC, None)  # rien à nommer : rien au journal
+    assert lignes == [
+        ("musique", "Sexy Boy", "Air"),
+        ("emission", "Flash franceinfo", ""),
+    ]

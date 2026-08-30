@@ -39,3 +39,22 @@ dont la « pièce jointe » se résout par `yt-dlp` au dernier moment :
       peut-être filtrer un jour sur la durée.
 - [ ] ffmpeg **de Liquidsoap** ouvrant `googlevideo` : constaté seulement avec
       le ffmpeg de l'hôte ; même famille, à confirmer à la première diffusion.
+
+## 4. Constaté à la première diffusion réelle (2026-08-30, 22:50)
+
+Le mécanisme a fonctionné jusqu'au diffuseur — la case ouverte, la vidéo
+résolue, l'URL servie — et c'est **la résolution côté Liquidsoap** qui a
+échoué, deux fois dans le même journal :
+
+- `Response has unknown mime-type: "audio/webm"` — la table
+  `settings.http.mime.extnames` ne connaît pas le webm, le fichier téléchargé
+  n'a pas d'extension, la résolution échoue ;
+- `Time limit exceeded (timeout: 29.00)` — la résolution **télécharge** le
+  fichier (~30 Mo) avant de jouer, et 29 s ne suffisent pas toujours.
+
+Correctifs, dans cet ordre de préférence : `yt-dlp -f "bestaudio[ext=m4a]/bestaudio"`
+(le mime `audio/mp4` est connu), la table complétée quand même, et
+`settings.request.timeout := 120.`. À noter aussi : **la trace « diffusé »
+s'écrit quand le planificateur décide, pas quand le son démarre** — deux
+essais ont été perdus ainsi ; c'est une faiblesse consignée, pas encore un
+correctif.
