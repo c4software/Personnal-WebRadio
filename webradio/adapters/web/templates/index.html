@@ -101,6 +101,9 @@
       function afficher(message, issue) {
         etat.textContent = message;
         etat.dataset.issue = issue || "";
+        // Une boîte sans message ne se dessine pas : sinon un encart vide
+        // reste sous le titre (constaté à l'écoute réelle, GOAL-009-T06).
+        etat.hidden = message === "";
       }
 
       async function rafraichir() {
