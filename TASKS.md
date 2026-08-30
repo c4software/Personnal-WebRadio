@@ -103,7 +103,7 @@ Goals sont découpables.
 | Goal | Titre | État |
 |---|---|---|
 | GOAL-001 | Harness et initialisation | `[x]` |
-| GOAL-002 | Relever les cinq dépendances externes | `[-]` 8/10, deux bloqués |
+| GOAL-002 | Relever les cinq dépendances externes | `[-]` 9/10, un bloqué |
 | GOAL-003 | Le noyau : horloge, hasard, file de lecture | `[x]` |
 | GOAL-004 | Le flux : ffmpeg, fan-out, démarrage à la demande | `[ ]` |
 | GOAL-005 | La grille horaire et les moments thématiques | `[ ]` |
@@ -272,14 +272,7 @@ Le découpage sépare les deux, pour que ce qui peut avancer avance.
 
 ### Ce qui dépend de l'auteur
 
-- [!] `GOAL-002-T08` Navidrome : authentification, tirage, genres, artiste, récupération du son
-      > **Bloqué le 2026-08-30 — il manque un serveur.** Le relevé exige
-      > d'interroger un vrai Navidrome : adresse, identifiant, mot de passe API.
-      > Rien dans le dépôt ne les porte, et ils ne s'inventent pas (AGENTS.md §3).
-      > **Ce qu'il faut pour débloquer** : une instance joignable et ses
-      > identifiants, dans un TOML local non versionné.
-      > **Ce que ce blocage bloque** : `GOAL-003` peut être écrit sans lui — le
-      > noyau ne connaît qu'un `Protocol` — mais l'adaptateur Navidrome, non.
+- [x] `GOAL-002-T08` Navidrome : authentification, tirage, genres, artiste, récupération du son
 
 - [!] `GOAL-002-T09` Podcast : format des flux, fiabilité de la date de publication et de la durée
       > **Bloqué le 2026-08-30 — il manque les flux.** Aucune URL de podcast n'a
@@ -301,6 +294,12 @@ Le découpage sépare les deux, pour que ce qui peut avancer avance.
 | Un auditeur tardif décode sans en-tête initial | L'entrée en cours de route ne demande aucun mécanisme particulier |
 | **Deux ffmpeg ont survécu à la dernière déconnexion** | Arrêter la chaîne = arrêter **tout l'arbre**. Un test sur un booléen serait passé au vert |
 | Aucune source de flash France Info confirmée | Trois questions remontent à l'auteur |
+| Navidrome : un mot de passe faux renvoie **HTTP 200** | Lire `status` dans le corps **à chaque appel** — le code HTTP ne dit rien |
+| `getRandomSongs` **tronque à 500 en silence** | Ne jamais demander davantage en croyant l'obtenir |
+| `search3` sur un artiste ramène **aussi d'autres artistes** | Filtrer sur l'égalité exacte, sinon `encore` sert un autre artiste |
+| **La bibliothèque est hétérogène** : mp3 + m4a, six débits de 96 à 320 | La voie « transmettre tel quel » **n'existait pas**. La décision n°11 était la seule possible |
+| `genre` manque sur **37 pistes sur 200** | `genre=None` était nécessaire, pas prudent : le refuser amputait 18 % de la bibliothèque |
+| `duration` **toujours présent** | La programmation des jingles peut s'y fier |
 
 ### Ce que GOAL-002 n'a pas pu établir
 
