@@ -400,6 +400,61 @@ part.
 Et surtout : **les tests n'entendent rien**. Quatre angles morts sont recensés en
 AGENTS.md §4.1, aucun n'est couvert automatiquement.
 
+## 8.5 Déploiement — Docker et Compose
+
+**Décidé le 2026-08-30** : la station tourne en conteneur, orchestrée par un
+`docker-compose.yml`.
+
+### 8.5.1 Ce que le conteneur résout ici
+
+Ce projet a une dépendance système lourde et versionnée : **ffmpeg**.
+[docs/ffmpeg.md](./docs/ffmpeg.md) commence par *« tout ce qui suit doit être
+vérifié contre cette version »* — n9.0.1. Un conteneur fige cette version avec le
+code qui l'a relevée, au lieu de dépendre de ce que la machine hôte a installé.
+
+C'est le seul argument qui compte vraiment. Les autres — reproductibilité,
+démarrage au boot — suivent.
+
+### 8.5.2 Un seul service
+
+```
+services:
+  radio:      le tout : chaîne de diffusion + Flask + API
+```
+
+**Pas de découpage en plusieurs conteneurs**, et c'est délibéré. La chaîne et le
+serveur web partagent la file en mémoire (§6) : les séparer imposerait un
+protocole entre eux, donc une architecture distribuée pour un auditeur sur un
+réseau local. Ce serait la même faute que celle contre laquelle AGENTS.md §2 met
+en garde — bâtir avant le second cas d'usage.
+
+Navidrome n'est **pas** dans le Compose : il existe déjà, il appartient à
+l'auteur, et le projet n'a pas à le déployer (SPECS.md §2 — gérer la
+bibliothèque est hors périmètre).
+
+### 8.5.3 Ce qui doit traverser la frontière du conteneur
+
+| Ce qui entre | Comment | Pourquoi |
+|---|---|---|
+| Les **secrets** | `env_file: .env` | Jamais dans l'image, jamais dans le Compose |
+| La **configuration** | volume, en lecture seule | Elle change sans reconstruire l'image |
+| Les **jingles** | volume, en lecture seule | Ce sont les fichiers de l'auteur ; le conteneur ne doit pas pouvoir les modifier |
+| L'**état SQLite** | volume, en écriture | Il survit à une reconstruction (§5.1) |
+| Le **port du flux et du web** | `ports:` | C'est par là qu'on écoute |
+
+> **Le réseau est le point à ne pas manquer.** Navidrome répond à `http://music`
+> — un nom résolu par le réseau **de l'hôte**. Un conteneur ne le résout pas
+> forcément. C'est un cas de test au premier démarrage, pas une évidence.
+
+### 8.5.4 Ce que le conteneur ne doit pas cacher
+
+`docker compose up` ne remplace pas `./verifier.sh` : la vérification tourne
+**hors conteneur**, sur le code, comme aujourd'hui. Un conteneur qui démarre ne
+prouve rien sur la qualité de ce qu'il contient.
+
+Et il ne comble aucun des angles morts d'AGENTS.md §4.1 : le son, les
+transitions, la tenue dans la durée et les vrais lecteurs restent à écouter.
+
 ## 9. Carte du dépôt
 
 **Ce que contient réellement le dépôt aujourd'hui.** C'est la section qu'un agent

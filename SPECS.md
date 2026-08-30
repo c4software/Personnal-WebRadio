@@ -59,6 +59,14 @@ périmètre** (§4.8). Elle ne rouvre aucune des trois exclusions ci-dessus : el
 montre ce qui passe et porte deux boutons, elle ne gère ni la bibliothèque, ni la
 configuration.
 
+## 2.1 Comment elle tourne
+
+La station est livrée en **conteneur Docker**, démarrée par un
+`docker-compose.yml` (ARCHITECTURE.md §8.5). C'est ce qui fige la version de
+ffmpeg avec le code qui l'a relevée.
+
+Navidrome n'en fait pas partie : il existe déjà et appartient à l'auteur.
+
 ## 3. Qui s'en sert
 
 Un auditeur — l'auteur — sur son **réseau local**, jamais exposé sur Internet.
