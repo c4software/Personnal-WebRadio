@@ -20,38 +20,67 @@ réétabli si elle change.
 
 ---
 
-## 1. Enchaîner deux morceaux sans blanc
+## 1. Enchaîner deux morceaux sans blanc — **relevé**
 
-C'est **le point le plus important du relevé** : la jonction entre deux morceaux
-est ce qui distingue une radio d'une liste de lecture (SPECS.md §4.2).
+> **Constaté le 2026-08-30** (`GOAL-002-T01`), contre ffmpeg n9.0.1, avec trois
+> MP3 volontairement hétérogènes — 44100/2/192k, 44100/2/128k et 48000/1/128k —
+> parce que c'est le cas réel d'une bibliothèque, pas l'exception.
 
-- [ ] Comment alimenter un encodage **continu** avec une suite de fichiers dont
-      on ne connaît pas la liste à l'avance ? Le démultiplexeur `concat` exige un
-      fichier de liste écrit d'avance — incompatible avec une file tirée à la
-      demande (ARCHITECTURE.md §2).
-- [ ] Faut-il un processus ffmpeg **par morceau**, alimentant un encodeur unique
-      par son entrée standard ? Ou un processus unique piloté autrement ?
-- [ ] Que se passe-t-il **exactement** en fin de fichier : ffmpeg s'arrête-t-il,
-      attend-il, produit-il un silence ? La réponse décide de toute la mécanique
-      de jonction.
-- [ ] Un fondu entre deux morceaux est-il faisable dans ce montage, ou impose-t-il
-      de tout mixer nous-mêmes ?
+### 1.1 Le démultiplexeur `concat` avec `-c copy`
 
-## 2. Insérer un jingle ou un flash
+**Sur des fichiers homogènes** (même fréquence, mêmes canaux) : fonctionne.
+Durée obtenue 6,030 s pour 6 s attendues, et un avertissement à chaque jonction :
 
-- [ ] Comment intercaler un fichier au milieu d'un encodage continu, sans couper
-      ni redémarrer le flux servi aux auditeurs ?
-- [ ] Les jingles MP3 fournis par l'auteur et les morceaux Navidrome peuvent
-      avoir des fréquences d'échantillonnage et des nombres de canaux différents.
-      Quel rééchantillonnage est nécessaire, et à quel coût ?
-- [ ] Existe-t-il un filtre de normalisation du niveau utilisable **en temps
-      réel** ? Un jingle qui écrase la musique est l'un des quatre angles morts
-      (AGENTS.md §4.1).
-- [ ] Le jingle de vote `encore.mp3` s'insère à la jonction, comme un jingle
-      horaire (ARCHITECTURE.md §6.2) : **aucun mixage par-dessus la musique n'est
-      requis**. Vérifier qu'il n'existe bien qu'un seul chemin d'insertion à
-      écrire, et que deux jingles dus à la même jonction ne posent pas de
-      problème particulier.
+```
+Application provided invalid, non monotonically increasing dts to muxer in stream 0
+```
+
+**Sur des fichiers hétérogènes** (44100/2 puis 48000/1) : produit un fichier
+lisible, mais **dont les métadonnées sont fausses**.
+
+| | Copie (`-c copy`) | Réencodage |
+|---|---|---|
+| Durée annoncée | **6,295 s** | 6,000 s |
+| Format annoncé | 44100 / 2 pour tout | 44100 / 2, exact |
+| Durée réelle attendue | 6,000 s | 6,000 s |
+
+Le conteneur déclare le format de la **première** image pour l'ensemble du
+fichier, et la durée dérive de 5 %.
+
+### 1.2 Ce qui contredit l'intuition, et qu'il ne faut pas généraliser
+
+**Le décodeur de ffmpeg s'adapte image par image, et la hauteur reste juste.**
+Mesuré par Goertzel sur la seconde moitié, entre les deux fréquences candidates —
+660 Hz si le rééchantillonnage est honoré, 606 Hz s'il est ignoré :
+
+| Fichier | Énergie à 606 Hz | Énergie à 660 Hz | Verdict |
+|---|---|---|---|
+| `c_48000` (référence) | 24 | **1835** | correct |
+| Copie hétérogène | 12 | **1776** | **correct** |
+| Réencodage | 7 | **1181** | correct |
+
+L'hypothèse de départ — « la seconde moitié sera relue à 44100 et sonnera 8 %
+trop bas » — est **fausse pour ffmpeg** : le format MP3 porte la fréquence dans
+l'en-tête de chaque image, et un décodeur qui les lit s'adapte.
+
+> **Ce constat ne s'étend à aucun autre lecteur.** Il dit que *ffmpeg* s'adapte,
+> pas que VLC, un navigateur ou une enceinte le feront — d'autant que la durée
+> annoncée, elle, reste fausse. C'est exactement la question de
+> [flux-icy.md](./flux-icy.md) §3, et elle ne se répond qu'avec de vrais
+> lecteurs.
+
+### 1.3 La concaténation brute d'octets ne marche pas
+
+`cat a.mp3 b.mp3 > flux.mp3` produit un fichier **cassé** :
+
+```
+[mp3float] Header missing
+Error submitting packet to decoder: Invalid data found when processing input
+```
+
+Durée obtenue 5,07 s pour 6 s. Les étiquettes ID3 présentes à la jonction
+rompent le flux d'images. **Écarter cette voie** : elle paraissait la plus
+économe, elle ne fonctionne pas.
 
 ## 2.bis Transcoder le moins possible
 
