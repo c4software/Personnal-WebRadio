@@ -136,7 +136,7 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 |---|---|
 | Serveur HTTP propre + ffmpeg, plutôt qu'Icecast ou Liquidsoap | Seul choix qui donne littéralement le démarrage à la demande exigé par SPECS.md §1. Le prix — transitions et jingles à écrire — est assumé (ARCHITECTURE.md §4) |
 | Python 3.11+ | `tomllib` dans la bibliothèque standard, et l'écosystème audio le plus fourni. Le flux temps réel partagé demandera du soin (ARCHITECTURE.md §4.1). **Constaté sur cette machine : 3.14.7** |
-| `uv` comme gestionnaire d'environnement et de dépendances | Un seul outil pour le venv, les dépendances et le verrouillage ; déjà installé ; forme d'appel stable, donc capturable par une règle de permission (AGENTS.md §5.1) |
+| `venv` + `pip` de la bibliothèque standard | `uv` était le premier choix, mais il n'est présent que comme **shim mise sans version fixée** : s'en servir aurait exigé de modifier la configuration mise **globale** de la machine. Le Harness ne touche pas à ce qui déborde du dépôt. `venv` + `pip` ne demandent rien et suffisent |
 | `ruff` + `mypy` strict + `pytest --cov-fail-under=80` | Une seule commande, qui échoue bruyamment, tenant dans une règle de permission |
 | Horloge et hasard injectés, chacun dans un module unique | Une radio *est* une grille horaire et un tirage : les lire n'importe où rendrait la moitié du produit intestable (ARCHITECTURE.md §3.1) |
 | Aucune persistance | « Ce qui est passé est perdu » (SPECS.md §2). Pas de base, pas de cache, pas d'historique |
