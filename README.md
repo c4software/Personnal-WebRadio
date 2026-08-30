@@ -152,7 +152,7 @@ Trois sources possibles — exactement une par émission :
 [[shows]]
 name = "A la French"
 feed = "https://feeds.acast.com/public/shows/a-la-french"
-days = ["vendredi"]
+days = ["friday"]
 time = "20:00"
 
 # Une chaîne YouTube : la dernière vidéo non diffusée, téléchargée en tâche
@@ -161,7 +161,7 @@ time = "20:00"
 [[shows]]
 name    = "Hardisk"
 youtube = "https://www.youtube.com/@hardisk"
-days = ["mercredi"]
+days = ["wednesday"]
 time = "20:00"
 
 # Un DIRECT : capté pendant la case, coupé à l'heure de fin — c'est ainsi que

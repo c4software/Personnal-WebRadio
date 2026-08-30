@@ -17,7 +17,7 @@ VENDREDI = datetime(2026, 8, 28, tzinfo=UTC)
 CHLOE = Programme(
     name="Le vendredi de Chloé",
     playlist="Chloé",
-    days=("vendredi",),
+    days=("friday",),
     start=time(18),
     end=time(20),
 )
@@ -73,7 +73,7 @@ def test_un_programme_qui_enjambe_minuit_appartient_au_jour_ou_il_commence() -> 
     nuit = Programme(
         name="La nuit du vendredi",
         playlist="Nuit",
-        days=("vendredi",),
+        days=("friday",),
         start=time(22),
         end=time(2),
     )
@@ -91,7 +91,7 @@ def test_une_nuit_du_dimanche_se_prolonge_le_lundi_matin() -> None:
     nuit = Programme(
         name="La nuit du dimanche",
         playlist="Nuit",
-        days=("dimanche",),
+        days=("sunday",),
         start=time(23),
         end=time(1),
     )
@@ -133,7 +133,7 @@ def test_une_journee_entiere_se_deroule_sans_infrastructure() -> None:
         ({"name": ""}, "sans nom"),
         ({"playlist": ""}, "aucune liste de lecture"),
         ({"days": ()}, "aucun jour"),
-        ({"days": ("friday",)}, "n'est pas un jour"),
+        ({"days": ("caturday",)}, "n'est pas un jour"),
         ({"end": time(18)}, "programme vide"),
     ],
 )
@@ -144,7 +144,7 @@ def test_un_programme_impossible_est_refuse_a_la_construction(
     valides: dict[str, object] = {
         "name": "Le vendredi de Chloé",
         "playlist": "Chloé",
-        "days": ("vendredi",),
+        "days": ("friday",),
         "start": time(18),
         "end": time(20),
     }

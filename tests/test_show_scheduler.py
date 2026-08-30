@@ -15,7 +15,7 @@ from webradio.core.clock import FrozenClock
 from webradio.core.shows import Show, ShowSchedule
 
 VENDREDI_20H = datetime(2026, 8, 28, 20, 0, tzinfo=UTC)  # 2026-08-28 est un vendredi
-SHOW = Show(name="A la French", days=("vendredi",), hour=time(20, 0))
+SHOW = Show(name="A la French", days=("friday",), hour=time(20, 0))
 
 
 class FakeFeed:
@@ -149,7 +149,7 @@ def test_le_flux_est_lu_avant_de_savoir_s_il_servira(tmp_path: Path) -> None:
 
 # ── Les directs (GOAL-015) ──────────────────────────────────────────────────
 
-FLASH = Show(name="Flash", days=("tous",), hour=time(20), duration=timedelta(minutes=9))
+FLASH = Show(name="Flash", days=("all",), hour=time(20), duration=timedelta(minutes=9))
 FRANCEINFO = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"
 
 
@@ -211,7 +211,7 @@ def test_un_direct_ne_lit_aucun_flux_et_ne_laisse_aucune_trace(tmp_path: Path) -
 
 # ── Une chaîne YouTube comme émission (GOAL-025) ────────────────────────────
 
-HARDISK = Show(name="Hardisk", days=("tous",), hour=time(20))
+HARDISK = Show(name="Hardisk", days=("all",), hour=time(20))
 
 
 class FakeYoutube:

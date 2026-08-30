@@ -71,7 +71,7 @@ genres = ["Chanson française"]
 [[shows]]
 name = "Une émission"
 feed = "https://exemple.local/flux.xml"
-days = ["Vendredi"]
+days = ["Friday"]
 time = "20:00"
 """
     )
@@ -81,7 +81,7 @@ time = "20:00"
     assert config.draw.votes.floor == 0.5
     assert config.bands[0].start == time(8, 0)
     assert config.bands[0].genres == ("Chanson française",)
-    assert config.shows[0].days == ("vendredi",)
+    assert config.shows[0].days == ("friday",)
     assert config.shows[0].hour == time(20, 0)
     assert config.jingles.folder == "/chemin/vers/jingles"
     assert config.state.database.endswith("etat.sqlite3")
@@ -120,7 +120,7 @@ def test_un_secret_cache_dans_une_liste_de_sections_est_refuse() -> None:
 [[shows]]
 name = "Une émission"
 feed = "https://exemple.local/flux.xml"
-days = ["mardi"]
+days = ["tuesday"]
 time = "20:00"
 token = "peu importe"
 """
@@ -235,13 +235,13 @@ def test_deux_emissions_au_meme_creneau_font_echouer_le_demarrage_en_les_nommant
 [[shows]]
 name = "Première"
 feed = "https://exemple.local/un.xml"
-days = ["mardi", "vendredi"]
+days = ["tuesday", "friday"]
 time = "20:00"
 
 [[shows]]
 name = "Seconde"
 feed = "https://exemple.local/deux.xml"
-days = ["vendredi"]
+days = ["friday"]
 time = "20:00"
 """
     )
@@ -251,7 +251,7 @@ time = "20:00"
 
     assert "Première" in str(refus.value)
     assert "Seconde" in str(refus.value)
-    assert "vendredi" in str(refus.value)
+    assert "friday" in str(refus.value)
 
 
 def test_deux_emissions_a_la_meme_heure_des_jours_differents_sont_acceptees() -> None:
@@ -261,13 +261,13 @@ def test_deux_emissions_a_la_meme_heure_des_jours_differents_sont_acceptees() ->
 [[shows]]
 name = "Première"
 feed = "https://exemple.local/un.xml"
-days = ["mardi"]
+days = ["tuesday"]
 time = "20:00"
 
 [[shows]]
 name = "Seconde"
 feed = "https://exemple.local/deux.xml"
-days = ["vendredi"]
+days = ["friday"]
 time = "20:00"
 """
     )
@@ -413,18 +413,18 @@ def test_un_raccourci_inconnu_est_refuse() -> None:
 
 def test_un_programme_est_lu() -> None:
     brut = tomllib.loads(
-        TOML_MINIMAL + '\n[[programmes]]\nname = "Vendredi"\nplaylist = "Chloé"\n'
-        'days = ["vendredi"]\nstart = "18:00"\nend = "20:00"\n'
+        TOML_MINIMAL + '\n[[programmes]]\nname = "Friday"\nplaylist = "Chloé"\n'
+        'days = ["friday"]\nstart = "18:00"\nend = "20:00"\n'
     )
     config = validate(brut)
-    assert config.programmes[0].name == "Vendredi"
+    assert config.programmes[0].name == "Friday"
     assert config.programmes[0].playlist == "Chloé"
-    assert config.programmes[0].days == ("vendredi",)
+    assert config.programmes[0].days == ("friday",)
 
 
 def test_un_programme_a_clef_inconnue_est_refuse() -> None:
     brut = tomllib.loads(
-        TOML_MINIMAL + '\n[[programmes]]\nname = "V"\nplaylist = "C"\ndays = ["lundi"]\n'
+        TOML_MINIMAL + '\n[[programmes]]\nname = "V"\nplaylist = "C"\ndays = ["monday"]\n'
         'start = "18:00"\nend = "20:00"\ngenre = "rock"\n'
     )
     with pytest.raises(SettingsError, match="genre"):
@@ -504,8 +504,8 @@ def test_une_plage_sans_jours_vaut_tous_les_jours() -> None:
 
 
 def test_une_plage_se_restreint_a_des_jours() -> None:
-    config = _valider(TOML_MINIMAL + UNE_PLAGE + 'days = ["samedi"]\n')
-    assert config.bands[0].days == ("samedi",)
+    config = _valider(TOML_MINIMAL + UNE_PLAGE + 'days = ["saturday"]\n')
+    assert config.bands[0].days == ("saturday",)
 
 
 def test_un_jour_de_plage_inconnu_est_refuse() -> None:
@@ -535,7 +535,7 @@ def test_une_emission_youtube_se_declare_par_sa_chaine() -> None:
     config = _valider(
         TOML_MINIMAL
         + '\n[[shows]]\nname = "Hardisk"\nyoutube = "https://www.youtube.com/@hardisk"\n'
-        + 'days = ["mercredi"]\ntime = "20:00"\n'
+        + 'days = ["wednesday"]\ntime = "20:00"\n'
     )
     show = next(s for s in config.shows if s.name == "Hardisk")
     assert show.youtube == "https://www.youtube.com/@hardisk"
@@ -548,7 +548,7 @@ def test_une_emission_a_exactement_une_source() -> None:
         _valider(
             TOML_MINIMAL
             + '\n[[shows]]\nname = "Double"\nyoutube = "https://youtube.com/@x"\n'
-            + 'feed = "https://x.test/rss"\ndays = ["mercredi"]\ntime = "20:00"\n'
+            + 'feed = "https://x.test/rss"\ndays = ["wednesday"]\ntime = "20:00"\n'
         )
     assert "Double" in str(refus.value)
 
@@ -558,7 +558,7 @@ def test_une_emission_youtube_ne_declare_pas_de_duree() -> None:
         _valider(
             TOML_MINIMAL
             + '\n[[shows]]\nname = "Hardisk"\nyoutube = "https://youtube.com/@x"\n'
-            + 'duration_minutes = 30\ndays = ["mercredi"]\ntime = "20:00"\n'
+            + 'duration_minutes = 30\ndays = ["wednesday"]\ntime = "20:00"\n'
         )
     assert "Hardisk" in str(refus.value)
 

@@ -42,7 +42,7 @@ FORBIDDEN_SECRET_KEYS: Mapping[str, str] = {
     "apikey": "",
 }
 
-DAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 # SPECS.md §4.11 autorise `jours = "all"` comme raccourci des sept jours.
 EVERY_DAY = "all"
 

@@ -56,7 +56,7 @@ genres = ["Rock", "Pop"]
 start  = "22:00"
 end    = "02:00"
 genres = ["Électro"]
-days   = ["samedi"]
+days   = ["saturday"]
 
 # Une plage peut imposer un ou des ARTISTES au lieu de genres — une heure d'un
 # seul artiste, par exemple. `genres` et `artists` ne se déclarent jamais
@@ -65,7 +65,7 @@ days   = ["samedi"]
 start   = "17:00"
 end     = "18:00"
 artists = ["Air"]
-days    = ["dimanche"]
+days    = ["sunday"]
 
 # ── L'état ─────────────────────────────────────────────────────────────────
 # La SEULE chose que la radio retient entre deux démarrages : le dernier
@@ -118,7 +118,7 @@ timeout_seconds     = 10.0
 [[programmes]]
 name      = "Le vendredi de Chloé"
 playlist = "Chloé"
-days    = ["vendredi"]
+days    = ["friday"]
 start    = "18:00"
 end      = "20:00"
 
@@ -132,7 +132,7 @@ end      = "20:00"
 [[shows]]
 name   = "A la French"
 feed  = "https://feeds.acast.com/public/shows/a-la-french"
-days = ["vendredi"]
+days = ["friday"]
 time = "20:00"
 
 # Un DIRECT comme émission (SPECS.md §4.11, §7 n°22) : `stream` au lieu de
@@ -155,11 +155,11 @@ time = "11:57"
 [[shows]]
 name    = "Hardisk"
 youtube = "https://www.youtube.com/@hardisk"
-days = ["mercredi"]
+days = ["wednesday"]
 time = "20:00"
 
 [[shows]]
 name   = "LEGEND"
 feed  = "https://feeds.acast.com/public/shows/legend-1"
-days = ["mardi"]
+days = ["tuesday"]
 time = "20:00"

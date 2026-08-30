@@ -25,11 +25,11 @@ from webradio.core.clock import Clock
 # même convention que celle qu'`adapters/config/schema.py` impose aux émissions,
 # volontairement recopiée plutôt qu'importée : le noyau ne dépend d'aucun
 # adaptateur (ARCHITECTURE.md §2.1).
-DAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
 # Le raccourci d'un programme quotidien. L'écrire évite d'avoir à énumérer les
 # sept jours pour dire « tous les jours », ce qu'un TOML ferait mal.
-EVERY_DAY = "tous"
+EVERY_DAY = "all"
 
 
 @dataclass(frozen=True, slots=True)

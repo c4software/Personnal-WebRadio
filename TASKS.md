@@ -149,6 +149,7 @@ Goals sont découpables.
 | GOAL-027 | Le journal des titres, visible dans l'interface | `[x]` |
 | GOAL-028 | YouTube sans blanc : téléchargé en fond, servi en local | `[x]` |
 | GOAL-029 | Génériques d'ouverture et de fermeture des moments | `[x]` |
+| GOAL-030 | Les jours de la configuration passent à l'anglais | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -1032,3 +1033,14 @@ de blanc, 30/60 s sans rien ça ne va pas »
 - [x] `GOAL-029-T02` À la jonction où le moment **effectif** change (programme d'abord, comme pour la musique) : générique de fin de l'ancien, jingles horaires dus, générique d'ouverture du nouveau — dans cet ordre
 - [x] `GOAL-029-T03` Une chaîne qui démarre **au milieu** d'un moment ne rejoue pas son générique
 - [ ] `GOAL-029-T04` **Écoute réelle**, avec de vrais génériques dans `jingles/`
+
+---
+
+## GOAL-030 — Les jours de la configuration passent à l'anglais
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30, pour la cohérence :
+les clés du TOML sont en anglais depuis cf5c1e5, `days = "all"` l'était déjà,
+seuls les noms de jours restaient en français.
+
+- [x] `GOAL-030-T01` `monday` … `sunday` partout — noyau, schéma, configs, exemples, tests ; un jour français est désormais **refusé** en nommant les jours attendus
+- [x] `GOAL-030-T02` L'interface, elle, **continue d'afficher en français** — la langue de la configuration n'est pas celle de la page

@@ -16,9 +16,9 @@ UNE_HEURE = timedelta(hours=1)
 # 2026-08-30 est un dimanche ; le 2026-09-04 est un vendredi.
 VENDREDI = datetime(2026, 9, 4, tzinfo=UTC)
 
-FRENCH = Show(name="A la French", days=("vendredi",), hour=time(20))
-LEGEND = Show(name="LEGEND", days=("mardi", "jeudi"), hour=time(21))
-QUOTIDIENNE = Show(name="Quotidienne", days=("tous",), hour=time(12))
+FRENCH = Show(name="A la French", days=("friday",), hour=time(20))
+LEGEND = Show(name="LEGEND", days=("tuesday", "thursday"), hour=time(21))
+QUOTIDIENNE = Show(name="Quotidienne", days=("all",), hour=time(12))
 
 
 def le_vendredi(hour: int, minute: int = 0) -> datetime:
@@ -34,7 +34,7 @@ def test_une_emission_declaree_a_ses_jours_et_pas_aux_autres() -> None:
 def test_deux_emissions_a_la_meme_heure_le_meme_jour_refusent_le_demarrage() -> None:
     """La radio ne choisit pas à votre place et ne joue pas la première venue
     (SPECS.md §4.11) : elle les nomme toutes les deux."""
-    jumelle = Show(name="Doublon", days=("vendredi", "samedi"), hour=time(20))
+    jumelle = Show(name="Doublon", days=("friday", "saturday"), hour=time(20))
     with pytest.raises(ConflictingShows) as leve:
         ShowSchedule([FRENCH, jumelle])
     assert "A la French" in str(leve.value)
@@ -42,7 +42,7 @@ def test_deux_emissions_a_la_meme_heure_le_meme_jour_refusent_le_demarrage() -> 
 
 
 def test_une_emission_quotidienne_entre_en_conflit_avec_n_importe_quel_jour() -> None:
-    concurrente = Show(name="Midi pile", days=("mercredi",), hour=time(12))
+    concurrente = Show(name="Midi pile", days=("wednesday",), hour=time(12))
     with pytest.raises(ConflictingShows, match="Midi pile"):
         ShowSchedule([QUOTIDIENNE, concurrente])
 
@@ -53,7 +53,7 @@ def test_deux_emissions_a_des_heures_differentes_ne_se_chevauchent_pas() -> None
 
 
 def test_deux_emissions_le_meme_jour_a_des_jours_disjoints_sont_acceptees() -> None:
-    autre = Show(name="Autre", days=("samedi",), hour=time(20))
+    autre = Show(name="Autre", days=("saturday",), hour=time(20))
     assert len(ShowSchedule([FRENCH, autre]).shows) == 2
 
 
@@ -84,7 +84,7 @@ def test_une_emission_dont_le_flux_est_injoignable_n_est_pas_rattrapee() -> None
 
 
 def test_une_case_de_fin_de_soiree_reste_ouverte_apres_minuit() -> None:
-    tardive = Show(name="Tardive", days=("vendredi",), hour=time(23, 30))
+    tardive = Show(name="Tardive", days=("friday",), hour=time(23, 30))
     case = ShowSchedule([tardive]).due(
         {"Tardive": timedelta(hours=2)},
         le_vendredi(23, 30) + timedelta(minutes=45),
@@ -104,7 +104,7 @@ def test_aucune_case_ouverte_un_jour_ou_l_emission_n_a_pas_lieu() -> None:
 
 def test_deux_cases_qui_se_recouvrent_par_la_duree_laissent_finir_la_premiere() -> None:
     """C'est la même règle que pour les plages thématiques : ne rien couper."""
-    tardive = Show(name="Tardive", days=("vendredi",), hour=time(20, 30))
+    tardive = Show(name="Tardive", days=("friday",), hour=time(20, 30))
     programme = ShowSchedule([tardive, FRENCH])
     case = programme.due(
         {"A la French": timedelta(hours=2), "Tardive": UNE_HEURE},
@@ -116,7 +116,7 @@ def test_deux_cases_qui_se_recouvrent_par_la_duree_laissent_finir_la_premiere() 
 
 def test_une_emission_sans_nom_est_refusee() -> None:
     with pytest.raises(ValueError, match="sans nom"):
-        Show(name="", days=("lundi",), hour=time(20))
+        Show(name="", days=("monday",), hour=time(20))
 
 
 def test_une_emission_sans_jour_est_refusee() -> None:
@@ -202,7 +202,7 @@ def test_une_semaine_entiere_se_deroule_en_une_boucle_et_se_rejoue() -> None:
 
 # ── Les directs (SPECS.md §7 n°22, GOAL-015) ────────────────────────────────
 
-FLASH = Show(name="Flash", days=("tous",), hour=time(12), duration=timedelta(minutes=9))
+FLASH = Show(name="Flash", days=("all",), hour=time(12), duration=timedelta(minutes=9))
 
 
 def test_un_direct_porte_sa_duree_et_le_dit() -> None:
@@ -212,7 +212,7 @@ def test_un_direct_porte_sa_duree_et_le_dit() -> None:
 
 def test_un_direct_sans_duree_est_refuse() -> None:
     with pytest.raises(ValueError, match="durée nulle"):
-        Show(name="Vide", days=("tous",), hour=time(12), duration=timedelta(0))
+        Show(name="Vide", days=("all",), hour=time(12), duration=timedelta(0))
 
 
 def test_la_case_d_un_direct_est_ouverte_tant_qu_il_en_reste() -> None:

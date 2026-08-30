@@ -214,7 +214,8 @@
           semaine() {
             // La récurrence se lit par JOUR, pas par type : chaque jour de la
             // semaine liste ce qui s'y passe, dans l'ordre chronologique.
-            const semaine = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+            // La configuration parle anglais (GOAL-030), la page parle français.
+            const semaine = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
             const indexDuJour = (new Date().getDay() + 6) % 7;
             const ceJour = semaine[indexDuJour];
             // La veille d'abord, AUJOURD'HUI toujours en deuxième, puis la
@@ -245,7 +246,7 @@
                 }
               }
               evenements.sort((a, b) => a.tri.localeCompare(b.tri));
-              return { nom, evenements, aujourdhui: nom === ceJour };
+              return { nom: this.enFrancais(nom), evenements, aujourdhui: nom === ceJour };
             });
           },
           groupes() {
@@ -303,8 +304,14 @@
               this.planning = await reponse.json();
             } catch (erreur) { this.planning = null; }
           },
+          enFrancais(jour) {
+            const noms = { monday: "lundi", tuesday: "mardi", wednesday: "mercredi",
+                           thursday: "jeudi", friday: "vendredi", saturday: "samedi",
+                           sunday: "dimanche" };
+            return noms[jour] || jour;
+          },
           jours(days) {
-            return days.length >= 7 ? "tous les jours" : days.join(", ");
+            return days.length >= 7 ? "tous les jours" : days.map((j) => this.enFrancais(j)).join(", ");
           },
           async oublier(vote) {
             try {

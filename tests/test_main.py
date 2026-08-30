@@ -26,7 +26,7 @@ database = "{database}"
 [[shows]]
 name = "Une émission"
 feed = "https://exemple.test/flux.xml"
-days = ["vendredi"]
+days = ["friday"]
 time = "20:00"
 """
 

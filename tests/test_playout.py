@@ -183,7 +183,7 @@ def _avec_programme(
 PROG = Programme(
     name="Le vendredi de Chloé",
     playlist="Chloé",
-    days=("dimanche",),
+    days=("sunday",),
     start=time(11, 0),
     end=time(14, 0),
 )
@@ -405,7 +405,7 @@ def test_un_encore_pendant_un_programme_reste_dans_la_liste(tmp_path: Path) -> N
             Programme(
                 name="Soirée",
                 playlist="Soirée",
-                days=("dimanche",),
+                days=("sunday",),
                 start=time(11),
                 end=time(14),
             )

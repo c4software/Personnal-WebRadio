@@ -127,14 +127,14 @@ def test_sans_jour_declare_une_plage_vaut_tous_les_jours() -> None:
 
 
 def test_une_plage_restreinte_a_un_jour_ne_vaut_que_ce_jour() -> None:
-    dimanche = Band(start=time(8), end=time(10), genres=("gospel",), days=("dimanche",))
-    lundi = Band(start=time(8), end=time(10), genres=("jazz",), days=("lundi",))
+    dimanche = Band(start=time(8), end=time(10), genres=("gospel",), days=("sunday",))
+    lundi = Band(start=time(8), end=time(10), genres=("jazz",), days=("monday",))
     assert Schedule([lundi, dimanche], a(9)).current_band() is dimanche
 
 
 def test_une_plage_de_nuit_appartient_au_jour_ou_elle_commence() -> None:
     """« samedi 22 h → 02 h » couvre dimanche 01 h, pas dimanche 23 h."""
-    nuit = Band(start=time(22), end=time(2), genres=("électro",), days=("samedi",))
+    nuit = Band(start=time(22), end=time(2), genres=("électro",), days=("saturday",))
     grille = Schedule([nuit], a(1))  # dimanche 01 h — la soirée de samedi
     assert grille.current_band() is nuit
     assert Schedule([nuit], a(23)).current_band() is None  # dimanche 23 h
