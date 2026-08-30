@@ -117,6 +117,11 @@
           nature.textContent = donnees.on_air_now.kind;
           titre.textContent = donnees.on_air_now.title || donnees.on_air_now.kind;
           artiste.textContent = donnees.on_air_now.artist || "";
+          // Le message « personne n'écoute » ne survit pas à l'antenne. Le
+          // retour d'un vote (accepté ou refusé), lui, reste lisible.
+          if (etat.dataset.issue === "") {
+            afficher("", "");
+          }
         } catch (erreur) {
           afficher("L'API ne répond pas : " + erreur, "refus");
         }
