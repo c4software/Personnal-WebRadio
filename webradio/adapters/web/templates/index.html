@@ -171,8 +171,11 @@
       </section>
 
       <div class="boutons" v-if="onglet === 'antenne'">
-        <button type="button" :disabled="occupe" @click="voter(urls.stop)">Passer</button>
-        <button type="button" :disabled="occupe" @click="voter(urls.encore)">Encore</button>
+        <!-- Un jingle, un flash ou une émission refuseraient le vote de toute
+             façon (SPECS.md §4.6) : autant griser les boutons plutôt que de
+             récolter un refus. L'API reste le juge — ceci n'est que du confort. -->
+        <button type="button" :disabled="occupe || voteImpossible" @click="voter(urls.stop)">Passer</button>
+        <button type="button" :disabled="occupe || voteImpossible" @click="voter(urls.encore)">Encore</button>
       </div>
     </main>
 
@@ -211,6 +214,9 @@
           };
         },
         computed: {
+          voteImpossible() {
+            return this.antenne !== null && this.antenne.kind !== "musique";
+          },
           semaine() {
             // La récurrence se lit par JOUR, pas par type : chaque jour de la
             // semaine liste ce qui s'y passe, dans l'ordre chronologique.
