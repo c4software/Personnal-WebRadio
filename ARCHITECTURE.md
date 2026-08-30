@@ -366,11 +366,18 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │
 ├── webradio/
 │   ├── core/ ............ les décisions — ne parle à personne
-│   ├── adapters/ ........ le monde extérieur — ne décide de rien
+│   │   ├── clock.py ..... la SEULE source de temps
+│   │   ├── rng.py ....... la SEULE source de hasard
+│   │   ├── modeles.py ... Piste — ce qu'il faut pour décider
+│   │   ├── sources.py ... SourceMusicale (Protocol) + SourceIndisponible
+│   │   ├── repetition.py  la fenêtre de non-répétition, et son rétrécissement
+│   │   └── file.py ...... ce qui passe ensuite, et ce qui a été relâché
+│   ├── adapters/ ........ le monde extérieur — ne décide de rien (vide)
 │   └── app/ ............. l'assemblage, et le point d'entrée
 │       └── main.py ...... squelette : démarre, annonce, s'arrête
 │
 ├── tests/ ............... miroir de webradio/, pytest
+│   └── fakes.py ......... doubles versionnés — FakeSource, piste()
 │
 ├── docs/
 │   ├── navidrome.md ..... relevé de l'API Subsonic telle que Navidrome l'implémente
@@ -384,11 +391,18 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
     └── commands/ ........ goal · task · status · verify
 ```
 
-**`core/`, `adapters/` et `app/` existent, mais seul `app/main.py` contient du
-code.** Le squelette démarre et s'arrête ; il ne diffuse rien. Les sous-dossiers
-annoncés en §1 — `adapters/sources/`, `news/`, `podcast/`, `ffmpeg/`, `http/`,
-`web/`, `config/` — **ne sont pas créés** : le Harness ne fabrique pas de
-structure vide (AGENTS.md §2). Chacun naîtra avec son premier fichier.
+**Le noyau existe et est complet pour ce qu'il décide aujourd'hui** : l'heure,
+le hasard, la piste, la frontière des sources, la non-répétition et la file.
+Il ne dépend de rien — ni réseau, ni fichier, ni processus — et se teste sans
+infrastructure.
+
+**`adapters/` est vide.** Les sous-dossiers annoncés en §1 — `sources/`, `news/`,
+`podcast/`, `ffmpeg/`, `http/`, `web/`, `config/` — **ne sont pas créés** : le
+Harness ne fabrique pas de structure vide (AGENTS.md §2). Chacun naîtra avec son
+premier fichier.
+
+**`app/main.py` est encore le squelette** : il démarre, annonce, s'arrête. Il ne
+câble pas encore le noyau, parce qu'il n'y a rien à quoi le brancher.
 
 ### 9.1 Écarts assumés
 
