@@ -259,8 +259,8 @@ Le découpage sépare les deux, pour que ce qui peut avancer avance.
 - [x] `GOAL-002-T02` ffmpeg : alimenter un encodage continu depuis une file inconnue d'avance
 - [ ] `GOAL-002-T03` ffmpeg : insérer un fichier d'une autre origine (jingle) sans interrompre
 - [x] `GOAL-002-T04` ffmpeg : chiffrer le coût d'un réencodage permanent, pour un auditeur et pour cinq
-- [-] `GOAL-002-T05` Flux : ce qu'un lecteur reçoit en se branchant **en cours** de diffusion
-- [ ] `GOAL-002-T06` Flux : ce qui fait décrocher — changement de débit, de fréquence, de canaux, de codec
+- [x] `GOAL-002-T05` Flux : ce qu'un lecteur reçoit en se branchant **en cours** de diffusion
+- [x] `GOAL-002-T06` Flux : ce qui fait décrocher — changement de débit, de fréquence, de canaux, de codec
 
 ### Ce qui dépend du réseau
 

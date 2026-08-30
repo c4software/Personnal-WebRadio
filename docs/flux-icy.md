@@ -14,46 +14,100 @@ relevé établit ce que « n'importe quel lecteur » veut réellement dire.
 
 ---
 
-## 1. Le branchement
+## 1. Le branchement — **relevé partiel**
 
-- [ ] Quels en-têtes de réponse un lecteur attend-il ? `Content-Type`,
-      `icy-name`, `icy-br`, `icy-genre` — lesquels sont **exigés**, lesquels sont
-      décoratifs ?
-- [ ] Que se passe-t-il si la réponse ne porte pas de `Content-Length` — cas
-      obligatoire ici, puisque le flux est infini ? Certains lecteurs
-      s'attendent-ils à un `Transfer-Encoding` particulier ?
-- [ ] Un lecteur envoie-t-il `Icy-MetaData: 1` ? Que se passe-t-il si on
-      l'ignore ? Et si on répond `icy-metaint` sans jamais envoyer de
-      métadonnées ?
-- [ ] **Combien de données un lecteur veut-il avant de commencer à jouer ?** Cela
-      détermine le délai d'amorçage perçu (SPECS.md §4.1).
+> **Constaté le 2026-08-30** (`GOAL-002-T05`), avec une maquette de station :
+> serveur HTTP, encodage unique, diffusion vers N connexions, démarrage à la
+> première et arrêt à la dernière.
+>
+> **Les clients d'essai sont `curl` et ffmpeg.** Ce qui suit vaut pour eux, et
+> **pour eux seuls** : VLC, un navigateur et une enceinte connectée n'ont pas été
+> essayés — voir §6, ils demandent l'auteur.
 
-## 2. Entrer en cours de route
+En-têtes servis par la maquette, et acceptés :
 
-C'est le cas nominal de cette radio : on se branche au milieu d'un morceau
-(SPECS.md §4.1).
+```
+Content-Type: audio/mpeg
+icy-name: local-webradio
+icy-br: 128
+```
 
-- [ ] Un lecteur qui arrive après le début du flux reçoit-il assez d'information
-      pour décoder, ou lui faut-il un en-tête que seul le début portait ?
-- [ ] Si le format impose un en-tête initial, comment le servir à chaque nouvelle
-      connexion sans réencoder pour autant ?
+Ni `Content-Length` ni `Transfer-Encoding` — le flux est infini, et aucun client
+d'essai ne s'en est plaint.
 
-## 3. Ce qui fait décrocher
+**Rien ne tourne tant que personne n'écoute** : zéro processus ffmpeg avant le
+premier branchement. Le démarrage à la demande de SPECS.md §1 fonctionne.
 
-**La question centrale de ce relevé**, celle dont dépend la décision ouverte
-SPECS.md §7 n°11.
+## 2. Entrer en cours de route — **relevé**
 
-- [ ] Que fait chaque lecteur si le **débit** change en cours de flux ?
-- [ ] Si la **fréquence d'échantillonnage** change ?
-- [ ] Si le **nombre de canaux** change — mono après stéréo ?
-- [ ] Si le **codec** change ?
-- [ ] Combien de temps un lecteur tolère-t-il une interruption de données avant
-      de considérer la connexion perdue ?
+**C'est le cas nominal de cette radio** (SPECS.md §4.1), et il fonctionne.
 
-Réponses à établir lecteur par lecteur : **VLC**, un **navigateur** (au moins
-Firefox et Chromium), une **enceinte connectée**, une **application de radios**
-sur téléphone. Ils ne réagissent pas de la même façon, et c'est le plus
-intolérant qui fixe la contrainte.
+Un second auditeur branché **cinq secondes après** le premier, en plein morceau :
+
+| Mesure | Auditeur A (dès le début) | Auditeur B (en cours) |
+|---|---|---|
+| Octets reçus | 196 608 | 94 208 |
+| Durée décodable | 12,285 s | **5,880 s** |
+| Format reconnu | mp3 44100 / 2 | **mp3 44100 / 2** |
+| Erreurs au décodage | aucune | **aucune** |
+
+**Un auditeur tardif n'a besoin d'aucun en-tête initial.** Le format MP3 porte
+tout ce qu'il faut dans l'en-tête de **chaque image** : celui qui arrive au
+milieu trouve la prochaine image et décode. C'est le même mécanisme que celui
+constaté dans [ffmpeg.md](./ffmpeg.md) §1.2.
+
+Seul avertissement observé, cosmétique : `Estimating duration from bitrate, this
+may be inaccurate` — un flux infini n'a pas de durée.
+
+**Un seul encodage alimente tout le monde** : deux processus ffmpeg avec un
+auditeur, **toujours deux** avec deux auditeurs. Le fan-out se fait dans notre
+code, comme prévu par ARCHITECTURE.md §4.1.
+
+## 3. Ce qui fait décrocher — **sans objet, par construction**
+
+La question était : que fait un lecteur si le débit, la fréquence, le nombre de
+canaux ou le codec changent en cours de flux ?
+
+**Elle ne se pose plus.** [ffmpeg.md](./ffmpeg.md) §2.bis a montré qu'un
+réencodage permanent coûte 1 % d'un cœur, et SPECS.md §7 n°11 a tranché en sa
+faveur : le flux est encodé **une fois, à un format fixe**, quoi que contienne la
+bibliothèque. Rien ne change jamais en cours de route.
+
+> **Ce n'est pas une réponse, c'est une suppression du problème.** Elle tient
+> tant que la décision n°11 tient. Si un chemin de copie sans réencodage était
+> réintroduit un jour, cette question redeviendrait ouverte — et elle exigerait
+> alors la matrice de lecteurs de §6.
+
+## 3.bis Un défaut trouvé en exécutant, qu'aucun test n'aurait vu
+
+**À la dernière déconnexion, deux processus ffmpeg ont survécu.**
+
+C'est exactement ce dont ARCHITECTURE.md §4 prévenait : *« un ffmpeg orphelin qui
+survit à la dernière déconnexion annule tout le bénéfice du démarrage à la
+demande. »* La maquette l'a produit du premier coup.
+
+```
+PID     ELAPSED  COMMAND
+943786  00:58    [ffmpeg] <defunct>
+944122  00:47    ffmpeg -i b_44100_128k_stereo.mp3 -f s16le -ar 44100 -ac 2 -
+```
+
+Deux causes, distinctes, et la seconde est la plus vicieuse :
+
+1. **Seul l'encodeur était tué.** Le processus **source** — la chaîne de
+   décodeurs qui l'alimente — n'était jamais arrêté. Il survit, tuyau bouché, et
+   ne meurt pas de lui-même.
+2. **Course entre l'arrêt et la lecture.** La référence du processus est mise à
+   `None` pendant que la boucle de diffusion lit encore dessus :
+   `AttributeError: 'NoneType' object has no attribute 'stdout'`.
+
+**À retenir pour `GOAL-004`** : arrêter la chaîne, c'est arrêter **tout l'arbre
+de processus**, et la boucle de diffusion doit l'apprendre autrement qu'en
+déréférençant ce qui vient de disparaître.
+
+> Un test qui aurait vérifié « la chaîne s'arrête » en regardant un booléen
+> serait **passé au vert**. Le booléen était juste ; les processus étaient
+> toujours là.
 
 ## 4. Les métadonnées
 
