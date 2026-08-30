@@ -76,7 +76,7 @@ def build(config: Config) -> tuple[StreamServer, LiveRadio, Station]:
     # L'état est ouvert au démarrage : une base inaccessible **à ce moment-là**
     # est une erreur de configuration et doit se dire (SPECS.md §5). Devenue
     # inaccessible en cours, elle ne fait que rendre des poids neutres
-    # (`app/apprentissage.py`).
+    # (`app/learning.py`).
     state = SqliteState(
         Path(settings.state.database),
         clock,

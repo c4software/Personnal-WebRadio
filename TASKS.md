@@ -34,7 +34,15 @@ Le squelette se lance, l'outillage est posé, et la chaîne de vérification a �
 **prouvée** — onze violations refusées une par une, puis un état propre qui
 passe. Sortie constatée : 4 tests, 100 % de couverture, code de sortie 0.
 
-**Phase 1 — Relevés et noyau** `[-]` en cours (`GOAL-002`, `GOAL-003`).
+**Phase 1 — Relevés et noyau** `[x]` terminée (`GOAL-002`, `GOAL-003`).
+
+**Phase 2 — Le produit** `[-]` : tout le code des Goals 004 à 013 est écrit,
+testé et vérifié (376 tests, 95 % de couverture, constaté le 2026-08-30). Ce
+qui reste ouvert ne se teste pas : cinq tâches d'**écoute réelle** et un
+**vrai téléphone** — `GOAL-004-T10`, `GOAL-006-T06`, `GOAL-009-T06`,
+`GOAL-010-T11`, `GOAL-012-T11`. Elles demandent l'auteur devant la machine —
+**mais pas avant `GOAL-014`** : la relecture du 2026-08-30 a trouvé quatre
+défauts qui rendraient l'écoute trompeuse (les jingles ne passent jamais).
 
 > **Mise à jour du 2026-08-30 (5)** — l'auteur ajoute les **émissions** : un
 > épisode de podcast diffusé à heure dite, une seule à la fois, programmée au
@@ -116,16 +124,18 @@ Goals sont découpables.
 | GOAL-001 | Harness et initialisation | `[x]` |
 | GOAL-002 | Relever les cinq dépendances externes | `[x]` |
 | GOAL-003 | Le noyau : horloge, hasard, file de lecture | `[x]` |
-| GOAL-004 | Le flux : ffmpeg, fan-out, démarrage à la demande | `[ ]` |
-| GOAL-005 | La grille horaire et les moments thématiques | `[ ]` |
-| GOAL-006 | Jingles horaires et flashs France Info | `[ ]` |
-| GOAL-007 | Le pilotage : `stop` et `encore` dans le noyau | `[ ]` |
-| GOAL-008 | L'API de pilotage | `[ ]` |
-| GOAL-009 | L'interface web — Flask et Jinja2 | `[ ]` |
-| GOAL-010 | Les émissions : podcasts programmés | `[ ]` |
-| GOAL-011 | Conteneurisation : Docker et Compose | `[ ]` — après GOAL-004 |
-| GOAL-012 | Les votes pondèrent les tirages suivants | `[ ]` |
-| GOAL-013 | Les programmes : une playlist, des jours, des heures | `[ ]` |
+| GOAL-004 | Le flux : ffmpeg, fan-out, démarrage à la demande | `[-]` — seule l'écoute réelle reste |
+| GOAL-005 | La grille horaire et les moments thématiques | `[x]` |
+| GOAL-006 | Jingles horaires | `[-]` — seule l'écoute réelle reste |
+| GOAL-007 | Le pilotage : `stop` et `encore` dans le noyau | `[x]` |
+| GOAL-008 | L'API de pilotage | `[x]` |
+| GOAL-009 | L'interface web — Flask et Jinja2 | `[-]` — seul le vrai téléphone reste |
+| GOAL-010 | Les émissions : podcasts programmés | `[-]` — seule l'écoute réelle reste |
+| GOAL-011 | Conteneurisation : Docker et Compose | `[x]` |
+| GOAL-012 | Les votes pondèrent les tirages suivants | `[-]` — seule l'écoute réelle reste |
+| GOAL-013 | Les programmes : une playlist, des jours, des heures | `[x]` |
+| GOAL-014 | Correctifs de la relecture du 2026-08-30 | `[ ]` — **avant toute écoute réelle** |
+| GOAL-015 | Un direct comme émission — dont le flash France Info | `[ ]` — après GOAL-014 |
 
 ---
 
@@ -460,7 +470,7 @@ Corrigé : le web prend **8080** par défaut, le flux garde **8000**. Le
 
 ## GOAL-004 — Le flux : ffmpeg, fan-out, démarrage à la demande
 
-**État : TODO**
+**État : EN COURS** — le code, les tests et la vérification sont passés ; seule l'écoute réelle (angle mort, AGENTS.md §4.1) reste à faire par l'auteur
 
 Le cœur exécutable. `GOAL-002` l'a largement pré-décidé : réencodage
 systématique, voie PCM, un seul chemin d'insertion, `-re` pour cadencer.
@@ -491,7 +501,7 @@ systématique, voie PCM, un seul chemin d'insertion, `-re` pour cadencer.
 
 ## GOAL-011 — Conteneurisation : Docker et Compose
 
-**État : TODO**
+**État : TERMINÉ**
 
 À faire **juste après `GOAL-004`** : c'est le premier moment où il y a quelque
 chose à faire tourner. Le faire avant serait emballer du vide ; beaucoup plus
@@ -513,7 +523,7 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 ## GOAL-005 — La grille horaire et les moments thématiques
 
-**État : TODO**
+**État : TERMINÉ**
 
 - [x] `GOAL-005-T01` `adapters/config/` : lire le TOML, et **refuser** un secret qui s'y trouverait
 - [x] `GOAL-005-T02` Le schéma de configuration, validé au démarrage, erreurs nommant la clé fautive
@@ -536,7 +546,7 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 ## GOAL-006 — Jingles horaires
 
-**État : TODO**
+**État : EN COURS** — le code, les tests et la vérification sont passés ; seule l'écoute réelle (angle mort, AGENTS.md §4.1) reste à faire par l'auteur
 
 - [x] `GOAL-006-T01` `core/jingles.py` : quel jingle est dû, d'après l'horloge injectée
 - [x] `GOAL-006-T02` Résoudre `HHh.mp3` depuis l'heure — aucune table de correspondance
@@ -548,9 +558,9 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 > **Le flash France Info ne figure plus dans ce Goal.** Aucune source n'a pu
 > être confirmée ([docs/franceinfo.md](./docs/franceinfo.md) §1.5), et trois
-> questions attendent l'auteur. Si la réponse est « franceinfo en 3 minutes »,
-> les flashs deviennent une **émission** et rejoignent `GOAL-010` sans une ligne
-> de code supplémentaire.
+> questions attendaient l'auteur. **Réponse le 2026-08-30** : le podcast est
+> vide, le direct répond — le flash devient une **émission qui capte un direct**,
+> `GOAL-015`.
 
 > **`T06` est le seul moyen de savoir** si un jingle écrase la musique. Le relevé
 > ne pouvait pas le dire : ses fichiers d'essai étaient des sinus de même
@@ -560,7 +570,7 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 ## GOAL-007 — Le pilotage : `stop` et `encore` dans le noyau
 
-**État : TODO**
+**État : TERMINÉ**
 
 - [x] `GOAL-007-T01` `core/controle.py` : l'effet de `stop` sur ce que la file rendra
 - [x] `GOAL-007-T02` L'effet d'`encore` : même artiste, puis même genre, puis tirage libre
@@ -573,7 +583,7 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 ## GOAL-008 — L'API de pilotage
 
-**État : TODO**
+**État : TERMINÉ**
 
 - [x] `GOAL-008-T01` `adapters/web/api/` : la surface publique, sans Flask dans le noyau
 - [x] `GOAL-008-T02` Dire ce qui passe : titre, artiste, et **de quelle nature** — musique, jingle, flash, émission
@@ -586,7 +596,7 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 ## GOAL-009 — L'interface web — Flask et Jinja2
 
-**État : TODO**
+**État : EN COURS** — le code, les tests et la vérification sont passés ; seule l'écoute réelle (angle mort, AGENTS.md §4.1) reste à faire par l'auteur
 
 - [x] `GOAL-009-T01` Le serveur Flask, monté à côté du flux, sans le perturber
 - [x] `GOAL-009-T02` Un gabarit Jinja2 : ce qui passe, et deux boutons
@@ -600,7 +610,7 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 ## GOAL-010 — Les émissions : podcasts programmés
 
-**État : TODO**
+**État : EN COURS** — le code, les tests et la vérification sont passés ; seule l'écoute réelle (angle mort, AGENTS.md §4.1) reste à faire par l'auteur
 
 - [x] `GOAL-010-T01` `adapters/podcast/` : lire un flux RSS, en extraire les épisodes
 - [x] `GOAL-010-T02` Ne retenir que les `full` — écarter `bonus` et `trailer`
@@ -624,7 +634,7 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 ## GOAL-012 — Les votes pondèrent les tirages suivants
 
-**État : TODO**
+**État : EN COURS** — le code, les tests et la vérification sont passés ; seule l'écoute réelle (angle mort, AGENTS.md §4.1) reste à faire par l'auteur
 
 `stop` et `encore` sont enregistrés dans la base et pondèrent les tirages
 suivants : un morceau souvent passé revient moins souvent, un artiste souvent
@@ -678,7 +688,7 @@ dans un commit d'implémentation. Elle reste en vigueur pour la troisième table
 
 ## GOAL-013 — Les programmes : une playlist, des jours, des heures
 
-**État : TODO**
+**État : TERMINÉ**
 
 Une plage de temps — jours **et** heures — pendant laquelle la musique est tirée
 au hasard dans une liste de lecture Navidrome (SPECS.md §4.13).
@@ -713,3 +723,71 @@ au hasard dans une liste de lecture Navidrome (SPECS.md §4.13).
 thématiques ? Ils répondent à la même question. La coexistence s'applique en
 attendant, **provisoirement et écrit comme tel** : `T08` la met en œuvre, et
 devra être rejouée si l'auteur tranche autrement.
+
+---
+
+## GOAL-014 — Correctifs de la relecture du 2026-08-30
+
+**État : TODO**
+
+Une relecture de `adapters/ffmpeg/`, `adapters/http/` et `app/` a trouvé sept
+défauts, dont quatre confirmés à la lecture du code. **376 tests passaient** :
+chacun est un cas que les tests ne posaient pas, et chaque correctif commence
+par le test qui l'aurait vu.
+
+### Les tâches
+
+- [ ] `GOAL-014-T01` **Les jingles ne passent jamais.** `app/playout.py` : `_prochaine_emission()` appelle `jingles.due_now()` — qui **consomme** — et jette le résultat ; `_prochain_jingle()` rappelle et obtient `()`. Dès que `shows` est câblé (toujours, `main.py`), ni `20h.mp3` ni `encore.mp3` ne sortent. Un seul appel par jonction, et un test avec émissions câblées **et** un jingle dû
+- [ ] `GOAL-014-T02` **Une chaîne qui coupe d'elle-même laisse les auditeurs pendus.** `app/main.py` : `end()` ne fait que baisser le compteur ; `Station` garde `_diffusion`, `Broadcast.close()` n'est jamais appelé, les lecteurs attendent sans EOF et tout nouvel auditeur s'abonne à une diffusion morte. Contredit SPECS.md §5.1 « couper en le disant ». Le test : file épuisée → les abonnés reçoivent la fin, le suivant redémarre une chaîne
+- [ ] `GOAL-014-T03` **`on_air` ne redescend jamais à l'arrêt normal.** `Station.stop_all()` ne passe pas par `end()` : après le dernier auditeur, l'API affiche « à l'antenne » pour personne. Une seule source de vérité pour « la chaîne tourne »
+- [ ] `GOAL-014-T04` **`next_entry()` appelé après l'arrêt.** `adapters/ffmpeg/encoder.py` : la pompe sort de `read()` sur `b""` quand le groupe est tué et entre dans `_enchainer` sans vérifier `_fini` — appel réseau, `declare(MUSIC)`, non-répétition et `record_airing` d'une chose jamais diffusée. Le test compte les appels à `next_entry` après `stop_all()` : zéro
+- [ ] `GOAL-014-T05` Relance concurrente d'un arrêt (`encoder.py`, `_relancer` teste `_fini` hors verrou) : orphelins possibles — le défaut de `docs/flux-icy.md` §3.bis, par une autre porte. **Le test compte les processus**
+- [ ] `GOAL-014-T06` Auditeur vivant qui ne lit plus (`server.py`, aucun `timeout` de socket) : `wfile.write` bloque sans borne, le compteur ne redescend pas, la chaîne tourne pour personne (SPECS.md §4.7). Un délai d'écriture, déclaré au TOML
+- [ ] `GOAL-014-T07` La pompe n'a aucun garde-fou : `termine.wait()` peut lever `TimeoutExpired`, et toute exception de `next_entry` laisse une chaîne zombie muette. Attraper, journaliser, et **appeler `end()`** — jamais mourir en silence
+- [ ] `GOAL-014-T08` Carte du dépôt, et les constats de ce Goal dans `docs/flux-icy.md` §3.bis
+
+> **L'ordre importe** : `T01` à `T04` d'abord — confiance haute, effets visibles
+> à la première écoute. `T05` à `T07` ensuite — confiance moyenne, fenêtres
+> étroites, mais ce sont exactement les défauts que ce projet a dit vouloir
+> traquer (`GOAL-004-T06`).
+
+---
+
+## GOAL-015 — Un direct comme émission — dont le flash France Info
+
+**État : TODO** — après `GOAL-014`
+
+Une émission peut capter **un flux de webradio** pendant une case déclarée
+(SPECS.md §4.11 « Une émission peut être un direct », §7 n°22). C'est ce qui
+rend le flash France Info possible — son podcast est vide, son direct répond
+([docs/franceinfo.md](./docs/franceinfo.md) §1.bis) — et ce qui permet de glisser
+n'importe quelle station entre deux créneaux de musique.
+
+**Ce que le relevé a établi** : `https://icecast.radiofrance.fr/franceinfo-midfi.mp3`,
+MP3 48 kHz stéréo 128 kb/s, décodé sans rien changer par `adapters/ffmpeg/decoder.py`
+(5 s → 882 000 octets de PCM, exactement). Le direct n'est donc **pas un nouvel
+adaptateur** : c'est une entrée ffmpeg qui ne se termine jamais. Tout ce Goal
+tient dans *quand l'arrêter*.
+
+### Les tâches
+
+- [ ] `GOAL-015-T01` Le TOML : une `[[shows]]` porte **soit** `feed`, **soit** `stream` + `duration` — jamais les deux, jamais ni l'un ni l'autre ; refus au démarrage, en nommant l'émission
+- [ ] `GOAL-015-T02` `core/shows.py` : une case de direct est due **tant qu'il reste du temps** dans sa case — pas de rattrapage (§7 n°22), et « le temps qui reste » se calcule à l'horloge injectée
+- [ ] `GOAL-015-T03` `adapters/ffmpeg/` : un décodeur **borné dans le temps** — c'est le seul endroit qui coupe, et il coupe à la seconde déclarée, pas à une jonction. Vérifier contre ffmpeg n9.0.1 que l'option retenue (`-t` en entrée, ou arrêt du processus) rend **exactement** la durée demandée, et le consigner dans `docs/ffmpeg.md`
+- [ ] `GOAL-015-T04` `app/show_scheduler.py` : un direct ne passe ni par le podcast ni par `record_airing` — il n'y a pas d'épisode
+- [ ] `GOAL-015-T05` Injoignable, tari ou coupé en cours de case : retour à la musique, journalisé, **sans retenter dans la même case** (SPECS.md §4.5). **Tester avec une URL morte** et avec un serveur qui ferme après 2 s
+- [ ] `GOAL-015-T06` L'API et l'interface disent ce qui passe : nature `émission`, et le **nom déclaré** — le flux ne porte aucune métadonnée (docs/franceinfo.md §1.bis)
+- [ ] `GOAL-015-T07` Le TOML d'exemple : un flash franceinfo à `HH:00`, et une station tierce le dimanche entre deux créneaux
+- [ ] `GOAL-015-T08` **Écoute réelle** : le niveau de la parole (−16,2 LUFS mesurés) contre la musique, et la coupure « en cours de phrase » à la fin de la case
+- [ ] `GOAL-015-T09` Carte du dépôt, `docs/franceinfo.md` §2 et §3 renseignés d'après ce qui a été observé
+
+> **`T03` est le point dur**, et le seul qui touche ffmpeg. Un direct se coupe
+> *pendant* qu'il joue : c'est la première fois que la radio arrête quelque
+> chose autrement qu'à une jonction. Tout le reste de la spécification —
+> « ne rien couper » — reste vrai pour la musique, et §4.11 dit pourquoi le
+> direct est l'exception.
+
+> **Ce qui attend l'auteur** (SPECS.md §7 n°22) : la durée d'un flash. La grille
+> de franceinfo — journal à 00 et 30, environ neuf minutes — n'est connue que de
+> seconde main et n'a pas été écoutée. Un premier réglage se prend, et `T08`
+> le corrige.

@@ -2,7 +2,7 @@
 
 C'est la charnière du projet : d'un côté le noyau, qui rend des `Choix` et des
 `Piste` ; de l'autre la chaîne, qui ne veut qu'une chaîne de caractères que
-ffmpeg sait ouvrir (`adapters/ffmpeg/encodeur.py`, `Programme`).
+ffmpeg sait ouvrir (`adapters/ffmpeg/encoder.py`, `Programme`).
 
 Rien ici ne décide : la grille, le tirage, la non-répétition, les jingles et le
 contrôle ont déjà tranché. Ce module traduit, et journalise ce qui a été

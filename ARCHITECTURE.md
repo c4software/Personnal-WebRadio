@@ -18,7 +18,6 @@ webradio/
   core/        les décisions — ne parle à personne
   adapters/    le monde extérieur — ne décide de rien
     sources/     d'où vient la musique — Navidrome aujourd'hui
-    news/        le flash France Info
     podcast/     les émissions programmées
     ffmpeg/      l'encodage
     http/        le flux servi aux auditeurs
@@ -82,7 +81,7 @@ fichier devrait porter.
 | L'API Subsonic : `salt`, `token`, `u`, `p`, `v`, `c`, la forme des réponses | `adapters/sources/navidrome/` |
 | Les options de ligne de commande ffmpeg, ses codes de sortie, sa sortie d'erreur | `adapters/ffmpeg/` |
 | Les en-têtes HTTP du flux, le `Content-Type`, la gestion des connexions | `adapters/http/` |
-| L'adresse et le format du flash France Info | `adapters/news/` |
+| L'adresse du direct France Info | Le TOML (`adapters/config/`) — et c'est tout : un direct est une entrée ffmpeg comme une autre (`docs/franceinfo.md` §1.bis, `GOAL-015`) |
 | Le format RSS d'un podcast, ses `enclosure`, ses redirections | `adapters/podcast/` |
 | La syntaxe TOML et le nom des clés | `adapters/config/` |
 | Flask, ses routes, ses requêtes et ses réponses | `adapters/web/` |
@@ -536,25 +535,45 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 ├── README.md ............ documentation générale
 ├── pyproject.toml ....... paquet, ruff, mypy, pytest, couverture
 ├── verifier.sh .......... LA commande de vérification (AGENTS.md §5.2)
+├── Dockerfile, docker-compose.yml, .dockerignore
+├── webradio.exemple.toml  toutes les clés, commentées — webradio.toml n'est pas versionné
+├── .env.exemple ......... les noms des secrets — .env n'est pas versionné
 │
 ├── webradio/
 │   ├── core/ ............ les décisions — ne parle à personne
 │   │   ├── clock.py ..... la SEULE source de temps
-│   │   ├── rng.py ....... la SEULE source de hasard
-│   │   ├── modeles.py ... Piste — ce qu'il faut pour décider
-│   │   ├── sources.py ... SourceMusicale (Protocol) + SourceIndisponible
-│   │   ├── repetition.py  la fenêtre de non-répétition, et son rétrécissement
-│   │   └── file.py ...... ce qui passe ensuite, et ce qui a été relâché
-│   ├── adapters/ ........ le monde extérieur — ne décide de rien (vide)
-│   └── app/ ............. l'assemblage, et le point d'entrée
-│       └── main.py ...... squelette : démarre, annonce, s'arrête
+│   │   ├── rng.py ....... la SEULE source de hasard — uniforme et pondéré
+│   │   ├── models.py .... Track — ce qu'il faut pour décider
+│   │   ├── sources.py ... MusicSource (Protocol) + SourceUnavailable
+│   │   ├── rotation.py .. la fenêtre de non-répétition, et son rétrécissement
+│   │   ├── queue.py ..... ce qui passe ensuite, et ce qui a été relâché
+│   │   ├── bands.py ..... les plages thématiques de la grille
+│   │   ├── programmes.py  les programmes : une playlist, des jours, des heures
+│   │   ├── jingles.py ... quel jingle est dû, d'après l'heure
+│   │   ├── shows.py ..... quelle émission est due, d'après la grille déclarée
+│   │   ├── control.py ... l'effet de stop et encore, et le refus motivé
+│   │   └── weighting.py . des votes aux poids du tirage
+│   ├── adapters/ ........ le monde extérieur — ne décide de rien
+│   │   ├── config/ ...... schema.py (les clés du TOML) · loading.py (fichier et .env)
+│   │   ├── sources/ ..... navidrome.py — l'API Subsonic, et rien d'autre ne la connaît
+│   │   ├── podcast/ ..... feed.py — RSS, enclosure, redirections
+│   │   ├── ffmpeg/ ...... decoder.py (un par entrée, vers PCM) · encoder.py (l'unique, cadencé)
+│   │   ├── http/ ........ server.py (le flux, en-têtes icy-*) · broadcast.py (fan-out)
+│   │   ├── state/ ....... database.py — SQLite : diffusions et votes
+│   │   └── web/ ......... api.py (la surface publique) · views.py · templates/index.html
+│   └── app/ ............. l'assemblage, une fois au démarrage
+│       ├── main.py ...... le point d'entrée : construit, branche, attend
+│       ├── playout.py ... noyau → ffmpeg : la piste suivante, et les jingles à la jonction
+│       ├── radio.py ..... noyau → API : la façade que l'interface interroge
+│       ├── learning.py .. votes → poids : la base vue par le noyau
+│       └── show_scheduler.py  émission due → épisode à diffuser
 │
-├── tests/ ............... miroir de webradio/, pytest
-│   └── fakes.py ......... doubles versionnés — FakeSource, piste()
+├── tests/ ............... un test_<module>.py par module, pytest
+│   └── fakes.py ......... doubles versionnés — FakeSource, track()
 │
 ├── docs/
 │   ├── navidrome.md ..... relevé de l'API Subsonic telle que Navidrome l'implémente
-│   ├── franceinfo.md .... relevé du flash d'information
+│   ├── franceinfo.md .... relevé du flash d'information — source non confirmée
 │   ├── podcast.md ....... relevé des flux de podcast des émissions
 │   ├── ffmpeg.md ........ relevé des options réellement acceptées
 │   └── flux-icy.md ...... relevé de ce qu'attendent les lecteurs de webradio
@@ -564,18 +583,20 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
     └── commands/ ........ goal · task · status · verify
 ```
 
-**Le noyau existe et est complet pour ce qu'il décide aujourd'hui** : l'heure,
-le hasard, la piste, la frontière des sources, la non-répétition et la file.
-Il ne dépend de rien — ni réseau, ni fichier, ni processus — et se teste sans
-infrastructure.
+**Les trois zones existent et sont peuplées.** Le noyau ne dépend de rien — ni
+réseau, ni fichier, ni processus — et se teste sans infrastructure. Chaque
+adaptateur confine une dépendance (§2.1). `app/` contient les quatre charnières
+qui traduisent entre noyau et adaptateurs sans que l'un importe l'autre.
 
-**`adapters/` est vide.** Les sous-dossiers annoncés en §1 — `sources/`, `news/`,
-`podcast/`, `ffmpeg/`, `http/`, `web/`, `config/` — **ne sont pas créés** : le
-Harness ne fabrique pas de structure vide (AGENTS.md §2). Chacun naîtra avec son
-premier fichier.
+**Il n'y a pas d'`adapters/news/`, et il n'y en aura pas.** Le flash France
+Info est un extrait du **direct** de franceinfo, diffusé comme une émission
+(SPECS.md §4.11, `GOAL-015`) : une URL dans le TOML, décodée par
+`adapters/ffmpeg/decoder.py` comme n'importe quelle entrée, et bornée dans le
+temps. Le podcast des flashs n'existe plus (`docs/franceinfo.md` §1.bis).
 
-**`app/main.py` est encore le squelette** : il démarre, annonce, s'arrête. Il ne
-câble pas encore le noyau, parce qu'il n'y a rien à quoi le brancher.
+**Les identifiants sont en anglais, la prose en français** — modules, classes
+et fonctions d'un côté, docstrings, commentaires, journaux et documents de
+l'autre.
 
 ### 9.1 Écarts assumés
 

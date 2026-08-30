@@ -1,14 +1,14 @@
 """Ce que la radio retient des votes, et ce qu'elle en fait au tirage.
 
-C'est la seconde charnière du projet, symétrique de `programme.py` : d'un côté
+C'est la seconde charnière du projet, symétrique de `playout.py` : d'un côté
 le noyau, qui sait *combien pèse* un vote et *comment* les scores deviennent un
 multiplicateur ; de l'autre la base, qui sait les *conserver*.
 
 **Le noyau ne va jamais chercher un poids** (ARCHITECTURE.md §5.3) : c'est ce
 module qui les lui fournit, comme on lui fournit des pistes.
 
-Le noyau et la base ont chacun leur `Portee` et leurs `Scores`. Ce n'est **pas**
-une duplication à supprimer : c'est ce qui permet à `adapters/etat/` de ne rien
+Le noyau et la base ont chacun leur `Scope` et leurs `Scores`. Ce n'est **pas**
+une duplication à supprimer : c'est ce qui permet à `adapters/state/` de ne rien
 importer du noyau et de se tester sans lui. La traduction tient en deux lignes,
 et un test vérifie que les valeurs coïncident — le jour où elles divergeront, il
 cassera ici plutôt qu'en base.

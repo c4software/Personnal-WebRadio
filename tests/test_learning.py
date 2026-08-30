@@ -28,7 +28,7 @@ def _apprentissage(tmp_path: Path, clock: FrozenClock | None = None) -> Learning
 
 
 def test_les_deux_vocabulaires_de_portee_coincident() -> None:
-    """Le noyau et la base ont chacun leur `Portee`. Le jour où elles
+    """Le noyau et la base ont chacun leur `Scope`. Le jour où elles
     divergeront, ce test cassera ici plutôt qu'en base."""
     assert {p.value for p in Scope} == {p.value for p in PorteeBase}
 

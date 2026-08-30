@@ -1,9 +1,9 @@
 """Décider si une émission est due, et laquelle — la troisième charnière.
 
 Elle relie trois choses qui ne se connaissent pas : le noyau qui sait *quelle
-case est ouverte* (`core/emissions.py`), le flux de podcast qui sait *quels
+case est ouverte* (`core/shows.py`), le flux de podcast qui sait *quels
 épisodes existent* (`adapters/podcast/`), et la base qui sait *lequel a déjà été
-diffusé* (`adapters/etat/`).
+diffusé* (`adapters/state/`).
 
 **C'est le seul endroit du projet où une décision exige un appel réseau qui peut
 ne servir à rien** (ARCHITECTURE.md §5.2) : le rattrapage est borné par la durée

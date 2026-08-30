@@ -1,6 +1,6 @@
 """La façade que l'API interroge, et le seul endroit qui traduit.
 
-Le noyau parle en `controle.Nature`, `Commande` et `Reponse` ; l'API parle en
+Le noyau parle en `control.Kind`, `Commande` et `Reponse` ; l'API parle en
 `api.Nature`, `Vote` et `Verdict`. **Ce n'est pas une duplication à supprimer** :
 c'est ce qui permet à `adapters/web/` de ne rien importer du noyau, et donc de
 se tester sans lui. La traduction coûte vingt lignes ; la frontière qu'elle

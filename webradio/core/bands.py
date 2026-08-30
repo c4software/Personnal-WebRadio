@@ -8,7 +8,7 @@ de cas limites — et une coupure — pour un gain nul.
 
 Le repli d'une plage sans musique sur le tirage libre n'est pas non plus ici : il
 se décide là où l'on sait ce que la source a répondu, c'est-à-dire dans
-`core/file.py`, qui le journalise déjà.
+`core/queue.py`, qui le journalise déjà.
 """
 
 from collections.abc import Sequence

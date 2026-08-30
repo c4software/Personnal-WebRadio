@@ -1,7 +1,7 @@
 """Les programmes : quels jours, quelles heures, quelle liste de lecture.
 
 Un programme puise dans une **sélection faite à la main** (SPECS.md §4.13), là
-où une plage thématique (`core/grille.py`) contraint un genre dans toute la
+où une plage thématique (`core/bands.py`) contraint un genre dans toute la
 bibliothèque. Les deux répondent à la même question et coexistent
 provisoirement (SPECS.md §7 n°19) ; ce module n'en sait rien et ne tranche pas
 la priorité — c'est du câblage.
@@ -92,7 +92,7 @@ class Programming:
 
     Deux programmes qui se recouvrent ne sont pas refusés — la spécification ne
     réserve ce refus qu'aux émissions (SPECS.md §4.11) : c'est **le premier
-    déclaré** qui l'emporte, exactement comme les plages de `core/grille.py`.
+    déclaré** qui l'emporte, exactement comme les plages de `core/bands.py`.
     Le résultat reste donc déterministe, et l'ordre du TOML est une réponse que
     l'auteur peut donner sans qu'on la lui demande.
     """

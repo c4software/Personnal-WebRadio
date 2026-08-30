@@ -86,6 +86,73 @@ plutôt que bricoler autour d'une source instable.*
 > `GOAL-006`'s dépendance externe entière : les flashs cesseraient d'être un
 > mécanisme à part pour devenir un cas particulier des émissions.
 
+## 1.bis Second relevé — **le podcast est mort, le direct répond**
+
+> **Constaté le 2026-08-30**, depuis cette machine, avec `curl` et ffmpeg
+> n9.0.1. Réponse aux trois questions de §1.5 : la n°3 (« franceinfo en
+> 3 minutes ») **n'est plus possible** ; la n°2 a une réponse plus simple que
+> prévu ; la n°1 reste posée à l'auteur.
+
+### Le flux RSS « France Info en 3 minutes » répond, mais il est vide
+
+```
+GET https://radiofrance-podcast.net/podcast09/rss_13250.xml
+HTTP 200  application/xml  3 197 octets
+title  : France Info en 3 minutes
+items  : 1
+  Sun, 30 Aug 2026 00:45:36 +0200 | « Retrouvez tous les épisodes sur l'appli Radio France »
+  durée 00:00:12 | enclosure audio/mpeg length=0
+  https://media.radiofrance-podcast.net/podcast09/autopromo_replay_franceinfo.mp3
+```
+
+**Le seul épisode est une auto-promotion de douze secondes**, republiée chaque
+jour. La voie « les flashs deviennent une émission » est fermée : notre lecteur
+de podcast (GOAL-010) diffuserait ce message publicitaire tous les jours à
+l'heure dite, avec un `guid` neuf à chaque fois. Le point 1.1 ci-dessus est
+donc à relire : les flux ne sont pas seulement *dé-annoncés*, ils sont
+**désactivés en gardant un code 200** — exactement le cas que la §3 redoutait.
+
+### Le direct répond, et notre chaîne le décode
+
+```
+GET https://icecast.radiofrance.fr/franceinfo-midfi.mp3
+HTTP/2 200   content-type: audio/mpeg   icy-br: 128   icy-name: franceinfo-midfi.mp3
+(pas d'icy-metaint, même avec `Icy-MetaData: 1`)
+ffprobe : mp3, 48000 Hz, 2 canaux, 128 kb/s
+```
+
+| Constat | Valeur |
+|---|---|
+| `http://direct.franceinfo.fr/live/franceinfo-midfi.mp3` | redirige en 301 vers l'URL ci-dessus |
+| Variante `franceinfo-hifi.aac` | HTTP 200, `audio/aac`, 192 kb/s |
+| Décodage par la voie du projet (`-f s16le -ar 44100 -ac 2`, 5 s) | **882 000 octets, exactement** ce qu'on attend |
+| Niveau intégré sur 20 s de parole (`ebur128`) | **−16,2 LUFS** — c'est un niveau de radio parlée, à comparer à la musique **à l'oreille** |
+| Débit reçu à l'ouverture | ~650 Ko dans les six premières secondes : le serveur envoie une avance, puis le temps réel |
+
+Ce que cela change : un direct est une entrée ffmpeg **comme une autre** pour
+`adapters/ffmpeg/decoder.py`. La différence n'est pas dans le format, elle est
+dans le fait qu'**il ne se termine jamais** — c'est le programme qui doit
+décider quand l'arrêter (voir SPECS.md §4.11 et `GOAL-015`).
+
+### La grille de franceinfo — **source secondaire, à confirmer à l'oreille**
+
+D'après la presse spécialisée (pas d'après Radio France) : un **journal à 00 et
+à 30 de chaque heure**, d'environ neuf minutes, et des rappels de titres entre
+les deux. **Rien de cela n'a été observé ici** — le relevé n'a écouté que vingt
+secondes. La durée à réserver est donc un réglage de l'auteur, pas un constat.
+
+### Ce qui reste ouvert
+
+- [ ] Le direct est publié sans engagement : une URL de flux peut changer. Le
+      repli sur la musique (SPECS.md §4.5) est le seul filet, et il doit être
+      **testé** avec une URL morte.
+- [ ] Le flux ne porte pas de métadonnées en ligne : impossible de savoir *par
+      le flux* si l'on est dans le journal ou dans une chronique.
+- [ ] Un direct capté « en cours de phrase » et coupé « en cours de phrase » :
+      c'est inévitable, et seule l'écoute dira si c'est acceptable.
+- [ ] Le pont tiers `rss-rf.aerion.me` répond en 200 mais n'a pas été exploré
+      plus loin : il n'est plus utile si le direct suffit.
+
 ## 2. Le contenu
 
 - [ ] Quelle **durée** fait un flash, et cette durée est-elle stable ? Elle
@@ -116,8 +183,8 @@ panne.** Reste à établir ce qu'on observe réellement.
 
 ## 4. Points incertains
 
-_Tout ce qui précède — à commencer par l'adresse elle-même, qui n'a jamais été
-fournie._
+_L'adresse du direct est établie (§1.bis) ; la grille de franceinfo et le
+niveau sonore contre la musique restent à constater à l'oreille._
 
 Un point resté incertain **après** observation est reporté ici avec ce qui a été
 tenté, et ouvre une tâche dans TASKS.md.

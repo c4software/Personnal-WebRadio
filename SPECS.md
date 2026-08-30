@@ -194,8 +194,12 @@ coupure, aucune durée à connaître d'avance, aucun cas limite à tester.
   France Info ne répond pas, ou renvoie un contenu tronqué, la radio **se replie
   sur la musique** et journalise. Elle ne diffuse jamais un flash incomplet.
 
-Ce que le flash est réellement — son adresse, son format, sa fréquence de mise à
-jour — n'est pas connu à ce stade : voir [docs/franceinfo.md](./docs/franceinfo.md).
+**Ce que le flash est réellement, depuis le 2026-08-30 : un extrait du direct
+de franceinfo**, diffusé comme une **émission** (§4.11) — le podcast des flashs
+n'existe plus ([docs/franceinfo.md](./docs/franceinfo.md) §1.bis). Il n'y a
+donc pas de mécanisme « flash » distinct : une émission dont la source est un
+direct, déclarée à `HH:00` avec une durée, est un flash. Le mot reste dans ce
+document pour ce qu'il désigne à l'antenne.
 
 ### 4.6 Piloter le flux
 
@@ -440,7 +444,28 @@ même raison : ne rien couper.
   de l'émission. Il en va de même d'un flash d'information programmé pendant une
   émission.
 - Elle vient d'un **flux de podcast**, dont on diffuse **l'épisode `full` le
-  plus récent qui n'a pas déjà été diffusé**.
+  plus récent qui n'a pas déjà été diffusé** — ou d'un **direct** (ci-dessous).
+
+#### Une émission peut être un direct
+
+Une émission peut avoir pour source **un flux de webradio** plutôt qu'un
+podcast : franceinfo pour un flash d'information, ou n'importe quelle autre
+station, pendant une case donnée (§7 n°22). Elle obéit à tout ce qui précède,
+avec trois différences qui tiennent à la nature d'un direct :
+
+- **Elle a une durée déclarée, obligatoire.** Un podcast se termine de lui-même ;
+  un direct jamais. La radio se rebranche sur la musique à la fin de la case —
+  à la seconde, sans attendre une jonction, puisqu'il n'y en a pas.
+- **Elle n'a pas de rattrapage** (§7 n°13 ne s'applique pas) : ce qui compte est
+  ce qui passe *maintenant* sur la station captée. Si la case est déjà
+  entamée quand la jonction arrive, on capte pour **le temps qui reste** ; si la
+  case est finie, elle est sautée et journalisée.
+- **Elle ne s'enregistre pas comme diffusée** : il n'y a pas d'épisode. Elle se
+  produit à chaque occurrence de sa case.
+
+Un direct **injoignable, qui se tarit ou qui coupe en cours de case** n'est pas
+une panne : la radio revient sur la musique et journalise (§4.5). Elle ne
+retente pas dans la même case.
   - **`full` seulement.** Les `bonus` et les `trailer` sont écartés : un podcast
     qui publie une bande-annonce d'une minute trente ne doit pas la voir passer à
     l'heure de son émission.
@@ -903,6 +928,19 @@ liste, jamais au-dehors (§4.13).
 journalisé (§4.13).
 > *Raison* : c'est la règle de tout le reste de la spécification — une plage
 > sans musique, un flash absent. Aucune règle nouvelle à retenir.
+
+**n°22 — Un flux de webradio comme émission ? Oui, avec une durée.** Tranchée
+le 2026-08-30 par l'auteur. Une émission peut capter un direct (§4.11) ; la case
+a une durée obligatoire, pas de rattrapage, pas de trace en base.
+> *Raison* : c'est ce qui rend le flash France Info possible — son podcast est
+> désormais vide (docs/franceinfo.md §1.bis), et le direct répond. Et c'est le
+> même mécanisme qui permet de glisser n'importe quelle station entre deux
+> créneaux de musique. Le flash cesse d'être un mécanisme à part : c'est une
+> émission courte dont la source est un direct.
+>
+> **Ce qui reste à l'auteur** : la durée à réserver pour un flash — la grille
+> de franceinfo n'est connue que de seconde main — et si une coupure « en cours
+> de phrase » à la fin de la case est acceptable. Seule l'écoute le dira.
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :
