@@ -215,7 +215,9 @@ dans TASKS.md.
 
 - **Aucune fonctionnalité sans tests, dans le même commit.**
 - Un test par comportement, nommé d'après le comportement observable :
-  `un_jingle_tombe_a_l_heure_pile`, pas `test_jingle_2`.
+  `test_un_jingle_tombe_a_l_heure_pile`, pas `test_jingle_2`.
+  Le préfixe `test_` est imposé par la collecte de pytest ; ce qui le suit décrit
+  le comportement, jamais un numéro ni le nom de la fonction testée.
 - Le noyau se teste **sans infrastructure** : ni réseau, ni ffmpeg, ni fichier.
   C'est ce que garantissent les interdits du §2.
 - Les doubles sont des **Fakes versionnés**, pas des mocks générés à la volée.
@@ -404,7 +406,7 @@ Appliquées par `ruff` (mise en forme et analyse), `mypy` (types) et
 | Classe, `Protocol` | `PascalCase` | `TrackSource` |
 | Fonction, variable | `snake_case` | `next_track`, `is_news_time` |
 | Constante de module | `SCREAMING_SNAKE_CASE` en tête de fichier | `DEFAULT_BITRATE` |
-| Test | `snake_case` descriptif, sans `test_` numéroté | `un_jingle_tombe_a_l_heure_pile` |
+| Test | `test_` + le comportement observable, jamais un numéro | `test_un_jingle_tombe_a_l_heure_pile` |
 | Fake | préfixe `Fake` | `FakeNavidromeSource` |
 | Clé TOML | `snake_case`, en français | `duree_fondu`, `heures_thematiques` |
 

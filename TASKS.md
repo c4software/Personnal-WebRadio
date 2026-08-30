@@ -79,7 +79,7 @@ La documentation structurante et les commandes de pilotage sont posées.
 faire, et la commande de vérification n'a donc jamais été exécutée avec succès —
 elle n'a rien à vérifier.
 
-**Prochaine tâche** : `GOAL-001-T02` — squelette exécutable minimal.
+**Prochaine tâche** : `GOAL-001-T03` — outillage qualité.
 
 Sur quinze décisions, **treize sont tranchées**. La n°9 est une conséquence
 consignée, non une question ; la n°12 est délibérément différée jusqu'à la
@@ -114,7 +114,7 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 `/verify` n'aurait rien à vérifier.
 
 - [x] `GOAL-001-T01` Constater l'existant et arrêter la stack (Python, version, gestionnaire de dépendances)
-- [ ] `GOAL-001-T02` Squelette exécutable : `pyproject.toml`, `webradio/{core,adapters,app}/`, `tests/`, un point d'entrée qui démarre et s'arrête proprement
+- [x] `GOAL-001-T02` Squelette exécutable : `pyproject.toml`, `webradio/{core,adapters,app}/`, `tests/`, un point d'entrée qui démarre et s'arrête proprement
 - [ ] `GOAL-001-T03` Outillage qualité : `ruff` (format + analyse), `mypy` strict, `pytest` + `pytest-cov` à 80 %
 - [ ] `GOAL-001-T04` **Prouver la chaîne de vérification** : écrire un test qui échoue, une violation de style et une erreur de type ; constater que la commande sort en erreur sur chacune ; puis les corriger et constater qu'elle passe
 - [x] `GOAL-001-T05` Rédiger `SPECS.md`
