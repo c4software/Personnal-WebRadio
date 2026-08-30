@@ -85,7 +85,11 @@ La documentation structurante et les commandes de pilotage sont posées.
 faire, et la commande de vérification n'a donc jamais été exécutée avec succès —
 elle n'a rien à vérifier.
 
-**Prochaine tâche** : `GOAL-004` — le flux. Il n'est pas découpé.
+**Prochaine tâche** : `GOAL-004-T01` — décoder une entrée vers le PCM du flux.
+
+**Les sept lots restants sont découpés** (2026-08-30), soit 66 tâches.
+`GOAL-011` (conteneurisation) s'insère **après `GOAL-004`** : c'est le premier
+moment où il y a quelque chose à faire tourner.
 
 **`GOAL-002` est terminé**, les cinq relevés établis. Deux questions restent à
 l'auteur : la source du flash France Info (`docs/franceinfo.md` §1.5) et
@@ -113,6 +117,7 @@ Goals sont découpables.
 | GOAL-008 | L'API de pilotage | `[ ]` |
 | GOAL-009 | L'interface web — Flask et Jinja2 | `[ ]` |
 | GOAL-010 | Les émissions : podcasts programmés | `[ ]` |
+| GOAL-011 | Conteneurisation : Docker et Compose | `[ ]` — après GOAL-004 |
 
 ---
 
@@ -348,142 +353,164 @@ temps réel ([docs/ffmpeg.md](./docs/ffmpeg.md) §2.2).
 
 ## GOAL-004 — Le flux : ffmpeg, fan-out, démarrage à la demande
 
-**État : TODO** — non découpé.
+**État : TODO**
 
-Le serveur HTTP, le sous-processus ffmpeg, le fan-out d'un flux unique vers N
-connexions, et surtout le **cycle de vie** : démarrage à la première connexion,
-arrêt à la dernière, y compris sur déconnexion brutale (SPECS.md §4.7).
+Le cœur exécutable. `GOAL-002` l'a largement pré-décidé : réencodage
+systématique, voie PCM, un seul chemin d'insertion, `-re` pour cadencer.
 
-Premier Goal dont le résultat ne peut être constaté qu'en **écoutant**
-(AGENTS.md §4.1) — et premier à devoir tenir les trois exigences de SPECS.md
-§4.9 : lisible par tout lecteur, sans coupure, transcodant le moins possible.
+- [ ] `GOAL-004-T01` `adapters/ffmpeg/` : décoder une entrée vers le PCM du flux
+- [ ] `GOAL-004-T02` L'encodeur unique, cadencé — sans lui la bibliothèque part en minutes
+- [ ] `GOAL-004-T03` Le fan-out : un flux, N connexions, un auditeur lent n'en ralentit aucun
+- [ ] `GOAL-004-T04` `adapters/http/` : servir le flux, en-têtes `icy-*` compris
+- [ ] `GOAL-004-T05` Démarrage à la première connexion
+- [ ] `GOAL-004-T06` **Arrêt à la dernière — tout l'arbre de processus**, déconnexion brutale comprise
+- [ ] `GOAL-004-T07` La file prend de l'avance : résoudre pendant que le courant joue
+- [ ] `GOAL-004-T08` Les erreurs au démarrage sont fatales et se disent (SPECS.md §4.1)
+- [ ] `GOAL-004-T09` Les pannes en cours : tenir, réessayer, puis couper en le disant (SPECS.md §5.1)
+- [ ] `GOAL-004-T10` **Écoute réelle** : brancher VLC, un navigateur, une enceinte — et la matrice de `docs/flux-icy.md` §6
+- [ ] `GOAL-004-T11` Carte du dépôt
 
-**Débloqué** : SPECS.md §7 n°11 est tranchée. L'ordre de priorité est fixé —
-sans coupure, puis lisible partout, puis économie — et le **réencodage permanent
-est la voie par défaut, assumée**. Ce que `GOAL-002` apportera n'est plus une
-décision mais une optimisation : un chemin moins coûteux existe-t-il *sans violer
-cet ordre* ?
+> **`T06` porte un défaut déjà constaté.** La maquette de `GOAL-002-T05` a laissé
+> **deux ffmpeg orphelins** à la dernière déconnexion
+> ([docs/flux-icy.md](./docs/flux-icy.md) §3.bis) : le décodeur source n'était
+> pas tué, et la boucle déréférençait un processus disparu. Un test sur un
+> booléen serait passé au vert. **Ce test doit compter les processus.**
 
-Ce Goal porte aussi la limite de « une radio ne se tait pas » : tenir, réessayer,
-puis **couper en le disant** — jamais boucler sur ce qui vient de passer
-(SPECS.md §5.1).
+> **`T10` est le premier rendez-vous avec les angles morts.** Aucun cas d'arrêt
+> ne l'impose (SPECS.md §7 n°9) : c'est à l'auteur de le réclamer, ou il
+> n'arrivera pas.
+
+---
+
+## GOAL-011 — Conteneurisation : Docker et Compose
+
+**État : TODO**
+
+À faire **juste après `GOAL-004`** : c'est le premier moment où il y a quelque
+chose à faire tourner. Le faire avant serait emballer du vide ; beaucoup plus
+tard, ce serait découvrir tard les surprises de réseau et de volumes.
+
+- [ ] `GOAL-011-T01` `Dockerfile` : image Python fine, **ffmpeg épinglé à la version relevée**
+- [ ] `GOAL-011-T02` `docker-compose.yml` : un service, `env_file`, ports
+- [ ] `GOAL-011-T03` Volumes : configuration et jingles en **lecture seule**, état SQLite en écriture
+- [ ] `GOAL-011-T04` **Le conteneur joint-il Navidrome ?** `http://music` est résolu par l'hôte, pas forcément par le conteneur
+- [ ] `GOAL-011-T05` Arrêt propre : `SIGTERM` doit arrêter tout l'arbre, pas seulement le processus 1
+- [ ] `GOAL-011-T06` Le conteneur ne tourne pas en `root`, et n'écrit que dans le volume d'état
+- [ ] `GOAL-011-T07` `CONTRIBUTING.md` et `README.md` : lancer en conteneur, et vérifier **hors** conteneur
+
+> **`T05` est le piège classique** : un processus 1 qui ignore `SIGTERM` laisse
+> Docker tuer brutalement au bout de dix secondes — et l'on retrouve les
+> orphelins de `GOAL-004-T06`, cette fois invisibles.
 
 ---
 
 ## GOAL-005 — La grille horaire et les moments thématiques
 
-**État : TODO** — non découpé.
+**État : TODO**
 
-La lecture du TOML, les plages horaires, la contrainte de genre, et le repli sur
-le tirage libre quand une plage n'a rien à offrir (SPECS.md §4.4).
+- [ ] `GOAL-005-T01` `adapters/config/` : lire le TOML, et **refuser** un secret qui s'y trouverait
+- [ ] `GOAL-005-T02` Le schéma de configuration, validé au démarrage, erreurs nommant la clé fautive
+- [ ] `GOAL-005-T03` `core/grille.py` : quelle plage à quelle heure — l'horloge est injectée
+- [ ] `GOAL-005-T04` La grille n'est consultée **qu'au tirage** (SPECS.md §7 n°5) : un morceau finit dans sa plage
+- [ ] `GOAL-005-T05` Le repli d'une plage sans musique sur le tirage libre, journalisé
+- [ ] `GOAL-005-T06` `adapters/sources/navidrome/` : authentification par jeton dérivé
+- [ ] `GOAL-005-T07` **Lire `status` dans le corps à chaque appel** — un mot de passe faux rend HTTP 200
+- [ ] `GOAL-005-T08` Le tirage et le filtre par genre, avec la troncature à 500 **connue et respectée**
+- [ ] `GOAL-005-T09` `pistes_de(artiste)` : `search3` filtré sur l'égalité exacte du nom
+- [ ] `GOAL-005-T10` Traduire les erreurs Subsonic en `SourceIndisponible` — les deux régimes, HTTP 200 et 404
+- [ ] `GOAL-005-T11` Tests de l'adaptateur contre des réponses **littérales**, HTML en 200 compris
+- [ ] `GOAL-005-T12` Carte du dépôt
 
-**Débloqué** : SPECS.md §7 n°5 est tranchée — la grille n'est consultée qu'au
-moment du tirage. Un morceau déborde sur la plage suivante et personne ne s'en
-formalise : ce Goal n'a donc **aucune** logique de fin de plage à écrire.
+> Les tâches `T06` à `T11` sont entièrement pré-écrites par
+> [docs/navidrome.md](./docs/navidrome.md) : chacune correspond à un piège
+> constaté, et à lui seul.
 
 ---
 
-## GOAL-006 — Jingles horaires et flashs France Info
+## GOAL-006 — Jingles horaires
 
-**État : TODO** — non découpé.
+**État : TODO**
 
-L'insertion à la jonction sans couper un morceau, la résolution du nom `HHh.mp3`
-depuis l'heure, l'empilement de plusieurs jingles dus à la même jonction, et le
-silence délibéré quand un jingle est absent — distinct de l'incident qu'est un
-fichier corrompu (SPECS.md §4.3).
+- [ ] `GOAL-006-T01` `core/jingles.py` : quel jingle est dû, d'après l'horloge injectée
+- [ ] `GOAL-006-T02` Résoudre `HHh.mp3` depuis l'heure — aucune table de correspondance
+- [ ] `GOAL-006-T03` **Un jingle absent ne signale rien** ; un jingle illisible journalise
+- [ ] `GOAL-006-T04` L'empilement : tous les jingles dus, dans l'ordre chronologique
+- [ ] `GOAL-006-T05` L'insertion à la jonction, par **le** chemin unique de `GOAL-004`
+- [ ] `GOAL-006-T06` **Écoute réelle** : le niveau d'un vrai jingle contre la musique
+- [ ] `GOAL-006-T07` Carte du dépôt
 
-**Aucun seuil de péremption** : SPECS.md §7 n°4 est tranchée, rien n'est jamais
-abandonné pour retard. Cela retire de ce Goal toute une famille de cas limites.
+> **Le flash France Info ne figure plus dans ce Goal.** Aucune source n'a pu
+> être confirmée ([docs/franceinfo.md](./docs/franceinfo.md) §1.5), et trois
+> questions attendent l'auteur. Si la réponse est « franceinfo en 3 minutes »,
+> les flashs deviennent une **émission** et rejoignent `GOAL-010` sans une ligne
+> de code supplémentaire.
 
-C'est ici qu'est écrite **l'unique mécanique d'insertion de jingle**, celle dont
-`GOAL-007` se sert pour `encore.mp3` (ARCHITECTURE.md §6.2). Elle est donc
-écrite une fois, pour deux déclencheurs : l'horloge et le vote.
+> **`T06` est le seul moyen de savoir** si un jingle écrase la musique. Le relevé
+> ne pouvait pas le dire : ses fichiers d'essai étaient des sinus de même
+> amplitude ([docs/ffmpeg.md](./docs/ffmpeg.md) §2.ter).
 
 ---
 
 ## GOAL-007 — Le pilotage : `stop` et `encore` dans le noyau
 
-**État : TODO** — non découpé.
+**État : TODO**
 
-L'effet des deux commandes sur ce que la file rendra ensuite, le **refus motivé**
-pendant un jingle ou un flash (SPECS.md §4.6), et le déclenchement de la note
-d'accusé de réception.
-
-Sans Flask, sans HTTP, sans navigateur : c'est du noyau, et cela se teste seul.
-
-**Débloqué le 2026-08-30** : SPECS.md §7 n°7 et n°10 sont tranchées. `encore`
-s'enchaîne sans limite, **outrepasse la règle de non-répétition**, et les morceaux
-qu'il sert n'entrent pas dans la fenêtre — sans quoi un long enchaînement
-condamnerait l'artiste pour longtemps après.
-
-SPECS.md §7 n°10 est tranchée — une voix suffit, et
-l'accusé de réception est un jingle `encore.mp3` posé à la jonction, par le même
-chemin que les jingles horaires. Le noyau n'a donc qu'à **marquer un jingle de
-vote comme dû** ; toute la mécanique d'insertion appartient à `GOAL-006`.
-
-Reste à poser avant de découper : ce qui se passe quand un jingle horaire et un
-jingle de vote tombent sur la **même jonction** (`GOAL-001-T16`).
+- [ ] `GOAL-007-T01` `core/controle.py` : l'effet de `stop` sur ce que la file rendra
+- [ ] `GOAL-007-T02` L'effet d'`encore` : même artiste, puis même genre, puis tirage libre
+- [ ] `GOAL-007-T03` `encore` **outrepasse** la non-répétition, et ses morceaux n'entrent pas dans la fenêtre
+- [ ] `GOAL-007-T04` L'enchaînement illimité, borné par l'épuisement de l'artiste
+- [ ] `GOAL-007-T05` Le **refus motivé** pendant un jingle, un flash ou une émission
+- [ ] `GOAL-007-T06` Le jingle de vote `encore.mp3`, marqué dû, diffusé **en dernier** à la jonction
 
 ---
 
 ## GOAL-008 — L'API de pilotage
 
-**État : TODO** — non découpé.
+**État : TODO**
 
-La surface publique (SPECS.md §4.8) : dire ce qui passe, accepter un vote `stop`
-ou `encore`, refuser explicitement pendant un jingle ou un flash, dire si la
-chaîne tourne.
-
-Elle traduit en HTTP des décisions prises par le noyau ; elle n'en prend aucune.
-
-**Aucun autre client n'est écrit** — pas de bot, pas de Telegram. L'API existe
-parce que `GOAL-009` s'en sert, pas parce qu'un autre client pourrait s'en servir
-un jour (AGENTS.md §2).
+- [ ] `GOAL-008-T01` `adapters/web/api/` : la surface publique, sans Flask dans le noyau
+- [ ] `GOAL-008-T02` Dire ce qui passe : titre, artiste, et **de quelle nature** — musique, jingle, flash, émission
+- [ ] `GOAL-008-T03` Dire si la chaîne tourne
+- [ ] `GOAL-008-T04` Accepter un vote `stop` et un vote `encore` — une voix suffit
+- [ ] `GOAL-008-T05` Traduire le refus du noyau en réponse HTTP **motivée** — un refus muet ressemble à une panne
+- [ ] `GOAL-008-T06` Tests : l'API n'appelle jamais le noyau autrement que par les décisions de `GOAL-007`
 
 ---
 
 ## GOAL-009 — L'interface web — Flask et Jinja2
 
-**État : TODO** — non découpé.
+**État : TODO**
 
-Une page : ce qui passe, et deux boutons. Servie par Flask, mise en page par des
-gabarits Jinja2, destinée à un téléphone posé à côté de l'enceinte.
-
-Elle appelle **l'API de `GOAL-008`**, jamais le noyau. Aucune décision dans un
-gabarit.
-
-Elle ne configure rien : le TOML reste le seul point d'entrée des réglages
-(SPECS.md §6).
+- [ ] `GOAL-009-T01` Le serveur Flask, monté à côté du flux, sans le perturber
+- [ ] `GOAL-009-T02` Un gabarit Jinja2 : ce qui passe, et deux boutons
+- [ ] `GOAL-009-T03` Les boutons appellent **l'API**, jamais le noyau — l'interdit est contrôlé
+- [ ] `GOAL-009-T04` L'affichage d'un refus, quand un vote tombe pendant un jingle ou une émission
+- [ ] `GOAL-009-T05` Utilisable à une main, sur un téléphone posé à côté de l'enceinte
+- [ ] `GOAL-009-T06` **Regarder la page sur un vrai téléphone** — aucun test ne le fera
+- [ ] `GOAL-009-T07` Carte du dépôt
 
 ---
 
 ## GOAL-010 — Les émissions : podcasts programmés
 
-**État : TODO** — non découpé.
+**État : TODO**
 
-Un épisode de podcast diffusé à heure dite, déclaré au TOML par `jours` et
-`heure` (SPECS.md §4.11). Une seule émission à la fois ; elle **remplace** la
-programmation au lieu de s'y insérer, donc elle suspend la grille thématique et
-la non-répétition pour sa durée.
+- [ ] `GOAL-010-T01` `adapters/podcast/` : lire un flux RSS, en extraire les épisodes
+- [ ] `GOAL-010-T02` Ne retenir que les `full` — écarter `bonus` et `trailer`
+- [ ] `GOAL-010-T03` **Ne pas se fier à `enclosure/length`** : Acast insère de la publicité, le fichier servi diffère
+- [ ] `GOAL-010-T04` `adapters/etat/` : la base SQLite, une table, écriture atomique
+- [ ] `GOAL-010-T05` `core/emissions.py` : quelle émission est due, d'après la grille déclarée
+- [ ] `GOAL-010-T06` **Deux émissions à la même heure refusent le démarrage**, en les nommant
+- [ ] `GOAL-010-T07` L'épisode le plus récent **non encore diffusé** ; sinon la case est sautée
+- [ ] `GOAL-010-T08` Le rattrapage borné à la durée de l'épisode — la durée se lit **avant** de décider
+- [ ] `GOAL-010-T09` Une émission **suspend** la grille, la non-répétition et les jingles
+- [ ] `GOAL-010-T10` Un épisode indisponible ou tronqué : rester sur la musique, journaliser
+- [ ] `GOAL-010-T11` **Écoute réelle** : le niveau d'un épisode contre la musique, et la jonction
+- [ ] `GOAL-010-T12` Carte du dépôt
 
-Ce qui se déduit déjà des règles existantes, et n'a pas à être rediscuté : elle
-ne coupe pas un morceau, elle n'est jamais abandonnée pour retard, `stop` et
-`encore` y sont refusés, un épisode indisponible fait rester sur la musique.
+> **`T08` est la seule tâche du projet où le démarrage dépend d'un appel réseau
+> qui peut ne servir à rien** (ARCHITECTURE.md §5.2). Elle porte aussi le chiffre
+> qui a surpris : la fenêtre de rattrapage peut atteindre **2 h 50** sur LEGEND
+> ([docs/podcast.md](./docs/podcast.md) §3.1).
 
-**Débloqué le 2026-08-30** : les trois décisions sont tranchées.
-
-- **n°13** — rattrapage borné à la durée de l'épisode. **Conséquence à ne pas
-  manquer au découpage** : la durée n'étant connue qu'après lecture du flux, le
-  démarrage de la chaîne doit interroger le podcast **avant** de savoir s'il s'en
-  servira. C'est le seul endroit du projet où le démarrage dépend d'un appel
-  réseau qui peut ne servir à rien.
-- **n°14** — l'épisode le plus récent. Aucun état retenu : l'absence de
-  persistance est préservée.
-- **n°15** — les jingles dus pendant une émission sont abandonnés. Pour le noyau,
-  une émission n'est donc pas une insertion dans la file mais une **suspension**
-  de tout ce qui l'alimente.
-
-Deux constats de `GOAL-002` conditionnent ces décisions
-([docs/podcast.md](./docs/podcast.md) §4) : la **date de publication** doit être
-fiable, et la **durée** lisible sans télécharger le fichier. Si l'un manque, la
-décision correspondante est à rejouer.
+---
