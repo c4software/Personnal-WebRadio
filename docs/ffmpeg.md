@@ -9,7 +9,14 @@
 > silencieusement mais ignorée produit un défaut **audible** que rien ne
 > signalera.
 
-Commencer par consigner la version : `ffmpeg -version`.
+**Version constatée le 2026-08-30** (`GOAL-001-T01`) :
+
+```
+ffmpeg version n9.0.1 — Copyright (c) 2000-2026 the FFmpeg developers
+```
+
+Tout ce qui suit doit être vérifié **contre cette version**, et le constat
+réétabli si elle change.
 
 ---
 

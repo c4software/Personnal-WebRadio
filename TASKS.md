@@ -79,7 +79,7 @@ La documentation structurante et les commandes de pilotage sont posées.
 faire, et la commande de vérification n'a donc jamais été exécutée avec succès —
 elle n'a rien à vérifier.
 
-**Prochaine tâche** : `GOAL-001-T01` — constater l'existant et arrêter la stack.
+**Prochaine tâche** : `GOAL-001-T02` — squelette exécutable minimal.
 
 Sur quinze décisions, **treize sont tranchées**. La n°9 est une conséquence
 consignée, non une question ; la n°12 est délibérément différée jusqu'à la
@@ -113,7 +113,7 @@ Mise en place du dépôt, de sa documentation et des commandes de pilotage. Aucu
 fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans lequel
 `/verify` n'aurait rien à vérifier.
 
-- [ ] `GOAL-001-T01` Constater l'existant et arrêter la stack (Python, version, gestionnaire de dépendances)
+- [x] `GOAL-001-T01` Constater l'existant et arrêter la stack (Python, version, gestionnaire de dépendances)
 - [ ] `GOAL-001-T02` Squelette exécutable : `pyproject.toml`, `webradio/{core,adapters,app}/`, `tests/`, un point d'entrée qui démarre et s'arrête proprement
 - [ ] `GOAL-001-T03` Outillage qualité : `ruff` (format + analyse), `mypy` strict, `pytest` + `pytest-cov` à 80 %
 - [ ] `GOAL-001-T04` **Prouver la chaîne de vérification** : écrire un test qui échoue, une violation de style et une erreur de type ; constater que la commande sort en erreur sur chacune ; puis les corriger et constater qu'elle passe
@@ -135,7 +135,8 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 | Décision | Raison |
 |---|---|
 | Serveur HTTP propre + ffmpeg, plutôt qu'Icecast ou Liquidsoap | Seul choix qui donne littéralement le démarrage à la demande exigé par SPECS.md §1. Le prix — transitions et jingles à écrire — est assumé (ARCHITECTURE.md §4) |
-| Python 3.11+ | `tomllib` dans la bibliothèque standard, et l'écosystème audio le plus fourni. Le flux temps réel partagé demandera du soin (ARCHITECTURE.md §4.1) |
+| Python 3.11+ | `tomllib` dans la bibliothèque standard, et l'écosystème audio le plus fourni. Le flux temps réel partagé demandera du soin (ARCHITECTURE.md §4.1). **Constaté sur cette machine : 3.14.7** |
+| `uv` comme gestionnaire d'environnement et de dépendances | Un seul outil pour le venv, les dépendances et le verrouillage ; déjà installé ; forme d'appel stable, donc capturable par une règle de permission (AGENTS.md §5.1) |
 | `ruff` + `mypy` strict + `pytest --cov-fail-under=80` | Une seule commande, qui échoue bruyamment, tenant dans une règle de permission |
 | Horloge et hasard injectés, chacun dans un module unique | Une radio *est* une grille horaire et un tirage : les lire n'importe où rendrait la moitié du produit intestable (ARCHITECTURE.md §3.1) |
 | Aucune persistance | « Ce qui est passé est perdu » (SPECS.md §2). Pas de base, pas de cache, pas d'historique |
