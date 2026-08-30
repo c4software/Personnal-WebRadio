@@ -62,6 +62,29 @@
       .jauge .encore { background: var(--encore); }
       .scores { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--sourdine); margin-top: 0.35rem; }
       .vide { color: var(--sourdine); text-align: center; padding: 2rem 0; }
+      .legende { display: flex; gap: 1rem; color: var(--sourdine); font-size: 0.8rem; margin-bottom: 1rem; }
+      .legende span { display: flex; align-items: center; gap: 0.35rem; }
+      .pastille { width: 0.6rem; height: 0.6rem; border-radius: 999px; display: inline-block; }
+      .moment-c { background: var(--accent); }
+      .programme-c { background: var(--accepte); }
+      .emission-c { background: #d29922; }
+      .jour { background: var(--carte); border: 1px solid var(--bord); border-radius: 0.6rem;
+              padding: 0.7rem 0.9rem; margin-bottom: 0.6rem; }
+      .jour.aujourdhui { border-color: var(--accent); }
+      .jour-nom { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.15em;
+                  color: var(--texte); margin-bottom: 0.5rem; display: flex; gap: 0.6rem; align-items: center; }
+      .badge { font-size: 0.65rem; color: var(--accent); border: 1px solid var(--accent);
+               border-radius: 999px; padding: 0.1rem 0.5rem; letter-spacing: 0.05em; text-transform: none; }
+      .jour-vide { color: var(--sourdine); font-size: 0.85rem; }
+      .evenement { display: grid; grid-template-columns: 7.2rem 1fr auto; gap: 0.6rem;
+                   padding: 0.4rem 0 0.4rem 0.6rem; border-left: 3px solid var(--bord);
+                   margin-bottom: 0.35rem; align-items: baseline; }
+      .evenement .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+      .evenement .nom { overflow-wrap: anywhere; }
+      .evenement .detail { color: var(--sourdine); font-size: 0.8rem; white-space: nowrap; }
+      .moment-b { border-left-color: var(--accent); }
+      .programme-b { border-left-color: var(--accepte); }
+      .emission-b { border-left-color: #d29922; }
       .oubli {
         border: 1px solid var(--bord); background: transparent; color: var(--sourdine);
         border-radius: 0.4rem; width: 1.8rem; height: 1.8rem; flex: none;
@@ -110,26 +133,19 @@
       <section v-else>
         <p v-if="!planning" class="vide">Chargement…</p>
         <template v-else>
-          <h2 class="groupe">Moments thématiques</h2>
-          <p v-if="planning.bands.length === 0" class="vide">Aucun — tirage libre toute la journée.</p>
-          <article v-for="b in planning.bands" class="vote">
-            <div class="cible"><span class="qui">[[ b.genres.join(", ") ]]</span>
-              <span class="quoi">[[ b.start ]]–[[ b.end ]]</span></div>
-            <div class="scores"><span>[[ jours(b.days) ]]</span></div>
-          </article>
-          <h2 class="groupe">Programmes</h2>
-          <p v-if="planning.programmes.length === 0" class="vide">Aucun.</p>
-          <article v-for="p in planning.programmes" class="vote">
-            <div class="cible"><span class="qui">[[ p.name ]]</span>
-              <span class="quoi">[[ p.start ]]–[[ p.end ]]</span></div>
-            <div class="scores"><span>[[ jours(p.days) ]]</span><span>liste « [[ p.playlist ]] »</span></div>
-          </article>
-          <h2 class="groupe">Émissions</h2>
-          <p v-if="planning.shows.length === 0" class="vide">Aucune.</p>
-          <article v-for="e in planning.shows" class="vote">
-            <div class="cible"><span class="qui">[[ e.name ]]</span>
-              <span class="quoi">[[ e.time ]][[ e.live ? " · direct " + e.duration_minutes + " min" : " · podcast" ]]</span></div>
-            <div class="scores"><span>[[ jours(e.days) ]]</span></div>
+          <nav class="legende">
+            <span><i class="pastille moment-c"></i> moment</span>
+            <span><i class="pastille programme-c"></i> programme</span>
+            <span><i class="pastille emission-c"></i> émission</span>
+          </nav>
+          <article v-for="jour in semaine" :key="jour.nom" class="jour" :class="{ aujourdhui: jour.aujourdhui }">
+            <h2 class="jour-nom">[[ jour.nom ]]<span v-if="jour.aujourdhui" class="badge">aujourd'hui</span></h2>
+            <p v-if="jour.evenements.length === 0" class="jour-vide">tirage libre toute la journée</p>
+            <div v-for="e in jour.evenements" class="evenement" :class="e.type + '-b'">
+              <span class="heure">[[ e.heure ]]</span>
+              <span class="nom">[[ e.nom ]]</span>
+              <span class="detail">[[ e.detail ]]</span>
+            </div>
           </article>
         </template>
       </section>
@@ -173,6 +189,35 @@
           };
         },
         computed: {
+          semaine() {
+            // La récurrence se lit par JOUR, pas par type : chaque jour de la
+            // semaine liste ce qui s'y passe, dans l'ordre chronologique.
+            const ordre = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+            const ceJour = ordre[(new Date().getDay() + 6) % 7];
+            return ordre.map((nom) => {
+              const evenements = [];
+              for (const b of this.planning.bands) {
+                if (b.days.includes(nom)) {
+                  evenements.push({ type: "moment", heure: b.start + "–" + b.end, tri: b.start,
+                                    nom: b.genres.join(", "), detail: "" });
+                }
+              }
+              for (const p of this.planning.programmes) {
+                if (p.days.includes(nom)) {
+                  evenements.push({ type: "programme", heure: p.start + "–" + p.end, tri: p.start,
+                                    nom: p.name, detail: "liste « " + p.playlist + " »" });
+                }
+              }
+              for (const e of this.planning.shows) {
+                if (e.days.includes(nom)) {
+                  evenements.push({ type: "emission", heure: e.time, tri: e.time, nom: e.name,
+                                    detail: e.live ? "direct · " + e.duration_minutes + " min" : "podcast" });
+                }
+              }
+              evenements.sort((a, b) => a.tri.localeCompare(b.tri));
+              return { nom, evenements, aujourdhui: nom === ceJour };
+            });
+          },
           groupes() {
             return [
               { scope: "piste", titre: "Morceaux", votes: this.votes.filter((v) => v.scope === "piste") },
