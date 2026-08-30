@@ -256,7 +256,7 @@ Le découpage sépare les deux, pour que ce qui peut avancer avance.
 ### Ce qui ne dépend que de la machine
 
 - [x] `GOAL-002-T01` ffmpeg : copie sans réencodage, et comportement exact en fin de fichier
-- [-] `GOAL-002-T02` ffmpeg : alimenter un encodage continu depuis une file inconnue d'avance
+- [x] `GOAL-002-T02` ffmpeg : alimenter un encodage continu depuis une file inconnue d'avance
 - [ ] `GOAL-002-T03` ffmpeg : insérer un fichier d'une autre origine (jingle) sans interrompre
 - [ ] `GOAL-002-T04` ffmpeg : chiffrer le coût d'un réencodage permanent, pour un auditeur et pour cinq
 - [ ] `GOAL-002-T05` Flux : ce qu'un lecteur reçoit en se branchant **en cours** de diffusion

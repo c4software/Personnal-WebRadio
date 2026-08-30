@@ -82,32 +82,81 @@ Durée obtenue 5,07 s pour 6 s. Les étiquettes ID3 présentes à la jonction
 rompent le flux d'images. **Écarter cette voie** : elle paraissait la plus
 économe, elle ne fonctionne pas.
 
-## 2.bis Transcoder le moins possible
+## 2. Alimenter un encodage continu — **relevé**
 
-SPECS.md §4.9 demande d'économiser la machine ; SPECS.md §4.9 demande aussi de ne
-jamais couper. Ce relevé doit établir ce qui est **réellement possible**, pas ce
-qui serait souhaitable.
+> **Constaté le 2026-08-30** (`GOAL-002-T02`).
 
-- [ ] ffmpeg sait-il **copier** un flux audio sans le réencoder (`-c copy`) tout
-      en l'insérant dans une sortie continue ? À quelles conditions sur le format
-      d'entrée ?
-- [ ] Que produit exactement une copie lorsque deux fichiers successifs n'ont pas
-      le même débit, la même fréquence d'échantillonnage ou le même nombre de
-      canaux ? Un flux valide, ou un flux que les lecteurs refusent
-      (→ [docs/flux-icy.md](./flux-icy.md) §3) ?
-- [ ] Quel est le **coût réel** d'un réencodage permanent sur cette machine —
-      pourcentage d'un cœur pour un auditeur, pour cinq ? Le chiffre décide :
-      « économiser les ressources » n'a de sens qu'en regard de ce qu'on
-      économise.
-- [ ] Un réencodage **partiel** est-il possible : copier tant que le format
-      correspond, ne réencoder que les fichiers qui s'en écartent ? Que se
-      passe-t-il à la bascule entre les deux régimes ?
+### 2.1 La voie qui marche : décoder au format commun, un seul encodeur
 
-Ce relevé **ne décide de rien** : SPECS.md §7 n°11 est tranchée, et le
-réencodage permanent est la voie par défaut, assumée. Ce qu'on cherche ici est
-une **optimisation** — un chemin moins coûteux qui ne viole pas l'ordre
-*sans coupure > lisible partout > économie*. S'il n'en existe pas, on réencode et
-`GOAL-004` n'attend personne.
+Un décodeur **par morceau**, choisi au dernier moment, ramenant chacun au même
+PCM, tous versés dans le **même** encodeur :
+
+```bash
+for f in "$@"; do
+  ffmpeg -i "$f" -f s16le -ar 44100 -ac 2 -
+done | ffmpeg -re -f s16le -ar 44100 -ac 2 -i - -b:a 128k sortie.mp3
+```
+
+Trois morceaux de 3 s, **dont un en 48000 mono** :
+
+| Mesure | Résultat |
+|---|---|
+| Durée | **9,000000 s** — exacte |
+| Format | 44100 / 2, homogène |
+| Fenêtres de 50 ms sous le seuil de silence | **0** |
+
+**Aucun blanc, à aucune jonction**, y compris celle qui change de fréquence et de
+nombre de canaux. C'est la réponse à la question ouverte de §1 : la file n'a pas
+besoin d'être connue d'avance, et le démultiplexeur `concat` n'est pas nécessaire.
+
+### 2.2 Un tuyau qui se tarit n'insère pas de silence
+
+Une seconde d'attente injectée au milieu du tuyau : la durée obtenue reste
+**6,000000 s**, pas 7. L'encodeur **attend**, il ne comble pas.
+
+> **La conséquence est architecturale, et elle est importante.** Un morceau lent
+> à résoudre ne crée pas de blanc *dans l'audio* — il crée un trou *dans le temps
+> réel*. Pour l'auditeur branché, ce n'est pas un silence : c'est un flux qui
+> cesse d'arriver, donc un tampon qui se vide, donc une déconnexion
+> ([flux-icy.md](./flux-icy.md) §3).
+>
+> Il faut donc **prendre de l'avance** : résoudre le morceau suivant pendant que
+> le courant joue, jamais à la jonction.
+
+### 2.3 Le rythme n'est pas automatique
+
+Sans `-re`, ffmpeg encode **aussi vite qu'il peut** : 0,26 s de machine pour 9 s
+d'audio. Avec `-re`, il suit le temps réel : 8,48 s pour 9 s.
+
+`-re` est donc indispensable — ou bien c'est notre code qui cadence. Sans l'un
+des deux, la radio consommerait la bibliothèque entière en quelques minutes.
+
+## 2.bis Transcoder le moins possible — **relevé**
+
+> **Constaté le 2026-08-30** (`GOAL-002-T04`), sur cette machine (24 cœurs).
+
+| Mesure | Résultat |
+|---|---|
+| Réencodage de 60 s d'audio | **0,63 s de machine** |
+| Facteur temps réel | **×95** |
+| Coût d'un flux permanent | **1,05 % d'un cœur** |
+| Coût pour cinq auditeurs | **le même** — un seul encodage les alimente tous (ARCHITECTURE.md §4.1) |
+
+### Ce que ce chiffre décide
+
+L'arbitrage de SPECS.md §7 n°11 plaçait l'économie en **troisième** priorité,
+derrière « sans coupure » et « lisible partout ». Le chiffre montre qu'il n'y a
+**presque rien à arbitrer** : un pour cent d'un cœur, sur une machine qui en a
+vingt-quatre.
+
+> **Conclusion pour `GOAL-004` : réencoder systématiquement.** Ne pas écrire de
+> chemin de copie sans réencodage, ne pas détecter le format d'entrée, ne pas
+> basculer d'un régime à l'autre. Ce chemin aurait apporté une complexité réelle
+> — deux régimes, une bascule, ses cas limites — pour économiser un pour cent
+> d'un cœur, en risquant précisément ce que la priorité n°1 interdit.
+>
+> C'est l'optimisation que le relevé était chargé de chercher. **Elle n'existe
+> pas, et c'est une bonne nouvelle** : le chemin le plus simple est aussi le bon.
 
 ## 3. Le flux de sortie
 
