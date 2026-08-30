@@ -478,15 +478,32 @@ rebranche redémarre une chaîne neuve (§4.7) — le mécanisme existe déjà.
 
 ## 6. Configuration
 
-Un unique fichier **TOML**, seul point d'entrée de toutes les valeurs. Aucune URL,
-aucun chemin, aucun port, aucune durée n'est écrite dans le code (AGENTS.md §2).
+Deux fichiers, et la frontière entre eux est nette : **les secrets d'un côté, tout
+le reste de l'autre.** Aucune URL, aucun chemin, aucun port, aucune durée n'est
+écrite dans le code (AGENTS.md §2).
 
-Le fichier local n'est **jamais versionné** — il contient les identifiants
-Navidrome. Un exemple commenté l'est, sans secret.
+### 6.1 Les secrets : `.env`
+
+Un fichier `.env`, **jamais versionné**, qui ne porte **que** des secrets :
+identifiants Navidrome aujourd'hui, ce qui s'y ajoutera demain.
+
+Un `.env.exemple` **est** versionné : il ne contient que des noms de variables et
+leur rôle, jamais une valeur.
+
+> **Pourquoi les séparer plutôt que tout mettre dans le TOML.** Un fichier de
+> configuration se relit, se compare, se colle dans un rapport et se montre à
+> quelqu'un pour demander de l'aide. Un fichier qui contient un mot de passe ne
+> peut rien de tout cela — et c'est ainsi qu'un secret finit par voyager.
+> Les séparer rend le TOML **partageable sans réfléchir**, ce qui est la seule
+> protection qui tienne dans la durée.
+
+### 6.2 Le reste : le TOML
+
+Un unique fichier TOML, non versionné lui aussi (il décrit une installation),
+pour tout ce qui n'est pas secret :
 
 Ce que le TOML doit décrire, au minimum :
 
-- **Navidrome** : adresse, identifiants ;
 - **Le flux** : adresse d'écoute, port, format et débit ;
 - **Les jingles** : le dossier seul — les noms sont fixes et ne se configurent
   pas : `00h.mp3` … `23h.mp3` pour les heures (§4.3), `encore.mp3` pour le vote
@@ -506,6 +523,10 @@ Ce que le TOML doit décrire, au minimum :
 
 Le schéma exact se construit avec les Goals. Toute clé ajoutée est documentée
 ici dans le même incrément (AGENTS.md §6).
+
+**Un secret dans le TOML est une erreur de configuration**, pas une commodité :
+si une clé d'identifiant y apparaît, le démarrage échoue en disant d'où elle
+aurait dû venir. Sans ce refus, la séparation ne tiendrait pas une semaine.
 
 Une configuration invalide **empêche le démarrage** et dit précisément quelle
 clé pose problème. Une radio qui démarre en ignorant la moitié de sa

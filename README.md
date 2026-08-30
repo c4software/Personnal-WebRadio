@@ -29,7 +29,7 @@ qu'on écoute — on se branche, et ça joue déjà.
 - **Toute action passe par une API**, jamais par un chemin réservé à l'interface
 - **Un flux lisible par n'importe quel lecteur de webradio**, sans coupure, et
   transcodant le moins possible
-- **Tout en TOML** : aucune URL, aucun chemin, aucune durée dans le code. Seule
+- **Secrets dans `.env`, tout le reste en TOML** : aucune URL, aucun chemin, aucune durée dans le code. Seule
   exception, les jingles, dont le nom porte le rôle : `00h.mp3` … `23h.mp3`,
   et `encore.mp3`
 

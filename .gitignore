@@ -1,4 +1,10 @@
-# Configuration locale : contient les identifiants Navidrome (SPECS.md §6)
+# Secrets (SPECS.md §6.1). .env.exemple, lui, est versionné : il ne porte
+# que des noms de variables.
+.env
+.env.*
+!.env.exemple
+
+# Configuration locale (SPECS.md §6)
 webradio.toml
 *.local.toml
 

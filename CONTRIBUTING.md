@@ -21,8 +21,16 @@ pip install -e '.[dev]'
 ```
 
 Il faut par ailleurs **ffmpeg** sur la machine, et un serveur **Navidrome**
-joignable. La configuration locale — adresse et identifiants Navidrome, dossier
-des jingles — va dans un fichier TOML **jamais versionné** (SPECS.md §6).
+joignable.
+
+```bash
+cp .env.exemple .env      # puis y mettre vos identifiants
+chmod 600 .env
+```
+
+`.env` porte **les secrets et rien d'autre**. Tout le reste — dossier des
+jingles, grille horaire, émissions, seuils — va dans le TOML local, lui aussi
+non versionné (SPECS.md §6).
 
 ## Le cycle d'une contribution
 
@@ -61,4 +69,5 @@ annoncer un succès non observé.
 - Un `except:` nu, un `except Exception: pass`, un `print()`.
 - Un `TODO` sans tâche correspondante.
 - Un comportement audible ajouté sans mise à jour de `SPECS.md`.
-- Un identifiant Navidrome, un fichier audio ou le TOML local committé.
+- Un secret hors de `.env` — dans le TOML, dans un test, dans un exemple.
+- `.env`, le TOML local ou un fichier audio committé.

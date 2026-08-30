@@ -143,8 +143,9 @@ alors ni rejouer une soirée, ni vérifier qu'un jingle tombe à l'heure.
 - ❌ Aucun `except:` nu, aucun `except Exception: pass`. Une exception avalée
   dans une radio produit un silence, et un silence ne remonte nulle part.
 - ❌ Aucun `print()` : la journalisation passe par `logging`.
-- ❌ Aucun secret, jeton ni mot de passe Navidrome dans un appel de
-  journalisation.
+- ❌ Aucun secret, jeton ni mot de passe dans un appel de journalisation.
+- ❌ Aucun secret ailleurs que dans `.env` — ni dans le TOML, ni dans un test,
+  ni dans un fichier d'exemple (SPECS.md §6.1).
 
 ### Les règles générales
 
@@ -380,8 +381,15 @@ docs(ffmpeg): relever le comportement en fin de fichier
 Référencer l'identifiant de la tâche en pied de message : c'est ce qui relie
 l'historique Git à TASKS.md.
 
-Ne jamais committer : un jeton Navidrome, un mot de passe, le TOML local,
+Ne jamais committer : `.env`, un mot de passe, un jeton, le TOML local,
 `.claude/settings.local.json`, un fichier audio, un artefact de build.
+
+**Avant tout commit qui touche à la configuration**, vérifier que Git ignore bien
+ce qu'il doit ignorer — c'est une commande, pas une intention :
+
+```bash
+git check-ignore -v .env webradio.toml
+```
 
 ---
 
