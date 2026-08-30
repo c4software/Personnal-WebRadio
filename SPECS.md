@@ -164,8 +164,11 @@ par défaut          → tirage libre dans toute la bibliothèque
 
 - Une plage sans musique disponible **ne fait pas taire la radio** : elle se
   replie sur le tirage libre, et le repli est journalisé.
-- Le comportement d'un morceau qui chevauche la fin d'une plage — le laisser
-  finir, ou couper — est une décision ouverte (§7 n°5).
+**La grille n'est consultée qu'au moment du tirage**, jamais après. Un morceau
+tiré dans la plage « jazz » finit dans la plage « jazz », même s'il déborde de
+quatre minutes sur la suivante. La transition entre deux plages tombe donc à la
+jonction suivante, pas à l'heure pile — et c'est très bien ainsi : aucune
+coupure, aucune durée à connaître d'avance, aucun cas limite à tester.
 
 ### 4.5 Les interruptions d'information
 
@@ -311,8 +314,19 @@ ressources à gaspiller : ce qui peut être transmis tel quel doit l'être.
 
 Ces trois exigences ne sont pas spontanément compatibles : transmettre un fichier
 tel quel interdit de le raccorder au précédent, et un changement de format en
-cours de flux est précisément ce qui fait décrocher les lecteurs. **C'est la
-décision ouverte n°11**, la plus structurante de celles qui restent.
+cours de flux est précisément ce qui fait décrocher les lecteurs.
+
+**L'ordre de priorité est tranché** (§7 n°11) :
+
+```
+1. sans coupure
+2. lisible par tout lecteur
+3. économie de la machine
+```
+
+Un réencodage permanent vers un format unique est donc la voie par défaut, et
+elle est assumée. Chercher moins coûteux est une **optimisation**, jamais un
+prétexte à violer cet ordre.
 
 ---
 
@@ -330,12 +344,31 @@ contournée en continuant la musique l'est, et laisse une trace journalisée.
 | Une plage thématique sans musique | se replie sur le tirage libre, journalise |
 | La non-répétition ne laisse aucun artiste | rétrécit la fenêtre d'un cran, journalise (§4.2) |
 | `encore` sans autre morceau de l'artiste | replie sur le genre, puis sur le tirage libre |
-| Navidrome injoignable **en cours de diffusion** | comportement à définir — décision ouverte §7 n°8 |
 | Navidrome injoignable **au démarrage** | refuse de démarrer, erreur HTTP explicite (§4.1) |
-| ffmpeg qui meurt en cours | comportement à définir — décision ouverte §7 n°8 |
+| Navidrome injoignable **en cours** | continue avec ce qui est en file, réessaie en arrière-plan (§5.1) |
+| La file s'épuise, Navidrome toujours injoignable | **coupe proprement** plutôt que de servir du silence (§5.1) |
+| ffmpeg qui meurt en cours | relance la chaîne **une fois** ; si elle retombe, coupe proprement (§5.1) |
 
 La distinction est nette : **au démarrage**, une erreur est fatale et se dit ;
 **en cours de diffusion**, elle se contourne et se journalise.
+
+### 5.1 Jusqu'où « une radio ne se tait pas »
+
+Le principe a une limite, et elle est nette : **la radio tient, puis elle coupe
+en le disant.** Elle ne boucle jamais sur ce qu'elle a déjà joué pour donner le
+change.
+
+| Panne | Ce que fait la radio |
+|---|---|
+| Navidrome injoignable | continue avec ce qui est en file, réessaie en arrière-plan |
+| … et la file s'épuise sans retour | **coupe**, en journalisant pourquoi |
+| ffmpeg meurt | relance la chaîne **une fois** |
+| … et elle retombe | **coupe**, en journalisant pourquoi |
+
+Une coupure n'est pas un échec du principe, c'en est l'application : une radio
+qui boucle sur trois morceaux en répétant qu'elle va bien rend la panne
+invisible, et une panne invisible n'est jamais réparée. L'auditeur qui se
+rebranche redémarre une chaîne neuve (§4.7) — le mécanisme existe déjà.
 
 ## 6. Configuration
 
@@ -427,6 +460,42 @@ morceaux qu'il sert n'entrent pas dans la fenêtre de non-répétition (§4.6).
 > *Raison* : la borne vient des données, pas d'un réglage. Et sans cette
 > priorité, `encore` et la non-répétition se contrediraient frontalement.
 
+**n°5 — Un morceau qui chevauche une fin de plage ? Il finit.** Tranchée le
+2026-08-30. La grille n'est consultée **qu'au moment du tirage** : un morceau
+tiré dans une plage y termine, quitte à déborder (§4.4).
+> *Raison* : c'est la seule option qui n'ajoute **aucune** règle — ni durées à
+> connaître, ni coupure, ni cas d'échec supplémentaire. La transition tombe à la
+> jonction suivante plutôt qu'à l'heure pile, et cela ne s'entend pas comme un
+> défaut.
+
+**n°8 — Les pannes en cours ? Tenir, puis couper en le disant.** Tranchée le
+2026-08-30. Navidrome injoignable : continuer sur la file, réessayer en
+arrière-plan, couper si la file s'épuise. ffmpeg mort : relancer une fois, couper
+si cela retombe (§5.1).
+> *Raison* : couper tout de suite rendrait la radio fragile à une micro-coupure ;
+> boucler indéfiniment rendrait la panne **invisible**, ce qui contredit
+> frontalement « les erreurs se voient » (AGENTS.md §2). Tenir puis couper garde
+> les deux qualités.
+
+**n°11 — L'arbitrage du flux ? Ne jamais couper prime.** Tranchée le 2026-08-30.
+L'ordre de priorité est fixé, et il ne dépend d'aucun relevé :
+
+```
+1. sans coupure
+2. lisible par tout lecteur
+3. économie de la machine
+```
+
+Un réencodage permanent vers un format unique est donc **assumé** s'il le faut.
+> *Raison* : une radio économe qui fait décrocher les lecteurs ne remplit pas sa
+> fonction ; une radio qui encode en permanence la remplit, mal.
+>
+> **Ce qui reste au relevé** n'est plus une décision mais une **optimisation** :
+> `GOAL-002` dira si un chemin moins coûteux existe *sans violer cet ordre*
+> — transmission telle quelle quand le format correspond, format homogène servi
+> par Navidrome. S'il n'en existe pas, on réencode, et `GOAL-004` n'attend
+> personne.
+
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :
 elle appelle la même API que tout autre client (§4.8).
@@ -436,16 +505,6 @@ elle appelle la même API que tout autre client (§4.8).
 > existe, on ne construit pas derrière.
 
 ### Encore ouvert
-
-**n°5 — Un morceau qui chevauche la fin d'une plage thématique.**
-Le laisser finir, ou couper à l'heure ? Le laisser finir est plus musical ; il
-décale l'entrée dans la plage suivante.
-
-**n°8 — Les pannes en cours de diffusion.**
-Que fait la radio si Navidrome devient injoignable, ou si ffmpeg meurt, alors que
-des auditeurs sont branchés ? Continuer avec ce qui est en mémoire, tenter de
-redémarrer, couper proprement ? Le §5 pose le principe — *une radio ne se tait
-pas* — mais pas sa limite.
 
 **n°9 — L'écoute n'est pas un cas d'arrêt.**
 Quatre angles morts sont recensés (AGENTS.md §4.1) et **aucun cas d'arrêt ne les
@@ -469,21 +528,3 @@ rien ne dit ce qui se passe alors :
 Sans réponse, la question ne se pose pas : une seule source est écrite. Elle se
 posera **le jour de la deuxième** — c'est-à-dire exactement au moment où
 l'abstraction anticipée cesse d'être gratuite.
-
-**n°11 — Transcoder le moins possible, sans jamais couper.**
-C'est la décision la plus structurante restée ouverte, et elle oppose trois
-exigences de §4.9 :
-
-| Voie | Ce qu'on gagne | Ce qu'on paie |
-|---|---|---|
-| **Tout réencoder** vers un format unique | Un flux parfaitement continu, des fondus et des insertions possibles, un seul format pour tous les lecteurs | La machine encode en permanence dès qu'un auditeur écoute — exactement ce que « transcoder le minimum » cherche à éviter |
-| **Transmettre tel quel** quand le format correspond, réencoder sinon | Presque aucun calcul sur une bibliothèque homogène | Un changement de format en cours de flux fait décrocher les lecteurs ; ni fondu ni insertion propre à la jonction |
-| **Exiger une bibliothèque homogène** et transmettre tel quel | Le coût minimal, et un flux continu | Une contrainte reportée sur la bibliothèque, que le projet n'a pas le droit de modifier (§2). Un seul fichier au mauvais format casse la radio |
-
-S'ajoute une question de fait : l'insertion d'un jingle, d'un flash ou de la note
-d'accusé de réception impose de mêler des fichiers **d'origines différentes**.
-Aucune des voies ci-dessus ne l'évite entièrement.
-
-Rien ne se tranche avant le relevé de [docs/ffmpeg.md](./docs/ffmpeg.md) et de
-[docs/flux-icy.md](./docs/flux-icy.md), et avant de savoir ce que la bibliothèque
-contient réellement ([docs/navidrome.md](./docs/navidrome.md)).

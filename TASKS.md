@@ -30,6 +30,14 @@ Rappel (AGENTS.md §1.1) : `code écrit ≠ tâche terminée`.
 
 **Phase 0 — Harness** `[-]` en cours.
 
+> **Mise à jour du 2026-08-30 (4)** — les trois dernières décisions bloquantes
+> tombent : **n°5** (la grille n'est lue qu'au tirage), **n°8** (tenir puis
+> couper en le disant, jamais boucler) et **n°11** (sans coupure > lisible
+> partout > économie ; le réencodage permanent est assumé). La recherche de la
+> source France Info devient une tâche prioritaire de `GOAL-002`.
+> **Plus aucune décision ne bloque un découpage** : les neuf Goals sont
+> découpables.
+>
 > **Mise à jour du 2026-08-30 (3)** — quatre décisions tranchées d'un coup :
 > **n°3** (non-répétition : 5 artistes distincts, fenêtre qui rétrécit),
 > **n°4** (aucune péremption, rien n'est abandonné pour retard),
@@ -62,6 +70,11 @@ faire, et la commande de vérification n'a donc jamais été exécutée avec suc
 elle n'a rien à vérifier.
 
 **Prochaine tâche** : `GOAL-001-T01` — constater l'existant et arrêter la stack.
+
+**Aucune décision ne bloque plus un découpage.** Sur douze décisions ouvertes à
+l'initialisation, dix sont tranchées ; la n°9 est une conséquence consignée, non
+une question, et la n°12 est délibérément différée jusqu'à la deuxième source de
+musique.
 
 ---
 
@@ -130,6 +143,10 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 | Plusieurs jingles dus à la même jonction : **tous, à la suite** — horaires d'abord, `encore.mp3` en dernier | `encore.mp3` annonce le morceau qui suit immédiatement. Lève `GOAL-001-T16` |
 | `encore` **illimité**, borné par la bibliothèque, et **outrepasse** la non-répétition | La borne vient des données, pas d'un réglage. Sans cette priorité, les deux règles se contrediraient. Tranche SPECS.md §7 n°7 |
 | Sources : **abstraction complète** dès maintenant, une seule écrite | Choix de l'auteur. **Écart assumé** à l'interdit d'anticipation, consigné dans ARCHITECTURE.md §9.1. Tranche SPECS.md §7 n°2, ouvre la n°12 |
+| Une plage thématique : **la grille n'est lue qu'au tirage** | Seule option qui n'ajoute aucune règle — ni durées à connaître, ni coupure, ni cas d'échec. Tranche SPECS.md §7 n°5 |
+| Pannes en cours : **tenir, puis couper en le disant** | Couper tout de suite rend fragile aux micro-coupures ; boucler rend la panne invisible, contre AGENTS.md §2. Tranche SPECS.md §7 n°8 |
+| Flux : **sans coupure > lisible partout > économie** | Une radio économe qui fait décrocher les lecteurs ne remplit pas sa fonction. Tranche SPECS.md §7 n°11 : le réencodage permanent est la voie par défaut, assumée |
+| Le flash France Info est **cherché par `GOAL-002`** | Aucune adresse fournie. Point de départ : les flux publics de Radio France. Si rien de fiable, la question remonte (AGENTS.md §1.2) |
 | Quatrième relevé : `docs/flux-icy.md` | « Compatible avec tout lecteur de webradio » n'a aucune norme derrière : c'est une convention de fait, à constater lecteur par lecteur |
 
 ### Dettes ouvertes par ce Goal
@@ -147,10 +164,10 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
       ont été tranchées le 2026-08-30 (n°1 et n°6), deux ont été ouvertes le même
       jour (n°10 et n°11). Trois bloquent un Goal précis :
       la **n°2** (modularité des sources) avant `GOAL-002`,
-      la **n°11** (transcodage minimal contre flux sans coupure) avant
-      `GOAL-004` — et celle-là ne se tranche pas avant les relevés.
-      Six ont été tranchées le 2026-08-30 : n°1, n°2, n°3, n°4, n°6, n°7, n°10.
-      Restent ouvertes : n°5, n°8, n°9, n°11, n°12.
+      **Aucune ne bloque plus un découpage.** Dix ont été tranchées le
+      2026-08-30 : n°1 à n°8, n°10, n°11. Restent la **n°9** — qui n'est pas une
+      question mais une conséquence consignée — et la **n°12**, délibérément
+      différée jusqu'à la deuxième source.
 - [x] `GOAL-001-T15` ~~La n°10 est une ambiguïté de spécification.~~ **Levée le
       2026-08-30** : l'auteur a tranché — une voix suffit, et l'accusé de
       réception devient un jingle `encore.mp3` inséré à la jonction plutôt
@@ -178,6 +195,17 @@ ce Goal y répond.
 **Débloqué** : SPECS.md §7 n°2 est tranchée — abstraction complète des sources,
 une seule écrite. Le relevé Navidrome porte donc aussi sur ce que le `Protocol`
 de source doit pouvoir exprimer.
+
+**Deux tâches ont priorité dans ce Goal**, parce que d'autres Goals les
+attendent :
+
+1. **Trouver la source du flash France Info** — aucune adresse n'a été fournie.
+   Partir des flux publics de Radio France, constater ce qui répond, documenter.
+   Si rien de fiable n'existe, **remonter la question** plutôt que bricoler.
+   `GOAL-006` en dépend.
+2. **Chiffrer le coût d'un réencodage permanent** sur cette machine, pour un
+   auditeur et pour cinq. L'arbitrage est déjà tranché (n°11) : ce chiffre ne
+   décide de rien, il dit seulement s'il vaut la peine de chercher moins cher.
 
 ---
 
@@ -207,8 +235,15 @@ Premier Goal dont le résultat ne peut être constaté qu'en **écoutant**
 (AGENTS.md §4.1) — et premier à devoir tenir les trois exigences de SPECS.md
 §4.9 : lisible par tout lecteur, sans coupure, transcodant le moins possible.
 
-**Bloqué par la décision SPECS.md §7 n°11**, qui ne se tranche pas avant les
-relevés de `GOAL-002`. Ne pas le découper avant.
+**Débloqué** : SPECS.md §7 n°11 est tranchée. L'ordre de priorité est fixé —
+sans coupure, puis lisible partout, puis économie — et le **réencodage permanent
+est la voie par défaut, assumée**. Ce que `GOAL-002` apportera n'est plus une
+décision mais une optimisation : un chemin moins coûteux existe-t-il *sans violer
+cet ordre* ?
+
+Ce Goal porte aussi la limite de « une radio ne se tait pas » : tenir, réessayer,
+puis **couper en le disant** — jamais boucler sur ce qui vient de passer
+(SPECS.md §5.1).
 
 ---
 
@@ -218,6 +253,10 @@ relevés de `GOAL-002`. Ne pas le découper avant.
 
 La lecture du TOML, les plages horaires, la contrainte de genre, et le repli sur
 le tirage libre quand une plage n'a rien à offrir (SPECS.md §4.4).
+
+**Débloqué** : SPECS.md §7 n°5 est tranchée — la grille n'est consultée qu'au
+moment du tirage. Un morceau déborde sur la plage suivante et personne ne s'en
+formalise : ce Goal n'a donc **aucune** logique de fin de plage à écrire.
 
 ---
 

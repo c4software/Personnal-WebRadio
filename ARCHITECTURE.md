@@ -145,14 +145,26 @@ S'y ajoute que jingles — horaires comme de vote — et flashs viennent
 d'**origines différentes** de la musique : les insérer suppose de les ramener au
 format du flux, ou de tout ramener à un format commun.
 
-**Aucune voie n'est retenue à ce stade** : c'est la décision ouverte
-SPECS.md §7 n°11, et elle ne se tranche pas avant les relevés
-[docs/ffmpeg.md](./docs/ffmpeg.md), [docs/flux-icy.md](./docs/flux-icy.md) et
-[docs/navidrome.md](./docs/navidrome.md).
+**L'arbitrage est tranché** (SPECS.md §7 n°11), et il ne dépend d'aucun relevé :
 
-Ce qui est **déjà acquis** : la contrainte de non-coupure prime sur l'économie de
-ressources. Une radio économe qui fait décrocher les lecteurs ne remplit pas sa
-fonction ; une radio qui encode en permanence la remplit, mal.
+```
+1. sans coupure
+2. lisible par tout lecteur
+3. économie de la machine
+```
+
+Un **réencodage permanent** vers un format unique est donc la voie par défaut, et
+elle est assumée : elle satisfait les deux premières priorités sans condition.
+
+Ce que les relevés [docs/ffmpeg.md](./docs/ffmpeg.md),
+[docs/flux-icy.md](./docs/flux-icy.md) et
+[docs/navidrome.md](./docs/navidrome.md) apportent n'est donc **plus une
+décision, mais une optimisation** : existe-t-il un chemin moins coûteux — copie
+sans réencodage quand le format correspond, format homogène servi par Navidrome —
+qui ne viole pas cet ordre ? S'il n'en existe pas, on réencode, et rien n'attend.
+
+C'est une distinction qui compte pour le découpage : `GOAL-004` n'est plus bloqué
+par une question ouverte, seulement susceptible d'être amélioré par un constat.
 
 ### 4.1 Un flux, N auditeurs
 
@@ -271,6 +283,20 @@ Deux régimes, nettement séparés (SPECS.md §5) :
   démarrer, l'auditeur reçoit une réponse explicite ;
 - **en cours de diffusion**, elle se **contourne** et se journalise : la radio ne
   se tait pas.
+
+### 7.1 La limite du second régime
+
+« Ne pas se taire » n'est pas « ne jamais s'arrêter ». La radio **tient, puis
+coupe en le disant** (SPECS.md §5.1) : elle continue sur ce qu'elle a, réessaie
+en arrière-plan, relance ffmpeg une fois — et si rien ne revient, elle coupe.
+
+Elle ne boucle **jamais** sur ce qu'elle a déjà joué pour donner le change. Ce
+serait la seule façon de ne jamais couper, et ce serait la pire : une panne
+masquée n'est jamais réparée, ce qui contredit frontalement « les erreurs se
+voient » (AGENTS.md §2).
+
+La coupure a un coût faible et connu : l'auditeur se rebranche, ce qui redémarre
+une chaîne neuve — le mécanisme du démarrage à la demande existe déjà (§4).
 
 `except:` nu et `except Exception: pass` sont interdits (AGENTS.md §2) : dans une
 radio, une exception avalée produit un silence, et un silence ne remonte nulle

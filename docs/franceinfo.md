@@ -1,9 +1,14 @@
 # docs/franceinfo.md — Relevé du flash d'information
 
 > **Ce relevé est vide de constats**, et il commence par une inconnue plus grande
-> que les autres : **aucune adresse n'a été fournie à l'initialisation**.
-> L'auteur a indiqué que France Info « donne le flash accessible », sans préciser
-> par quel moyen.
+> que les autres : **aucune adresse n'a été fournie**. L'auteur a indiqué que
+> France Info « donne le flash accessible », sans préciser par quel moyen.
+>
+> **Décidé le 2026-08-30** : c'est `GOAL-002` qui cherche. Point de départ — les
+> flux publics de Radio France : podcast, RSS, fichier à URL stable. On constate
+> ce qui répond réellement, on documente. **Si rien de fiable n'existe, la
+> question remonte à l'auteur** plutôt que de bricoler autour d'une source
+> instable (AGENTS.md §1.2).
 >
 > Règle applicable (AGENTS.md §3) : **ne jamais inventer le comportement d'une
 > dépendance externe.**
@@ -19,9 +24,10 @@
 - [ ] Quelles sont les **conditions d'utilisation** ? Le projet est privé et non
       exposé (SPECS.md §3), ce qui simplifie la question sans l'effacer.
 
-> Tant que ce point n'est pas établi, `GOAL-006` ne peut pas être découpé.
-> Si aucune source fiable n'existe, c'est une **ambiguïté de spécification**
-> (AGENTS.md §1.2) : la question remonte à l'auteur, elle ne se contourne pas.
+> Tant que ce point n'est pas établi, `GOAL-006` ne peut pas être découpé — d'où
+> la priorité de cette section dans `GOAL-002`. Si aucune source fiable
+> n'existe, c'est une **ambiguïté de spécification** : la question remonte à
+> l'auteur, elle ne se contourne pas.
 
 ## 2. Le contenu
 

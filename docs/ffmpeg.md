@@ -67,7 +67,11 @@ qui serait souhaitable.
       correspond, ne réencoder que les fichiers qui s'en écartent ? Que se
       passe-t-il à la bascule entre les deux régimes ?
 
-Ce relevé nourrit directement la décision ouverte **SPECS.md §7 n°11**.
+Ce relevé **ne décide de rien** : SPECS.md §7 n°11 est tranchée, et le
+réencodage permanent est la voie par défaut, assumée. Ce qu'on cherche ici est
+une **optimisation** — un chemin moins coûteux qui ne viole pas l'ordre
+*sans coupure > lisible partout > économie*. S'il n'en existe pas, on réencode et
+`GOAL-004` n'attend personne.
 
 ## 3. Le flux de sortie
 
