@@ -228,6 +228,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             {e.name: e.feed for e in settings.shows if e.feed is not None},
             streams={e.name: e.stream for e in settings.shows if e.stream is not None},
         ),
+        control=control,
+        now_playing=lambda: radio.playing_track(),
     )
 
     playout = LiquidsoapPlayout(programme, radio, counter)

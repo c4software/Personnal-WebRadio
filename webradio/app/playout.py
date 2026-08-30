@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING
 
 from webradio.core.bands import Schedule
 from webradio.core.clock import Clock
-from webradio.core.control import Kind
+from webradio.core.control import Control, Kind
 from webradio.core.jingles import Jingles
 from webradio.core.models import Track
 from webradio.core.programmes import Programming
@@ -54,6 +54,8 @@ class RadioProgramme:
         programming: Programming | None = None,
         programme_window: Window | None = None,
         shows: "Shows | None" = None,
+        control: Control | None = None,
+        now_playing: Callable[[], Track | None] | None = None,
     ) -> None:
         self._file = queue
         self._source = source
@@ -65,6 +67,9 @@ class RadioProgramme:
         self._sur_nature = on_kind
         self._programmation = programming
         self._emissions = shows
+        self._controle = control
+        self._a_l_antenne = now_playing
+        self._derniere_piste: Track | None = None
         # Un programme a sa propre fenêtre de non-répétition : la liste est
         # courte, et partager celle du tirage libre ferait rétrécir l'une à
         # cause de l'autre (SPECS.md §4.13).
@@ -148,6 +153,12 @@ class RadioProgramme:
         La priorité programme/plage est **provisoire** : SPECS.md §7 n°19 n'est
         pas tranchée, et la coexistence des deux mécanismes reste en question.
         """
+        # Un « encore » accepté force le prochain morceau chez le même artiste
+        # (SPECS.md §4.6) — le noyau descend seul vers le genre puis le tirage
+        # libre si l'artiste est épuisé, et chaque repli est dit.
+        forced = self._piste_après_encore()
+        if forced is not None:
+            return forced
         depuis_le_programme = self._piste_du_programme()
         if depuis_le_programme is not None:
             return depuis_le_programme
@@ -162,7 +173,64 @@ class RadioProgramme:
         for fallback in pick.fallbacks:
             logger.info("repli : %s", fallback)
         self._sur_nature(Kind.MUSIC, pick.track, None)
+        self._derniere_piste = pick.track
         return self._source.entry(pick.track)
+
+    def _piste_après_encore(self) -> str | None:
+        """Le morceau forcé par un « encore », ou rien.
+
+        L'ancre est le morceau **à l'antenne** ; à défaut — un redémarrage l'a
+        oublié — le dernier morceau rendu. Sans ancre du tout, le vote a agi
+        (pondération, jingle) mais n'a rien sur quoi forcer : on le dit.
+        """
+        if self._controle is None or not self._controle.take_more():
+            return None
+        courant = self._a_l_antenne() if self._a_l_antenne is not None else None
+        if courant is None:
+            courant = self._derniere_piste
+        if courant is None:
+            logger.info("encore sans morceau à l'antenne : rien à forcer")
+            return None
+        # Pendant un programme, « encore » cherche DANS la liste et y retombe,
+        # jamais au-dehors (SPECS.md §7 n°20) : sortir de la liste sur un
+        # encore trahirait le choix des morceaux.
+        if self._programmation is not None:
+            liste = self._programmation.playlist_to_draw()
+            if liste is not None:
+                return self._encore_dans_la_liste(liste, courant)
+        try:
+            pick = self._controle.track_after_more(courant)
+        except (SourceUnavailable, EmptyQueue) as failure:
+            logger.warning("encore sans suite : %s", failure)
+            return None
+        for fallback in pick.fallbacks:
+            logger.info("repli d'encore : %s", fallback)
+        self._sur_nature(Kind.MUSIC, pick.track, None)
+        self._derniere_piste = pick.track
+        return self._source.entry(pick.track)
+
+    def _encore_dans_la_liste(self, liste: str, courant: Track) -> str | None:
+        """Le même artiste, cherché dans la liste du programme ouvert.
+
+        À défaut, `None` : le tirage retombe dans la liste par le chemin
+        normal du programme — jamais au-dehors (SPECS.md §7 n°20).
+        """
+        try:
+            tracks = self._source.tracks_from_playlist(liste)
+        except SourceUnavailable as failure:
+            logger.warning("encore dans « %s » : liste illisible — %s", liste, failure)
+            return None
+        du_meme = [
+            t for t in tracks if t.artist == courant.artist and t.identifier != courant.identifier
+        ]
+        if not du_meme:
+            logger.info("encore dans « %s » : artiste épuisé, on reste dans la liste", liste)
+            return None
+        track = self._hasard.pick(du_meme)
+        self._fenetre_programme.remember(track)
+        self._sur_nature(Kind.MUSIC, track, None)
+        self._derniere_piste = track
+        return self._source.entry(track)
 
     def _piste_du_programme(self) -> str | None:
         """Un morceau tiré dans la liste du programme ouvert, s'il y en a un.
@@ -193,4 +261,5 @@ class RadioProgramme:
         track = self._hasard.pick(allowed)
         self._fenetre_programme.remember(track)
         self._sur_nature(Kind.MUSIC, track, None)
+        self._derniere_piste = track
         return self._source.entry(track)

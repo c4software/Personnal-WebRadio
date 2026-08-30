@@ -143,6 +143,7 @@ Goals sont découpables.
 | GOAL-021 | Effacer un vote, l'onglet Planning, et le bouton qui ne cliquait pas | `[x]` |
 | GOAL-022 | Fondu court des jingles, et le moment présent à l'antenne | `[x]` |
 | GOAL-023 | Une plage peut imposer un artiste | `[x]` |
+| GOAL-024 | `encore` force réellement le même artiste | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -944,3 +945,18 @@ migration : il n'a jamais été câblé, et aucun test ne le couvre.
 > 2.4.5 casse par ailleurs notre script (`http.post` exige `synchronous`,
 > `null()` déprécié) : l'épingle reste en 2.3.3, et le titre dans le flux
 > attendra une version publiée portant le correctif (docs/liquidsoap.md §6).
+
+---
+
+## GOAL-024 — `encore` force réellement le même artiste
+
+**État : TERMINÉ** — constaté par l'auteur le 2026-08-30 : le vote pondérait, le jingle s'annonçait, mais le morceau suivant ignorait la demande
+
+Le trou jumeau de GOAL-017 : `Control.take_more()` et `track_after_more()` —
+même artiste, puis même genre, puis libre, chaque repli dit — n'étaient
+consommés par personne depuis GOAL-007.
+
+- [x] `GOAL-024-T01` La charnière interroge le contrôle **avant** tout tirage ; l'ancre est le morceau **à l'antenne** (`LiveRadio.playing_track()`), pas celui demandé d'avance — à défaut, le dernier rendu
+- [x] `GOAL-024-T02` Pendant un **programme**, l'encore cherche dans la **liste** et y retombe, jamais au-dehors (SPECS.md §7 n°20)
+- [x] `GOAL-024-T03` Sans ancre (redémarrage) : le vote a pondéré et le jingle s'annonce, rien à forcer — journalisé
+- [ ] `GOAL-024-T04` **Écoute réelle** : encore → `encore.mp3` → un morceau du même artiste

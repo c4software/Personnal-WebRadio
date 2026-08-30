@@ -10,7 +10,7 @@ from tests.fakes import FakeSource, track
 from webradio.app.playout import RadioProgramme
 from webradio.core.bands import Band, Schedule
 from webradio.core.clock import FrozenClock
-from webradio.core.control import Kind
+from webradio.core.control import Command, Control, Kind
 from webradio.core.jingles import Jingles
 from webradio.core.models import Track
 from webradio.core.programmes import Programme, Programming
@@ -343,3 +343,82 @@ def test_un_jingle_du_passe_meme_quand_les_emissions_sont_cablees(tmp_path: Path
 class _FeedSansEpisode:
     def episodes(self, url: str) -> list[object]:  # noqa: ARG002 — l'interface l'impose
         return []
+
+
+# ── L'effet d'un « encore » sur le tirage (GOAL-024) ────────────────────────
+
+
+def _programme_pilote(
+    tmp_path: Path, *, source: FakeSource | None = None, programming: Programming | None = None
+) -> tuple[RadioProgramme, Control]:
+    reelle = source if source is not None else FakeSource(CATALOGUE)
+    clock = FrozenClock(MIDI)
+    random = ScriptedRandom([0] * 200)
+    control = Control(source=reelle, random=random, jingles=Jingles(clock))
+    programme = RadioProgramme(
+        queue=Queue(reelle, random, Window(width=1)),
+        source=reelle,
+        grille=Schedule([], clock),
+        jingles=Jingles(clock),
+        clock=clock,
+        random=random,
+        jingle_folder=tmp_path,
+        on_kind=lambda _n, _p, _e: None,
+        programming=programming,
+        control=control,
+        now_playing=lambda: None,
+    )
+    return programme, control
+
+
+def test_un_encore_force_le_prochain_morceau_chez_le_meme_artiste(tmp_path: Path) -> None:
+    """SPECS.md §4.6 : « le prochain morceau est du même artiste » — au-delà
+    de la pondération. C'est le trou jumeau de GOAL-017."""
+    source = FakeSource(
+        [
+            track("1", "Bowie", genre="rock"),
+            track("2", "Air", genre="électro"),
+            track("3", "Bowie", genre="rock"),
+        ]
+    )
+    programme, control = _programme_pilote(tmp_path, source=source)
+    premier = programme.next_entry()
+    assert premier == "fake://1"
+    assert control.vote(Command.MORE).accepted
+
+    suivant = programme.next_entry()
+
+    assert suivant == "fake://3"  # l'autre Bowie, jamais Air
+
+
+def test_un_encore_pendant_un_programme_reste_dans_la_liste(tmp_path: Path) -> None:
+    """SPECS.md §7 n°20 : jamais au-dehors, même sur un encore."""
+    bowie_liste = track("1", "Bowie", genre="rock")
+    bowie_hors_liste = track("2", "Bowie", genre="rock")
+    air_liste = track("3", "Air", genre="électro")
+    source = FakeSource(
+        [bowie_liste, bowie_hors_liste, air_liste],
+        listes={"Soirée": [bowie_liste, air_liste]},
+    )
+    programming = Programming(
+        [
+            Programme(
+                name="Soirée",
+                playlist="Soirée",
+                days=("dimanche",),
+                start=time(11),
+                end=time(14),
+            )
+        ],
+        FrozenClock(MIDI),
+    )
+    programme, control = _programme_pilote(tmp_path, source=source, programming=programming)
+    premier = programme.next_entry()
+    assert premier == "fake://1"  # Bowie, dans la liste
+    assert control.vote(Command.MORE).accepted
+
+    suivant = programme.next_entry()
+
+    # Le seul autre Bowie (2) est HORS liste : on retombe dans la liste (3),
+    # on ne sort jamais.
+    assert suivant == "fake://3"

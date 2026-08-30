@@ -92,6 +92,16 @@ class LiveRadio(Radio):
             return []
         return self._lister_votes()
 
+    def playing_track(self) -> Track | None:
+        """La piste à l'antenne — l'ancre d'un « encore » (SPECS.md §4.6).
+
+        C'est le morceau que l'auditeur entend, pas celui demandé d'avance :
+        la différence compte, il y a toujours un morceau d'écart
+        (docs/liquidsoap.md §3).
+        """
+        with self._verrou:
+            return self._piste
+
     def moment(self) -> str | None:
         if self._moment is None:
             return None
