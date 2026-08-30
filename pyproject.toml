@@ -36,6 +36,7 @@ select = [
     "ARG",      # arguments ignorés — interdit par AGENTS.md §2
     "T20",      # print() — interdit par AGENTS.md §2
     "BLE",      # except nu / trop large — interdit par AGENTS.md §2
+    "TID",      # imports bannis — active la table banned-api ci-dessous
     "DTZ",      # datetime sans fuseau
     "PTH",      # os.path là où pathlib convient
     "RUF",

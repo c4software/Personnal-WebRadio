@@ -292,7 +292,7 @@ premier échec** (`set -euo pipefail`) :
 | Contrôle | Ce qu'il refuse |
 |---|---|
 | `ruff format --check` | Une mise en forme qui s'écarte |
-| `ruff check` | Import ou variable inutilisés, `print()`, `except` nu, argument ignoré, `import random`/`secrets` |
+| `ruff check` | Import ou variable inutilisés, `print()`, `except` nu, argument ignoré, et — depuis `GOAL-003-T02` — `import random`/`secrets` hors de `core/rng.py` |
 | `mypy` (strict) | Une fonction sans annotations, un type incohérent, du code inatteignable |
 | **Les interdits d'AGENTS.md §2** | Entrée-sortie dans le noyau, horloge hors de `core/clock.py`, hasard hors de `core/rng.py`, Flask hors de `adapters/web/`, `TODO` sans tâche |
 | `pytest --cov --cov-fail-under=80` | Un test en échec, une couverture sous 80 % |
