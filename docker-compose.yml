@@ -45,8 +45,10 @@ services:
     stop_grace_period: 10s
 
     healthcheck:
+      # La page AUSSI, pas seulement l'API : une image sans ses gabarits
+      # rendait une 500 que la sonde ne voyait pas (GOAL-015).
       test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/on-air', timeout=5)"]
+             "import urllib.request; urllib.request.urlopen('http://localhost:8080/', timeout=5); urllib.request.urlopen('http://localhost:8080/api/on-air', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3

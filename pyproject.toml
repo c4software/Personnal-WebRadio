@@ -19,6 +19,12 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["webradio*"]
 
+# Sans cette table, l'image Docker n'embarque que les .py : la page rendait
+# une 500 TemplateNotFound alors que 380 tests passaient — ils lisent la
+# source, pas le paquet installé (constaté le 2026-08-30, GOAL-015).
+[tool.setuptools.package-data]
+webradio = ["adapters/web/templates/*.html", "adapters/liquidsoap/*.liq"]
+
 [project.optional-dependencies]
 dev = ["ruff>=0.16", "mypy>=2.0", "pytest>=9.0", "pytest-cov>=7.0"]
 
