@@ -30,6 +30,17 @@ Rappel (AGENTS.md §1.1) : `code écrit ≠ tâche terminée`.
 
 **Phase 0 — Harness** `[-]` en cours.
 
+> **Mise à jour du 2026-08-30** — l'auteur a ajouté huit exigences après
+> l'initialisation : interface web Flask/Jinja2, actions par API, `stop`/`encore`
+> disponibles en permanence sauf pendant un jingle ou un flash, jingles nommés
+> `HHh.mp3` en local et sans erreur si absents, note audible sur un vote
+> « encore », flux compatible avec tout lecteur de webradio et sans coupure,
+> transcodage minimal.
+> Elles tranchent les décisions **n°1** et **n°6**, en ouvrent deux —
+> **n°10** (que veut dire « vote » ?) et **n°11** (transcoder le moins contre ne
+> jamais couper) — et ajoutent `GOAL-008`, `GOAL-009` et un quatrième relevé,
+> `docs/flux-icy.md`.
+
 La documentation structurante et les commandes de pilotage sont posées.
 **Le code n'existe pas encore** : `GOAL-001-T01` à `T04` et `T11` restent à
 faire, et la commande de vérification n'a donc jamais été exécutée avec succès —
@@ -49,7 +60,9 @@ elle n'a rien à vérifier.
 | GOAL-004 | Le flux : ffmpeg, fan-out, démarrage à la demande | `[ ]` |
 | GOAL-005 | La grille horaire et les moments thématiques | `[ ]` |
 | GOAL-006 | Jingles horaires et flashs France Info | `[ ]` |
-| GOAL-007 | Le pilotage : `stop` et `encore` | `[ ]` |
+| GOAL-007 | Le pilotage : `stop` et `encore` dans le noyau | `[ ]` |
+| GOAL-008 | L'API de pilotage | `[ ]` |
+| GOAL-009 | L'interface web — Flask et Jinja2 | `[ ]` |
 
 ---
 
@@ -70,7 +83,7 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 - [x] `GOAL-001-T07` Rédiger `AGENTS.md`
 - [x] `GOAL-001-T08` Rédiger `TASKS.md`, `CONTRIBUTING.md`, `README.md`, `CLAUDE.md`
 - [x] `GOAL-001-T09` Installer `/goal`, `/task`, `/status`, `/verify` et `.claude/settings.json`
-- [x] `GOAL-001-T10` Ouvrir les relevés `docs/{navidrome,franceinfo,ffmpeg}.md` avec **les questions auxquelles GOAL-002 devra répondre**
+- [x] `GOAL-001-T10` Ouvrir les relevés `docs/{navidrome,franceinfo,ffmpeg,flux-icy}.md` avec **les questions auxquelles GOAL-002 devra répondre**
 - [ ] `GOAL-001-T11` Vérification complète passée et **sa sortie constatée**, carte du dépôt (ARCHITECTURE.md §9) mise à jour
 
 > `T05` à `T10` ont été produites par `/init-project-harness`. Elles sont cochées
@@ -89,6 +102,13 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 | Aucune persistance | « Ce qui est passé est perdu » (SPECS.md §2). Pas de base, pas de cache, pas d'historique |
 | Tout le projet en français | Choix de l'auteur à l'initialisation : code, docstrings, documentation et commits |
 | Quatre cas d'arrêt, sans cinquième pour l'écoute | Autonomie maximale, choisie à l'initialisation. Conséquence consignée : SPECS.md §7 n°9 |
+| Interface web en **Flask**, gabarits en **Jinja2** | Choix de l'auteur, 2026-08-30. Tranche SPECS.md §7 n°1 |
+| **Toute action de l'interface passe par l'API** | Tranche SPECS.md §7 n°6. Un second chemin entre la vue et le noyau divergerait de l'API, et c'est celui qu'on ne teste pas qui casse (ARCHITECTURE.md §6) |
+| Les jingles nommés `00h.mp3` … `23h.mp3` | Le nom du fichier *est* la programmation : aucune table de correspondance à tenir à jour. Seule exception à « rien en dur » (AGENTS.md §2) |
+| Un jingle absent ne signale rien | C'est le mode d'emploi : on ajoute un jingle en déposant un fichier. Distinct d'un fichier corrompu, qui est un incident (SPECS.md §4.3) |
+| `stop` et `encore` refusés pendant un jingle ou un flash, **explicitement** | Un refus muet est indistinguable d'une panne et pousse à réessayer (SPECS.md §4.6) |
+| Un « encore » enregistré diffuse une note dans le flux | Sans accusé de réception audible, on ne sait pas si le vote est passé à temps — et on vote deux fois (SPECS.md §4.6) |
+| Quatrième relevé : `docs/flux-icy.md` | « Compatible avec tout lecteur de webradio » n'a aucune norme derrière : c'est une convention de fait, à constater lecteur par lecteur |
 
 ### Dettes ouvertes par ce Goal
 
@@ -101,10 +121,19 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
       exécutable.** `/verify` §5 les décrit en `grep`, mais aucun script ne les
       lance. Tant que le code n'existe pas, ils ne coûtent rien ; dès `GOAL-003`,
       ils doivent être vérifiés à chaque passage.
-- [ ] `GOAL-001-T14` **Neuf décisions restent ouvertes** dans SPECS.md §7. Deux
-      bloquent un Goal précis et devront être tranchées avant lui : la n°2
-      (modularité des sources) avant `GOAL-002`, la n°3 (règle de
-      non-répétition) avant `GOAL-003`.
+- [ ] `GOAL-001-T14` **Neuf décisions restent ouvertes** dans SPECS.md §7 — deux
+      ont été tranchées le 2026-08-30 (n°1 et n°6), deux ont été ouvertes le même
+      jour (n°10 et n°11). Trois bloquent un Goal précis :
+      la **n°2** (modularité des sources) avant `GOAL-002`,
+      la **n°3** (règle de non-répétition) avant `GOAL-003`,
+      la **n°11** (transcodage minimal contre flux sans coupure) avant
+      `GOAL-004` — et celle-là ne se tranche pas avant les relevés.
+- [ ] `GOAL-001-T15` **La n°10 est une ambiguïté de spécification, pas une
+      préférence.** `encore` est décrit comme un « vote », alors que SPECS.md §3
+      ne prévoit qu'un auditeur. Un vote qui s'applique seul et un vote qui exige
+      un quorum ne produisent pas la même radio. C'est un comportement audible :
+      il ne se tranche pas en silence (AGENTS.md §1.2), et la question remonte à
+      l'auteur avant `GOAL-007`.
 
 ---
 
@@ -142,7 +171,11 @@ connexions, et surtout le **cycle de vie** : démarrage à la première connexio
 arrêt à la dernière, y compris sur déconnexion brutale (SPECS.md §4.7).
 
 Premier Goal dont le résultat ne peut être constaté qu'en **écoutant**
-(AGENTS.md §4.1).
+(AGENTS.md §4.1) — et premier à devoir tenir les trois exigences de SPECS.md
+§4.9 : lisible par tout lecteur, sans coupure, transcodant le moins possible.
+
+**Bloqué par la décision SPECS.md §7 n°11**, qui ne se tranche pas avant les
+relevés de `GOAL-002`. Ne pas le découper avant.
 
 ---
 
@@ -160,13 +193,57 @@ le tirage libre quand une plage n'a rien à offrir (SPECS.md §4.4).
 **État : TODO** — non découpé.
 
 L'insertion à la jonction sans couper un morceau, la péremption
-(SPECS.md §7 n°4), et le repli sur la musique quand un jingle ou un flash manque.
+(SPECS.md §7 n°4), la résolution du nom `HHh.mp3` depuis l'heure, et le silence
+délibéré quand un jingle est absent — distinct de l'incident qu'est un fichier
+corrompu (SPECS.md §4.3).
 
 ---
 
-## GOAL-007 — Le pilotage : `stop` et `encore`
+## GOAL-007 — Le pilotage : `stop` et `encore` dans le noyau
 
 **État : TODO** — non découpé.
 
-L'effet de `stop` et `encore` dans le noyau, puis leur forme — qui dépend de
-**SPECS.md §7 n°6**, elle-même liée à la n°1 (interface web ou non).
+L'effet des deux commandes sur ce que la file rendra ensuite, le **refus motivé**
+pendant un jingle ou un flash (SPECS.md §4.6), et le déclenchement de la note
+d'accusé de réception.
+
+Sans Flask, sans HTTP, sans navigateur : c'est du noyau, et cela se teste seul.
+
+**Exige que SPECS.md §7 n°10 soit tranchée** — un vote qui s'applique seul et un
+vote à quorum ne produisent pas le même noyau.
+
+> La note d'accusé de réception a une contrainte que les jingles n'ont pas : elle
+> doit s'entendre **avant** que le morceau suivant ne soit choisi, donc elle ne
+> peut pas attendre la jonction (ARCHITECTURE.md §6.2). C'est le point difficile
+> de ce Goal.
+
+---
+
+## GOAL-008 — L'API de pilotage
+
+**État : TODO** — non découpé.
+
+La surface publique (SPECS.md §4.8) : dire ce qui passe, accepter un vote `stop`
+ou `encore`, refuser explicitement pendant un jingle ou un flash, dire si la
+chaîne tourne.
+
+Elle traduit en HTTP des décisions prises par le noyau ; elle n'en prend aucune.
+
+**Aucun autre client n'est écrit** — pas de bot, pas de Telegram. L'API existe
+parce que `GOAL-009` s'en sert, pas parce qu'un autre client pourrait s'en servir
+un jour (AGENTS.md §2).
+
+---
+
+## GOAL-009 — L'interface web — Flask et Jinja2
+
+**État : TODO** — non découpé.
+
+Une page : ce qui passe, et deux boutons. Servie par Flask, mise en page par des
+gabarits Jinja2, destinée à un téléphone posé à côté de l'enceinte.
+
+Elle appelle **l'API de `GOAL-008`**, jamais le noyau. Aucune décision dans un
+gabarit.
+
+Elle ne configure rien : le TOML reste le seul point d'entrée des réglages
+(SPECS.md §6).

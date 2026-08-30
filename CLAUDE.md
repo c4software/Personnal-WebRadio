@@ -12,10 +12,11 @@ de vérification, conventions de code et de commit.
 2. [ARCHITECTURE.md](./ARCHITECTURE.md) — l'architecture technique (le **comment**)
 3. [TASKS.md](./TASKS.md) — la feuille de route et l'avancement réel (l'**ordre**)
 
-Si le travail touche à **Navidrome**, au **flash France Info** ou à **ffmpeg**,
-lire **aussi** le relevé correspondant dans [docs/](./docs/), et sa section
-« points incertains » en particulier : **ne jamais inventer le comportement d'une
-dépendance externe** (AGENTS.md §3).
+Si le travail touche à **Navidrome**, au **flash France Info**, à **ffmpeg** ou
+à **ce qu'attendent les lecteurs de webradio**, lire **aussi** le relevé
+correspondant dans [docs/](./docs/), et sa section « points incertains » en
+particulier : **ne jamais inventer le comportement d'une dépendance externe**
+(AGENTS.md §3).
 
 ## Commandes du Harness
 
@@ -50,7 +51,12 @@ et une sélection au hasard qui lisent directement `datetime.now()` ou
 vérifier qu'un jingle tombe à l'heure. Ils sont **injectés**, et un seul module
 les fournit (AGENTS.md §2).
 
-**Les tests n'entendent rien.** Quatre choses ne se constatent qu'en écoutant :
-le son lui-même, les transitions, la tenue dans la durée, et le comportement des
-vrais lecteurs. Elles sont listées en AGENTS.md §4.1 — et personne ne les
-détecte automatiquement.
+**Les tests n'entendent rien.** Cinq choses ne se constatent qu'en écoutant : le
+son lui-même, les transitions, la tenue dans la durée, le comportement des vrais
+lecteurs, et la note qui accuse réception d'un vote. Elles sont listées en
+AGENTS.md §4.1 — et personne ne les détecte automatiquement.
+
+**L'interface web n'a aucun raccourci.** Ses boutons passent par l'API, comme
+n'importe quel autre client. Une route Flask ou un gabarit Jinja2 qui appellerait
+le noyau directement créerait un second chemin — celui qu'on ne teste pas
+(AGENTS.md §2).

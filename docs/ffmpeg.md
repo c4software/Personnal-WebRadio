@@ -40,6 +40,33 @@ est ce qui distingue une radio d'une liste de lecture (SPECS.md §4.2).
 - [ ] Existe-t-il un filtre de normalisation du niveau utilisable **en temps
       réel** ? Un jingle qui écrase la musique est l'un des quatre angles morts
       (AGENTS.md §4.1).
+- [ ] **La note d'accusé de réception d'un vote « encore » ne peut pas attendre
+      la jonction suivante** (ARCHITECTURE.md §6.2) : elle doit s'entendre tout
+      de suite. Peut-elle être **mêlée par-dessus** la musique en cours plutôt
+      qu'insérée entre deux morceaux, et à quel coût ?
+
+## 2.bis Transcoder le moins possible
+
+SPECS.md §4.9 demande d'économiser la machine ; SPECS.md §4.9 demande aussi de ne
+jamais couper. Ce relevé doit établir ce qui est **réellement possible**, pas ce
+qui serait souhaitable.
+
+- [ ] ffmpeg sait-il **copier** un flux audio sans le réencoder (`-c copy`) tout
+      en l'insérant dans une sortie continue ? À quelles conditions sur le format
+      d'entrée ?
+- [ ] Que produit exactement une copie lorsque deux fichiers successifs n'ont pas
+      le même débit, la même fréquence d'échantillonnage ou le même nombre de
+      canaux ? Un flux valide, ou un flux que les lecteurs refusent
+      (→ [docs/flux-icy.md](./flux-icy.md) §3) ?
+- [ ] Quel est le **coût réel** d'un réencodage permanent sur cette machine —
+      pourcentage d'un cœur pour un auditeur, pour cinq ? Le chiffre décide :
+      « économiser les ressources » n'a de sens qu'en regard de ce qu'on
+      économise.
+- [ ] Un réencodage **partiel** est-il possible : copier tant que le format
+      correspond, ne réencoder que les fichiers qui s'en écartent ? Que se
+      passe-t-il à la bascule entre les deux régimes ?
+
+Ce relevé nourrit directement la décision ouverte **SPECS.md §7 n°11**.
 
 ## 3. Le flux de sortie
 

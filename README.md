@@ -20,8 +20,15 @@ qu'on écoute — on se branche, et ça joue déjà.
 - **Flashs France Info** aux heures choisies, avec repli sur la musique s'ils
   manquent
 - **Pilotage** : `stop` pour passer, `encore` pour rester sur l'artiste — ou à
-  défaut sur le genre
-- **Tout en TOML** : aucune URL, aucun chemin, aucune durée dans le code
+  défaut sur le genre. Un « encore » enregistré **s'entend** : une brève note est
+  diffusée dans le flux
+- **Une page web** — ce qui passe, et deux boutons — servie par Flask, mise en
+  page en Jinja2, faite pour un téléphone posé à côté de l'enceinte
+- **Toute action passe par une API**, jamais par un chemin réservé à l'interface
+- **Un flux lisible par n'importe quel lecteur de webradio**, sans coupure, et
+  transcodant le moins possible
+- **Tout en TOML** : aucune URL, aucun chemin, aucune durée dans le code. Seule
+  exception, les jingles, dont le nom porte l'heure : `00h.mp3` … `23h.mp3`
 
 ## Ce qu'elle ne fait pas
 
@@ -34,7 +41,9 @@ n'y écrit jamais) · enregistrer, rejouer ou podcaster. Voir
 > **Le code n'existe pas encore.** Le projet en est à la Phase 0 — voir
 > [TASKS.md](./TASKS.md). Cette section sera remplie par `GOAL-001`.
 
-Il faudra : Python 3.11+, **ffmpeg**, et un serveur Navidrome joignable.
+Il faudra : Python 3.11+, **ffmpeg**, un serveur Navidrome joignable, et un
+dossier de jingles MP3 nommés `00h.mp3` à `23h.mp3` — tous facultatifs, une
+heure sans jingle passe sans rien signaler.
 
 ## Développement
 
@@ -48,7 +57,7 @@ projet, et le travail avance par **Goals** découpés en tâches traçables.
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Comment elle est conçue |
 | [TASKS.md](./TASKS.md) | Où en est le travail |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Comment contribuer |
-| [docs/](./docs/) | Navidrome, France Info, ffmpeg — relevés par observation |
+| [docs/](./docs/) | Navidrome, France Info, ffmpeg, lecteurs de webradio — relevés par observation |
 
 Commandes de pilotage : `/status`, `/goal <objectif>`, `/task [ID]`, `/verify`.
 

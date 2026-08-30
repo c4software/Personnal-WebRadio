@@ -53,8 +53,10 @@ précédente : c'est elle qui empêche les Goals de déborder.
 | **Gérer la bibliothèque** | Le projet **lit** Navidrome. Il ne classe pas, ne renomme pas, ne modifie aucune étiquette, n'écrit jamais rien côté bibliothèque. Navidrome reste la seule autorité sur les fichiers. |
 | **Enregistrer, rejouer, podcaster** | Pas d'archivage du flux, pas de retour en arrière, pas de podcast des flashs. Une radio est un présent continu : ce qui est passé est perdu, et c'est assumé. |
 
-Ne figure **pas** dans cette liste, et n'est donc ni dedans ni dehors :
-l'**interface web de gestion**. Voir §7, décision ouverte n°1.
+L'**interface web**, laissée indécise à l'initialisation, est désormais **dans le
+périmètre** (§4.8). Elle ne rouvre aucune des trois exclusions ci-dessus : elle
+montre ce qui passe et porte deux boutons, elle ne gère ni la bibliothèque, ni la
+configuration.
 
 ## 3. Qui s'en sert
 
@@ -69,8 +71,10 @@ Conséquences, et elles sont larges :
   un navigateur et une enceinte peuvent coexister.
 - **Les seuls secrets** sont les identifiants Navidrome. Ils vivent dans le TOML
   local, jamais versionné, et n'apparaissent dans aucun journal (AGENTS.md §2).
-- **Pas d'exigence d'accessibilité** au sens interface : il n'y a pas
-  d'interface. Le produit est un flux audio et quelques commandes.
+- **L'interface web n'est pas protégée non plus** : quiconque est sur le réseau
+  peut voir ce qui passe et voter. Elle est faite pour un téléphone posé à côté
+  de l'enceinte, utilisable à une main — son ergonomie compte davantage que sa
+  conformité formelle d'accessibilité.
 
 ---
 
@@ -112,16 +116,28 @@ La sélection est un **tirage** dans la bibliothèque, contraint par :
 
 ### 4.3 Les jingles horaires
 
-À l'heure pile, un jingle — un fichier MP3 fourni par l'auteur — est diffusé.
+À l'heure pile, un jingle — un fichier MP3 **local**, fourni par l'auteur — est
+diffusé.
 
-- Il **ne coupe pas** un morceau en cours : il s'insère à la jonction suivante.
-  Un jingle qui tombe à cheval sur un refrain est un défaut.
+**Le nom du fichier est la programmation.** Les jingles s'appellent `00h.mp3`,
+`01h.mp3`, … `23h.mp3`, dans un dossier déclaré au TOML. Le jingle de 14 h est
+`14h.mp3`, et il n'existe aucune autre table de correspondance à tenir à jour :
+on ajoute un jingle en déposant un fichier, on le retire en le supprimant.
+
+- **Un jingle absent n'est pas une erreur.** Le dossier peut n'en contenir que
+  trois ; les vingt-et-une autres heures passent sans jingle, **sans rien
+  signaler** — ni journal, ni avertissement. C'est le mode d'emploi normal, pas
+  une dégradation.
+- Un fichier **présent mais illisible** est, lui, un incident : la radio continue
+  et le journalise. La distinction compte — absent est nominal, corrompu ne l'est
+  pas.
+- Le jingle **ne coupe pas** un morceau en cours : il s'insère à la jonction
+  suivante. Un jingle à cheval sur un refrain est un défaut.
 - Le décalage entre l'heure pile et la diffusion effective est donc borné par la
   durée du morceau en cours. **Le seuil acceptable est une décision ouverte**
   (§7 n°4) : au-delà, mieux vaut renoncer au jingle de cette heure-là que de le
   diffuser à et quart.
-- Si le fichier est absent ou illisible : la radio continue, l'incident est
-  journalisé. Un jingle manquant n'interrompt pas la musique.
+- Pendant un jingle, `stop` et `encore` ne s'appliquent pas (§4.6).
 
 ### 4.4 Les moments thématiques
 
@@ -163,13 +179,24 @@ Deux commandes, adressées à la station en cours de diffusion :
 | **`stop`** | Passer le morceau en cours. Le suivant démarre à la jonction, sans blanc. |
 | **`encore`** | Rester sur cet artiste : le prochain morceau est du **même artiste**. S'il n'en reste aucun de disponible, du **même genre**. Si le genre non plus n'offre rien, tirage libre, et le repli est journalisé. |
 
-La **forme** de ces commandes — appels HTTP, commande en ligne, autre — est une
-décision ouverte (§7 n°6). Leur **effet** est spécifié ici et ne dépend pas de
-la forme retenue.
+**Elles sont disponibles en permanence**, à une exception près : **pendant un
+jingle horaire ou un flash d'information**, elles ne s'appliquent pas. On ne
+passe pas un flash, et on ne demande pas « encore » d'un jingle.
+
+Une commande reçue pendant un jingle ou un flash n'est pas perdue en silence :
+elle est **refusée explicitement**, et celui qui l'a envoyée l'apprend (§4.8).
+Elle n'est ni mise en attente, ni appliquée au morceau suivant en douce — les
+deux seraient des surprises.
+
+**`encore` s'entend.** Quand un vote « encore » est enregistré, **une brève note
+de musique est diffusée dans le flux**. C'est l'accusé de réception, et tous les
+auditeurs l'entendent. Sans elle, on ne saurait pas si le vote est passé à temps,
+avant que le morceau suivant ne soit déjà choisi — et on voterait deux fois.
 
 `encore` s'applique au morceau **suivant**, pas à toute la suite : il n'installe
 pas un mode. Combien de fois il peut être enchaîné, et si l'effet s'épuise, est
-une décision ouverte (§7 n°7).
+une décision ouverte (§7 n°7). Ce que « vote » veut dire exactement — un seul
+suffit-il, ou en faut-il plusieurs — est la décision ouverte n°10.
 
 ### 4.7 Se débrancher
 
@@ -184,6 +211,57 @@ Une déconnexion brutale (câble arraché, lecteur tué) doit être détectée c
 déconnexion normale : sans quoi la chaîne tournerait indéfiniment pour un
 auditeur qui n'existe plus.
 
+### 4.8 L'interface web, et l'API qui la porte
+
+Une interface web montre ce qui passe et permet d'agir sur la radio.
+
+**Toute action passe par une API.** L'interface n'a aucun chemin privilégié : ses
+boutons appellent la même API que n'importe quel autre client. C'est ce qui
+permettra d'ajouter plus tard un autre point de commande — un bot, un raccourci
+de téléphone — sans rien reprendre du cœur.
+
+> **Aucun autre client n'est écrit pour autant.** L'API existe parce que
+> l'interface web s'en sert **aujourd'hui**, pas parce qu'un bot pourrait s'en
+> servir demain (AGENTS.md §2 : *une abstraction arrive avec son deuxième cas
+> d'usage*). Ce qui est demandé, c'est que la porte existe — pas qu'on
+> construise derrière.
+
+L'API doit au minimum :
+
+- dire **ce qui passe** : titre, artiste, et si l'on est dans de la musique, un
+  jingle ou un flash ;
+- accepter un vote **`stop`** et un vote **`encore`** ;
+- **refuser explicitement** un vote pendant un jingle ou un flash (§4.6), en
+  disant pourquoi — un refus muet est indistinguable d'une panne ;
+- dire **si la chaîne tourne**, donc si quelqu'un écoute.
+
+L'interface web n'est rien de plus que la mise en page de cela : ce qui passe, et
+deux boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
+d'entrée des réglages (§6) — et ne touche pas à la bibliothèque (§2).
+
+### 4.9 Ce que le flux doit être
+
+Trois exigences, qui tirent en sens contraire et qu'il faut pourtant tenir
+ensemble.
+
+**Lisible par n'importe quel lecteur de webradio.** VLC, un navigateur, une
+enceinte connectée, une application de radios : aucun ne doit demander de réglage
+particulier. Un lecteur qui se branche reçoit un flux qu'il sait lire
+immédiatement, sans rien connaître de ce qui l'a précédé.
+
+**Sans coupure.** Le flux ne s'interrompt jamais : ni entre deux morceaux, ni à
+l'insertion d'un jingle, d'un flash ou de la note d'accusé de réception. Pour un
+lecteur de webradio, une coupure n'est pas un blanc — c'est une déconnexion, et
+il faut se rebrancher.
+
+**Et transcodant le moins possible.** La machine qui diffuse n'a pas de
+ressources à gaspiller : ce qui peut être transmis tel quel doit l'être.
+
+Ces trois exigences ne sont pas spontanément compatibles : transmettre un fichier
+tel quel interdit de le raccorder au précédent, et un changement de format en
+cours de flux est précisément ce qui fait décrocher les lecteurs. **C'est la
+décision ouverte n°11**, la plus structurante de celles qui restent.
+
 ---
 
 ## 5. Comportement en cas d'erreur
@@ -194,7 +272,8 @@ contournée en continuant la musique l'est, et laisse une trace journalisée.
 | Erreur | La radio |
 |---|---|
 | Un morceau illisible ou tronqué | passe au suivant, journalise |
-| Un jingle absent | continue, journalise |
+| Un jingle absent (`14h.mp3` n'existe pas) | continue **sans rien signaler** — c'est nominal (§4.3) |
+| Un jingle présent mais illisible | passe outre, journalise |
 | Un flash indisponible ou tronqué | continue sur la musique, journalise |
 | Une plage thématique sans musique | se replie sur le tirage libre, journalise |
 | `encore` sans autre morceau de l'artiste | replie sur le genre, puis sur le tirage libre |
@@ -217,7 +296,11 @@ Ce que le TOML doit décrire, au minimum :
 
 - **Navidrome** : adresse, identifiants ;
 - **Le flux** : adresse d'écoute, port, format et débit ;
-- **Les jingles** : dossier, et à quelles heures ils tombent ;
+- **Les jingles** : le dossier seul — les noms `00h.mp3` … `23h.mp3` sont fixes
+  et ne se configurent pas (§4.3) ;
+- **La note d'accusé de réception** : le fichier joué lorsqu'un vote « encore »
+  est enregistré (§4.6) ;
+- **Le web** : adresse d'écoute et port de l'interface et de l'API ;
 - **Les informations** : à quelles heures un flash est diffusé ;
 - **Les moments thématiques** : plages horaires et genres associés ;
 - **Le tirage** : la règle de non-répétition, une fois §7 n°3 tranchée ;
@@ -239,15 +322,24 @@ Les décisions ouvertes, **numérotées et stables**. Une décision prise migre 
 
 ### Tranché
 
-_(vide au démarrage)_
+**n°1 — Une interface web ? Oui.** Tranchée le 2026-08-30. Une interface web
+existe (§4.8), servie par **Flask**, ses gabarits en **Jinja2**. Elle montre ce
+qui passe et porte les deux boutons de vote. Elle ne configure rien : le TOML
+reste le seul point d'entrée des réglages, et la bibliothèque reste hors
+périmètre.
+> *Raison* : le pilotage devait bien avoir une forme, et une page ouverte sur un
+> téléphone posé à côté de l'enceinte est la plus directe. Le choix de Flask et
+> Jinja2 est celui de l'auteur.
+
+**n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
+`encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :
+elle appelle la même API que tout autre client (§4.8).
+> *Raison* : séparer l'effet de sa forme permet de spécifier et de tester `stop`
+> et `encore` dans le noyau, et d'ajouter un autre point de commande plus tard
+> sans rien reprendre. **Aucun autre client n'est écrit pour autant** — la porte
+> existe, on ne construit pas derrière.
 
 ### Encore ouvert
-
-**n°1 — Une interface web de gestion ?**
-Des quatre exclusions proposées à l'initialisation, c'est la seule qui n'a pas
-été retenue comme hors périmètre. Elle n'est donc ni dedans, ni dehors. Tant que
-ce point n'est pas tranché, **aucun Goal n'ouvre d'interface** : la configuration
-reste le TOML, et le pilotage la forme retenue en n°6.
 
 **n°2 — Jusqu'où pousser la modularité des sources ?**
 L'intention initiale demande une abstraction permettant d'ajouter d'autres
@@ -280,10 +372,6 @@ entre un jingle (habillage) et un flash (information datée).
 Le laisser finir, ou couper à l'heure ? Le laisser finir est plus musical ; il
 décale l'entrée dans la plage suivante.
 
-**n°6 — La forme des commandes `stop` et `encore`.**
-Appels HTTP sur le même serveur que le flux, commande en ligne, autre chose.
-Lié à n°1 : une interface web changerait la réponse.
-
 **n°7 — L'épuisement de `encore`.**
 Combien de fois d'affilée peut-on demander « encore » avant que la radio reprenne
 un tirage libre ? Sans limite, un `encore` répété transforme la radio en album.
@@ -300,3 +388,37 @@ couvre** : les tâches qui touchent au son seront cochées sur la foi de tests q
 n'entendent rien. C'est un choix d'autonomie maximale, pris à l'initialisation et
 assumé. Il est consigné ici pour être visible, et pour pouvoir être révisé à la
 première fois où un défaut sonore traversera plusieurs Goals.
+
+**n°10 — « Au vote » : combien de voix ?**
+`encore` est décrit comme un **vote**. Or SPECS.md §3 ne prévoit qu'un auditeur,
+sur le réseau local. Deux lectures, et elles ne produisent pas la même radio :
+
+- **un vote suffit** — « vote » est alors un mot pour « bouton », l'effet est
+  immédiat, et la note de musique accuse réception d'une action déjà prise ;
+- **il faut un quorum** — plusieurs auditeurs doivent voter dans une fenêtre de
+  temps, et la note accuse réception d'une voix, pas d'une décision. Cela suppose
+  de compter les auditeurs, de définir la fenêtre, et de dire ce qu'on fait d'un
+  vote minoritaire.
+
+La première est cohérente avec §3 et coûte peu ; la seconde donne son sens plein
+au mot « vote » mais suppose des auditeurs multiples que §3 exclut aujourd'hui.
+**Rien n'est décidé** : c'est un comportement audible, il ne se tranche pas en
+silence (AGENTS.md §1.2).
+
+**n°11 — Transcoder le moins possible, sans jamais couper.**
+C'est la décision la plus structurante restée ouverte, et elle oppose trois
+exigences de §4.9 :
+
+| Voie | Ce qu'on gagne | Ce qu'on paie |
+|---|---|---|
+| **Tout réencoder** vers un format unique | Un flux parfaitement continu, des fondus et des insertions possibles, un seul format pour tous les lecteurs | La machine encode en permanence dès qu'un auditeur écoute — exactement ce que « transcoder le minimum » cherche à éviter |
+| **Transmettre tel quel** quand le format correspond, réencoder sinon | Presque aucun calcul sur une bibliothèque homogène | Un changement de format en cours de flux fait décrocher les lecteurs ; ni fondu ni insertion propre à la jonction |
+| **Exiger une bibliothèque homogène** et transmettre tel quel | Le coût minimal, et un flux continu | Une contrainte reportée sur la bibliothèque, que le projet n'a pas le droit de modifier (§2). Un seul fichier au mauvais format casse la radio |
+
+S'ajoute une question de fait : l'insertion d'un jingle, d'un flash ou de la note
+d'accusé de réception impose de mêler des fichiers **d'origines différentes**.
+Aucune des voies ci-dessus ne l'évite entièrement.
+
+Rien ne se tranche avant le relevé de [docs/ffmpeg.md](./docs/ffmpeg.md) et de
+[docs/flux-icy.md](./docs/flux-icy.md), et avant de savoir ce que la bibliothèque
+contient réellement ([docs/navidrome.md](./docs/navidrome.md)).

@@ -9,7 +9,7 @@ Puis, selon ce que vous touchez : [SPECS.md](./SPECS.md) pour un comportement
 audible, [ARCHITECTURE.md](./ARCHITECTURE.md) pour une décision technique,
 [TASKS.md](./TASKS.md) pour savoir où en est le travail, et le relevé
 correspondant dans [docs/](./docs/) si vous touchez à Navidrome, au flash
-France Info ou à ffmpeg.
+France Info, à ffmpeg ou à ce qu'attendent les lecteurs de webradio.
 
 ## Mettre en place l'environnement
 
@@ -53,6 +53,9 @@ annoncer un succès non observé.
 - Une fonctionnalité sans ses tests.
 - Un appel réseau, un `subprocess` ou une ouverture de fichier dans
   `webradio/core/`.
+- Un `import` de `flask` ou `jinja2` hors de `webradio/adapters/web/`.
+- Une route Flask ou un gabarit Jinja2 qui appelle le noyau sans passer par
+  l'API.
 - Un `datetime.now()` ou un `random.` hors de `core/clock.py` et `core/rng.py`.
 - Une URL, un chemin, un port ou une durée écrits en dur plutôt que lus du TOML.
 - Un `except:` nu, un `except Exception: pass`, un `print()`.

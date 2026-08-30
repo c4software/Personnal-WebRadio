@@ -77,6 +77,8 @@ fichier devrait porter.
 | Les en-têtes HTTP du flux, le `Content-Type`, la gestion des connexions | `adapters/http/` |
 | L'adresse et le format du flash France Info | `adapters/news/` |
 | La syntaxe TOML et le nom des clés | `adapters/config/` |
+| Flask, ses routes, ses requêtes et ses réponses | `adapters/web/` |
+| Jinja2 et ses gabarits | `adapters/web/templates/` |
 
 Au-dessus de ces dossiers, plus personne ne connaît de code HTTP, de nom de
 codec, ni de clé de configuration : le noyau manipule des `Piste`, des `Genre`,
@@ -121,6 +123,31 @@ D'où le choix : **notre propre serveur HTTP, et ffmpeg en sous-processus**.
 | Ce qu'on paie | Les transitions, les fondus et l'insertion des jingles sont à écrire — Liquidsoap les offrait |
 | Ce qu'il faut surveiller | Le cycle de vie du sous-processus. Un ffmpeg orphelin qui survit à la dernière déconnexion annule tout le bénéfice du démarrage à la demande |
 
+### 4.0 La contrainte qui commande tout le reste
+
+SPECS.md §4.9 pose trois exigences qui ne sont pas spontanément compatibles :
+**lisible par tout lecteur de webradio**, **sans coupure**, et **transcodant le
+moins possible**.
+
+Elles se heurtent sur un point précis : transmettre un fichier tel quel économise
+la machine, mais un changement de codec, de fréquence d'échantillonnage ou de
+nombre de canaux **en cours de flux** est exactement ce qui fait décrocher un
+lecteur de webradio — lequel a lu les en-têtes une fois, au branchement, et ne
+les relit pas.
+
+S'y ajoute que jingles, flashs et note d'accusé de réception viennent
+d'**origines différentes** de la musique : les insérer suppose de les ramener au
+format du flux, ou de tout ramener à un format commun.
+
+**Aucune voie n'est retenue à ce stade** : c'est la décision ouverte
+SPECS.md §7 n°11, et elle ne se tranche pas avant les relevés
+[docs/ffmpeg.md](./docs/ffmpeg.md), [docs/flux-icy.md](./docs/flux-icy.md) et
+[docs/navidrome.md](./docs/navidrome.md).
+
+Ce qui est **déjà acquis** : la contrainte de non-coupure prime sur l'économie de
+ressources. Une radio économe qui fait décrocher les lecteurs ne remplit pas sa
+fonction ; une radio qui encode en permanence la remplit, mal.
+
 ### 4.1 Un flux, N auditeurs
 
 Un seul encodage alimente toutes les connexions : chaque auditeur reçoit une
@@ -146,14 +173,50 @@ forme retenue relèvera de [docs/navidrome.md](./docs/navidrome.md), une fois
 observée. Dans tous les cas, **aucun identifiant ne paraît dans un journal** —
 c'est un interdit contrôlé (AGENTS.md §2).
 
-## 6. Le pilotage
+## 6. Le pilotage, l'API et l'interface web
 
-`stop` et `encore` (SPECS.md §4.6) sont des **décisions**, donc du noyau : ils
-modifient ce que la file rendra ensuite. Leur **forme** — HTTP, ligne de commande
-ou autre — est un adaptateur, et reste une décision ouverte (SPECS.md §7 n°6).
+Trois couches, et la frontière entre elles est la même que partout ailleurs.
 
-Cette séparation permet de spécifier et de tester leur effet **avant** d'avoir
-tranché leur forme.
+```
+navigateur
+    ↓  (formulaire ou fetch)
+adapters/web/     Flask : routes, gabarits Jinja2, mise en page
+    ↓  (appel d'API, jamais d'appel direct au noyau)
+adapters/web/api  la surface publique : ce qui passe, voter, refuser
+    ↓
+core/control      l'effet de `stop` et `encore` sur ce que la file rendra
+```
+
+**`stop` et `encore` sont des décisions, donc du noyau.** Leur effet se spécifie
+et se teste sans Flask, sans HTTP et sans navigateur.
+
+**L'interface web n'a aucun chemin privilégié** : ses boutons passent par l'API,
+comme le ferait n'importe quel autre client (SPECS.md §4.8). C'est un interdit,
+pas une convention : un gabarit Jinja2 ou une route Flask qui appellerait le
+noyau directement créerait un second chemin, qui divergerait du premier.
+
+### 6.1 Ce que l'API doit refuser
+
+Pendant un jingle ou un flash, un vote n'est pas applicable (SPECS.md §4.6). Le
+refus est **explicite et motivé** : l'appelant apprend qu'il a été refusé et
+pourquoi. Un refus muet est indistinguable d'une panne, et pousse à réessayer.
+
+C'est le noyau qui sait s'il est dans un jingle, un flash ou de la musique — donc
+c'est lui qui refuse. L'API traduit ce refus en réponse HTTP ; elle ne le décide
+pas.
+
+### 6.2 La note d'accusé de réception
+
+Un vote « encore » enregistré fait diffuser une brève note dans le flux
+(SPECS.md §4.6). C'est le seul cas où **une action extérieure injecte du son** :
+la note traverse donc la même mécanique d'insertion que les jingles, avec les
+mêmes contraintes de format (§4.0), mais déclenchée par un événement et non par
+l'horloge.
+
+> **Un point à ne pas manquer** : la note doit être entendue **avant** que le
+> morceau suivant ne soit choisi, sinon elle accuse réception trop tard et
+> l'auditeur vote deux fois. Elle ne peut donc pas attendre la jonction suivante,
+> contrairement à un jingle. C'est ce qui la rend différente, et plus difficile.
 
 ## 7. Erreurs
 
@@ -206,7 +269,8 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 ├── docs/
 │   ├── navidrome.md ..... relevé de l'API Subsonic telle que Navidrome l'implémente
 │   ├── franceinfo.md .... relevé du flash d'information
-│   └── ffmpeg.md ........ relevé des options réellement acceptées
+│   ├── ffmpeg.md ........ relevé des options réellement acceptées
+│   └── flux-icy.md ...... relevé de ce qu'attendent les lecteurs de webradio
 └── .claude/
     ├── settings.json .... permissions partagées, versionnées
     └── commands/ ........ goal · task · status · verify
@@ -214,7 +278,8 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 
 **Le code n'existe pas encore.** `GOAL-001` le posera :
 `webradio/core/`, `webradio/adapters/`, `webradio/app/`, `tests/`,
-`pyproject.toml`. Cette section est mise à jour par `GOAL-001-T02` puis par la
+`pyproject.toml`. `adapters/web/` (Flask) et ses gabarits Jinja2 arrivent avec
+`GOAL-009`. Cette section est mise à jour par `GOAL-001-T02` puis par la
 dernière tâche de chaque Goal (AGENTS.md §5.3).
 
 ### 9.1 Écarts assumés

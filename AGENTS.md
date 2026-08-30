@@ -117,11 +117,26 @@ alors ni rejouer une soirée, ni vérifier qu'un jingle tombe à l'heure.
   `time.monotonic()` hors de `webradio/core/clock.py`.
 - ❌ Aucun `random.` ni `secrets.` hors de `webradio/core/rng.py`.
 
+### L'interface web n'a aucun chemin privilégié
+
+- ❌ Aucun `import` de `flask` ni de `jinja2` hors de `webradio/adapters/web/`.
+- ❌ Aucune route Flask, aucun gabarit Jinja2 n'appelle le noyau directement :
+  **tout passe par l'API** (SPECS.md §4.8). Un second chemin divergerait du
+  premier, et c'est toujours celui qu'on ne teste pas qui casse.
+- ❌ Aucune décision dans un gabarit. Un gabarit affiche un état ; il ne calcule
+  pas s'il faut refuser un vote, ni ce qui passe à l'antenne.
+- ❌ Aucun `render_template` dans les réponses de l'API : l'API rend des données,
+  la vue les met en page.
+
 ### La configuration est le seul point d'entrée des valeurs
 
 - ❌ Aucune URL, aucun chemin de fichier, aucun port, aucune durée en dur dans
   le code. Tout vient du TOML (SPECS.md §6), avec un défaut déclaré au même
   endroit.
+- ⚠️ **Une exception, et une seule** : les noms des jingles horaires — `00h.mp3`
+  à `23h.mp3` — sont **fixes** et se déduisent de l'heure (SPECS.md §4.3). Seul
+  le dossier est configurable. Ne pas ajouter de table de correspondance : le nom
+  du fichier *est* la configuration.
 
 ### Les erreurs se voient
 
@@ -168,6 +183,12 @@ Trois relevés vivent dans [docs/](./docs/) :
 | [docs/navidrome.md](./docs/navidrome.md) | L'API Subsonic telle que Navidrome l'implémente réellement |
 | [docs/franceinfo.md](./docs/franceinfo.md) | Le flash d'information : accès, format, disponibilité |
 | [docs/ffmpeg.md](./docs/ffmpeg.md) | Les options réellement acceptées par la version installée |
+| [docs/flux-icy.md](./docs/flux-icy.md) | Ce qu'attendent réellement les lecteurs de webradio |
+
+> Le dernier est le plus mal outillé des quatre : **il n'existe aucune norme du
+> « flux de webradio »**. Ce que les lecteurs acceptent est une convention de
+> fait, et chacun l'interprète à sa façon. Rien ne s'y déduit d'une
+> spécification ; tout se constate en branchant de vrais lecteurs.
 
 Avant toute décision les touchant :
 
@@ -214,6 +235,7 @@ ne se constatent qu'en écoutant réellement la radio :
 | **Les transitions** | Un blanc entre deux morceaux, une coupure au milieu d'un flash, un jingle à cheval sur un refrain |
 | **La tenue dans la durée** | Dérive d'horloge, tampon qui se vide, fuite mémoire après six heures, jingle horaire qui glisse |
 | **Les vrais lecteurs** | Se brancher au vol, se rebrancher après coupure, VLC contre navigateur contre enceinte — chacun a ses exigences d'en-têtes et de tampon |
+| **La note du vote** | Qu'un « encore » s'entende, assez tôt et sans écraser la musique. Un test peut vérifier qu'elle est déclenchée ; aucun ne dira si elle est audible |
 
 **Conséquence à assumer** : aucun de ces défauts n'est détecté automatiquement
 par qui que ce soit. Celui qui touche à ces zones **écoute réellement la radio
@@ -294,7 +316,8 @@ La documentation fait partie de la tâche, pas de son après-coup.
 | Nouvelle clé de configuration TOML | [SPECS.md](./SPECS.md) §6 |
 | Décision d'architecture, dépendance, découpage | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | Nouveau dossier, ou dossier dont le rôle change | [ARCHITECTURE.md](./ARCHITECTURE.md) §9 |
-| Une observation sur Navidrome, France Info ou ffmpeg | le relevé correspondant dans [docs/](./docs/) |
+| Une observation sur Navidrome, France Info, ffmpeg ou un lecteur de webradio | le relevé correspondant dans [docs/](./docs/) |
+| Une route d'API ajoutée, changée ou retirée | [SPECS.md](./SPECS.md) §4.8 — c'est une surface publique |
 | Nouvelle règle de développement | ce fichier |
 | Procédure de contribution | [CONTRIBUTING.md](./CONTRIBUTING.md) |
 | Avancement, nouvelle tâche, blocage | [TASKS.md](./TASKS.md) |
@@ -322,7 +345,7 @@ Types : `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `build`, `ci`.
 
 Scopes usuels : `core`, `queue`, `schedule`, `rng`, `clock`, `navidrome`,
 `source`, `jingle`, `news`, `stream`, `ffmpeg`, `http`, `config`, `control`,
-`harness`.
+`api`, `web`, `harness`.
 
 Exemples :
 
@@ -415,6 +438,9 @@ def prochain_morceau(self) -> Piste:
 - **Le flash France Info est indisponible ou tronqué** → ce n'est pas une panne,
   c'est un cas nominal : la radio se replie sur la musique. Si SPECS.md ne dit
   pas comment, c'est une ambiguïté de spécification (§1.2).
+- **Un lecteur de webradio décroche** → ce n'est presque jamais le lecteur.
+  C'est un changement de format en cours de flux (SPECS.md §7 n°11). Consigner
+  dans [docs/flux-icy.md](./docs/flux-icy.md) quel lecteur, à quel moment.
 - **La spécification est ambiguë** → poser la question. Ne pas trancher en
   silence un comportement que l'auditeur entendra.
 - **Une abstraction résiste** → le dire. Contourner une abstraction est une
