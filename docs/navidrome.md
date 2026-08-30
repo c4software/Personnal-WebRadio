@@ -1,6 +1,7 @@
 # docs/navidrome.md — Relevé de l'API Subsonic telle que Navidrome l'implémente
 
-> **Ce relevé est vide de constats.** Il porte les **questions** auxquelles
+> **Relevé non commencé — bloqué** (`GOAL-002-T08`). Il exige un serveur
+> Navidrome joignable et ses identifiants ; le dépôt n'en a aucun.
 > `GOAL-002` devra répondre **par observation**, contre un vrai serveur.
 >
 > Règle applicable (AGENTS.md §3) : **ne jamais inventer le comportement d'un

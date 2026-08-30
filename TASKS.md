@@ -268,12 +268,46 @@ Le découpage sépare les deux, pour que ce qui peut avancer avance.
 
 ### Ce qui dépend de l'auteur
 
-- [ ] `GOAL-002-T08` Navidrome : authentification, tirage, genres, artiste, récupération du son
-- [ ] `GOAL-002-T09` Podcast : format des flux, fiabilité de la date de publication et de la durée
+- [!] `GOAL-002-T08` Navidrome : authentification, tirage, genres, artiste, récupération du son
+      > **Bloqué le 2026-08-30 — il manque un serveur.** Le relevé exige
+      > d'interroger un vrai Navidrome : adresse, identifiant, mot de passe API.
+      > Rien dans le dépôt ne les porte, et ils ne s'inventent pas (AGENTS.md §3).
+      > **Ce qu'il faut pour débloquer** : une instance joignable et ses
+      > identifiants, dans un TOML local non versionné.
+      > **Ce que ce blocage bloque** : `GOAL-003` peut être écrit sans lui — le
+      > noyau ne connaît qu'un `Protocol` — mais l'adaptateur Navidrome, non.
+
+- [!] `GOAL-002-T09` Podcast : format des flux, fiabilité de la date de publication et de la durée
+      > **Bloqué le 2026-08-30 — il manque les flux.** Aucune URL de podcast n'a
+      > été fournie. Le relevé ne porte pas sur « les podcasts en général » mais
+      > sur **ceux que la radio diffusera**, dont les écarts au format sont
+      > précisément ce qu'il faut constater ([docs/podcast.md](./docs/podcast.md)).
+      > **Ce qu'il faut pour débloquer** : les URL des émissions voulues.
+      > **Ce que ce blocage bloque** : `GOAL-010` entièrement.
+
+### Ce que GOAL-002 a établi
+
+| Constat | Conséquence |
+|---|---|
+| La voie PCM enchaîne sans blanc, y compris entre formats différents | `concat` et la copie sans réencodage sont écartés |
+| Un réencodage permanent coûte **1 % d'un cœur** | **Réencoder systématiquement.** L'optimisation que le relevé cherchait n'existe pas, et le chemin le plus simple est le bon |
+| Un jingle est un morceau de plus dans la file | **Un seul chemin d'insertion** pour jingles horaires, jingle de vote et flashs |
+| Un tuyau qui se tarit n'insère pas de silence — il fait un trou dans le **temps réel** | Résoudre le morceau suivant **pendant** que le courant joue, jamais à la jonction |
+| Sans `-re`, ffmpeg encode ×95 trop vite | Cadencer, ou la radio consomme la bibliothèque en minutes |
+| Un auditeur tardif décode sans en-tête initial | L'entrée en cours de route ne demande aucun mécanisme particulier |
+| **Deux ffmpeg ont survécu à la dernière déconnexion** | Arrêter la chaîne = arrêter **tout l'arbre**. Un test sur un booléen serait passé au vert |
+| Aucune source de flash France Info confirmée | Trois questions remontent à l'auteur |
+
+### Ce que GOAL-002 n'a pas pu établir
+
+- **La matrice des vrais lecteurs** — VLC, navigateur, enceinte. Essais menés
+  avec `curl` et ffmpeg seulement. C'est un angle mort (AGENTS.md §4.1) et il ne
+  se comble pas depuis une session.
+- **Navidrome** (`T08`) et **les podcasts** (`T09`) : bloqués, faute d'accès.
 
 ### Clôture
 
-- [ ] `GOAL-002-T10` Consolider les cinq relevés, et lister **ce qui reste incertain** — un point incertain n'est jamais remplacé par une supposition
+- [x] `GOAL-002-T10` Consolider les cinq relevés, et lister **ce qui reste incertain** — un point incertain n'est jamais remplacé par une supposition
 
 ---
 

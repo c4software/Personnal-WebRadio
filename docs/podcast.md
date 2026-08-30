@@ -1,6 +1,8 @@
 # docs/podcast.md — Relevé des flux de podcast
 
-> **Ce relevé est vide de constats.** Il porte les questions auxquelles
+> **Relevé non commencé — bloqué** (`GOAL-002-T09`). Aucune URL de podcast n'a
+> été fournie. Il ne porte pas sur « les podcasts en général » mais sur ceux que
+> la radio diffusera.
 > `GOAL-002` devra répondre **contre les flux réellement déclarés** par l'auteur.
 >
 > Règle applicable (AGENTS.md §3). Elle mord ici : « RSS avec des `<enclosure>` »

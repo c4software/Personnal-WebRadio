@@ -1,6 +1,7 @@
 # docs/ffmpeg.md — Relevé des options réellement acceptées
 
-> **Ce relevé est vide de constats.** Il porte les questions auxquelles
+> **Relevé établi le 2026-08-30** (`GOAL-002-T01` à `T04`). Les sections 1 à
+> 2.ter portent des constats ; les sections 3 et 4 restent des questions.
 > `GOAL-002` devra répondre **contre la version installée sur cette machine** —
 > pas contre la documentation d'une version quelconque.
 >
@@ -218,7 +219,20 @@ demande.**
 
 ## 5. Points incertains
 
-_Tout ce qui précède._
+**Établis, et clos** : l'enchaînement sans blanc, l'alimentation d'un encodage
+continu, l'insertion d'un jingle, le coût d'un réencodage permanent (§1 à 2.ter).
 
-Un point resté incertain **après** observation est reporté ici avec ce qui a été
-tenté, et ouvre une tâche dans TASKS.md.
+**Restent ouverts :**
+
+- [ ] Les en-têtes que ffmpeg produit en tête de flux, et ce qu'un auditeur
+      tardif en reçoit — **partiellement répondu** par
+      [flux-icy.md](./flux-icy.md) §2 : il décode sans en-tête initial. Ce qui
+      reste à voir concerne les lecteurs autres que ffmpeg.
+- [ ] Le cycle de vie du processus (§4) — **un défaut a déjà été trouvé**
+      ([flux-icy.md](./flux-icy.md) §3.bis) : deux orphelins survivants. Les
+      questions de §4 restent à reprendre à la lumière de ce constat.
+- [ ] La **normalisation du niveau** entre musique, jingles et flashs. Les
+      fichiers d'essai étaient des sinus de même amplitude ; le cas réel ne l'est
+      pas. Angle mort (AGENTS.md §4.1) : à traiter à l'oreille dans `GOAL-006`.
+
+Aucun point n'a été remplacé par une supposition.

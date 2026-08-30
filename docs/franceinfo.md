@@ -1,8 +1,9 @@
 # docs/franceinfo.md — Relevé du flash d'information
 
-> **Ce relevé est vide de constats**, et il commence par une inconnue plus grande
-> que les autres : **aucune adresse n'a été fournie**. L'auteur a indiqué que
-> France Info « donne le flash accessible », sans préciser par quel moyen.
+> **Relevé mené le 2026-08-30** (`GOAL-002-T07`), et **son résultat est
+> négatif** : aucune source de flash horaire n'a pu être confirmée. La §1 dit ce
+> qui a été établi, ce qui reste inconnu, et les trois questions qui remontent à
+> l'auteur.
 >
 > **Décidé le 2026-08-30** : c'est `GOAL-002` qui cherche. Point de départ — les
 > flux publics de Radio France : podcast, RSS, fichier à URL stable. On constate

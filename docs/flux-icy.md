@@ -1,6 +1,9 @@
 # docs/flux-icy.md — Relevé de ce qu'attendent les lecteurs de webradio
 
-> **Ce relevé est vide de constats.** Il porte les questions auxquelles
+> **Relevé partiel, établi le 2026-08-30** (`GOAL-002-T05`, `T06`). Les
+> sections 1 à 3.bis portent des constats obtenus avec `curl` et ffmpeg. **La
+> matrice des vrais lecteurs — VLC, navigateur, enceinte — reste entière** : elle
+> demande l'auteur.
 > `GOAL-002` devra répondre **en branchant de vrais lecteurs**, pas en lisant une
 > spécification.
 >
@@ -130,7 +133,22 @@ déréférençant ce qui vient de disparaître.
 
 ## 6. Points incertains
 
-_Tout ce qui précède._
+**Établis** : le branchement, l'entrée en cours de route, et la disparition par
+construction de la question des changements de format (§1 à 3).
 
-Un point resté incertain **après** observation est reporté ici avec ce qui a été
-tenté, et ouvre une tâche dans TASKS.md.
+**Reste entier, et il demande l'auteur :**
+
+- [ ] **La matrice des vrais lecteurs.** Les essais ont été menés avec `curl` et
+      ffmpeg. **VLC, un navigateur, une enceinte connectée et une application de
+      radios n'ont pas été essayés** — or c'est le plus intolérant d'entre eux
+      qui fixera la contrainte (SPECS.md §4.9).
+- [ ] Les **métadonnées de titre** (§4) : attendues ou seulement agréables, et
+      un changement peut-il à lui seul faire décrocher un lecteur ?
+- [ ] La détection d'une déconnexion **brutale** (§5) — SPECS.md §4.7 en dépend :
+      sans elle, la chaîne tourne pour un auditeur qui n'existe plus.
+- [ ] Le placement du tampon pour qu'un auditeur lent ne ralentisse pas les
+      autres. La maquette ne l'a pas éprouvé : deux auditeurs, tous deux locaux.
+
+> **Ce que le relevé ne peut pas faire tout seul.** Brancher une enceinte
+> connectée et un téléphone demande d'être devant la machine. C'est un des quatre
+> angles morts (AGENTS.md §4.1), et il ne se comblera pas depuis une session.
