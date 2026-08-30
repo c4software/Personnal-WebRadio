@@ -92,6 +92,11 @@ refresh_seconds = 5.0
 [podcast]
 timeout_seconds = 15.0
 
+# ── YouTube ────────────────────────────────────────────────────────────────
+# Le délai laissé à yt-dlp pour résoudre la dernière vidéo d'une chaîne.
+[youtube]
+timeout_seconds = 60.0
+
 # ── Navidrome (hors identifiants, qui sont dans .env) ──────────────────────
 [navidrome]
 # Nombre de pistes demandées au serveur. Il tronque à 500 en silence : demander
@@ -139,6 +144,15 @@ stream = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"
 duration_minutes = 13 
 days = "all"
 time = "11:57"
+
+# Une CHAÎNE YOUTUBE comme émission (docs/youtube.md) : à l'heure dite, la
+# dernière vidéo non encore diffusée — sinon la case est sautée. La durée se
+# lit sur la vidéo, l'audio se résout par yt-dlp au moment de diffuser.
+[[shows]]
+name    = "Hardisk"
+youtube = "https://www.youtube.com/@hardisk"
+days = ["mercredi"]
+time = "20:00"
 
 [[shows]]
 name   = "LEGEND"

@@ -218,7 +218,8 @@
               for (const e of this.planning.shows) {
                 if (e.days.includes(nom)) {
                   evenements.push({ type: "emission", heure: e.time, tri: e.time, nom: e.name,
-                                    detail: e.live ? "direct · " + e.duration_minutes + " min" : "podcast" });
+                                    detail: e.live ? "direct · " + e.duration_minutes + " min"
+                                          : e.youtube ? "chaîne YouTube" : "podcast" });
                 }
               }
               evenements.sort((a, b) => a.tri.localeCompare(b.tri));

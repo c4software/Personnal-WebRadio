@@ -13,6 +13,12 @@ WORKDIR /app
 
 # Les dépendances d'abord, le code ensuite : une modification du code ne doit
 # pas invalider le cache d'installation.
+# yt-dlp : les émissions YouTube résolvent la dernière vidéo d'une chaîne en
+# URL audio directe (docs/youtube.md). Épinglé à la version relevée sur la
+# machine de l'auteur — l'outil suit YouTube de près, une dérive silencieuse
+# ferait mentir le relevé.
+RUN pip install --no-cache-dir yt-dlp==2026.8.19
+
 COPY pyproject.toml README.md ./
 COPY webradio ./webradio
 RUN pip install --no-cache-dir --no-compile .

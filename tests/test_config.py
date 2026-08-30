@@ -527,3 +527,38 @@ def test_genres_et_artistes_ensemble_sont_refuses_au_toml() -> None:
     with pytest.raises(SettingsError) as refus:
         _valider(TOML_MINIMAL + UNE_PLAGE + 'artists = ["Air"]\n')
     assert "bands[0]" in str(refus.value)
+
+
+# ── Une chaîne YouTube comme émission (GOAL-025) ────────────────────────────
+
+
+def test_une_emission_youtube_se_declare_par_sa_chaine() -> None:
+    config = _valider(
+        TOML_MINIMAL
+        + '\n[[shows]]\nname = "Hardisk"\nyoutube = "https://www.youtube.com/@hardisk"\n'
+        + 'days = ["mercredi"]\ntime = "20:00"\n'
+    )
+    show = next(s for s in config.shows if s.name == "Hardisk")
+    assert show.youtube == "https://www.youtube.com/@hardisk"
+    assert show.feed is None and show.stream is None
+    assert config.youtube.timeout_seconds == 60.0
+
+
+def test_une_emission_a_exactement_une_source() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL
+            + '\n[[shows]]\nname = "Double"\nyoutube = "https://youtube.com/@x"\n'
+            + 'feed = "https://x.test/rss"\ndays = ["mercredi"]\ntime = "20:00"\n'
+        )
+    assert "Double" in str(refus.value)
+
+
+def test_une_emission_youtube_ne_declare_pas_de_duree() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL
+            + '\n[[shows]]\nname = "Hardisk"\nyoutube = "https://youtube.com/@x"\n'
+            + 'duration_minutes = 30\ndays = ["mercredi"]\ntime = "20:00"\n'
+        )
+    assert "Hardisk" in str(refus.value)

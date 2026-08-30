@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
 from webradio.adapters.podcast.feed import PodcastFeed, PodcastUnavailable
 from webradio.adapters.state.database import SqliteState, StateUnavailable
+from webradio.adapters.youtube.channel import YoutubeChannel, YoutubeUnavailable
 from webradio.core.clock import Clock
 from webradio.core.shows import Episode, Show, ShowSchedule, Slot, episode_to_air
 
@@ -35,6 +36,8 @@ class Shows:
         clock: Clock,
         addresses: dict[str, str],
         streams: dict[str, str] | None = None,
+        youtube_channels: dict[str, str] | None = None,
+        youtube: YoutubeChannel | None = None,
     ) -> None:
         self._programme = programme
         self._flux = feed
@@ -45,6 +48,10 @@ class Shows:
         # base ; une case n'est rendue qu'une fois, et ce registre suffit
         # (SPECS.md §7 n°22 : « elle se produit à chaque occurrence de sa case »).
         self._directs = streams or {}
+        # Les chaînes YouTube : même mécanique que les podcasts — la dernière
+        # vidéo non diffusée, la case bornée par sa durée (docs/youtube.md §2).
+        self._youtube = youtube_channels or {}
+        self._youtube_adapter = youtube
         self._cases_rendues: set[tuple[str, datetime]] = set()
 
     def due(self) -> tuple[Show, str] | None:
@@ -105,6 +112,17 @@ class Shows:
             if show.is_live:
                 continue
             if self._programme.slot_start(show, instant) is None:  # type: ignore[arg-type]
+                continue
+            chaine = self._youtube.get(show.name)
+            if chaine is not None and self._youtube_adapter is not None:
+                try:
+                    catalogues[show.name] = self._youtube_adapter.episodes(chaine)
+                except YoutubeUnavailable as failure:
+                    logger.warning(
+                        "chaîne YouTube de « %s » injoignable, case sautée : %s",
+                        show.name,
+                        failure,
+                    )
                 continue
             address = self._adresses.get(show.name)
             if address is None:

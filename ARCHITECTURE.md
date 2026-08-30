@@ -559,6 +559,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   │   ├── config/ ...... schema.py (les clés du TOML) · loading.py (fichier et .env)
 │   │   ├── sources/ ..... navidrome.py — l'API Subsonic, et rien d'autre ne la connaît
 │   │   ├── podcast/ ..... feed.py — RSS, enclosure, redirections
+│   │   ├── youtube/ ..... channel.py — une chaîne comme flux d'épisodes, yt-dlp au dernier moment
 │   │   ├── liquidsoap/ .. radio.liq — demande, annonce, sert ; ne décide de rien
 │   │   ├── state/ ....... database.py — SQLite : diffusions et votes
 │   │   └── web/ ......... api.py (la surface publique, votes compris) · playout_api.py (les routes de Liquidsoap) · views.py · templates/ · static/ (Vue, vendu)
@@ -579,6 +580,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   ├── podcast.md ....... relevé des flux de podcast des émissions
 │   ├── liquidsoap.md .... relevé de Liquidsoap 2.3.3, et ce qui a décidé la migration
 │   ├── ffmpeg.md ........ relevé historique — vaut pour ce que Liquidsoap fait en dessous
+│   ├── youtube.md ....... relevé : RSS de chaîne, yt-dlp, URL qui expirent
 │   └── flux-icy.md ...... relevé de ce qu'attendent les lecteurs de webradio
 │
 └── .claude/

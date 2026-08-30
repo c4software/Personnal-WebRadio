@@ -26,6 +26,7 @@ from webradio.adapters.state.database import Scope as StateScope
 from webradio.adapters.state.database import SqliteState, StateUnavailable
 from webradio.adapters.web.api import VoteScore
 from webradio.adapters.web.views import create_app
+from webradio.adapters.youtube.channel import YoutubeChannel
 from webradio.app.learning import Learning
 from webradio.app.liquidsoap_playout import LiquidsoapPlayout
 from webradio.app.playout import RadioProgramme
@@ -227,6 +228,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             clock,
             {e.name: e.feed for e in settings.shows if e.feed is not None},
             streams={e.name: e.stream for e in settings.shows if e.stream is not None},
+            youtube_channels={e.name: e.youtube for e in settings.shows if e.youtube is not None},
+            youtube=YoutubeChannel(timedelta(seconds=settings.youtube.timeout_seconds)),
         ),
         control=control,
         now_playing=lambda: radio.playing_track(),
@@ -277,6 +280,7 @@ def main(argv: list[str] | None = None) -> int:
                 "days": list(e.days),
                 "time": f"{e.hour:%H:%M}",
                 "live": e.stream is not None,
+                "youtube": e.youtube is not None,
                 "duration_minutes": e.duration_minutes,
             }
             for e in s.shows

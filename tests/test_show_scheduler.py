@@ -9,6 +9,7 @@ import pytest
 from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
 from webradio.adapters.podcast.feed import PodcastUnavailable
 from webradio.adapters.state.database import SqliteState
+from webradio.adapters.youtube.channel import YoutubeUnavailable
 from webradio.app.show_scheduler import Shows
 from webradio.core.clock import FrozenClock
 from webradio.core.shows import Show, ShowSchedule
@@ -206,3 +207,68 @@ def test_un_direct_ne_lit_aucun_flux_et_ne_laisse_aucune_trace(tmp_path: Path) -
         vote_half_life=timedelta(days=90),
     )
     assert state.last_airing("Flash") is None
+
+
+# ── Une chaîne YouTube comme émission (GOAL-025) ────────────────────────────
+
+HARDISK = Show(name="Hardisk", days=("tous",), hour=time(20))
+
+
+class FakeYoutube:
+    def __init__(self, episodes: list[EpisodeDuFlux], *, injoignable: bool = False) -> None:
+        self._episodes = episodes
+        self._injoignable = injoignable
+
+    def episodes(self, _url: str) -> list[EpisodeDuFlux]:
+        if self._injoignable:
+            message = "chaîne d'essai injoignable"
+            raise YoutubeUnavailable(message)
+        return list(self._episodes)
+
+
+def _youtube_show(tmp_path: Path, yt: FakeYoutube, clock: FrozenClock) -> Shows:
+    state = SqliteState(
+        tmp_path / "etat.sqlite3",
+        clock,
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    return Shows(
+        ShowSchedule([HARDISK]),
+        FakeFeed([], injoignable=True),  # type: ignore[arg-type]
+        state,
+        clock,
+        {},
+        youtube_channels={"Hardisk": "https://www.youtube.com/@hardisk"},
+        youtube=yt,  # type: ignore[arg-type]
+    )
+
+
+def _video(guid: str, minutes: int = 29) -> EpisodeDuFlux:
+    return EpisodeDuFlux(
+        identifier=guid,
+        title=f"vidéo {guid}",
+        published_at=VENDREDI_20H - timedelta(days=1),
+        audio=f"https://googlevideo.test/{guid}",
+        duration=timedelta(minutes=minutes),
+    )
+
+
+def test_la_derniere_video_est_due_a_l_heure_dite(tmp_path: Path) -> None:
+    clock = FrozenClock(VENDREDI_20H)
+    due = _youtube_show(tmp_path, FakeYoutube([_video("v1")]), clock).due()
+    assert due is not None
+    assert due[0].name == "Hardisk"
+    assert due[1] == "https://googlevideo.test/v1"
+
+
+def test_une_video_deja_diffusee_fait_sauter_la_case(tmp_path: Path) -> None:
+    clock = FrozenClock(VENDREDI_20H)
+    shows = _youtube_show(tmp_path, FakeYoutube([_video("v1")]), clock)
+    assert shows.due() is not None
+    assert shows.due() is None
+
+
+def test_une_chaine_injoignable_laisse_la_musique(tmp_path: Path) -> None:
+    clock = FrozenClock(VENDREDI_20H)
+    assert _youtube_show(tmp_path, FakeYoutube([], injoignable=True), clock).due() is None

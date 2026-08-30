@@ -144,6 +144,7 @@ Goals sont découpables.
 | GOAL-022 | Fondu court des jingles, et le moment présent à l'antenne | `[x]` |
 | GOAL-023 | Une plage peut imposer un artiste | `[x]` |
 | GOAL-024 | `encore` force réellement le même artiste | `[x]` |
+| GOAL-025 | Une chaîne YouTube comme émission | `[-]` — seule l'écoute réelle reste |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -960,3 +961,21 @@ consommés par personne depuis GOAL-007.
 - [x] `GOAL-024-T02` Pendant un **programme**, l'encore cherche dans la **liste** et y retombe, jamais au-dehors (SPECS.md §7 n°20)
 - [x] `GOAL-024-T03` Sans ancre (redémarrage) : le vote a pondéré et le jingle s'annonce, rien à forcer — journalisé
 - [ ] `GOAL-024-T04` **Écoute réelle** : encore → `encore.mp3` → un morceau du même artiste
+
+---
+
+## GOAL-025 — Une chaîne YouTube comme émission
+
+**État : EN COURS** — demandé par l'auteur le 2026-08-30 (« mercredi à 20 h, la
+dernière vidéo de @hardisk ») ; tout est fait et constaté sauf l'écoute
+
+Relevé [docs/youtube.md](./docs/youtube.md) : handle → `channel_id` par le lien
+canonique ; flux Atom sans clé d'API (15 vidéos, sans durée) ; `yt-dlp` rend la
+durée et l'URL audio directe, que ffmpeg décode exactement ; cette URL expire —
+on résout **au moment de diffuser**, et seulement la candidate.
+
+- [x] `GOAL-025-T01` `adapters/youtube/` : la chaîne comme un flux d'épisodes — même contrat que le podcast, le planificateur ne fait pas la différence (modulaire, comme demandé)
+- [x] `GOAL-025-T02` La dernière vidéo **non encore diffusée**, la case bornée par sa durée réelle, la trace par `videoId` — les règles n°13/n°14, réutilisées telles quelles
+- [x] `GOAL-025-T03` `youtube = "https://…/@chaine"` au TOML, exclusif de `feed` et `stream` ; `[youtube] timeout_seconds` ; chaîne injoignable ou `yt-dlp` en échec = musique, journalisé
+- [x] `GOAL-025-T04` `yt-dlp` épinglé (2026.8.19) dans l'image `radio` ; **résolution réelle constatée depuis le conteneur**
+- [ ] `GOAL-025-T05` **Écoute réelle** : mercredi 20 h — la jonction, le niveau d'une vidéo contre la musique, et le ffmpeg de Liquidsoap sur googlevideo (constaté seulement avec celui de l'hôte)

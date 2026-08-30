@@ -154,6 +154,13 @@ class WebSettings:
 
 
 @dataclass(frozen=True, slots=True)
+class YoutubeSettings:
+    """`yt-dlp` peut être lent : son délai se déclare, comme tout délai."""
+
+    timeout_seconds: float
+
+
+@dataclass(frozen=True, slots=True)
 class PodcastSettings:
     """Le délai au-delà duquel un flux de podcast est réputé injoignable.
 
@@ -194,6 +201,7 @@ class Show:
     hour: time
     feed: str | None = None
     stream: str | None = None
+    youtube: str | None = None
     duration_minutes: int | None = None
 
 
@@ -224,6 +232,7 @@ class Settings:
     navidrome: NavidromeSettings
     web: WebSettings
     podcast: PodcastSettings
+    youtube: YoutubeSettings
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -507,20 +516,25 @@ def _emissions(brut: Mapping[str, Any]) -> tuple[Show, ...]:
     for index, table in enumerate(_liste_tables(brut, "shows")):
         prefix = f"shows[{index}]"
         _verifier_cles(
-            table, ("name", "feed", "stream", "duration_minutes", "days", "time"), prefix
+            table,
+            ("name", "feed", "stream", "youtube", "duration_minutes", "days", "time"),
+            prefix,
         )
         name = _texte(table, "name", prefix)
-        if ("feed" in table) == ("stream" in table):
+        sources = [key for key in ("feed", "stream", "youtube") if key in table]
+        if len(sources) != 1:
             _refuser(
-                prefix, f"« {name} » doit avoir soit `feed` (un podcast), soit `stream` (un direct)"
+                prefix,
+                f"« {name} » doit avoir exactement une source : "
+                "`feed` (podcast), `stream` (direct) ou `youtube` (chaîne)",
             )
         if "stream" in table and "duration_minutes" not in table:
             _refuser(
                 prefix,
                 f"« {name} » est un direct : `duration_minutes` est obligatoire",
             )
-        if "feed" in table and "duration_minutes" in table:
-            _refuser(prefix, f"« {name} » est un podcast : sa durée se lit dans le flux, pas ici")
+        if "stream" not in table and "duration_minutes" in table:
+            _refuser(prefix, f"« {name} » : sa durée se lit à la source, pas ici")
         shows.append(
             Show(
                 name=name,
@@ -528,6 +542,7 @@ def _emissions(brut: Mapping[str, Any]) -> tuple[Show, ...]:
                 hour=_heure(table, "time", prefix),
                 feed=_texte(table, "feed", prefix) if "feed" in table else None,
                 stream=_texte(table, "stream", prefix) if "stream" in table else None,
+                youtube=_texte(table, "youtube", prefix) if "youtube" in table else None,
                 duration_minutes=(
                     _entier(table, "duration_minutes", prefix, maximum=24 * 60)
                     if "duration_minutes" in table
@@ -592,6 +607,7 @@ def validate(brut: Mapping[str, Any]) -> Settings:
             "navidrome",
             "web",
             "podcast",
+            "youtube",
             "programmes",
         ),
         "",
@@ -625,6 +641,14 @@ def validate(brut: Mapping[str, Any]) -> Settings:
                 default=DEFAULT_REFRESH,
                 minimum=0.5,
             ),
+        ),
+        youtube=YoutubeSettings(
+            timeout_seconds=_reel(
+                _table_optionnelle(brut, "youtube", ""),
+                "timeout_seconds",
+                "youtube",
+                default=60.0,
+            )
         ),
         podcast=PodcastSettings(
             timeout_seconds=_reel(
