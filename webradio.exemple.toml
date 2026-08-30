@@ -22,6 +22,15 @@ canaux         = 2
 # La fenêtre rétrécit plutôt que de bloquer sur une petite bibliothèque.
 non_repetition_artistes = 5
 
+# Pondération par les votes (SPECS.md §4.12).
+# Un morceau souvent passé revient moins souvent ; un artiste souvent redemandé
+# revient plus souvent. Rien n'est jamais supprimé : le plancher n'est pas zéro.
+[tirage.votes]
+plancher            = 0.25   # ×0,25 au plus bas — jamais 0
+plafond             = 4.0    # ×4 au plus haut
+demi_vie_jours      = 90     # un vote pèse moitié moins au bout de 3 mois
+poids_croise        = 0.25   # ce qu'un stop pèse sur l'artiste, un encore sur la piste
+
 # ── Les jingles ────────────────────────────────────────────────────────────
 [jingles]
 # Les NOMS sont fixes : 00h.mp3 … 23h.mp3 pour les heures, encore.mp3 pour le

@@ -88,8 +88,12 @@ elle n'a rien à vérifier.
 **Prochaine tâche** : `GOAL-004-T01` — décoder une entrée vers le PCM du flux.
 
 **Les sept lots restants sont découpés** (2026-08-30), soit 71 tâches.
-`GOAL-012` s'ajoute en fin de parcours, **non découpé** : trois décisions
-ouvertes le bloquent (SPECS.md §7 n°16 à n°18).
+`GOAL-012` s'ajoute en fin de parcours, découpé lui aussi : les trois décisions
+qui le bloquaient (n°16 à n°18) ont été tranchées le 2026-08-30.
+
+**Neuf lots, 83 tâches ouvertes.** Décisions : **19 tranchées sur 21**. Restent
+la n°9 — une conséquence consignée, non une question — et la n°12, différée
+jusqu'à la deuxième source de musique.
 `GOAL-011` (conteneurisation) s'insère **après `GOAL-004`** : c'est le premier
 moment où il y a quelque chose à faire tourner.
 
@@ -120,7 +124,7 @@ Goals sont découpables.
 | GOAL-009 | L'interface web — Flask et Jinja2 | `[ ]` |
 | GOAL-010 | Les émissions : podcasts programmés | `[ ]` |
 | GOAL-011 | Conteneurisation : Docker et Compose | `[ ]` — après GOAL-004 |
-| GOAL-012 | Les votes pondèrent les tirages suivants | `[ ]` — non découpé |
+| GOAL-012 | Les votes pondèrent les tirages suivants | `[ ]` |
 
 ---
 
@@ -520,14 +524,14 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 ## GOAL-012 — Les votes pondèrent les tirages suivants
 
-**État : TODO — non découpé.**
+**État : TODO**
 
 `stop` et `encore` sont enregistrés dans la base et pondèrent les tirages
 suivants : un morceau souvent passé revient moins souvent, un artiste souvent
 redemandé revient plus souvent (SPECS.md §4.12).
 
-**Rien n'est jamais supprimé** : une chance diminue, elle ne s'annule pas. C'est
-la différence entre une radio qui apprend et une radio qui se rétrécit.
+**Rien n'est jamais supprimé** : le plancher est ×0,25, pas zéro. C'est la
+différence entre une radio qui apprend et une radio qui se rétrécit.
 
 ### Pourquoi ce Goal existe sous cette forme
 
@@ -536,26 +540,36 @@ une décision écrite »*. Ce Goal **est** cette décision. La garde n'a pas sau
 elle a fonctionné — l'ajout est spécifié, borné et daté au lieu d'être glissé
 dans un commit d'implémentation. Elle reste en vigueur pour la troisième table.
 
-### Bloqué par trois décisions ouvertes
+### Les tâches
 
-Il ne se découpe pas avant qu'elles soient tranchées (SPECS.md §7) :
+- [ ] `GOAL-012-T01` `adapters/etat/` : la table `votes`, et la décroissance à l'écriture
+- [ ] `GOAL-012-T02` La décroissance **à la lecture** aussi, entre `vu_le` et maintenant
+- [ ] `GOAL-012-T03` `core/ponderation.py` : des scores au multiplicateur, borné à `[0,25 ; 4]`
+- [ ] `GOAL-012-T04` La portée croisée : `stop` = 1 sur la piste, 0,25 sur l'artiste ; `encore` l'inverse
+- [ ] `GOAL-012-T05` `core/rng.py` gagne `choisir_pondere()` — une capacité **nouvelle**, pas un réglage
+- [ ] `GOAL-012-T06` **Le tirage pondéré reste rejouable** à graine et poids fixés
+- [ ] `GOAL-012-T07` La file reçoit les poids, elle ne va pas les chercher — la frontière du noyau tient
+- [ ] `GOAL-012-T08` Enregistrer le vote au moment où il est **accepté**, jamais quand il est refusé
+- [ ] `GOAL-012-T09` Les clés de configuration : plancher, plafond, demi-vie, poids croisé
+- [ ] `GOAL-012-T10` Une base absente ou vide se comporte comme des poids neutres
+- [ ] `GOAL-012-T11` **Écoute sur plusieurs semaines** — le seul moyen de savoir si la radio s'est resserrée
+- [ ] `GOAL-012-T12` Carte du dépôt
 
-- **n°16** — le poids porte-t-il sur la piste, sur l'artiste, ou sur les deux ?
-- **n°17** — de combien ? Il faut une borne basse **non nulle** et une borne
-  haute, sans quoi un artiste redemandé dix fois saturerait la radio.
-- **n°18** — les poids s'oublient-ils ? **C'est la plus importante des trois** :
-  sans oubli, la radio se fige sur ce qu'on a cliqué le premier mois, et surtout
-  elle pénalise ce qu'on aime le plus — puisque c'est ce qu'elle joue le plus,
-  donc ce qu'on passe le plus (SPECS.md §4.12).
+### Ce que le découpage retient des décisions
 
-### Ce que ce Goal impose au reste
+| Décision | Ce qu'elle impose |
+|---|---|
+| **n°16** — portée croisée | `T04`. Un `stop` compte 1 sur la piste, 0,25 sur l'artiste ; dix `stop` sur des titres différents d'un même artiste finissent par se voir |
+| **n°17** — de ×0,25 à ×4 | `T03`. Le plancher **non nul** est la garantie que rien ne disparaît |
+| **n°18** — décroissance, demi-vie 3 mois | `T01` et `T02`. **Des scores décimaux, pas des compteurs** : douze `stop` dont le dernier date d'hier compteraient tous comme frais, et personne ne s'en apercevrait (ARCHITECTURE.md §5.2) |
 
-- `core/rng.py` gagne une capacité **nouvelle** — le tirage pondéré — et non un
-  réglage de l'ancienne (ARCHITECTURE.md §5.3).
-- **Le noyau ne va pas chercher les poids** : ils lui sont fournis, comme les
-  pistes. La frontière du §1.1 tient sans exception.
-- **Le tirage pondéré doit rester rejouable** à graine et poids fixés, sans quoi
-  on perd ce que `GOAL-003-T02` avait acheté — et les tests de la file avec.
-- L'effet n'est **pas constatable par un test** : qu'une radio « joue moins
-  souvent » ce qu'on passe ne s'observe qu'à l'usage, sur des semaines. C'est un
-  cinquième angle mort, à ajouter à AGENTS.md §4.1 le jour du découpage.
+### Trois pièges nommés d'avance
+
+- **`T06`** — un tirage pondéré qui ne se rejoue pas fait perdre ce que
+  `GOAL-003-T02` avait acheté, et emporte les tests de la file avec lui.
+- **`T08`** — un vote refusé pendant un jingle ou une émission (SPECS.md §4.6) ne
+  doit **rien** enregistrer. Sinon la radio apprend de gestes qui n'ont pas eu
+  d'effet, et l'auditeur pondère sans le savoir.
+- **`T11`** — c'est le **cinquième angle mort** (AGENTS.md §4.1), et le plus
+  lent : un test vérifie la formule, aucun ne dit si la radio s'est resserrée.
+  Cela ne se constate qu'après des semaines d'usage.

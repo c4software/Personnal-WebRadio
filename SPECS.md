@@ -514,15 +514,53 @@ donc ce qu'on passe le plus.
 C'est la raison d'être de la décision ouverte §7 n°18 : sans oubli, la
 pondération dérive dans le sens contraire de son intention.
 
-#### Ce qui reste à trancher
+#### Ce que chaque geste pèse
 
-Trois points, et ils changent la radio :
+Un vote porte **sur la piste et sur l'artiste**, mais pas également : chacun
+compte plein sur ce qu'il désigne, et **un quart** sur l'autre.
 
-- **sur quoi porte le poids** — la piste, l'artiste, ou les deux (§7 n°16) ;
-- **les poids s'oublient-ils** avec le temps (§7 n°18) ;
-- **de combien** un morceau passé revient-il moins souvent (§7 n°17).
+| Geste | Sur la piste | Sur l'artiste |
+|---|---|---|
+| `stop` | **1** | 0,25 |
+| `encore` | 0,25 | **1** |
 
-Tant qu'ils ne sont pas tranchés, `GOAL-012` n'est pas découpé.
+C'est ce qui respecte le sens de chaque geste — on passe un *morceau*, on
+redemande un *artiste* — tout en laissant un signal répété finir par porter :
+dix `stop` sur des titres différents d'un même artiste finissent par se voir.
+
+#### Les votes s'oublient
+
+Un vote pèse plein son poids, puis **s'estompe**. La demi-vie est déclarée au
+TOML, et vaut **trois mois** par défaut :
+
+```
+stop d'hier        → compte 100 %
+stop d'il y a 3 mois →  50 %
+stop d'il y a 1 an   →   6 %
+```
+
+**C'est ce qui empêche la pondération de se retourner contre elle-même.** Sans
+oubli, la radio se figerait sur ce qu'on a cliqué le premier mois — et
+pénaliserait durablement ce qu'on aime le plus, puisque c'est ce qu'elle joue le
+plus, donc ce qu'on passe le plus.
+
+#### De combien
+
+Le poids d'une piste ou d'un artiste est un multiplicateur de sa chance d'être
+tiré, **borné des deux côtés** :
+
+| | |
+|---|---|
+| Plancher | **×0,25** — quatre fois moins souvent, **jamais zéro** |
+| Neutre | ×1 |
+| Plafond | **×4** — quatre fois plus souvent |
+
+Ordres de grandeur attendus : un `stop` récent ≈ ×0,7, trois ≈ ×0,4 ; un
+`encore` récent ≈ ×1,5, trois ≈ ×2,5.
+
+Assez pour s'entendre en quelques semaines, assez peu pour que la radio garde des
+surprises : sur une grande bibliothèque, un titre à ×0,25 sort encore
+régulièrement.
 
 ---
 
@@ -769,6 +807,27 @@ pendant une émission (§4.11).
 > raison n'est pas le retard mais la nature de l'émission. Elle est écrite dans
 > §4.3 **et** §4.11, pour qu'aucune des deux lectures ne la manque.
 
+**n°16 — Le poids porte sur quoi ? Sur les deux, inégalement.** Tranchée le
+2026-08-30. Un `stop` compte **1** sur la piste et **0,25** sur l'artiste ; un
+`encore`, l'inverse (§4.12).
+> *Raison* : chaque geste garde le sens qu'il a — on passe un morceau, on
+> redemande un artiste — et un signal répété finit tout de même par porter. La
+> piste seule aurait mis des mois à s'entendre ; l'artiste seul aurait fait
+> reculer tout un catalogue pour un titre détesté.
+
+**n°17 — De combien ? De ×0,25 à ×4.** Tranchée le 2026-08-30. Plancher **non
+nul** — rien n'est jamais supprimé — et plafond, pour qu'un artiste redemandé dix
+fois ne sature pas la radio (§4.12).
+> *Raison* : assez pour s'entendre en quelques semaines, assez peu pour garder des
+> surprises. Sur une grande bibliothèque, un titre à ×0,25 sort encore
+> régulièrement.
+
+**n°18 — Les poids s'oublient-ils ? Oui.** Tranchée le 2026-08-30. Décroissance
+dans le temps, demi-vie déclarée au TOML, **trois mois** par défaut (§4.12).
+> *Raison* : c'est la seule des trois qui **corrige** le biais de §4.12 au lieu de
+> l'amplifier. Sans oubli, la radio se fige sur les premiers mois d'usage et
+> pénalise durablement ce qu'on aime le plus.
+
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :
 elle appelle la même API que tout autre client (§4.8).
@@ -785,30 +844,6 @@ couvre** : les tâches qui touchent au son seront cochées sur la foi de tests q
 n'entendent rien. C'est un choix d'autonomie maximale, pris à l'initialisation et
 assumé. Il est consigné ici pour être visible, et pour pouvoir être révisé à la
 première fois où un défaut sonore traversera plusieurs Goals.
-
-**n°16 — Le poids porte sur quoi ?**
-Un `encore` nomme explicitement un **artiste** (§4.6). Un `stop` porte sur le
-**morceau en cours** — mais dit-il quelque chose de son artiste ? Trois lectures,
-trois radios différentes :
-
-- **la piste seule** — passer un morceau ne dit rien de l'artiste ;
-- **l'artiste seul** — c'est le grain auquel `encore` travaille déjà ;
-- **les deux**, avec des poids distincts : un `stop` pénalise beaucoup la piste
-  et un peu l'artiste, un `encore` favorise beaucoup l'artiste et un peu la piste
-  qui l'a déclenché.
-
-**n°17 — De combien ?**
-« Moins souvent » doit devenir un nombre. Il faut une **borne basse non nulle**
-(§4.12 : rien n'est supprimé) et une **borne haute**, sans quoi un artiste
-redemandé dix fois saturerait la radio.
-
-**n°18 — Les poids s'oublient-ils ?**
-Sans oubli, un `stop` d'il y a deux ans pèse autant qu'un `stop` d'hier, et la
-radio se fige sur ce qu'on a cliqué le premier mois. Avec oubli, elle suit vos
-goûts mais retient moins.
-
-C'est la décision qui compte le plus des trois : c'est elle qui décide si la
-pondération **corrige** le biais de §4.12 ou l'**amplifie**.
 
 **n°12 — Plusieurs sources actives : comment le tirage les combine-t-il ?**
 Ouverte par la décision n°2. Le mécanisme permet de déclarer plusieurs sources ;

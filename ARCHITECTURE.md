@@ -242,14 +242,35 @@ pondèrent les tirages suivants (SPECS.md §4.12, `GOAL-012`).
 
 ```sql
 CREATE TABLE IF NOT EXISTS votes (
-    portee     TEXT NOT NULL,      -- 'piste' ou 'artiste'  (SPECS.md §7 n°16)
-    cible      TEXT NOT NULL,      -- l'identifiant de piste, ou le nom d'artiste
-    stops      INTEGER NOT NULL DEFAULT 0,
-    encores    INTEGER NOT NULL DEFAULT 0,
-    vu_le      TEXT NOT NULL,      -- dernier vote, pour l'oubli (SPECS.md §7 n°18)
+    portee       TEXT NOT NULL,    -- 'piste' ou 'artiste'  (SPECS.md §7 n°16)
+    cible        TEXT NOT NULL,    -- l'identifiant de piste, ou le nom d'artiste
+    score_stop   REAL NOT NULL DEFAULT 0,
+    score_encore REAL NOT NULL DEFAULT 0,
+    vu_le        TEXT NOT NULL,    -- ISO 8601 du dernier écrit
     PRIMARY KEY (portee, cible)
 );
 ```
+
+**Des scores décimaux, pas des compteurs entiers** — et ce n'est pas un détail.
+Avec `stops INTEGER` et une seule date, douze `stop` dont le dernier date d'hier
+compteraient tous comme frais : la décroissance de SPECS.md §7 n°18 serait
+fausse, et personne ne s'en apercevrait.
+
+Le score porte donc **la décroissance déjà appliquée**. À chaque écriture :
+
+```
+score ← score × 2^(−Δt / demi_vie) + increment
+vu_le ← maintenant
+```
+
+où `Δt` est le temps écoulé depuis `vu_le`, et `increment` vaut 1 ou 0,25 selon
+la portée (SPECS.md §4.12). La même décroissance s'applique **à la lecture**,
+entre `vu_le` et l'instant courant.
+
+C'est exact, incrémental, et cela ne demande de retenir que deux nombres et une
+date par cible. Conserver chaque vote individuellement aurait été la solution
+naïve : une table qui grossit indéfiniment pour une information qu'on peut
+résumer.
 
 **La garde n'a pas sauté, elle a fonctionné** : c'est parce qu'elle exigeait une
 décision écrite que cet ajout est spécifié, borné et daté, au lieu d'être glissé

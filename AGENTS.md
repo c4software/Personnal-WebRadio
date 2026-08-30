@@ -243,6 +243,7 @@ ne se constatent qu'en écoutant réellement la radio :
 | **La tenue dans la durée** | Dérive d'horloge, tampon qui se vide, fuite mémoire après six heures, jingle horaire qui glisse |
 | **Les vrais lecteurs** | Se brancher au vol, se rebrancher après coupure, VLC contre navigateur contre enceinte — chacun a ses exigences d'en-têtes et de tampon |
 | **Le jingle de vote** | Qu'un « encore » s'annonce à la jonction sans détonner avec la musique qui l'entoure. Un test vérifie qu'il est déclenché ; aucun ne dit s'il sonne juste |
+| **La pondération par les votes** | Qu'une radio « joue moins souvent » ce qu'on passe ne s'observe qu'à l'usage, sur des **semaines**. Un test vérifie la formule ; aucun ne dit si le résultat s'entend, ni si la radio s'est resserrée (SPECS.md §4.12) |
 
 **Conséquence à assumer** : aucun de ces défauts n'est détecté automatiquement
 par qui que ce soit. Celui qui touche à ces zones **écoute réellement la radio
