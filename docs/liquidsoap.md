@@ -117,15 +117,37 @@ Liquidsoap demande la piste suivante et annonce ses auditeurs.
 
 ---
 
-## 3. Points incertains
+## 3. Second relevé — `GOAL-016-T01`, le 2026-08-30
 
-- [ ] La bascule effective vers `input.http` et **sa coupure à la seconde** (1.6).
-- [ ] Les en-têtes `icy-*` par `headers=` et `metaint` (1.5), puis la matrice des
-      vrais lecteurs — toujours l'angle mort de `docs/flux-icy.md` §6.
-- [ ] Le `prefetch` : un morceau tiré d'avance **avant** le premier auditeur est
-      un morceau que la non-répétition a mémorisé sans qu'il soit joué. `prefetch=0`
-      existe-t-il, et à quel prix à la jonction ?
-- [ ] Ce que Liquidsoap fait quand notre API ne répond pas (`retry_delay`) : la
-      radio doit **couper en le disant**, pas boucler (SPECS.md §5.1).
-- [ ] La déconnexion brutale : `on_disconnect` a été vu sur un `curl` coupé
-      proprement ; pas sur un câble arraché.
+> Même image, même méthode. Chaque ligne ci-dessous a été observée.
+
+| Question (§3 d'avant) | Constat |
+|---|---|
+| `prefetch=0` ? | **Casse tout** : la source n'est jamais « prête », le `switch` ne la choisit jamais — zéro appel au script même avec un auditeur, et l'auditeur reçoit du silence (−70 LUFS). **`prefetch=1` est le minimum** : un morceau est demandé d'avance, **avant** le premier auditeur. La non-répétition doit donc apprendre qu'un morceau demandé n'est pas encore joué (`GOAL-016-T08`) |
+| En-têtes `icy-*` | `headers=[("icy-name","local-webradio"),("icy-br","128")]` : **servis tels quels** — `docs/flux-icy.md` §1 est satisfait |
+| API injoignable | Liquidsoap **boucle** : `Failed to execute … exit (1)` puis `Every possibility failed!`, **cinq tentatives en 8 s** (`retry_delay=1.`), et sert du silence pendant ce temps. C'est exactement ce que SPECS.md §5.1 interdit. **Couper en le disant est à notre charge** : `output.harbor` a `fallible`, `input.http` et les sources ont `start`/`on_start` — à essayer en `T09` |
+| Bascule vers `input.http` | **Constatée** : `Switch to live with transition`, et le reçu mesure **−16,2 LUFS — identique à la source** franceinfo. Mais la source a mis **15 s** à devenir prête après le démarrage : un direct doit être branché **avant** sa case |
+| `input.http` au repos | **Tire le flux en permanence** : ~18 Ko/s sans aucun auditeur (128 kb/s, 24 h/24). `input.http` accepte `start : bool` — à démarrer à l'approche de la case, à arrêter après (`GOAL-015`) |
+| Déconnexion brutale | Non essayée — toujours `curl` coupé proprement |
+| Mémoire | 80 Mo, 3 % de CPU avec un auditeur et le direct branché |
+
+### Ce que cela change pour `GOAL-016`
+
+- **Un morceau d'avance** est une propriété du système, pas un bug : `T08` doit
+  distinguer *demandé* et *à l'antenne*, et l'API dit ce qui passe d'après le
+  second.
+- **La panne se gère chez nous** (`T09`) : quand `next_entry()` n'a rien à
+  rendre, l'API ne répond pas « réessaie » mais « c'est fini », et le script
+  doit alors **arrêter de servir** — pas encoder du silence.
+- Le direct de `GOAL-015` se pilote par `start=false` puis démarrage anticipé ;
+  ce n'est plus un décodeur à couper à la seconde.
+
+## 4. Points incertains
+
+- [ ] Comment un script **arrête de servir** proprement : `fallible=true` sur
+      `harbor` sans repli, ou `shutdown()` — et ce que voit l'auditeur (EOF ?).
+- [ ] La déconnexion brutale d'un lecteur : `on_disconnect` sur un câble arraché.
+- [ ] `source.start()` / `source.stop()` sur `input.http` en 2.3.3 : nom exact,
+      délai de mise en route (15 s constatées au démarrage du script).
+- [ ] Le `crossfade` entre un morceau et un **jingle** : la spécification veut
+      une jonction nette (SPECS.md §4.3) — le fondu doit-il s'appliquer partout ?
