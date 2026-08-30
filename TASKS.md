@@ -402,6 +402,36 @@ Ajoutée à AGENTS.md §7.
 
 ---
 
+## Note 2026-08-30 — un message de commit amputé par le shell
+
+Le commit *refactor(nommage) : les identifiants passent à l'anglais* porte un
+paragraphe vide de ses mots :
+
+> « Une collision réelle a été corrigée à la main :  et tombaient tous deux
+> sur , et  réassignait un paramètre avec un autre type. La variable locale
+> s'appelle . »
+
+**Cause** : le message contenait des accents graves, et il a été passé à
+`git commit -m` depuis un shell qui les a pris pour des substitutions de
+commande. Cinq mots ont disparu à l'écriture.
+
+**Ce que le paragraphe disait**, et qui compte pour qui relira ce commit :
+
+> `reglages` et `config` tombaient tous deux sur `config` dans le glossaire de
+> renommage, si bien que `config = config.settings` réassignait un paramètre
+> avec un type différent. La variable locale a été renommée `settings`, à la
+> main — c'est la seule correction manuelle du renommage.
+
+**Pas d'`--amend`.** La réécriture d'historique est un cas d'arrêt
+(AGENTS.md §1.2), et elle a déjà été refusée une fois ce jour-là. Être constant
+sur une règle vaut mieux qu'un historique propre : la correction vit donc ici.
+
+**La règle qui en sort** : un message de commit se passe par
+`git commit -F` ou par un `heredoc` cité, jamais par `-m` avec du texte qui
+contient des accents graves. Ajoutée à AGENTS.md §7.
+
+---
+
 ## GOAL-004 — Le flux : ffmpeg, fan-out, démarrage à la demande
 
 **État : TODO**
@@ -409,17 +439,17 @@ Ajoutée à AGENTS.md §7.
 Le cœur exécutable. `GOAL-002` l'a largement pré-décidé : réencodage
 systématique, voie PCM, un seul chemin d'insertion, `-re` pour cadencer.
 
-- [ ] `GOAL-004-T01` `adapters/ffmpeg/` : décoder une entrée vers le PCM du flux
-- [ ] `GOAL-004-T02` L'encodeur unique, cadencé — sans lui la bibliothèque part en minutes
-- [ ] `GOAL-004-T03` Le fan-out : un flux, N connexions, un auditeur lent n'en ralentit aucun
-- [ ] `GOAL-004-T04` `adapters/http/` : servir le flux, en-têtes `icy-*` compris
-- [ ] `GOAL-004-T05` Démarrage à la première connexion
-- [ ] `GOAL-004-T06` **Arrêt à la dernière — tout l'arbre de processus**, déconnexion brutale comprise
-- [ ] `GOAL-004-T07` La file prend de l'avance : résoudre pendant que le courant joue
-- [ ] `GOAL-004-T08` Les erreurs au démarrage sont fatales et se disent (SPECS.md §4.1)
-- [ ] `GOAL-004-T09` Les pannes en cours : tenir, réessayer, puis couper en le disant (SPECS.md §5.1)
+- [x] `GOAL-004-T01` `adapters/ffmpeg/` : décoder une entrée vers le PCM du flux
+- [x] `GOAL-004-T02` L'encodeur unique, cadencé — sans lui la bibliothèque part en minutes
+- [x] `GOAL-004-T03` Le fan-out : un flux, N connexions, un auditeur lent n'en ralentit aucun
+- [x] `GOAL-004-T04` `adapters/http/` : servir le flux, en-têtes `icy-*` compris
+- [x] `GOAL-004-T05` Démarrage à la première connexion
+- [x] `GOAL-004-T06` **Arrêt à la dernière — tout l'arbre de processus**, déconnexion brutale comprise
+- [x] `GOAL-004-T07` La file prend de l'avance : résoudre pendant que le courant joue
+- [x] `GOAL-004-T08` Les erreurs au démarrage sont fatales et se disent (SPECS.md §4.1)
+- [x] `GOAL-004-T09` Les pannes en cours : tenir, réessayer, puis couper en le disant (SPECS.md §5.1)
 - [ ] `GOAL-004-T10` **Écoute réelle** : brancher VLC, un navigateur, une enceinte — et la matrice de `docs/flux-icy.md` §6
-- [ ] `GOAL-004-T11` Carte du dépôt
+- [x] `GOAL-004-T11` Carte du dépôt
 
 > **`T06` porte un défaut déjà constaté.** La maquette de `GOAL-002-T05` a laissé
 > **deux ffmpeg orphelins** à la dernière déconnexion
@@ -459,18 +489,18 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 **État : TODO**
 
-- [ ] `GOAL-005-T01` `adapters/config/` : lire le TOML, et **refuser** un secret qui s'y trouverait
-- [ ] `GOAL-005-T02` Le schéma de configuration, validé au démarrage, erreurs nommant la clé fautive
-- [ ] `GOAL-005-T03` `core/grille.py` : quelle plage à quelle heure — l'horloge est injectée
-- [ ] `GOAL-005-T04` La grille n'est consultée **qu'au tirage** (SPECS.md §7 n°5) : un morceau finit dans sa plage
-- [ ] `GOAL-005-T05` Le repli d'une plage sans musique sur le tirage libre, journalisé
-- [ ] `GOAL-005-T06` `adapters/sources/navidrome/` : authentification par jeton dérivé
-- [ ] `GOAL-005-T07` **Lire `status` dans le corps à chaque appel** — un mot de passe faux rend HTTP 200
-- [ ] `GOAL-005-T08` Le tirage et le filtre par genre, avec la troncature à 500 **connue et respectée**
-- [ ] `GOAL-005-T09` `pistes_de(artiste)` : `search3` filtré sur l'égalité exacte du nom
-- [ ] `GOAL-005-T10` Traduire les erreurs Subsonic en `SourceIndisponible` — les deux régimes, HTTP 200 et 404
-- [ ] `GOAL-005-T11` Tests de l'adaptateur contre des réponses **littérales**, HTML en 200 compris
-- [ ] `GOAL-005-T12` Carte du dépôt
+- [x] `GOAL-005-T01` `adapters/config/` : lire le TOML, et **refuser** un secret qui s'y trouverait
+- [x] `GOAL-005-T02` Le schéma de configuration, validé au démarrage, erreurs nommant la clé fautive
+- [x] `GOAL-005-T03` `core/grille.py` : quelle plage à quelle heure — l'horloge est injectée
+- [x] `GOAL-005-T04` La grille n'est consultée **qu'au tirage** (SPECS.md §7 n°5) : un morceau finit dans sa plage
+- [x] `GOAL-005-T05` Le repli d'une plage sans musique sur le tirage libre, journalisé
+- [x] `GOAL-005-T06` `adapters/sources/navidrome/` : authentification par jeton dérivé
+- [x] `GOAL-005-T07` **Lire `status` dans le corps à chaque appel** — un mot de passe faux rend HTTP 200
+- [x] `GOAL-005-T08` Le tirage et le filtre par genre, avec la troncature à 500 **connue et respectée**
+- [x] `GOAL-005-T09` `pistes_de(artiste)` : `search3` filtré sur l'égalité exacte du nom
+- [x] `GOAL-005-T10` Traduire les erreurs Subsonic en `SourceIndisponible` — les deux régimes, HTTP 200 et 404
+- [x] `GOAL-005-T11` Tests de l'adaptateur contre des réponses **littérales**, HTML en 200 compris
+- [x] `GOAL-005-T12` Carte du dépôt
 
 > Les tâches `T06` à `T11` sont entièrement pré-écrites par
 > [docs/navidrome.md](./docs/navidrome.md) : chacune correspond à un piège
@@ -482,13 +512,13 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 **État : TODO**
 
-- [ ] `GOAL-006-T01` `core/jingles.py` : quel jingle est dû, d'après l'horloge injectée
-- [ ] `GOAL-006-T02` Résoudre `HHh.mp3` depuis l'heure — aucune table de correspondance
-- [ ] `GOAL-006-T03` **Un jingle absent ne signale rien** ; un jingle illisible journalise
-- [ ] `GOAL-006-T04` L'empilement : tous les jingles dus, dans l'ordre chronologique
-- [ ] `GOAL-006-T05` L'insertion à la jonction, par **le** chemin unique de `GOAL-004`
+- [x] `GOAL-006-T01` `core/jingles.py` : quel jingle est dû, d'après l'horloge injectée
+- [x] `GOAL-006-T02` Résoudre `HHh.mp3` depuis l'heure — aucune table de correspondance
+- [x] `GOAL-006-T03` **Un jingle absent ne signale rien** ; un jingle illisible journalise
+- [x] `GOAL-006-T04` L'empilement : tous les jingles dus, dans l'ordre chronologique
+- [x] `GOAL-006-T05` L'insertion à la jonction, par **le** chemin unique de `GOAL-004`
 - [ ] `GOAL-006-T06` **Écoute réelle** : le niveau d'un vrai jingle contre la musique
-- [ ] `GOAL-006-T07` Carte du dépôt
+- [x] `GOAL-006-T07` Carte du dépôt
 
 > **Le flash France Info ne figure plus dans ce Goal.** Aucune source n'a pu
 > être confirmée ([docs/franceinfo.md](./docs/franceinfo.md) §1.5), et trois
@@ -506,12 +536,12 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 **État : TODO**
 
-- [ ] `GOAL-007-T01` `core/controle.py` : l'effet de `stop` sur ce que la file rendra
-- [ ] `GOAL-007-T02` L'effet d'`encore` : même artiste, puis même genre, puis tirage libre
-- [ ] `GOAL-007-T03` `encore` **outrepasse** la non-répétition, et ses morceaux n'entrent pas dans la fenêtre
-- [ ] `GOAL-007-T04` L'enchaînement illimité, borné par l'épuisement de l'artiste
-- [ ] `GOAL-007-T05` Le **refus motivé** pendant un jingle, un flash ou une émission
-- [ ] `GOAL-007-T06` Le jingle de vote `encore.mp3`, marqué dû, diffusé **en dernier** à la jonction
+- [x] `GOAL-007-T01` `core/controle.py` : l'effet de `stop` sur ce que la file rendra
+- [x] `GOAL-007-T02` L'effet d'`encore` : même artiste, puis même genre, puis tirage libre
+- [x] `GOAL-007-T03` `encore` **outrepasse** la non-répétition, et ses morceaux n'entrent pas dans la fenêtre
+- [x] `GOAL-007-T04` L'enchaînement illimité, borné par l'épuisement de l'artiste
+- [x] `GOAL-007-T05` Le **refus motivé** pendant un jingle, un flash ou une émission
+- [x] `GOAL-007-T06` Le jingle de vote `encore.mp3`, marqué dû, diffusé **en dernier** à la jonction
 
 ---
 
@@ -519,12 +549,12 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 **État : TODO**
 
-- [ ] `GOAL-008-T01` `adapters/web/api/` : la surface publique, sans Flask dans le noyau
-- [ ] `GOAL-008-T02` Dire ce qui passe : titre, artiste, et **de quelle nature** — musique, jingle, flash, émission
-- [ ] `GOAL-008-T03` Dire si la chaîne tourne
-- [ ] `GOAL-008-T04` Accepter un vote `stop` et un vote `encore` — une voix suffit
-- [ ] `GOAL-008-T05` Traduire le refus du noyau en réponse HTTP **motivée** — un refus muet ressemble à une panne
-- [ ] `GOAL-008-T06` Tests : l'API n'appelle jamais le noyau autrement que par les décisions de `GOAL-007`
+- [x] `GOAL-008-T01` `adapters/web/api/` : la surface publique, sans Flask dans le noyau
+- [x] `GOAL-008-T02` Dire ce qui passe : titre, artiste, et **de quelle nature** — musique, jingle, flash, émission
+- [x] `GOAL-008-T03` Dire si la chaîne tourne
+- [x] `GOAL-008-T04` Accepter un vote `stop` et un vote `encore` — une voix suffit
+- [x] `GOAL-008-T05` Traduire le refus du noyau en réponse HTTP **motivée** — un refus muet ressemble à une panne
+- [x] `GOAL-008-T06` Tests : l'API n'appelle jamais le noyau autrement que par les décisions de `GOAL-007`
 
 ---
 
@@ -532,13 +562,13 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 **État : TODO**
 
-- [ ] `GOAL-009-T01` Le serveur Flask, monté à côté du flux, sans le perturber
-- [ ] `GOAL-009-T02` Un gabarit Jinja2 : ce qui passe, et deux boutons
-- [ ] `GOAL-009-T03` Les boutons appellent **l'API**, jamais le noyau — l'interdit est contrôlé
-- [ ] `GOAL-009-T04` L'affichage d'un refus, quand un vote tombe pendant un jingle ou une émission
-- [ ] `GOAL-009-T05` Utilisable à une main, sur un téléphone posé à côté de l'enceinte
+- [x] `GOAL-009-T01` Le serveur Flask, monté à côté du flux, sans le perturber
+- [x] `GOAL-009-T02` Un gabarit Jinja2 : ce qui passe, et deux boutons
+- [x] `GOAL-009-T03` Les boutons appellent **l'API**, jamais le noyau — l'interdit est contrôlé
+- [x] `GOAL-009-T04` L'affichage d'un refus, quand un vote tombe pendant un jingle ou une émission
+- [x] `GOAL-009-T05` Utilisable à une main, sur un téléphone posé à côté de l'enceinte
 - [ ] `GOAL-009-T06` **Regarder la page sur un vrai téléphone** — aucun test ne le fera
-- [ ] `GOAL-009-T07` Carte du dépôt
+- [x] `GOAL-009-T07` Carte du dépôt
 
 ---
 
@@ -546,18 +576,18 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 **État : TODO**
 
-- [ ] `GOAL-010-T01` `adapters/podcast/` : lire un flux RSS, en extraire les épisodes
-- [ ] `GOAL-010-T02` Ne retenir que les `full` — écarter `bonus` et `trailer`
-- [ ] `GOAL-010-T03` **Ne pas se fier à `enclosure/length`** : Acast insère de la publicité, le fichier servi diffère
-- [ ] `GOAL-010-T04` `adapters/etat/` : la base SQLite, une table, écriture atomique
-- [ ] `GOAL-010-T05` `core/emissions.py` : quelle émission est due, d'après la grille déclarée
-- [ ] `GOAL-010-T06` **Deux émissions à la même heure refusent le démarrage**, en les nommant
-- [ ] `GOAL-010-T07` L'épisode le plus récent **non encore diffusé** ; sinon la case est sautée
+- [x] `GOAL-010-T01` `adapters/podcast/` : lire un flux RSS, en extraire les épisodes
+- [x] `GOAL-010-T02` Ne retenir que les `full` — écarter `bonus` et `trailer`
+- [x] `GOAL-010-T03` **Ne pas se fier à `enclosure/length`** : Acast insère de la publicité, le fichier servi diffère
+- [x] `GOAL-010-T04` `adapters/etat/` : la base SQLite, une table, écriture atomique
+- [x] `GOAL-010-T05` `core/emissions.py` : quelle émission est due, d'après la grille déclarée
+- [x] `GOAL-010-T06` **Deux émissions à la même heure refusent le démarrage**, en les nommant
+- [x] `GOAL-010-T07` L'épisode le plus récent **non encore diffusé** ; sinon la case est sautée
 - [ ] `GOAL-010-T08` Le rattrapage borné à la durée de l'épisode — la durée se lit **avant** de décider
 - [ ] `GOAL-010-T09` Une émission **suspend** la grille, la non-répétition et les jingles
-- [ ] `GOAL-010-T10` Un épisode indisponible ou tronqué : rester sur la musique, journaliser
+- [x] `GOAL-010-T10` Un épisode indisponible ou tronqué : rester sur la musique, journaliser
 - [ ] `GOAL-010-T11` **Écoute réelle** : le niveau d'un épisode contre la musique, et la jonction
-- [ ] `GOAL-010-T12` Carte du dépôt
+- [x] `GOAL-010-T12` Carte du dépôt
 
 > **`T08` est la seule tâche du projet où le démarrage dépend d'un appel réseau
 > qui peut ne servir à rien** (ARCHITECTURE.md §5.2). Elle porte aussi le chiffre
@@ -586,18 +616,18 @@ dans un commit d'implémentation. Elle reste en vigueur pour la troisième table
 
 ### Les tâches
 
-- [ ] `GOAL-012-T01` `adapters/etat/` : la table `votes`, et la décroissance à l'écriture
-- [ ] `GOAL-012-T02` La décroissance **à la lecture** aussi, entre `vu_le` et maintenant
-- [ ] `GOAL-012-T03` `core/ponderation.py` : des scores au multiplicateur, borné à `[0,25 ; 4]`
-- [ ] `GOAL-012-T04` La portée croisée : `stop` = 1 sur la piste, 0,25 sur l'artiste ; `encore` l'inverse
-- [ ] `GOAL-012-T05` `core/rng.py` gagne `choisir_pondere()` — une capacité **nouvelle**, pas un réglage
-- [ ] `GOAL-012-T06` **Le tirage pondéré reste rejouable** à graine et poids fixés
+- [x] `GOAL-012-T01` `adapters/etat/` : la table `votes`, et la décroissance à l'écriture
+- [x] `GOAL-012-T02` La décroissance **à la lecture** aussi, entre `vu_le` et maintenant
+- [x] `GOAL-012-T03` `core/ponderation.py` : des scores au multiplicateur, borné à `[0,25 ; 4]`
+- [x] `GOAL-012-T04` La portée croisée : `stop` = 1 sur la piste, 0,25 sur l'artiste ; `encore` l'inverse
+- [x] `GOAL-012-T05` `core/rng.py` gagne `choisir_pondere()` — une capacité **nouvelle**, pas un réglage
+- [x] `GOAL-012-T06` **Le tirage pondéré reste rejouable** à graine et poids fixés
 - [ ] `GOAL-012-T07` La file reçoit les poids, elle ne va pas les chercher — la frontière du noyau tient
 - [ ] `GOAL-012-T08` Enregistrer le vote au moment où il est **accepté**, jamais quand il est refusé
 - [ ] `GOAL-012-T09` Les clés de configuration : plancher, plafond, demi-vie, poids croisé
-- [ ] `GOAL-012-T10` Une base absente ou vide se comporte comme des poids neutres
+- [x] `GOAL-012-T10` Une base absente ou vide se comporte comme des poids neutres
 - [ ] `GOAL-012-T11` **Écoute sur plusieurs semaines** — le seul moyen de savoir si la radio s'est resserrée
-- [ ] `GOAL-012-T12` Carte du dépôt
+- [x] `GOAL-012-T12` Carte du dépôt
 
 ### Ce que le découpage retient des décisions
 

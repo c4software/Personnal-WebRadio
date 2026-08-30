@@ -382,6 +382,11 @@ docs(ffmpeg): relever le comportement en fin de fichier
 Référencer l'identifiant de la tâche en pied de message : c'est ce qui relie
 l'historique Git à TASKS.md.
 
+**Un message de commit ne se passe jamais à `-m` avec des accents graves** : le
+shell les prend pour des substitutions de commande et mange les mots. Utiliser
+`git commit -F -` ou un heredoc cité. C'est arrivé le 2026-08-30, et la
+correction est dans TASKS.md — pas dans un `--amend`.
+
 **Jamais `git add -A` quand un autre agent écrit dans le dépôt.** On nomme les
 fichiers, ou l'on attend. Un dépôt partagé n'a pas d'index par agent : `-A` prend
 tout ce qui traîne, y compris ce que quelqu'un est en train d'écrire — et produit
