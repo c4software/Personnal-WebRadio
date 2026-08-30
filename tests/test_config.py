@@ -576,3 +576,9 @@ def test_sans_generique_rien_ne_change() -> None:
     config = _valider(TOML_MINIMAL + UNE_PLAGE)
     assert config.bands[0].intro is None
     assert config.bands[0].outro is None
+
+
+def test_le_jingle_d_encore_se_configure_et_a_un_defaut() -> None:
+    assert _valider(TOML_MINIMAL).jingles.encore == "encore.mp3"
+    config = _valider(TOML_MINIMAL.replace("[jingles]", '[jingles]\nencore = "bravo.mp3"'))
+    assert config.jingles.encore == "bravo.mp3"

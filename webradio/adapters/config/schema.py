@@ -104,9 +104,14 @@ class DrawSettings:
 
 @dataclass(frozen=True, slots=True)
 class JingleSettings:
-    """Seul le dossier se configure : les noms des jingles sont fixes."""
+    """Le dossier, et le nom du jingle d'« encore » (GOAL-031).
+
+    Les jingles HORAIRES restent nommés par leur heure — c'est leur
+    programmation, pas un réglage.
+    """
 
     folder: str
+    encore: str = "encore.mp3"
 
 
 @dataclass(frozen=True, slots=True)
@@ -622,7 +627,7 @@ def validate(brut: Mapping[str, Any]) -> Settings:
         "",
     )
     jingles = _table(brut, "jingles", "")
-    _verifier_cles(jingles, ("folder",), "jingles")
+    _verifier_cles(jingles, ("folder", "encore"), "jingles")
     state = _table(brut, "state", "")
     _verifier_cles(state, ("database", "timeout_seconds"), "state")
     web = _table_optionnelle(brut, "web", "")
@@ -631,7 +636,10 @@ def validate(brut: Mapping[str, Any]) -> Settings:
     _verifier_cles(podcast, ("timeout_seconds",), "podcast")
     return Settings(
         draw=_tirage(brut),
-        jingles=JingleSettings(folder=_texte(jingles, "folder", "jingles")),
+        jingles=JingleSettings(
+            folder=_texte(jingles, "folder", "jingles"),
+            encore=_texte(jingles, "encore", "jingles", default="encore.mp3"),
+        ),
         bands=_plages(brut),
         state=StateSettings(
             database=_texte(state, "database", "state"),

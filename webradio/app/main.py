@@ -115,7 +115,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         ],
         clock,
     )
-    jingles = Jingles(clock)
+    jingles = Jingles(clock, encore_name=settings.jingles.encore)
     control = Control(source=source, random=random, jingles=jingles)
     counter = ListenerCount()
 

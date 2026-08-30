@@ -30,6 +30,9 @@ half_life_days      = 90     # un vote pèse moitié moins au bout de 3 mois
 # vote. Seul le dossier se configure. Un jingle absent ne signale rien.
 # Par défaut, le dossier `jingles/` à la racine du dépôt (versionné vide).
 folder = "jingles"
+# Le jingle qui annonce un « encore » accepté — personnalisable (GOAL-031).
+# Les jingles HORAIRES, eux, restent nommés par leur heure : 00h.mp3 … 23h.mp3.
+encore = "encore.mp3"
 
 # ── Les moments thématiques ────────────────────────────────────────────────
 # En dehors de ces plages, le tirage est libre. Une plage sans musique se
@@ -48,6 +51,8 @@ outro  = "matinale-fin.mp3"
 start  = "20:00"
 end    = "23:00"
 genres = ["Rock", "Pop"]
+intro  = "soiree-debut.mp3"
+outro  = "soiree-fin.mp3"
 
 # `days` restreint une plage à certains jours ; sans lui, elle vaut tous les
 # jours. Une plage qui enjambe minuit appartient au jour où elle commence :
@@ -57,6 +62,8 @@ start  = "22:00"
 end    = "02:00"
 genres = ["Électro"]
 days   = ["saturday"]
+intro  = "nuit-electro-debut.mp3"
+outro  = "nuit-electro-fin.mp3"
 
 # Une plage peut imposer un ou des ARTISTES au lieu de genres — une heure d'un
 # seul artiste, par exemple. `genres` et `artists` ne se déclarent jamais
@@ -66,6 +73,8 @@ start   = "17:00"
 end     = "18:00"
 artists = ["Air"]
 days    = ["sunday"]
+intro   = "heure-air-debut.mp3"
+outro   = "heure-air-fin.mp3"
 
 # ── L'état ─────────────────────────────────────────────────────────────────
 # La SEULE chose que la radio retient entre deux démarrages : le dernier
@@ -121,6 +130,8 @@ playlist = "Chloé"
 days    = ["friday"]
 start    = "18:00"
 end      = "20:00"
+intro    = "chloe-debut.mp3"
+outro    = "chloe-fin.mp3"
 
 # ── Les émissions ──────────────────────────────────────────────────────────
 # Autant qu'on veut, mais jamais deux à la même heure le même jour : la radio

@@ -50,10 +50,13 @@ class Jingles:
     (SPECS.md §1).
     """
 
-    def __init__(self, clock: Clock) -> None:
+    def __init__(self, clock: Clock, encore_name: str = JINGLE_ENCORE) -> None:
         self._horloge = clock
         self._repere = clock.now()
         self._encore_du = False
+        # Le nom du jingle d'« encore » se configure (GOAL-031) : les jingles
+        # horaires restent nommés par leur heure, c'est leur programmation.
+        self._nom_encore = encore_name
 
     @property
     def encore_du(self) -> bool:
@@ -87,5 +90,5 @@ class Jingles:
 
         names = [jingle_name(hour) for hour in franchies]
         if encore:
-            names.append(JINGLE_ENCORE)
+            names.append(self._nom_encore)
         return tuple(names)

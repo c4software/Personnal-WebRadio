@@ -120,3 +120,10 @@ def test_une_journee_entiere_fait_tomber_les_vingt_quatre_jingles() -> None:
         h.advance(timedelta(minutes=5))
         entendus.extend(jingles.due_now())
     assert entendus == [f"{hour:02d}h.mp3" for hour in [*range(1, 24), 0]]
+
+
+def test_le_nom_du_jingle_d_encore_se_configure() -> None:
+    """GOAL-031 : `encore.mp3` n'est qu'un défaut — le nom vient du TOML."""
+    jingles = Jingles(clock(12), encore_name="bravo.mp3")
+    jingles.mark_more()
+    assert jingles.due_now() == ("bravo.mp3",)

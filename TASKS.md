@@ -150,6 +150,7 @@ Goals sont découpables.
 | GOAL-028 | YouTube sans blanc : téléchargé en fond, servi en local | `[x]` |
 | GOAL-029 | Génériques d'ouverture et de fermeture des moments | `[x]` |
 | GOAL-030 | Les jours de la configuration passent à l'anglais | `[x]` |
+| GOAL-031 | Le jingle d'« encore » se configure, les exemples ont leurs génériques | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -1044,3 +1045,12 @@ seuls les noms de jours restaient en français.
 
 - [x] `GOAL-030-T01` `monday` … `sunday` partout — noyau, schéma, configs, exemples, tests ; un jour français est désormais **refusé** en nommant les jours attendus
 - [x] `GOAL-030-T02` L'interface, elle, **continue d'afficher en français** — la langue de la configuration n'est pas celle de la page
+
+---
+
+## GOAL-031 — Le jingle d'« encore » se configure, les exemples ont leurs génériques
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30
+
+- [x] `GOAL-031-T01` `[jingles] encore = "…"` — `encore.mp3` n'est plus qu'un défaut ; les jingles horaires restent nommés par leur heure, c'est leur programmation
+- [x] `GOAL-031-T02` Chaque plage et programme de `webradio.exemple.toml` montre ses `intro`/`outro`
