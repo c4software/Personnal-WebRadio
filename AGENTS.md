@@ -133,10 +133,10 @@ alors ni rejouer une soirée, ni vérifier qu'un jingle tombe à l'heure.
 - ❌ Aucune URL, aucun chemin de fichier, aucun port, aucune durée en dur dans
   le code. Tout vient du TOML (SPECS.md §6), avec un défaut déclaré au même
   endroit.
-- ⚠️ **Une exception, et une seule** : les noms des jingles horaires — `00h.mp3`
-  à `23h.mp3` — sont **fixes** et se déduisent de l'heure (SPECS.md §4.3). Seul
-  le dossier est configurable. Ne pas ajouter de table de correspondance : le nom
-  du fichier *est* la configuration.
+- ⚠️ **Une exception, et une seule** : les noms des jingles sont **fixes** —
+  `00h.mp3` à `23h.mp3` pour les heures (SPECS.md §4.3), `encore.mp3` pour le
+  vote (SPECS.md §4.6). Seul le dossier est configurable. Ne pas ajouter de table
+  de correspondance : le nom du fichier *est* la configuration.
 
 ### Les erreurs se voient
 
@@ -235,7 +235,7 @@ ne se constatent qu'en écoutant réellement la radio :
 | **Les transitions** | Un blanc entre deux morceaux, une coupure au milieu d'un flash, un jingle à cheval sur un refrain |
 | **La tenue dans la durée** | Dérive d'horloge, tampon qui se vide, fuite mémoire après six heures, jingle horaire qui glisse |
 | **Les vrais lecteurs** | Se brancher au vol, se rebrancher après coupure, VLC contre navigateur contre enceinte — chacun a ses exigences d'en-têtes et de tampon |
-| **La note du vote** | Qu'un « encore » s'entende, assez tôt et sans écraser la musique. Un test peut vérifier qu'elle est déclenchée ; aucun ne dira si elle est audible |
+| **Le jingle de vote** | Qu'un « encore » s'annonce à la jonction sans détonner avec la musique qui l'entoure. Un test vérifie qu'il est déclenché ; aucun ne dit s'il sonne juste |
 
 **Conséquence à assumer** : aucun de ces défauts n'est détecté automatiquement
 par qui que ce soit. Celui qui touche à ces zones **écoute réellement la radio

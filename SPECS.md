@@ -188,15 +188,26 @@ elle est **refusée explicitement**, et celui qui l'a envoyée l'apprend (§4.8)
 Elle n'est ni mise en attente, ni appliquée au morceau suivant en douce — les
 deux seraient des surprises.
 
-**`encore` s'entend.** Quand un vote « encore » est enregistré, **une brève note
-de musique est diffusée dans le flux**. C'est l'accusé de réception, et tous les
-auditeurs l'entendent. Sans elle, on ne saurait pas si le vote est passé à temps,
-avant que le morceau suivant ne soit déjà choisi — et on voterait deux fois.
+**Une voix suffit** : le premier vote reçu s'applique, il n'y a ni quorum ni
+fenêtre de dépouillement. « Vote » est ici un mot pour « bouton ».
+
+**`encore` s'entend, à la jonction.** Un vote « encore » enregistré fait diffuser
+un **jingle** — `encore.mp3`, dans le même dossier que les jingles horaires —
+**entre le morceau en cours et le suivant**. Il emprunte exactement le même
+chemin d'insertion que les jingles horaires : rien n'est mêlé par-dessus la
+musique, rien ne coupe un morceau.
+
+Comme eux, **son absence n'est pas une erreur** : sans `encore.mp3`, le vote
+s'applique sans s'annoncer.
+
+> **Ce que cela coûte, et qui est assumé** : l'accusé de réception n'est plus
+> immédiat. Entre le vote et le jingle, il s'écoule la fin du morceau en cours —
+> pendant laquelle rien ne confirme que le vote est passé. C'est le prix de la
+> simplicité : une seule mécanique d'insertion pour tous les jingles.
 
 `encore` s'applique au morceau **suivant**, pas à toute la suite : il n'installe
 pas un mode. Combien de fois il peut être enchaîné, et si l'effet s'épuise, est
-une décision ouverte (§7 n°7). Ce que « vote » veut dire exactement — un seul
-suffit-il, ou en faut-il plusieurs — est la décision ouverte n°10.
+une décision ouverte (§7 n°7).
 
 ### 4.7 Se débrancher
 
@@ -250,7 +261,7 @@ particulier. Un lecteur qui se branche reçoit un flux qu'il sait lire
 immédiatement, sans rien connaître de ce qui l'a précédé.
 
 **Sans coupure.** Le flux ne s'interrompt jamais : ni entre deux morceaux, ni à
-l'insertion d'un jingle, d'un flash ou de la note d'accusé de réception. Pour un
+l'insertion d'un jingle — horaire ou de vote — ni à celle d'un flash. Pour un
 lecteur de webradio, une coupure n'est pas un blanc — c'est une déconnexion, et
 il faut se rebrancher.
 
@@ -272,7 +283,7 @@ contournée en continuant la musique l'est, et laisse une trace journalisée.
 | Erreur | La radio |
 |---|---|
 | Un morceau illisible ou tronqué | passe au suivant, journalise |
-| Un jingle absent (`14h.mp3` n'existe pas) | continue **sans rien signaler** — c'est nominal (§4.3) |
+| Un jingle absent (`14h.mp3` ou `encore.mp3`) | continue **sans rien signaler** — c'est nominal (§4.3, §4.6) |
 | Un jingle présent mais illisible | passe outre, journalise |
 | Un flash indisponible ou tronqué | continue sur la musique, journalise |
 | Une plage thématique sans musique | se replie sur le tirage libre, journalise |
@@ -296,10 +307,10 @@ Ce que le TOML doit décrire, au minimum :
 
 - **Navidrome** : adresse, identifiants ;
 - **Le flux** : adresse d'écoute, port, format et débit ;
-- **Les jingles** : le dossier seul — les noms `00h.mp3` … `23h.mp3` sont fixes
-  et ne se configurent pas (§4.3) ;
-- **La note d'accusé de réception** : le fichier joué lorsqu'un vote « encore »
-  est enregistré (§4.6) ;
+- **Les jingles** : le dossier seul — les noms sont fixes et ne se configurent
+  pas : `00h.mp3` … `23h.mp3` pour les heures (§4.3), `encore.mp3` pour le vote
+  (§4.6) ;
+
 - **Le web** : adresse d'écoute et port de l'interface et de l'API ;
 - **Les informations** : à quelles heures un flash est diffusé ;
 - **Les moments thématiques** : plages horaires et genres associés ;
@@ -330,6 +341,16 @@ périmètre.
 > *Raison* : le pilotage devait bien avoir une forme, et une page ouverte sur un
 > téléphone posé à côté de l'enceinte est la plus directe. Le choix de Flask et
 > Jinja2 est celui de l'auteur.
+
+**n°10 — « Au vote » : une voix suffit.** Tranchée le 2026-08-30. Le premier vote
+reçu s'applique : ni quorum, ni fenêtre de dépouillement, ni comptage des
+auditeurs. **Et l'accusé de réception n'est pas une note mêlée à la musique**,
+mais un jingle `encore.mp3` inséré à la jonction, par le même chemin que les
+jingles horaires (§4.6).
+> *Raison* : §3 ne prévoit qu'un auditeur, un quorum n'aurait rien à compter. Et
+> une seule mécanique d'insertion pour tous les jingles vaut mieux que deux — le
+> prix, un accusé de réception différé jusqu'à la fin du morceau en cours, est
+> assumé.
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :
@@ -388,22 +409,6 @@ couvre** : les tâches qui touchent au son seront cochées sur la foi de tests q
 n'entendent rien. C'est un choix d'autonomie maximale, pris à l'initialisation et
 assumé. Il est consigné ici pour être visible, et pour pouvoir être révisé à la
 première fois où un défaut sonore traversera plusieurs Goals.
-
-**n°10 — « Au vote » : combien de voix ?**
-`encore` est décrit comme un **vote**. Or SPECS.md §3 ne prévoit qu'un auditeur,
-sur le réseau local. Deux lectures, et elles ne produisent pas la même radio :
-
-- **un vote suffit** — « vote » est alors un mot pour « bouton », l'effet est
-  immédiat, et la note de musique accuse réception d'une action déjà prise ;
-- **il faut un quorum** — plusieurs auditeurs doivent voter dans une fenêtre de
-  temps, et la note accuse réception d'une voix, pas d'une décision. Cela suppose
-  de compter les auditeurs, de définir la fenêtre, et de dire ce qu'on fait d'un
-  vote minoritaire.
-
-La première est cohérente avec §3 et coûte peu ; la seconde donne son sens plein
-au mot « vote » mais suppose des auditeurs multiples que §3 exclut aujourd'hui.
-**Rien n'est décidé** : c'est un comportement audible, il ne se tranche pas en
-silence (AGENTS.md §1.2).
 
 **n°11 — Transcoder le moins possible, sans jamais couper.**
 C'est la décision la plus structurante restée ouverte, et elle oppose trois

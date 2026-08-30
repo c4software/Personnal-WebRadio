@@ -135,7 +135,7 @@ nombre de canaux **en cours de flux** est exactement ce qui fait décrocher un
 lecteur de webradio — lequel a lu les en-têtes une fois, au branchement, et ne
 les relit pas.
 
-S'y ajoute que jingles, flashs et note d'accusé de réception viennent
+S'y ajoute que jingles — horaires comme de vote — et flashs viennent
 d'**origines différentes** de la musique : les insérer suppose de les ramener au
 format du flux, ou de tout ramener à un format commun.
 
@@ -205,18 +205,29 @@ C'est le noyau qui sait s'il est dans un jingle, un flash ou de la musique — d
 c'est lui qui refuse. L'API traduit ce refus en réponse HTTP ; elle ne le décide
 pas.
 
-### 6.2 La note d'accusé de réception
+### 6.2 Le jingle de vote
 
-Un vote « encore » enregistré fait diffuser une brève note dans le flux
-(SPECS.md §4.6). C'est le seul cas où **une action extérieure injecte du son** :
-la note traverse donc la même mécanique d'insertion que les jingles, avec les
-mêmes contraintes de format (§4.0), mais déclenchée par un événement et non par
-l'horloge.
+Un vote « encore » enregistré fait diffuser `encore.mp3` **à la jonction**, entre
+le morceau en cours et le suivant (SPECS.md §4.6).
 
-> **Un point à ne pas manquer** : la note doit être entendue **avant** que le
-> morceau suivant ne soit choisi, sinon elle accuse réception trop tard et
-> l'auditeur vote deux fois. Elle ne peut donc pas attendre la jonction suivante,
-> contrairement à un jingle. C'est ce qui la rend différente, et plus difficile.
+Il emprunte **exactement le même chemin** que les jingles horaires : même
+mécanique d'insertion, même contrainte de format (§4.0), même traitement d'un
+fichier absent. Une seule différence, et elle est dans le noyau : il est
+déclenché par un **événement** — un vote — là où les jingles horaires le sont par
+l'**horloge**.
+
+> **C'est une simplification obtenue en renonçant à quelque chose.** Une note
+> mêlée par-dessus la musique aurait accusé réception immédiatement ; elle aurait
+> imposé un second chemin d'insertion, capable de mixer deux sources en temps
+> réel. Le jingle à la jonction ne demande rien de nouveau — au prix d'un accusé
+> de réception différé jusqu'à la fin du morceau en cours. Le renoncement est
+> délibéré (SPECS.md §7 n°10).
+
+Conséquence pour le noyau : la file doit savoir qu'**un jingle de vote est dû**
+au même titre qu'un jingle horaire, et les deux peuvent tomber sur la même
+jonction. Ce qui se passe alors — les deux, un seul, dans quel ordre — n'est pas
+spécifié : c'est une question à poser avant `GOAL-007`, pas à trancher en
+implémentant.
 
 ## 7. Erreurs
 

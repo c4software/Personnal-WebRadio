@@ -40,10 +40,11 @@ est ce qui distingue une radio d'une liste de lecture (SPECS.md §4.2).
 - [ ] Existe-t-il un filtre de normalisation du niveau utilisable **en temps
       réel** ? Un jingle qui écrase la musique est l'un des quatre angles morts
       (AGENTS.md §4.1).
-- [ ] **La note d'accusé de réception d'un vote « encore » ne peut pas attendre
-      la jonction suivante** (ARCHITECTURE.md §6.2) : elle doit s'entendre tout
-      de suite. Peut-elle être **mêlée par-dessus** la musique en cours plutôt
-      qu'insérée entre deux morceaux, et à quel coût ?
+- [ ] Le jingle de vote `encore.mp3` s'insère à la jonction, comme un jingle
+      horaire (ARCHITECTURE.md §6.2) : **aucun mixage par-dessus la musique n'est
+      requis**. Vérifier qu'il n'existe bien qu'un seul chemin d'insertion à
+      écrire, et que deux jingles dus à la même jonction ne posent pas de
+      problème particulier.
 
 ## 2.bis Transcoder le moins possible
 

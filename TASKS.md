@@ -30,16 +30,22 @@ Rappel (AGENTS.md §1.1) : `code écrit ≠ tâche terminée`.
 
 **Phase 0 — Harness** `[-]` en cours.
 
-> **Mise à jour du 2026-08-30** — l'auteur a ajouté huit exigences après
+> **Mise à jour du 2026-08-30 (2)** — l'auteur tranche la n°10 : **une voix
+> suffit**, et l'accusé de réception d'un « encore » n'est plus une note mêlée à
+> la musique mais un **jingle `encore.mp3` posé à la jonction**, par le même
+> chemin que les jingles horaires. `GOAL-007` est débloqué ; une seule mécanique
+> d'insertion reste à écrire, dans `GOAL-006`.
+>
+> **Mise à jour du 2026-08-30 (1)** — l'auteur a ajouté huit exigences après
 > l'initialisation : interface web Flask/Jinja2, actions par API, `stop`/`encore`
 > disponibles en permanence sauf pendant un jingle ou un flash, jingles nommés
 > `HHh.mp3` en local et sans erreur si absents, note audible sur un vote
 > « encore », flux compatible avec tout lecteur de webradio et sans coupure,
 > transcodage minimal.
 > Elles tranchent les décisions **n°1** et **n°6**, en ouvrent deux —
-> **n°10** (que veut dire « vote » ?) et **n°11** (transcoder le moins contre ne
-> jamais couper) — et ajoutent `GOAL-008`, `GOAL-009` et un quatrième relevé,
-> `docs/flux-icy.md`.
+> **n°10** (que veut dire « vote » ?, tranchée depuis) et **n°11** (transcoder le
+> moins contre ne jamais couper, **toujours ouverte**) — et ajoutent `GOAL-008`,
+> `GOAL-009` et un quatrième relevé, `docs/flux-icy.md`.
 
 La documentation structurante et les commandes de pilotage sont posées.
 **Le code n'existe pas encore** : `GOAL-001-T01` à `T04` et `T11` restent à
@@ -107,7 +113,9 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 | Les jingles nommés `00h.mp3` … `23h.mp3` | Le nom du fichier *est* la programmation : aucune table de correspondance à tenir à jour. Seule exception à « rien en dur » (AGENTS.md §2) |
 | Un jingle absent ne signale rien | C'est le mode d'emploi : on ajoute un jingle en déposant un fichier. Distinct d'un fichier corrompu, qui est un incident (SPECS.md §4.3) |
 | `stop` et `encore` refusés pendant un jingle ou un flash, **explicitement** | Un refus muet est indistinguable d'une panne et pousse à réessayer (SPECS.md §4.6) |
-| Un « encore » enregistré diffuse une note dans le flux | Sans accusé de réception audible, on ne sait pas si le vote est passé à temps — et on vote deux fois (SPECS.md §4.6) |
+| **Une voix suffit** pour `encore` : ni quorum, ni fenêtre | SPECS.md §3 ne prévoit qu'un auditeur : un quorum n'aurait rien à compter. Tranche SPECS.md §7 n°10 |
+| L'accusé de réception est un **jingle `encore.mp3` à la jonction**, pas une note mêlée | Une seule mécanique d'insertion pour tous les jingles vaut mieux que deux. Le prix — un accusé différé jusqu'à la fin du morceau — est assumé (ARCHITECTURE.md §6.2) |
+| `encore.mp3` absent ne signale rien, comme un jingle horaire | Même règle pour tous les jingles : on en ajoute un en déposant un fichier (SPECS.md §4.3, §4.6) |
 | Quatrième relevé : `docs/flux-icy.md` | « Compatible avec tout lecteur de webradio » n'a aucune norme derrière : c'est une convention de fait, à constater lecteur par lecteur |
 
 ### Dettes ouvertes par ce Goal
@@ -128,12 +136,15 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
       la **n°3** (règle de non-répétition) avant `GOAL-003`,
       la **n°11** (transcodage minimal contre flux sans coupure) avant
       `GOAL-004` — et celle-là ne se tranche pas avant les relevés.
-- [ ] `GOAL-001-T15` **La n°10 est une ambiguïté de spécification, pas une
-      préférence.** `encore` est décrit comme un « vote », alors que SPECS.md §3
-      ne prévoit qu'un auditeur. Un vote qui s'applique seul et un vote qui exige
-      un quorum ne produisent pas la même radio. C'est un comportement audible :
-      il ne se tranche pas en silence (AGENTS.md §1.2), et la question remonte à
-      l'auteur avant `GOAL-007`.
+      La **n°10** a été tranchée le 2026-08-30.
+- [x] `GOAL-001-T15` ~~La n°10 est une ambiguïté de spécification.~~ **Levée le
+      2026-08-30** : l'auteur a tranché — une voix suffit, et l'accusé de
+      réception devient un jingle `encore.mp3` inséré à la jonction plutôt
+      qu'une note mêlée à la musique. `GOAL-007` n'est plus bloqué.
+- [ ] `GOAL-001-T16` **Deux jingles dus à la même jonction.** Un jingle horaire
+      et un jingle de vote peuvent tomber au même moment. Les diffuser tous les
+      deux, n'en garder qu'un, dans quel ordre ? Rien ne le dit. À poser avant
+      `GOAL-007`, pas à trancher en implémentant (ARCHITECTURE.md §6.2).
 
 ---
 
@@ -197,6 +208,10 @@ L'insertion à la jonction sans couper un morceau, la péremption
 délibéré quand un jingle est absent — distinct de l'incident qu'est un fichier
 corrompu (SPECS.md §4.3).
 
+C'est ici qu'est écrite **l'unique mécanique d'insertion de jingle**, celle dont
+`GOAL-007` se sert pour `encore.mp3` (ARCHITECTURE.md §6.2). Elle est donc
+écrite une fois, pour deux déclencheurs : l'horloge et le vote.
+
 ---
 
 ## GOAL-007 — Le pilotage : `stop` et `encore` dans le noyau
@@ -209,13 +224,13 @@ d'accusé de réception.
 
 Sans Flask, sans HTTP, sans navigateur : c'est du noyau, et cela se teste seul.
 
-**Exige que SPECS.md §7 n°10 soit tranchée** — un vote qui s'applique seul et un
-vote à quorum ne produisent pas le même noyau.
+**Débloqué le 2026-08-30** : SPECS.md §7 n°10 est tranchée — une voix suffit, et
+l'accusé de réception est un jingle `encore.mp3` posé à la jonction, par le même
+chemin que les jingles horaires. Le noyau n'a donc qu'à **marquer un jingle de
+vote comme dû** ; toute la mécanique d'insertion appartient à `GOAL-006`.
 
-> La note d'accusé de réception a une contrainte que les jingles n'ont pas : elle
-> doit s'entendre **avant** que le morceau suivant ne soit choisi, donc elle ne
-> peut pas attendre la jonction (ARCHITECTURE.md §6.2). C'est le point difficile
-> de ce Goal.
+Reste à poser avant de découper : ce qui se passe quand un jingle horaire et un
+jingle de vote tombent sur la **même jonction** (`GOAL-001-T16`).
 
 ---
 

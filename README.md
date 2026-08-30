@@ -20,15 +20,16 @@ qu'on écoute — on se branche, et ça joue déjà.
 - **Flashs France Info** aux heures choisies, avec repli sur la musique s'ils
   manquent
 - **Pilotage** : `stop` pour passer, `encore` pour rester sur l'artiste — ou à
-  défaut sur le genre. Un « encore » enregistré **s'entend** : une brève note est
-  diffusée dans le flux
+  défaut sur le genre. Un « encore » s'annonce par un jingle à la jonction — une
+  voix suffit, il n'y a pas de quorum
 - **Une page web** — ce qui passe, et deux boutons — servie par Flask, mise en
   page en Jinja2, faite pour un téléphone posé à côté de l'enceinte
 - **Toute action passe par une API**, jamais par un chemin réservé à l'interface
 - **Un flux lisible par n'importe quel lecteur de webradio**, sans coupure, et
   transcodant le moins possible
 - **Tout en TOML** : aucune URL, aucun chemin, aucune durée dans le code. Seule
-  exception, les jingles, dont le nom porte l'heure : `00h.mp3` … `23h.mp3`
+  exception, les jingles, dont le nom porte le rôle : `00h.mp3` … `23h.mp3`,
+  et `encore.mp3`
 
 ## Ce qu'elle ne fait pas
 
@@ -42,8 +43,8 @@ n'y écrit jamais) · enregistrer, rejouer ou podcaster. Voir
 > [TASKS.md](./TASKS.md). Cette section sera remplie par `GOAL-001`.
 
 Il faudra : Python 3.11+, **ffmpeg**, un serveur Navidrome joignable, et un
-dossier de jingles MP3 nommés `00h.mp3` à `23h.mp3` — tous facultatifs, une
-heure sans jingle passe sans rien signaler.
+dossier de jingles MP3 nommés `00h.mp3` à `23h.mp3`, plus `encore.mp3` — tous
+facultatifs, une heure sans jingle passe sans rien signaler.
 
 ## Développement
 

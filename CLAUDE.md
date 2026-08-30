@@ -53,7 +53,7 @@ les fournit (AGENTS.md §2).
 
 **Les tests n'entendent rien.** Cinq choses ne se constatent qu'en écoutant : le
 son lui-même, les transitions, la tenue dans la durée, le comportement des vrais
-lecteurs, et la note qui accuse réception d'un vote. Elles sont listées en
+lecteurs, et le jingle qui annonce un vote. Elles sont listées en
 AGENTS.md §4.1 — et personne ne les détecte automatiquement.
 
 **L'interface web n'a aucun raccourci.** Ses boutons passent par l'API, comme
