@@ -216,7 +216,8 @@ def test_la_migration_ajoute_la_colonne_a_une_base_d_avant(tmp_path: Path) -> No
     import sqlite3
 
     path = tmp_path / "etat.sqlite"
-    with sqlite3.connect(path) as brut:
+    brut = sqlite3.connect(path)
+    with brut:
         brut.executescript(
             """
             CREATE TABLE votes (
@@ -226,5 +227,6 @@ def test_la_migration_ajoute_la_colonne_a_une_base_d_avant(tmp_path: Path) -> No
             INSERT INTO votes VALUES ('artiste', 'Air', 0, 2.0, '2026-08-30T20:00:00+00:00');
             """
         )
+    brut.close()
     e = state(path, FrozenClock(DEPART))
     assert e.all_scores()[0][1] == "Air"
