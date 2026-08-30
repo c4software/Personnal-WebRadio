@@ -34,7 +34,7 @@ Le squelette se lance, l'outillage est posé, et la chaîne de vérification a �
 **prouvée** — onze violations refusées une par une, puis un état propre qui
 passe. Sortie constatée : 4 tests, 100 % de couverture, code de sortie 0.
 
-**Phase 1 — Relevés et noyau** `[ ]` à venir (`GOAL-002`, `GOAL-003`).
+**Phase 1 — Relevés et noyau** `[-]` en cours (`GOAL-002`, `GOAL-003`).
 
 > **Mise à jour du 2026-08-30 (5)** — l'auteur ajoute les **émissions** : un
 > épisode de podcast diffusé à heure dite, une seule à la fois, programmée au
@@ -85,9 +85,7 @@ La documentation structurante et les commandes de pilotage sont posées.
 faire, et la commande de vérification n'a donc jamais été exécutée avec succès —
 elle n'a rien à vérifier.
 
-**Prochaine tâche** : `GOAL-002` — les cinq relevés. Il n'est pas découpé :
-lancer `/goal Relever Navidrome, France Info, les podcasts, ffmpeg et les
-lecteurs de webradio`.
+**Prochaine tâche** : `GOAL-002-T01` — ffmpeg, copie sans réencodage.
 
 Sur quinze décisions, **treize sont tranchées**. La n°9 est une conséquence
 consignée, non une question ; la n°12 est délibérément différée jusqu'à la
@@ -101,7 +99,7 @@ Goals sont découpables.
 | Goal | Titre | État |
 |---|---|---|
 | GOAL-001 | Harness et initialisation | `[x]` |
-| GOAL-002 | Relever Navidrome, France Info, ffmpeg, podcasts, lecteurs | `[ ]` |
+| GOAL-002 | Relever les cinq dépendances externes | `[-]` |
 | GOAL-003 | Le noyau : horloge, hasard, file de lecture | `[ ]` |
 | GOAL-004 | Le flux : ffmpeg, fan-out, démarrage à la demande | `[ ]` |
 | GOAL-005 | La grille horaire et les moments thématiques | `[ ]` |
@@ -243,28 +241,39 @@ de sortie non nul obtenu pour une autre raison.
 
 ---
 
-## GOAL-002 — Relever Navidrome, France Info et ffmpeg
+## GOAL-002 — Relever les cinq dépendances externes
 
-**État : TODO** — non découpé.
+**État : EN COURS**
 
-Quatre relevés à établir **par observation**, avant toute implémentation
-(AGENTS.md §3). Les fichiers `docs/*.md` existent déjà et portent les questions ;
-ce Goal y répond.
+Cinq relevés à établir **par observation**, avant toute implémentation
+(AGENTS.md §3). Les fichiers `docs/*.md` portent déjà les questions ; ce Goal y
+répond.
 
-**Débloqué** : SPECS.md §7 n°2 est tranchée — abstraction complète des sources,
-une seule écrite. Le relevé Navidrome porte donc aussi sur ce que le `Protocol`
-de source doit pouvoir exprimer.
+**Trois sont faisables sur cette machine**, deux dépendent d'accès que le dépôt
+n'a pas : un serveur Navidrome avec ses identifiants, et les URL des podcasts.
+Le découpage sépare les deux, pour que ce qui peut avancer avance.
 
-**Deux tâches ont priorité dans ce Goal**, parce que d'autres Goals les
-attendent :
+### Ce qui ne dépend que de la machine
 
-1. **Trouver la source du flash France Info** — aucune adresse n'a été fournie.
-   Partir des flux publics de Radio France, constater ce qui répond, documenter.
-   Si rien de fiable n'existe, **remonter la question** plutôt que bricoler.
-   `GOAL-006` en dépend.
-2. **Chiffrer le coût d'un réencodage permanent** sur cette machine, pour un
-   auditeur et pour cinq. L'arbitrage est déjà tranché (n°11) : ce chiffre ne
-   décide de rien, il dit seulement s'il vaut la peine de chercher moins cher.
+- [ ] `GOAL-002-T01` ffmpeg : copie sans réencodage, et comportement exact en fin de fichier
+- [ ] `GOAL-002-T02` ffmpeg : alimenter un encodage continu depuis une file inconnue d'avance
+- [ ] `GOAL-002-T03` ffmpeg : insérer un fichier d'une autre origine (jingle) sans interrompre
+- [ ] `GOAL-002-T04` ffmpeg : chiffrer le coût d'un réencodage permanent, pour un auditeur et pour cinq
+- [ ] `GOAL-002-T05` Flux : ce qu'un lecteur reçoit en se branchant **en cours** de diffusion
+- [ ] `GOAL-002-T06` Flux : ce qui fait décrocher — changement de débit, de fréquence, de canaux, de codec
+
+### Ce qui dépend du réseau
+
+- [ ] `GOAL-002-T07` France Info : trouver la source du flash, son format, sa durée, sa fraîcheur
+
+### Ce qui dépend de l'auteur
+
+- [ ] `GOAL-002-T08` Navidrome : authentification, tirage, genres, artiste, récupération du son
+- [ ] `GOAL-002-T09` Podcast : format des flux, fiabilité de la date de publication et de la durée
+
+### Clôture
+
+- [ ] `GOAL-002-T10` Consolider les cinq relevés, et lister **ce qui reste incertain** — un point incertain n'est jamais remplacé par une supposition
 
 ---
 
