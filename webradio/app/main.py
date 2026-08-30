@@ -258,7 +258,9 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         now_playing=lambda: radio.playing_track(),
     )
 
-    playout = LiquidsoapPlayout(programme, radio, counter)
+    playout = LiquidsoapPlayout(
+        programme, radio, counter, ephemeral_dir=Path(settings.state.database).parent / "cache"
+    )
     branche.append(playout)
     return playout, radio
 

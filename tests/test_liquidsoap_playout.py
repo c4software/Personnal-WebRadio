@@ -131,3 +131,22 @@ def test_une_emission_s_affiche_par_son_nom_declare(tmp_path: Path) -> None:
     assert a_l_antenne.kind.value == "emission"
     assert a_l_antenne.title == "Flash franceinfo"
     assert a_l_antenne.artist is None
+
+
+def test_une_video_lue_s_efface_quand_la_suite_commence(tmp_path: Path) -> None:
+    """GOAL-028 : le cache ne garde rien après lecture — question de l'auteur."""
+    cache = tmp_path / "cache"
+    cache.mkdir()
+    video = cache / "v1.m4a"
+    video.write_bytes(b"audio")
+    ailleurs = tmp_path / "13h.mp3"
+    ailleurs.write_bytes(b"jingle")
+
+    playout, _radio, _ = _playout(tmp_path)
+    playout._ephemere = cache
+    playout.playing(str(video), None, "Alcatraz")
+    assert video.exists()  # elle joue encore : on ne touche à rien
+
+    playout.playing(str(ailleurs), None, None)
+    assert not video.exists()  # la suite a commencé : effacée
+    assert ailleurs.exists()  # rien d'autre n'est touché

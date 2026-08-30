@@ -72,6 +72,7 @@ l'auteur). Depuis GOAL-028 :
   résolution est alors instantanée, l'émission part à la jonction suivante,
   sans blanc ;
 - le cache (`<dossier de l'état>/cache`, partagé en lecture seule avec le
-  diffuseur) ne garde que la vidéo en route — un cache, pas une archive ;
+  diffuseur) ne garde que la vidéo en route, et **la vidéo lue s'efface dès
+  que la suite commence** — le moment sûr, le diffuseur a fini de la lire ;
 - un téléchargement qui finit après la fin de case a manqué son heure : la
   case borne tout, comme partout.

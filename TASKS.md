@@ -1018,5 +1018,5 @@ les surpondérations »
 de blanc, 30/60 s sans rien ça ne va pas »
 
 - [x] `GOAL-028-T01` `radio` télécharge la vidéo en tâche de fond (`.part` puis renommage) pendant que la musique continue ; la case ne rend l'émission que **fichier prêt** — résolution instantanée, zéro blanc
-- [x] `GOAL-028-T02` Le cache dans le volume d'état, partagé **en lecture seule** avec le diffuseur, purgé à chaque nouvelle vidéo
+- [x] `GOAL-028-T02` Le cache dans le volume d'état, partagé **en lecture seule** avec le diffuseur ; la vidéo lue **s'efface dès que la suite commence**, et le reste est purgé à chaque nouveau téléchargement
 - [x] `GOAL-028-T03` Un téléchargement en échec ou trop tard : musique, journalisé — la case borne tout

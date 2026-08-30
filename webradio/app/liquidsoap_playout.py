@@ -12,6 +12,7 @@ registre.
 
 import logging
 import threading
+from pathlib import Path
 
 from webradio.app.playout import RadioProgramme
 from webradio.app.radio import ListenerCount, LiveRadio
@@ -39,6 +40,7 @@ class LiquidsoapPlayout:
         programme: RadioProgramme,
         radio: LiveRadio,
         listeners: ListenerCount,
+        ephemeral_dir: Path | None = None,
     ) -> None:
         self._programme = programme
         self._radio = radio
@@ -48,6 +50,10 @@ class LiquidsoapPlayout:
         )  # réentrant : next_entry tient le verrou quand le programme rappelle on_kind
         self._derniere: tuple[Kind, Track | None, str | None] = (Kind.MUSIC, None, None)
         self._en_attente: dict[str, tuple[Kind, Track | None, str | None]] = {}
+        # Le dossier des fichiers à usage unique — le cache YouTube : ce qui y
+        # a été lu s'efface dès que la suite commence (GOAL-028).
+        self._ephemere = ephemeral_dir
+        self._entree_en_cours: str | None = None
 
     def on_kind(self, kind: Kind, track: Track | None, label: str | None) -> None:
         """À brancher sur `RadioProgramme(on_kind=...)` : retient, ne déclare pas."""
@@ -71,6 +77,8 @@ class LiquidsoapPlayout:
     def playing(self, entry: str, artist: str | None = None, title: str | None = None) -> None:
         with self._verrou:
             nature = self._en_attente.pop(entry, None)
+            finie, self._entree_en_cours = self._entree_en_cours, entry
+        self._effacer_si_ephemere(finie)
         if nature is None:
             # Après un redémarrage de `radio`, Liquidsoap joue encore un ou
             # deux morceaux demandés à l'ancien processus. Plutôt que rien,
@@ -84,6 +92,20 @@ class LiquidsoapPlayout:
             return
         kind, track, label = nature
         self._radio.declare(kind, track, label)
+
+    def _effacer_si_ephemere(self, entry: str | None) -> None:
+        """Une vidéo lue ne sert plus : elle s'efface quand la suite commence.
+
+        C'est le moment sûr — le diffuseur a fini de la lire — et c'est ce qui
+        évite qu'un fichier de soixante mégaoctets traîne jusqu'à l'émission
+        suivante (question de l'auteur, GOAL-028).
+        """
+        if entry is None or self._ephemere is None:
+            return
+        chemin = Path(entry)
+        if chemin.parent == self._ephemere and chemin.is_file():
+            chemin.unlink(missing_ok=True)
+            logger.info("vidéo lue et effacée : %s", chemin.name)
 
     def declare_listeners(self, count: int) -> None:
         self._auditeurs.declare(on_air=count > 0)
