@@ -119,7 +119,11 @@ def episode_a_diffuser(
     return recent
 
 
-class Programme:
+class GrilleDesEmissions:
+    # Nommée « GrilleDesEmissions » et non « Programme » : depuis SPECS.md §4.13,
+    # un *programme* est une plage de temps alimentée par une liste de lecture
+    # (`core/programmes.py`). Deux classes du même nom pour deux choses
+    # différentes, c'est une collision que le câblage a révélée.
     """Les cases déclarées, et celle qui est ouverte maintenant.
 
     Le conflit est refusé **à la construction**, pas au moment de diffuser : une

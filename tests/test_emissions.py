@@ -8,7 +8,7 @@ from webradio.core.emissions import (
     Emission,
     EmissionsEnConflit,
     Episode,
-    Programme,
+    GrilleDesEmissions,
     episode_a_diffuser,
 )
 
@@ -36,7 +36,7 @@ def test_deux_emissions_a_la_meme_heure_le_meme_jour_refusent_le_demarrage() -> 
     (SPECS.md §4.11) : elle les nomme toutes les deux."""
     jumelle = Emission(nom="Doublon", jours=("vendredi", "samedi"), heure=time(20))
     with pytest.raises(EmissionsEnConflit) as leve:
-        Programme([FRENCH, jumelle])
+        GrilleDesEmissions([FRENCH, jumelle])
     assert "A la French" in str(leve.value)
     assert "Doublon" in str(leve.value)
 
@@ -44,21 +44,21 @@ def test_deux_emissions_a_la_meme_heure_le_meme_jour_refusent_le_demarrage() -> 
 def test_une_emission_quotidienne_entre_en_conflit_avec_n_importe_quel_jour() -> None:
     concurrente = Emission(nom="Midi pile", jours=("mercredi",), heure=time(12))
     with pytest.raises(EmissionsEnConflit, match="Midi pile"):
-        Programme([QUOTIDIENNE, concurrente])
+        GrilleDesEmissions([QUOTIDIENNE, concurrente])
 
 
 def test_deux_emissions_a_des_heures_differentes_ne_se_chevauchent_pas() -> None:
     """Le chevauchement se juge sur la case déclarée, pas sur la durée réelle."""
-    assert Programme([FRENCH, LEGEND]).emissions == (FRENCH, LEGEND)
+    assert GrilleDesEmissions([FRENCH, LEGEND]).emissions == (FRENCH, LEGEND)
 
 
 def test_deux_emissions_le_meme_jour_a_des_jours_disjoints_sont_acceptees() -> None:
     autre = Emission(nom="Autre", jours=("samedi",), heure=time(20))
-    assert len(Programme([FRENCH, autre]).emissions) == 2
+    assert len(GrilleDesEmissions([FRENCH, autre]).emissions) == 2
 
 
 def test_une_emission_est_due_a_son_heure() -> None:
-    programme = Programme([FRENCH])
+    programme = GrilleDesEmissions([FRENCH])
     case = programme.due({"A la French": UNE_HEURE}, le_vendredi(20))
     assert case is not None
     assert case.emission is FRENCH
@@ -68,24 +68,24 @@ def test_une_emission_est_due_a_son_heure() -> None:
 def test_une_emission_manquee_est_rattrapee_depuis_le_debut() -> None:
     """Branché à 20 h 40, l'épisode d'une heure démarre au début et finit à
     21 h 40 : le rattrapage décale sa propre fin (SPECS.md §7 n°13)."""
-    case = Programme([FRENCH]).due({"A la French": UNE_HEURE}, le_vendredi(20, 40))
+    case = GrilleDesEmissions([FRENCH]).due({"A la French": UNE_HEURE}, le_vendredi(20, 40))
     assert case is not None
     assert case.debut == le_vendredi(20)
 
 
 def test_une_emission_manquee_au_dela_de_sa_duree_est_perdue() -> None:
-    assert Programme([FRENCH]).due({"A la French": UNE_HEURE}, le_vendredi(21, 10)) is None
+    assert GrilleDesEmissions([FRENCH]).due({"A la French": UNE_HEURE}, le_vendredi(21, 10)) is None
 
 
 def test_une_emission_dont_le_flux_est_injoignable_n_est_pas_rattrapee() -> None:
     """La durée n'est connue qu'après lecture du flux : sans elle, pas de
     rattrapage — la radio démarre sur la musique."""
-    assert Programme([FRENCH]).due({}, le_vendredi(20, 10)) is None
+    assert GrilleDesEmissions([FRENCH]).due({}, le_vendredi(20, 10)) is None
 
 
 def test_une_case_de_fin_de_soiree_reste_ouverte_apres_minuit() -> None:
     tardive = Emission(nom="Tardive", jours=("vendredi",), heure=time(23, 30))
-    case = Programme([tardive]).due(
+    case = GrilleDesEmissions([tardive]).due(
         {"Tardive": timedelta(hours=2)},
         le_vendredi(23, 30) + timedelta(minutes=45),
     )
@@ -94,18 +94,18 @@ def test_une_case_de_fin_de_soiree_reste_ouverte_apres_minuit() -> None:
 
 
 def test_aucune_case_ouverte_avant_l_heure_declaree() -> None:
-    assert Programme([FRENCH]).due({"A la French": UNE_HEURE}, le_vendredi(19, 59)) is None
+    assert GrilleDesEmissions([FRENCH]).due({"A la French": UNE_HEURE}, le_vendredi(19, 59)) is None
 
 
 def test_aucune_case_ouverte_un_jour_ou_l_emission_n_a_pas_lieu() -> None:
     samedi = le_vendredi(20) + timedelta(days=1)
-    assert Programme([FRENCH]).due({"A la French": UNE_HEURE}, samedi) is None
+    assert GrilleDesEmissions([FRENCH]).due({"A la French": UNE_HEURE}, samedi) is None
 
 
 def test_deux_cases_qui_se_recouvrent_par_la_duree_laissent_finir_la_premiere() -> None:
     """C'est la même règle que pour les plages thématiques : ne rien couper."""
     tardive = Emission(nom="Tardive", jours=("vendredi",), heure=time(20, 30))
-    programme = Programme([tardive, FRENCH])
+    programme = GrilleDesEmissions([tardive, FRENCH])
     case = programme.due(
         {"A la French": timedelta(hours=2), "Tardive": UNE_HEURE},
         le_vendredi(20, 40),
@@ -182,7 +182,7 @@ def test_une_semaine_entiere_se_deroule_en_une_boucle_et_se_rejoue() -> None:
     """Horloge figée : sept jours de programmation en quelques millisecondes."""
 
     def semaine() -> list[str]:
-        programme = Programme([FRENCH, LEGEND, QUOTIDIENNE])
+        programme = GrilleDesEmissions([FRENCH, LEGEND, QUOTIDIENNE])
         durees = {"A la French": UNE_HEURE, "LEGEND": UNE_HEURE, "Quotidienne": UNE_HEURE}
         instant = datetime(2026, 8, 31, tzinfo=UTC)
         vues: list[str] = []

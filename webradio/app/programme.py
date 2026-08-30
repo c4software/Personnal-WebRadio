@@ -13,6 +13,7 @@ import logging
 from collections import deque
 from collections.abc import Callable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from webradio.core.clock import Horloge
 from webradio.core.controle import Nature
@@ -24,6 +25,9 @@ from webradio.core.programmes import Programmation
 from webradio.core.repetition import Fenetre
 from webradio.core.rng import Hasard
 from webradio.core.sources import SourceIndisponible, SourceMusicale
+
+if TYPE_CHECKING:
+    from webradio.app.antenne_emissions import Emissions
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +53,7 @@ class ProgrammeRadio:
         sur_nature: Callable[[Nature, Piste | None], None],
         programmation: Programmation | None = None,
         fenetre_programme: Fenetre | None = None,
+        emissions: "Emissions | None" = None,
     ) -> None:
         self._file = file
         self._source = source
@@ -59,6 +64,7 @@ class ProgrammeRadio:
         self._dossier = dossier_jingles
         self._sur_nature = sur_nature
         self._programmation = programmation
+        self._emissions = emissions
         # Un programme a sa propre fenêtre de non-répétition : la liste est
         # courte, et partager celle du tirage libre ferait rétrécir l'une à
         # cause de l'autre (SPECS.md §4.13).
@@ -70,6 +76,9 @@ class ProgrammeRadio:
         self._en_attente: deque[str] = deque()
 
     def suivante(self) -> str | None:
+        emission = self._prochaine_emission()
+        if emission is not None:
+            return emission
         jingle = self._prochain_jingle()
         if jingle is not None:
             self._sur_nature(Nature.JINGLE, None)
@@ -88,6 +97,25 @@ class ProgrammeRadio:
             self._file.preparer(self._grille.genre_a_tirer(self._hasard))
         except (SourceIndisponible, FileVide) as echec:
             logger.debug("préparation sans effet : %s", echec)
+
+    def _prochaine_emission(self) -> str | None:
+        """Une émission due l'emporte sur tout le reste.
+
+        Elle **remplace** la programmation, habillage compris : ni grille, ni
+        non-répétition, ni jingle (SPECS.md §4.11). Les jingles dus pendant sa
+        durée sont abandonnés, ce dont `core/jingles.py` se charge — on lui dit
+        simplement qu'une émission passe.
+        """
+        if self._emissions is None:
+            return None
+        due = self._emissions.due()
+        self._jingles.dus(pendant_emission=due is not None)
+        if due is None:
+            return None
+        emission, audio = due
+        logger.info("émission « %s » à l'antenne", emission.nom)
+        self._sur_nature(Nature.EMISSION, None)
+        return audio
 
     def _prochain_jingle(self) -> Path | None:
         """Le prochain jingle dû dont le fichier existe réellement.

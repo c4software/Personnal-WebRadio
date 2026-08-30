@@ -24,13 +24,16 @@ from webradio.adapters.etat.base import EtatSQLite
 from webradio.adapters.ffmpeg.encodeur import Chaine, FormatFlux
 from webradio.adapters.http.diffusion import Diffusion
 from webradio.adapters.http.serveur import ServeurFlux, Station
+from webradio.adapters.podcast.flux import FluxPodcast, LecteurUrllib
 from webradio.adapters.sources.navidrome import SourceNavidrome, TransportUrllib
 from webradio.adapters.web.vues import creer_application
+from webradio.app.antenne_emissions import Emissions
 from webradio.app.apprentissage import Apprentissage
 from webradio.app.programme import ProgrammeRadio
 from webradio.app.radio import CompteurAuditeurs, RadioEnDirect
 from webradio.core.clock import HorlogeSysteme
 from webradio.core.controle import Controle
+from webradio.core.emissions import Emission, GrilleDesEmissions
 from webradio.core.file import File
 from webradio.core.grille import Grille, Plage
 from webradio.core.jingles import Jingles
@@ -131,6 +134,17 @@ def construire(reglages: Reglages) -> tuple[ServeurFlux, RadioEnDirect, Station]
             horloge,
         ),
         fenetre_programme=Fenetre(config.tirage.non_repetition_artistes),
+        emissions=Emissions(
+            GrilleDesEmissions(
+                [Emission(nom=e.nom, jours=e.jours, heure=e.heure) for e in config.emissions]
+            ),
+            FluxPodcast(
+                LecteurUrllib(delai_attente=timedelta(seconds=config.podcast.delai_secondes))
+            ),
+            etat,
+            horloge,
+            {e.nom: e.flux for e in config.emissions},
+        ),
     )
 
     format_flux = FormatFlux(
