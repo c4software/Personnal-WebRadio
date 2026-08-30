@@ -171,3 +171,24 @@ def test_la_file_annonce_ce_qui_suit_et_l_encore_le_replace(tmp_path: Path) -> N
     assert playout.up_next() is None  # l'avance est partie se replacer
     # …et le programme la ressert telle quelle au prochain tirage.
     assert playout.next_entry() == deuxieme
+
+
+def test_l_a_suivre_saute_les_jingles(tmp_path: Path) -> None:
+    """Dix secondes d'habillage ne sont pas « à suivre »."""
+    (tmp_path / "hours").mkdir()
+    (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
+    playout, _radio, clock = _playout(tmp_path)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    clock.advance(timedelta(hours=1))
+    jingle = playout.next_entry()  # l'avance est le jingle de 13 h
+    assert jingle is not None and "13h.mp3" in jingle
+
+    assert playout.up_next() is None  # rien à annoncer : c'est de l'habillage
+
+    musique = playout.next_entry()  # la vraie avance suivante
+    assert musique is not None
+    a_suivre = playout.up_next()
+    assert a_suivre is not None and a_suivre[1] is not None

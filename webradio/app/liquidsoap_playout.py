@@ -116,8 +116,13 @@ class LiquidsoapPlayout:
         """
         with self._verrou:
             for entry, nature in self._en_attente.items():
-                if entry != self._entree_en_cours:
-                    return nature
+                if entry == self._entree_en_cours:
+                    continue
+                if nature[0] is Kind.JINGLE:
+                    # Dix secondes d'habillage ne sont pas « à suivre » : on
+                    # annonce le premier vrai contenu (demandé par l'auteur).
+                    continue
+                return nature
         return None
 
     def stash_for_replay(self) -> None:
