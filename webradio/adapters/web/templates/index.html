@@ -82,6 +82,14 @@
       .evenement .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
       .evenement .nom { overflow-wrap: anywhere; }
       .evenement .detail { color: var(--sourdine); font-size: 0.8rem; white-space: nowrap; }
+      .ligne-histoire { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); gap: 0.6rem;
+                        padding: 0.45rem 0 0.45rem 0.6rem; border-left: 3px solid var(--bord);
+                        margin-bottom: 0.35rem; }
+      .ligne-histoire .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+      .corps { min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+      .titre-histoire { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .sous-titre { color: var(--sourdine); font-size: 0.85rem;
+                    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .moment-b { border-left-color: var(--accent); }
       .programme-b { border-left-color: var(--accepte); }
       .emission-b { border-left-color: #d29922; }
@@ -133,10 +141,12 @@
 
       <section v-else-if="onglet === 'historique'">
         <p v-if="historique.length === 0" class="vide">Rien encore : le journal commence maintenant.</p>
-        <div v-for="(e, i) in historique" :key="i" class="evenement" :class="e.kind === 'musique' ? 'moment-b' : 'emission-b'">
+        <div v-for="(e, i) in historique" :key="i" class="ligne-histoire" :class="e.kind === 'musique' ? 'moment-b' : 'emission-b'">
           <span class="heure">[[ e.at ]]</span>
-          <span class="nom">[[ e.title ]]<span v-if="e.artist" class="detail"> — [[ e.artist ]]</span></span>
-          <span class="detail">[[ e.kind === 'musique' ? '' : e.kind ]]</span>
+          <span class="corps">
+            <span class="titre-histoire">[[ e.title ]]</span>
+            <span class="sous-titre">[[ e.artist || (e.kind === 'musique' ? '' : e.kind) ]]</span>
+          </span>
         </div>
       </section>
 
