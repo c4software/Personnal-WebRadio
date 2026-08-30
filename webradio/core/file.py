@@ -83,13 +83,14 @@ class File:
             raise FileVide(message)
 
         # La fenêtre rétrécit plutôt que de bloquer le tirage (SPECS.md §4.2).
+        #
+        # La boucle se termine toujours : une fenêtre vide n'écarte personne,
+        # donc `filtrer` rendrait `candidates`, qui n'est pas vide ici. Un
+        # garde-fou supplémentaire serait du code qu'aucun test ne peut
+        # atteindre — donc du code mort (AGENTS.md §2).
         autorisees = self._fenetre.filtrer(candidates)
         while not autorisees:
-            if not self._fenetre.retrecir():
-                # Fenêtre vide et rien d'autorisé : impossible, la fenêtre
-                # n'écarte plus personne. Le garde-fou reste, il coûte une ligne.
-                autorisees = candidates
-                break
+            self._fenetre.retrecir()
             replis.append("fenêtre de non-répétition rétrécie")
             autorisees = self._fenetre.filtrer(candidates)
 
