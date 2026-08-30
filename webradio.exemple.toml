@@ -57,6 +57,32 @@ genres = ["Rock", "Pop"]
 # reprendra son cours. Rien à sauvegarder.
 [etat]
 base = "/var/lib/local-webradio/etat.sqlite3"
+# Deux processus touchent cette base — la chaîne de diffusion et le serveur
+# web. C'est le temps qu'une écriture accepte d'attendre un verrou.
+delai_secondes = 5.0
+
+# ── L'interface et l'API ───────────────────────────────────────────────────
+# Toute action de l'interface passe par l'API : aucun chemin privilégié.
+[web]
+adresse = "0.0.0.0"
+port    = 8000
+# Intervalle auquel la page redemande ce qui passe. Trop court, elle interroge
+# pour rien ; trop long, un « encore » semble sans effet.
+rafraichissement_secondes = 5.0
+
+# ── Les podcasts ───────────────────────────────────────────────────────────
+# Un flux qui ne répond pas ne bloque pas la radio : l'émission est perdue et
+# la musique continue. Le délai reste donc court.
+[podcast]
+delai_secondes = 15.0
+
+# ── Navidrome (hors identifiants, qui sont dans .env) ──────────────────────
+[navidrome]
+# Nombre de pistes demandées au serveur. Il tronque à 500 en silence : demander
+# davantage ne rend pas davantage (docs/navidrome.md §2.1).
+taille_echantillon = 500
+resultats_artiste  = 50
+delai_secondes     = 10.0
 
 # ── Les émissions ──────────────────────────────────────────────────────────
 # Autant qu'on veut, mais jamais deux à la même heure le même jour : la radio

@@ -650,8 +650,15 @@ Ce que le TOML doit décrire, au minimum :
 - **Les émissions** : une entrée `[[emissions]]` par émission — nom, flux de
   podcast, jours et heure (§4.11). Il n'y a pas de limite au nombre
   d'émissions ;
-- **L'état** : le chemin de la base SQLite qui retient le dernier épisode
-  diffusé de chaque émission (§4.11.1) ;
+- **L'état** : le chemin de la base SQLite (§4.11.1), et le délai qu'une
+  écriture accepte d'attendre un verrou — deux processus y touchent ;
+- **Le web** : adresse et port de l'interface et de l'API, et l'intervalle
+  auquel la page redemande ce qui passe ;
+- **Les podcasts** : le délai au-delà duquel un flux est réputé injoignable. Il
+  reste court : une émission qui ne répond pas ne bloque pas la radio, elle est
+  perdue et la musique continue (§4.11) ;
+- **Navidrome** : taille des échantillons demandés, nombre de résultats par
+  artiste, délai réseau ;
 - **Les seuils** : durée de fondu. **Aucun seuil de péremption** : ni les
   jingles ni les flashs ne sont abandonnés pour cause de retard (§4.3).
 

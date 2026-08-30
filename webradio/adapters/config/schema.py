@@ -57,6 +57,21 @@ DELAI_SECONDES_DEFAUT = 10.0
 
 PORT_MAXIMUM = 65535
 
+# Le temps qu'une écriture accepte d'attendre un verrou SQLite. Deux processus
+# touchent la base : la chaîne et le serveur web (ARCHITECTURE.md §5.1).
+DELAI_ETAT_DEFAUT = 5.0
+# Un flux de podcast qui ne répond pas ne bloque pas la radio : l'émission est
+# perdue et la musique continue (SPECS.md §4.11). Le délai reste donc court.
+DELAI_PODCAST_DEFAUT = 15.0
+# L'interface et l'API partagent le port du flux : une seule chose à ouvrir.
+# Écoute sur toutes les interfaces : la radio est faite pour être jointe depuis
+# le réseau local, et elle n'est jamais exposée sur Internet (SPECS.md §3).
+ADRESSE_WEB_DEFAUT = "0.0.0.0"
+PORT_WEB_DEFAUT = 8000
+# L'intervalle auquel la page redemande ce qui passe. Trop court, elle
+# interroge pour rien ; trop long, un « encore » semble sans effet.
+RAFRAICHISSEMENT_DEFAUT = 5.0
+
 
 class ErreurConfiguration(Exception):
     """Le démarrage est refusé, et la clé fautive est nommée.
@@ -114,9 +129,40 @@ class Plage:
 
 @dataclass(frozen=True, slots=True)
 class ConfigurationEtat:
-    """Le chemin de la base qui retient le dernier épisode diffusé."""
+    """La base qui retient le dernier épisode diffusé et les votes.
+
+    `delai_secondes` est le temps qu'une écriture accepte d'attendre un verrou :
+    deux processus vivants touchent cette base — la chaîne de diffusion et le
+    serveur web (ARCHITECTURE.md §5.1).
+    """
 
     base: str
+    delai_secondes: float
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigurationWeb:
+    """L'interface et l'API.
+
+    `rafraichissement_secondes` est l'intervalle auquel la page redemande à
+    l'API ce qui passe. Trop court, elle interroge pour rien ; trop long, un
+    « encore » semble sans effet.
+    """
+
+    adresse: str
+    port: int
+    rafraichissement_secondes: float
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigurationPodcast:
+    """Le délai au-delà duquel un flux de podcast est réputé injoignable.
+
+    Il doit rester court : une émission qui ne répond pas ne bloque pas la
+    radio, elle est perdue et la musique continue (SPECS.md §4.11).
+    """
+
+    delai_secondes: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -154,6 +200,8 @@ class Configuration:
     etat: ConfigurationEtat
     emissions: tuple[Emission, ...]
     navidrome: ConfigurationNavidrome
+    web: ConfigurationWeb
+    podcast: ConfigurationPodcast
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -169,7 +217,10 @@ class IdentifiantsNavidrome:
     mot_de_passe: str
 
     def __repr__(self) -> str:
-        return f"IdentifiantsNavidrome(url={self.url!r}, utilisateur={self.utilisateur!r}, mot_de_passe=***)"
+        return (
+            f"IdentifiantsNavidrome(url={self.url!r}, "
+            f"utilisateur={self.utilisateur!r}, mot_de_passe=***)"
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -234,10 +285,12 @@ def _table_optionnelle(parent: Mapping[str, Any], cle: str, prefixe: str) -> Map
     return _table(parent, cle, prefixe)
 
 
-def _texte(table: Mapping[str, Any], cle: str, prefixe: str) -> str:
+def _texte(table: Mapping[str, Any], cle: str, prefixe: str, *, defaut: str | None = None) -> str:
     chemin = _chemin(prefixe, cle)
     if cle not in table:
-        _refuser(chemin, "clé obligatoire absente")
+        if defaut is None:
+            _refuser(chemin, "clé obligatoire absente")
+        return defaut
     valeur = table[cle]
     if not isinstance(valeur, str):
         _refuser(chemin, f"un texte est attendu, pas {type(valeur).__name__}")
@@ -310,7 +363,9 @@ def _heure(table: Mapping[str, Any], cle: str, prefixe: str) -> time:
     try:
         return time.fromisoformat(texte)
     except ValueError as erreur:
-        _refuser(_chemin(prefixe, cle), f"« {texte} » n'est pas une heure au format HH:MM ({erreur})")
+        _refuser(
+            _chemin(prefixe, cle), f"« {texte} » n'est pas une heure au format HH:MM ({erreur})"
+        )
 
 
 def _liste_tables(parent: Mapping[str, Any], cle: str) -> list[Mapping[str, Any]]:
@@ -438,7 +493,9 @@ def _refuser_les_collisions(emissions: Sequence[Emission]) -> None:
 
 def _navidrome(brut: Mapping[str, Any]) -> ConfigurationNavidrome:
     table = _table_optionnelle(brut, "navidrome", "")
-    _verifier_cles(table, ("taille_echantillon", "resultats_artiste", "delai_secondes"), "navidrome")
+    _verifier_cles(
+        table, ("taille_echantillon", "resultats_artiste", "delai_secondes"), "navidrome"
+    )
     return ConfigurationNavidrome(
         taille_echantillon=_entier(
             table, "taille_echantillon", "navidrome", defaut=TAILLE_ECHANTILLON_DEFAUT
@@ -461,19 +518,50 @@ def valider(brut: Mapping[str, Any]) -> Configuration:
     refuser_les_secrets(brut)
     _verifier_cles(
         brut,
-        ("flux", "tirage", "jingles", "plages", "etat", "emissions", "navidrome"),
+        (
+            "flux",
+            "tirage",
+            "jingles",
+            "plages",
+            "etat",
+            "emissions",
+            "navidrome",
+            "web",
+            "podcast",
+        ),
         "",
     )
     jingles = _table(brut, "jingles", "")
     _verifier_cles(jingles, ("dossier",), "jingles")
     etat = _table(brut, "etat", "")
-    _verifier_cles(etat, ("base",), "etat")
+    _verifier_cles(etat, ("base", "delai_secondes"), "etat")
+    web = _table_optionnelle(brut, "web", "")
+    _verifier_cles(web, ("adresse", "port", "rafraichissement_secondes"), "web")
+    podcast = _table_optionnelle(brut, "podcast", "")
+    _verifier_cles(podcast, ("delai_secondes",), "podcast")
     return Configuration(
         flux=_flux(brut),
         tirage=_tirage(brut),
         jingles=ConfigurationJingles(dossier=_texte(jingles, "dossier", "jingles")),
         plages=_plages(brut),
-        etat=ConfigurationEtat(base=_texte(etat, "base", "etat")),
+        etat=ConfigurationEtat(
+            base=_texte(etat, "base", "etat"),
+            delai_secondes=_reel(etat, "delai_secondes", "etat", defaut=DELAI_ETAT_DEFAUT),
+        ),
         emissions=_emissions(brut),
         navidrome=_navidrome(brut),
+        web=ConfigurationWeb(
+            adresse=_texte(web, "adresse", "web", defaut=ADRESSE_WEB_DEFAUT),
+            port=_entier(web, "port", "web", defaut=PORT_WEB_DEFAUT, maximum=PORT_MAXIMUM),
+            rafraichissement_secondes=_reel(
+                web,
+                "rafraichissement_secondes",
+                "web",
+                defaut=RAFRAICHISSEMENT_DEFAUT,
+                minimum=0.5,
+            ),
+        ),
+        podcast=ConfigurationPodcast(
+            delai_secondes=_reel(podcast, "delai_secondes", "podcast", defaut=DELAI_PODCAST_DEFAUT),
+        ),
     )
