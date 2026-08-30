@@ -42,8 +42,12 @@ fin    = "23:00"
 genres = ["Rock", "Pop"]
 
 # ── Les émissions ──────────────────────────────────────────────────────────
-# Autant qu'on veut, mais jamais deux à la même heure : la radio refuserait
-# de démarrer en les nommant.
+# Autant qu'on veut, mais jamais deux à la même heure le même jour : la radio
+# refuserait de démarrer en les nommant.
+#
+# On diffuse l'épisode `full` le plus récent qui n'a pas déjà été diffusé. Si
+# le podcast n'a rien publié de neuf, la case est sautée et la radio reste sur
+# la musique (SPECS.md §4.11).
 [[emissions]]
 nom   = "A la French"
 flux  = "https://feeds.acast.com/public/shows/a-la-french"
@@ -53,5 +57,5 @@ heure = "20:00"
 [[emissions]]
 nom   = "LEGEND"
 flux  = "https://feeds.acast.com/public/shows/legend-1"
-jours = ["mardi", "jeudi"]   # à confirmer par l'auteur
-heure = "21:00"              # à confirmer par l'auteur
+jours = ["mardi"]
+heure = "20:00"

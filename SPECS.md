@@ -377,10 +377,39 @@ même raison : ne rien couper.
   est écrite ici pour être vue, et sa raison n'est pas le retard mais la nature
   de l'émission. Il en va de même d'un flash d'information programmé pendant une
   émission.
-- Elle vient d'un **flux de podcast**, dont on diffuse **l'épisode le plus
-  récent**. Aucun état n'est retenu d'une fois sur l'autre : si le podcast n'a
-  rien publié depuis, c'est le même épisode qui repasse — cela s'entend, et cela
-  ne casse rien.
+- Elle vient d'un **flux de podcast**, dont on diffuse **l'épisode `full` le
+  plus récent qui n'a pas déjà été diffusé**.
+  - **`full` seulement.** Les `bonus` et les `trailer` sont écartés : un podcast
+    qui publie une bande-annonce d'une minute trente ne doit pas la voir passer à
+    l'heure de son émission.
+  - **Jamais deux fois le même.** Si le plus récent a déjà été diffusé, la case
+    est **sautée** : la radio reste sur la musique et le journalise, exactement
+    comme pour un flash absent. Une émission qui n'a rien de neuf est une
+    émission qui n'a pas lieu.
+
+> **C'est la seule chose que ce projet retient entre deux démarrages** — voir
+> §4.11.1. Tout le reste est perdu à l'arrêt, comme annoncé en §2.
+
+#### 4.11.1 La seule mémoire du projet
+
+Pour ne pas rediffuser, il faut se souvenir. Ce projet **n'avait aucune
+persistance** (§2, ARCHITECTURE.md §5) ; il en acquiert **une, et une seule** :
+
+> Pour chaque émission, **l'identifiant du dernier épisode diffusé**.
+
+Rien d'autre. Ni historique, ni statistiques, ni position de lecture, ni ce qui
+est passé à l'antenne. Un identifiant par émission, et c'est tout.
+
+Ce que cela implique, et qui est assumé :
+
+- **Perdre ce fichier n'est pas une panne** : la radio rediffusera une fois
+  l'épisode le plus récent, puis reprendra son comportement normal. Il n'y a
+  donc rien à sauvegarder.
+- **Le fichier n'est pas de la configuration** : il est écrit par la radio, pas
+  par l'auteur. Il ne va ni dans le TOML ni dans `.env`.
+- **Un épisode retiré du flux** ne pose pas de problème : l'identifiant retenu
+  ne correspond plus à rien, donc le plus récent est forcément différent, donc
+  il est diffusé.
 
 #### Quand la radio ne tournait pas
 
@@ -649,19 +678,28 @@ l'émission la fait démarrer, depuis le début ; au-delà, elle est perdue (§4
 > faut interroger le podcast au branchement **avant** de savoir si l'on
 > rattrape. Et une émission rattrapée décale sa propre fin, d'au plus sa durée.
 
-**n°14 — Quel épisode ? Le plus récent.** Tranchée le 2026-08-30. Aucun état n'est
-retenu d'une fois sur l'autre. Si le podcast n'a rien publié depuis, le même
-épisode repasse (§4.11).
-> *Raison* : c'est le comportement d'une émission d'actualité, et surtout le seul
-> qui **ne rouvre pas l'absence de persistance**. « Le suivant non encore
-> diffusé » aurait imposé le premier état durable du projet
-> (ARCHITECTURE.md §5.2) — une décision d'architecture, pour un gain d'usage
-> mince.
+**n°14 — Quel épisode ? Le plus récent `full` non encore diffusé.** Tranchée le
+2026-08-30, **puis révisée le même jour** à la lumière du relevé (§4.11).
+
+> **Ce qui a changé, et pourquoi c'est important.** La première version disait
+> « le plus récent », sans mémoire — et sa raison principale était qu'elle **ne
+> rouvrait pas l'absence de persistance**.
 >
-> **Ce qu'elle exige du relevé** : que la date de publication soit toujours
-> présente et fiable ([docs/podcast.md](./docs/podcast.md) §1). Si elle ne l'est
-> pas, « le plus récent » n'est pas implémentable et la décision devra être
-> rejouée.
+> Le relevé de [docs/podcast.md](./docs/podcast.md) §3.3.3 a montré ce que cela
+> donnait en pratique : *A la French* est entre deux saisons depuis le
+> 28 juillet, donc une case hebdomadaire aurait rejoué le même épisode pendant
+> des mois. « Cela s'entend, et cela ne casse rien » avait été écrit en pensant à
+> un podcast quotidien, où le cas est rare ; sur une hebdomadaire en pause, c'est
+> le cas **nominal**.
+>
+> L'auteur a donc tranché pour « ne pas rediffuser », **en sachant que cela
+> ouvrait le premier état persistant du projet**. C'est une décision
+> d'architecture, prise sciemment : voir §4.11.1 pour son étendue exacte —
+> un identifiant par émission, rien de plus — et ARCHITECTURE.md §5.
+>
+> **`full` seulement** : le relevé a montré qu'`itunes:episodeType` distingue
+> aussi `bonus` et `trailer`, et que le plus récent d'*A la French* est
+> justement un `bonus`. L'auteur l'écarte — un bonus n'est pas l'émission.
 
 **n°15 — Les jingles dus pendant une émission ? Abandonnés.** Tranchée le
 2026-08-30. Ni différés, ni mêlés au son. Il en va de même d'un flash programmé

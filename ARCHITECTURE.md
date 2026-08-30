@@ -177,11 +177,39 @@ devenir un frein.
 
 ## 5. Persistance
 
-**Aucune.** La radio ne garde rien entre deux démarrages : ce qui est passé est
-perdu (SPECS.md §2). Pas de base, pas de cache sur disque, pas d'historique.
+**Presque aucune, et l'exception est nommée.**
 
-Le seul état qui survit à une piste est en mémoire, et disparaît avec la chaîne :
-la fenêtre de non-répétition, et l'effet en cours d'un `encore`.
+En mémoire, et perdu avec la chaîne : la fenêtre de non-répétition, l'effet en
+cours d'un `encore`, la file. Pas de base, pas de cache sur disque, pas
+d'historique de ce qui est passé à l'antenne.
+
+**Sur disque, une seule chose** (SPECS.md §4.11.1) :
+
+> Pour chaque émission, **l'identifiant du dernier épisode diffusé**.
+
+### 5.0 Pourquoi cette exception existe, et comment la garder petite
+
+Elle n'était pas prévue. SPECS.md §7 n°14 avait d'abord choisi « l'épisode le
+plus récent », **précisément parce que cela ne demandait aucun état**. Le relevé
+a montré qu'un podcast entre deux saisons rejouerait alors le même épisode
+pendant des mois ([docs/podcast.md](./docs/podcast.md) §3.3.3), et l'auteur a
+tranché pour « ne pas rediffuser » en sachant ce que cela coûtait.
+
+**La conduite à tenir maintenant est celle d'un écart assumé** (§9.1) : cet état
+est une exception, pas une porte ouverte.
+
+- Il contient **un identifiant par émission**. Rien d'autre n'a le droit d'y
+  entrer — ni l'historique des morceaux, ni des statistiques, ni une position de
+  lecture. La première chose qu'on y ajoutera « puisqu'il existe déjà » sera
+  celle qui aura transformé une exception en base de données.
+- **Le perdre n'est pas une panne** : la radio rediffusera une fois l'épisode le
+  plus récent, puis reprendra son cours. Il n'y a donc rien à sauvegarder, rien
+  à migrer, aucun schéma à faire évoluer.
+- Il est **écrit par la radio**, jamais par l'auteur : il ne va ni dans le TOML
+  ni dans `.env`, et il n'est pas versionné.
+
+Un format simple suffit — un fichier JSON écrit de façon atomique. Une base de
+données serait une réponse démesurée à une question de deux lignes.
 
 ### 5.1 Les secrets
 

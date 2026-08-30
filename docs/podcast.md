@@ -175,14 +175,23 @@ Une case **chaque vendredi à 20 h** servirait donc, avec la décision n°14
 > rare. Sur une émission hebdomadaire en pause, c'est le cas **nominal**, et il
 > peut durer des mois. L'auteur doit le savoir avant que ça n'arrive.
 
-## 3.4 Deux questions que ce relevé fait remonter
+## 3.4 Ce que ce relevé a fait trancher
 
-1. **Faut-il retenir les `bonus` ?** `full` seul écarte aujourd'hui le dernier
-   épisode d'A la French. `full` + `bonus` le retient, mais laisse passer les
-   `trailer`. Les trois types existent ; le choix est éditorial.
-2. **Que faire d'un podcast en pause ?** Rejouer le même épisode chaque semaine,
-   ou renoncer à la case tant que rien de neuf n'est paru — auquel cas la radio
-   reste sur la musique, comme pour un flash absent.
+Les deux questions qu'il a soulevées ont été tranchées par l'auteur le
+2026-08-30 :
+
+| Question | Réponse |
+|---|---|
+| Retenir les `bonus` ? | **Non — `full` seulement.** Un bonus n'est pas l'émission. *A la French* diffusera donc l'épisode du 7 juillet, pas le bonus du 28 |
+| Un podcast en pause ? | **Ne pas rediffuser.** La case est sautée, la radio reste sur la musique |
+
+> **La seconde a rouvert un choix fondateur.** Ne pas rediffuser exige de se
+> souvenir de ce qui a été diffusé, et le projet n'avait **aucune** persistance.
+> Il en acquiert une, délibérément bornée à un identifiant par émission
+> (SPECS.md §4.11.1, ARCHITECTURE.md §5.0).
+>
+> C'est le relevé qui a rendu cette décision possible : sans les dates réelles,
+> « le même épisode repasse » restait une phrase abstraite.
 
 ## 4. Quand ça se passe mal
 
