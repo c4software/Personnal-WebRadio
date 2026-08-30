@@ -58,3 +58,20 @@ Correctifs, dans cet ordre de préférence : `yt-dlp -f "bestaudio[ext=m4a]/best
 s'écrit quand le planificateur décide, pas quand le son démarre** — deux
 essais ont été perdus ainsi ; c'est une faiblesse consignée, pas encore un
 correctif.
+
+## 5. Le blanc, et sa suppression (GOAL-028)
+
+Servir l'URL googlevideo faisait télécharger le **diffuseur** à la jonction :
+trente à soixante secondes sans rien, inacceptable à l'antenne (constaté par
+l'auteur). Depuis GOAL-028 :
+
+- `radio` télécharge la vidéo **en tâche de fond** (`yt-dlp -o`, écrite en
+  `.part` puis renommée — jamais un fichier à moitié plein sous le nom final)
+  pendant que la musique continue ;
+- la case ne rend l'émission que lorsque **le fichier local est prêt** : la
+  résolution est alors instantanée, l'émission part à la jonction suivante,
+  sans blanc ;
+- le cache (`<dossier de l'état>/cache`, partagé en lecture seule avec le
+  diffuseur) ne garde que la vidéo en route — un cache, pas une archive ;
+- un téléchargement qui finit après la fin de case a manqué son heure : la
+  case borne tout, comme partout.

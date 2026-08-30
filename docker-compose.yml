@@ -86,6 +86,10 @@ services:
 
     volumes:
       - ./webradio/adapters/liquidsoap/radio.liq:/etc/local-webradio/radio.liq:ro
+      # Le cache des vidéos YouTube, téléchargées par `radio` : le diffuseur
+      # les LIT au même chemin — c'est ce qui supprime le blanc
+      # (docs/youtube.md §5). Lecture seule : il ne télécharge rien.
+      - etat:/var/lib/local-webradio:ro
       - ${JINGLES:-./jingles}:/var/lib/local-webradio/jingles:ro
 
     # extra_hosts:

@@ -86,6 +86,41 @@ def _resoudre_par_ytdlp(video_url: str, timeout: float) -> Resolved:
     return Resolved(duration=timedelta(seconds=int(lines[0])), audio=lines[1].strip())
 
 
+def _telecharger_par_ytdlp(video_url: str, destination: str, timeout: float) -> None:
+    """`yt-dlp -o` : l'audio complet, écrit à côté puis renommé — jamais un
+    fichier à moitié plein sous le nom final."""
+    part = destination + ".part"
+    try:
+        subprocess.run(
+            [
+                "yt-dlp",
+                "-f",
+                "bestaudio[ext=m4a]/bestaudio",
+                "-o",
+                part,
+                "--no-warnings",
+                "--no-progress",
+                video_url,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=True,
+        )
+    except FileNotFoundError as absent:
+        message = "yt-dlp introuvable : les émissions YouTube ont besoin de lui"
+        raise YoutubeUnavailable(message) from absent
+    except subprocess.TimeoutExpired as lent:
+        message = f"téléchargement abandonné après {timeout:g} s"
+        raise YoutubeUnavailable(message) from lent
+    except subprocess.CalledProcessError as refus:
+        message = f"yt-dlp a refusé le téléchargement : {refus.stderr.strip()[:200]}"
+        raise YoutubeUnavailable(message) from refus
+    import pathlib as _p
+
+    _p.Path(part).rename(destination)
+
+
 class YoutubeChannel:
     """Le même contrat que `PodcastFeed` : des épisodes, du plus récent au reste.
 
@@ -103,6 +138,17 @@ class YoutubeChannel:
         self._lire = fetch if fetch is not None else self._lire_par_urllib
         self._resoudre = resolve if resolve is not None else _resoudre_par_ytdlp
         self._chaines: dict[str, str] = {}
+
+    def download(self, video_url: str, destination: str) -> None:
+        """L'audio complet, dans un fichier local que le diffuseur ouvrira.
+
+        C'est ce qui supprime le blanc (docs/youtube.md §5) : la résolution
+        d'un fichier local est instantanée, le téléchargement a eu lieu
+        pendant que la musique jouait. Dix fois le délai de résolution : un
+        téléchargement est long par nature, l'abandonner trop tôt recrée le
+        problème qu'il corrige.
+        """
+        _telecharger_par_ytdlp(video_url, destination, self._delai * 10)
 
     def _lire_par_urllib(self, url: str, timeout: float) -> str:
         request = urllib.request.Request(url, headers={"User-Agent": "local-webradio"})

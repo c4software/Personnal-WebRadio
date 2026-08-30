@@ -147,6 +147,7 @@ Goals sont découpables.
 | GOAL-025 | Une chaîne YouTube comme émission | `[-]` — seule l'écoute réelle reste |
 | GOAL-026 | Les votes ne portent que sur l'artiste (n°16 révisée) | `[x]` |
 | GOAL-027 | Le journal des titres, visible dans l'interface | `[x]` |
+| GOAL-028 | YouTube sans blanc : téléchargé en fond, servi en local | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -1008,3 +1009,14 @@ les surpondérations »
 > table complétée, délai à 120 s). Et une faiblesse consignée : la trace
 > « diffusé » s'écrit à la décision, pas au démarrage du son — deux essais
 > perdus ainsi.
+
+---
+
+## GOAL-028 — YouTube sans blanc : téléchargé en fond, servi en local
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30 : « il ne faudrait pas
+de blanc, 30/60 s sans rien ça ne va pas »
+
+- [x] `GOAL-028-T01` `radio` télécharge la vidéo en tâche de fond (`.part` puis renommage) pendant que la musique continue ; la case ne rend l'émission que **fichier prêt** — résolution instantanée, zéro blanc
+- [x] `GOAL-028-T02` Le cache dans le volume d'état, partagé **en lecture seule** avec le diffuseur, purgé à chaque nouvelle vidéo
+- [x] `GOAL-028-T03` Un téléchargement en échec ou trop tard : musique, journalisé — la case borne tout

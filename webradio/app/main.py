@@ -252,6 +252,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             streams={e.name: e.stream for e in settings.shows if e.stream is not None},
             youtube_channels={e.name: e.youtube for e in settings.shows if e.youtube is not None},
             youtube=YoutubeChannel(timedelta(seconds=settings.youtube.timeout_seconds)),
+            youtube_cache=Path(settings.state.database).parent / "cache",
         ),
         control=control,
         now_playing=lambda: radio.playing_track(),

@@ -218,6 +218,7 @@ class FakeYoutube:
     def __init__(self, episodes: list[EpisodeDuFlux], *, injoignable: bool = False) -> None:
         self._episodes = episodes
         self._injoignable = injoignable
+        self.telecharges: list[tuple[str, str]] = []
 
     def episodes(self, _url: str) -> list[EpisodeDuFlux]:
         if self._injoignable:
@@ -225,8 +226,15 @@ class FakeYoutube:
             raise YoutubeUnavailable(message)
         return list(self._episodes)
 
+    def download(self, video_url: str, destination: str) -> None:
+        """Le vrai téléchargement est en tâche de fond ; le test écrit le
+        fichier lui-même quand il veut simuler la fin."""
+        self.telecharges.append((video_url, destination))
 
-def _youtube_show(tmp_path: Path, yt: FakeYoutube, clock: FrozenClock) -> Shows:
+
+def _youtube_show(
+    tmp_path: Path, yt: FakeYoutube, clock: FrozenClock, *, cache: Path | None = None
+) -> Shows:
     state = SqliteState(
         tmp_path / "etat.sqlite3",
         clock,
@@ -241,6 +249,7 @@ def _youtube_show(tmp_path: Path, yt: FakeYoutube, clock: FrozenClock) -> Shows:
         {},
         youtube_channels={"Hardisk": "https://www.youtube.com/@hardisk"},
         youtube=yt,  # type: ignore[arg-type]
+        youtube_cache=cache if cache is not None else tmp_path / "cache",
     )
 
 
@@ -254,19 +263,45 @@ def _video(guid: str, minutes: int = 29) -> EpisodeDuFlux:
     )
 
 
-def test_la_derniere_video_est_due_a_l_heure_dite(tmp_path: Path) -> None:
+def _attendre_le_telechargement(yt: FakeYoutube) -> None:
+    import time as _time
+
+    for _ in range(50):
+        if yt.telecharges:
+            return
+        _time.sleep(0.01)
+    message = "le téléchargement de fond n'a jamais démarré"
+    raise AssertionError(message)
+
+
+def test_sans_fichier_local_la_musique_continue_et_le_telechargement_part(
+    tmp_path: Path,
+) -> None:
+    """GOAL-028 : jamais l'URL — trente secondes de blanc (docs/youtube.md §5)."""
     clock = FrozenClock(VENDREDI_20H)
-    due = _youtube_show(tmp_path, FakeYoutube([_video("v1")]), clock).due()
+    yt = FakeYoutube([_video("v1")])
+    shows = _youtube_show(tmp_path, yt, clock)
+
+    assert shows.due() is None  # la musique continue
+    _attendre_le_telechargement(yt)
+    assert yt.telecharges == [
+        ("https://www.youtube.com/watch?v=v1", str(tmp_path / "cache" / "v1.m4a"))
+    ]
+
+
+def test_le_fichier_pret_part_a_la_jonction_et_une_seule_fois(tmp_path: Path) -> None:
+    clock = FrozenClock(VENDREDI_20H)
+    yt = FakeYoutube([_video("v1")])
+    shows = _youtube_show(tmp_path, yt, clock)
+    (tmp_path / "cache").mkdir()
+    (tmp_path / "cache" / "v1.m4a").write_bytes(b"audio")
+
+    due = shows.due()
+
     assert due is not None
     assert due[0].name == "Hardisk"
-    assert due[1] == "https://googlevideo.test/v1"
-
-
-def test_une_video_deja_diffusee_fait_sauter_la_case(tmp_path: Path) -> None:
-    clock = FrozenClock(VENDREDI_20H)
-    shows = _youtube_show(tmp_path, FakeYoutube([_video("v1")]), clock)
-    assert shows.due() is not None
-    assert shows.due() is None
+    assert due[1] == str(tmp_path / "cache" / "v1.m4a")
+    assert shows.due() is None  # déjà diffusée : la case est sautée
 
 
 def test_une_chaine_injoignable_laisse_la_musique(tmp_path: Path) -> None:

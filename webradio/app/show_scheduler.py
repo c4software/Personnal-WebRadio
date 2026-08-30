@@ -13,7 +13,9 @@ savoir si l'on s'en servira.
 """
 
 import logging
+import threading
 from datetime import datetime, timedelta
+from pathlib import Path
 
 from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
 from webradio.adapters.podcast.feed import PodcastFeed, PodcastUnavailable
@@ -38,6 +40,7 @@ class Shows:
         streams: dict[str, str] | None = None,
         youtube_channels: dict[str, str] | None = None,
         youtube: YoutubeChannel | None = None,
+        youtube_cache: Path | None = None,
     ) -> None:
         self._programme = programme
         self._flux = feed
@@ -52,6 +55,10 @@ class Shows:
         # vidéo non diffusée, la case bornée par sa durée (docs/youtube.md §2).
         self._youtube = youtube_channels or {}
         self._youtube_adapter = youtube
+        self._youtube_cache = youtube_cache
+        # Les téléchargements en cours, par vidéo : un seul à la fois chacun.
+        self._telechargements: set[str] = set()
+        self._verrou_telechargements = threading.Lock()
         self._cases_rendues: set[tuple[str, datetime]] = set()
 
     def due(self) -> tuple[Show, str] | None:
@@ -73,6 +80,8 @@ class Shows:
             return None
         if case.show.is_live:
             return self._direct_de(case, instant)
+        if case.show.name in self._youtube:
+            return self._video_de(case.show, catalogues.get(case.show.name, []))
         return self._episode_de(case.show, catalogues.get(case.show.name, []))
 
     def _direct_de(self, case: Slot, instant: datetime) -> tuple[Show, str] | None:
@@ -99,6 +108,85 @@ class Shows:
             url.split("?", 1)[0],
         )
         return case.show, f"live:{int(case.end.timestamp())}:{url}"
+
+    def _video_de(self, show: Show, catalogue: list[EpisodeDuFlux]) -> tuple[Show, str] | None:
+        """La dernière vidéo, servie **depuis le cache local** — jamais l'URL.
+
+        Servir l'URL googlevideo faisait télécharger le diffuseur à la
+        jonction : trente à soixante secondes de blanc (docs/youtube.md §5).
+        Ici : pas de fichier → on lance le téléchargement en tâche de fond et
+        la musique continue ; fichier prêt → il part à la jonction suivante,
+        résolution instantanée. La case borne toujours tout : un
+        téléchargement qui finit après elle a manqué son heure, c'est tout.
+        """
+        if not catalogue or self._youtube_adapter is None or self._youtube_cache is None:
+            return None
+        chosen = self._choisir_l_episode(show, catalogue)
+        if chosen is None:
+            return None
+        fichier = self._youtube_cache / f"{chosen.guid}.m4a"
+        if fichier.is_file():
+            try:
+                self._etat.record_airing(show.name, chosen.guid)
+            except StateUnavailable as failure:
+                logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
+            return show, str(fichier)
+        self._telecharger_en_fond(show.name, chosen.guid)
+        return None
+
+    def _telecharger_en_fond(self, show_name: str, video: str) -> None:
+        with self._verrou_telechargements:
+            if video in self._telechargements:
+                return
+            self._telechargements.add(video)
+        logger.info("« %s » : téléchargement de %s — la musique continue", show_name, video)
+
+        def au_travail() -> None:
+            assert self._youtube_adapter is not None and self._youtube_cache is not None
+            try:
+                self._youtube_cache.mkdir(parents=True, exist_ok=True)
+                self._purger_le_cache(sauf=video)
+                self._youtube_adapter.download(
+                    f"https://www.youtube.com/watch?v={video}",
+                    str(self._youtube_cache / f"{video}.m4a"),
+                )
+                logger.info("« %s » : %s est prêt, il partira à la jonction", show_name, video)
+            except YoutubeUnavailable as failure:
+                logger.warning("« %s » : téléchargement en échec — %s", show_name, failure)
+            finally:
+                with self._verrou_telechargements:
+                    self._telechargements.discard(video)
+
+        threading.Thread(target=au_travail, name=f"youtube-{video}", daemon=True).start()
+
+    def _purger_le_cache(self, sauf: str) -> None:
+        """Le cache ne garde que la vidéo en route : un cache, pas une archive."""
+        assert self._youtube_cache is not None
+        for fichier in self._youtube_cache.glob("*.m4a*"):
+            if not fichier.name.startswith(sauf):
+                fichier.unlink(missing_ok=True)
+
+    def _choisir_l_episode(self, show: Show, catalogue: list[EpisodeDuFlux]) -> Episode | None:
+        try:
+            deja = self._etat.last_airing(show.name)
+        except StateUnavailable as failure:
+            logger.warning("mémoire indisponible, émission « %s » sautée : %s", show.name, failure)
+            return None
+        chosen = episode_to_air(
+            [
+                Episode(
+                    guid=e.identifier,
+                    published_at=e.published_at,
+                    duration=e.duration if e.duration is not None else timedelta(0),
+                    kind="full",
+                )
+                for e in catalogue
+            ],
+            deja.episode if deja is not None else None,
+        )
+        if chosen is None:
+            logger.info("« %s » n'a rien de neuf : la case est sautée", show.name)
+        return chosen
 
     def _catalogues(self, instant: object) -> dict[str, list[EpisodeDuFlux]]:
         """Lit les flux des émissions dont une case a pu commencer.
