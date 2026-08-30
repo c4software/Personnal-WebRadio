@@ -87,18 +87,6 @@ class SettingsError(Exception):
 
 
 @dataclass(frozen=True, slots=True)
-class StreamSettings:
-    """Ce qui est servi aux auditeurs, et sous quelle forme."""
-
-    address: str
-    port: int
-    format: str
-    bitrate_kbps: int
-    sample_rate_hz: int
-    channels: int
-
-
-@dataclass(frozen=True, slots=True)
 class VoteSettings:
     """La pondération d'un morceau par les votes (SPECS.md §4.12)."""
 
@@ -214,7 +202,6 @@ class NavidromeSettings:
 class Settings:
     """Tout ce que le TOML décrit, une fois validé. Aucun secret n'y figure."""
 
-    feed: StreamSettings
     draw: DrawSettings
     jingles: JingleSettings
     bands: tuple[Band, ...]
@@ -400,23 +387,6 @@ def _liste_tables(parent: Mapping[str, Any], key: str) -> list[Mapping[str, Any]
     return list(value)
 
 
-def _flux(brut: Mapping[str, Any]) -> StreamSettings:
-    table = _table(brut, "stream", "")
-    _verifier_cles(
-        table,
-        ("address", "port", "format", "bitrate_kbps", "sample_rate_hz", "channels"),
-        "stream",
-    )
-    return StreamSettings(
-        address=_texte(table, "address", "stream"),
-        port=_entier(table, "port", "stream", maximum=MAX_PORT),
-        format=_texte(table, "format", "stream"),
-        bitrate_kbps=_entier(table, "bitrate_kbps", "stream"),
-        sample_rate_hz=_entier(table, "sample_rate_hz", "stream"),
-        channels=_entier(table, "channels", "stream", maximum=2),
-    )
-
-
 def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
     table = _table(brut, "draw", "")
     _verifier_cles(table, ("artist_gap", "votes"), "draw")
@@ -576,7 +546,6 @@ def validate(brut: Mapping[str, Any]) -> Settings:
     _verifier_cles(
         brut,
         (
-            "stream",
             "draw",
             "jingles",
             "bands",
@@ -598,7 +567,6 @@ def validate(brut: Mapping[str, Any]) -> Settings:
     podcast = _table_optionnelle(brut, "podcast", "")
     _verifier_cles(podcast, ("timeout_seconds",), "podcast")
     return Settings(
-        feed=_flux(brut),
         draw=_tirage(brut),
         jingles=JingleSettings(folder=_texte(jingles, "folder", "jingles")),
         bands=_plages(brut),

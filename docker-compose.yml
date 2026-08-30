@@ -1,8 +1,9 @@
-# Un seul service, délibérément (ARCHITECTURE.md §8.5.2).
+# Deux services, délibérément (ARCHITECTURE.md §4, §8.5.2).
 #
-# La chaîne de diffusion et le serveur web partagent la file en mémoire : les
-# séparer imposerait un protocole entre eux, donc une architecture distribuée
-# pour un auditeur sur un réseau local.
+#   radio       — Python : le noyau, l'API, l'interface, et les deux routes que
+#                 Liquidsoap appelle (« quoi jouer ? », « combien écoutent ? »).
+#   liquidsoap  — décode, enchaîne, fond, encode et sert le flux. Il ne décide
+#                 de rien : tout ce qu'il joue, il l'a demandé à `radio`.
 #
 # Navidrome n'est PAS ici : il existe déjà, il appartient à l'auteur, et le
 # déployer serait hors périmètre (SPECS.md §2).
@@ -18,41 +19,70 @@ services:
     env_file: .env
 
     ports:
-      - "8000:8000"   # le flux
       - "8080:8080"   # l'interface et l'API
 
     volumes:
       # Configuration et jingles en LECTURE SEULE : ce sont les fichiers de
       # l'auteur, et le conteneur n'a aucune raison de pouvoir les modifier.
       - ./webradio.toml:/etc/local-webradio/webradio.toml:ro
+      # Le MÊME chemin que dans `liquidsoap` : `radio` rend des chemins de
+      # jingles, `liquidsoap` les ouvre. Le TOML doit donc déclarer
+      # `folder = "/var/lib/local-webradio/jingles"`.
       - ${JINGLES:-./jingles}:/var/lib/local-webradio/jingles:ro
       # L'état survit à une reconstruction de l'image (ARCHITECTURE.md §5.1).
       - etat:/var/lib/local-webradio
 
-    # Navidrome répond à un nom résolu par le réseau de l'HÔTE. Un conteneur ne
-    # le résout pas forcément : c'est le premier cas de test au démarrage
-    # (ARCHITECTURE.md §8.5.3, GOAL-011-T04).
-    #
-    # Constaté le 2026-08-30 : le conteneur joint bien `http://music` — le nom
-    # est résolu par le réseau de l'hôte, et cela suffit sur cette machine.
-    # Si ce n'était pas le cas ailleurs, décommenter :
+    # Navidrome répond à un nom résolu par le réseau de l'HÔTE. Constaté le
+    # 2026-08-30 : le conteneur joint bien `http://music`. Sinon, décommenter
+    # (et faire de même dans `liquidsoap`, qui ouvre les mêmes URL) :
     # extra_hosts:
     #   - "music:100.64.0.3"
 
-    # Dix secondes suffisent à couper proprement une chaîne ffmpeg ; au-delà,
-    # c'est qu'un processus ignore SIGTERM et il faut le corriger, pas allonger
-    # le délai.
     stop_grace_period: 10s
 
     healthcheck:
-      # La radio ne tourne que si quelqu'un écoute : on ne peut donc pas sonder
-      # le flux. On sonde l'API, qui répond toujours.
       test: ["CMD", "python", "-c",
              "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/on-air', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 15s
+
+  liquidsoap:
+    # La version contre laquelle docs/liquidsoap.md a été établi. La syntaxe du
+    # script change de version en version : verifier.sh le valide contre CETTE
+    # image, et l'épingle ne se change qu'avec un nouveau relevé.
+    image: savonet/liquidsoap:v2.3.3
+    container_name: local-webradio-liquidsoap
+    # Le script s'arrête de lui-même quand la radio n'a plus rien à jouer ou
+    # que l'API ne répond plus (« couper en le disant », SPECS.md §5.1) ; le
+    # superviseur relance alors un processus NEUF, et un auditeur qui se
+    # rebranche redémarre une radio neuve (SPECS.md §4.7).
+    restart: unless-stopped
+    depends_on:
+      radio:
+        condition: service_healthy
+
+    command: ["liquidsoap", "/etc/local-webradio/radio.liq"]
+
+    environment:
+      RADIO_API: http://radio:8080
+      RADIO_PORT: "8000"
+      RADIO_MOUNT: /flux
+      RADIO_BITRATE: "128"
+      RADIO_NAME: local-webradio
+
+    ports:
+      - "8000:8000"   # le flux : http://<la-machine>:8000/flux
+
+    volumes:
+      - ./webradio/adapters/liquidsoap/radio.liq:/etc/local-webradio/radio.liq:ro
+      - ${JINGLES:-./jingles}:/var/lib/local-webradio/jingles:ro
+
+    # extra_hosts:
+    #   - "music:100.64.0.3"
+
+    stop_grace_period: 10s
 
 volumes:
   etat:

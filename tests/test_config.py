@@ -27,14 +27,6 @@ from webradio.adapters.config.schema import (
 )
 
 TOML_MINIMAL = """
-[stream]
-address = "0.0.0.0"
-port = 8000
-format = "mp3"
-bitrate_kbps = 128
-sample_rate_hz = 44100
-channels = 2
-
 [draw]
 artist_gap = 5
 
@@ -86,7 +78,6 @@ time = "20:00"
     )
     config = load_toml(_ecrire(tmp_path / "webradio.toml", content))
 
-    assert config.feed.port == 8000
     assert config.draw.artist_gap == 5
     assert config.draw.votes.floor == 0.5
     assert config.bands[0].start == time(8, 0)
@@ -144,9 +135,9 @@ token = "peu importe"
 
 def test_une_cle_inconnue_est_nommee() -> None:
     with pytest.raises(SettingsError) as refus:
-        _valider(TOML_MINIMAL.replace("port = 8000", "port = 8000\nprot = 8001"))
+        _valider(TOML_MINIMAL.replace("artist_gap = 5", "artist_gap = 5\nartist_gab = 6"))
 
-    assert "stream.prot" in str(refus.value)
+    assert "draw.artist_gab" in str(refus.value)
 
 
 def test_une_section_obligatoire_absente_est_nommee() -> None:
@@ -158,31 +149,31 @@ def test_une_section_obligatoire_absente_est_nommee() -> None:
 
 def test_une_cle_obligatoire_absente_est_nommee() -> None:
     with pytest.raises(SettingsError) as refus:
-        _valider(TOML_MINIMAL.replace('address = "0.0.0.0"\n', ""))
+        _valider(TOML_MINIMAL.replace('folder = "/chemin/vers/jingles"\n', ""))
 
-    assert "stream.address" in str(refus.value)
+    assert "jingles.folder" in str(refus.value)
 
 
 def test_un_type_incorrect_est_nomme() -> None:
     with pytest.raises(SettingsError) as refus:
-        _valider(TOML_MINIMAL.replace("port = 8000", 'port = "huit-mille"'))
+        _valider(TOML_MINIMAL.replace("artist_gap = 5", 'artist_gap = "cinq"'))
 
-    assert "stream.port" in str(refus.value)
+    assert "draw.artist_gap" in str(refus.value)
     assert "entier" in str(refus.value)
 
 
 def test_un_booleen_ne_passe_pas_pour_un_entier() -> None:
     with pytest.raises(SettingsError) as refus:
-        _valider(TOML_MINIMAL.replace("port = 8000", "port = true"))
+        _valider(TOML_MINIMAL.replace("artist_gap = 5", "artist_gap = true"))
 
-    assert "stream.port" in str(refus.value)
+    assert "draw.artist_gap" in str(refus.value)
 
 
 def test_un_port_hors_borne_est_refuse() -> None:
     with pytest.raises(SettingsError) as refus:
-        _valider(TOML_MINIMAL.replace("port = 8000", "port = 70000"))
+        _valider(TOML_MINIMAL + "\n[web]\nport = 70000\n")
 
-    assert "stream.port" in str(refus.value)
+    assert "web.port" in str(refus.value)
 
 
 def test_une_heure_mal_formee_est_nommee() -> None:
@@ -398,7 +389,7 @@ def test_une_variable_du_processus_prime_sur_le_fichier_env(tmp_path: Path) -> N
 
     assert config.credentials.username == "autre-auditeur"
     assert config.credentials.password == "passe-fictif"
-    assert config.settings.feed.port == 8000
+    assert config.settings.draw.artist_gap == 5
 
 
 def test_le_raccourci_tous_les_jours_est_accepte() -> None:

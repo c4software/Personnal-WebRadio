@@ -12,7 +12,6 @@ import logging
 import signal
 import sys
 import threading
-from collections.abc import Callable
 from datetime import timedelta
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
@@ -20,14 +19,12 @@ from pathlib import Path
 
 from webradio.adapters.config.loading import load
 from webradio.adapters.config.schema import Config
-from webradio.adapters.ffmpeg.encoder import Chain, StreamFormat
-from webradio.adapters.http.broadcast import Broadcast
-from webradio.adapters.http.server import Station, StreamServer
 from webradio.adapters.podcast.feed import PodcastFeed, UrllibReader
 from webradio.adapters.sources.navidrome import NavidromeSource, UrllibTransport
 from webradio.adapters.state.database import SqliteState
 from webradio.adapters.web.views import create_app
 from webradio.app.learning import Learning
+from webradio.app.liquidsoap_playout import LiquidsoapPlayout
 from webradio.app.playout import RadioProgramme
 from webradio.app.radio import ListenerCount, LiveRadio
 from webradio.app.show_scheduler import Shows
@@ -45,7 +42,6 @@ from webradio.core.weighting import SLOPE_PER_VOTE
 logger = logging.getLogger(__name__)
 
 NAME = "local-webradio"
-STREAM_PATH = "/flux"
 
 
 def version() -> str:
@@ -67,8 +63,12 @@ def _arguments(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def build(config: Config) -> tuple[StreamServer, LiveRadio, Station]:
-    """Câble le tout, et rend ce qu'il faut pour le lancer et l'observer."""
+def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
+    """Câble le tout, et rend ce que Liquidsoap et l'API interrogent.
+
+    Le flux lui-même n'est pas ici : Liquidsoap l'encode et le sert
+    (ARCHITECTURE.md §4), et vient demander quoi jouer par `adapters/web/playout_api.py`.
+    """
     settings = config.settings
     clock = SystemClock()
     random = RealRandom()
@@ -105,6 +105,9 @@ def build(config: Config) -> tuple[StreamServer, LiveRadio, Station]:
     control = Control(source=source, random=random, jingles=jingles)
     counter = ListenerCount()
     radio = LiveRadio(control, counter, learning.remember)
+    # Le programme déclare la nature de ce qu'il choisit ; la charnière ne la
+    # transmet à la façade que lorsque Liquidsoap commence réellement le morceau.
+    branche: list[LiquidsoapPlayout] = []
 
     programme = RadioProgramme(
         queue=Queue(
@@ -119,7 +122,7 @@ def build(config: Config) -> tuple[StreamServer, LiveRadio, Station]:
         clock=clock,
         random=random,
         jingle_folder=Path(settings.jingles.folder),
-        on_kind=radio.declare,
+        on_kind=lambda kind, track: branche[0].on_kind(kind, track),
         programming=Programming(
             [
                 Programme(
@@ -145,46 +148,9 @@ def build(config: Config) -> tuple[StreamServer, LiveRadio, Station]:
         ),
     )
 
-    stream_format = StreamFormat(
-        container=settings.feed.format,
-        bitrate_kbps=settings.feed.bitrate_kbps,
-        sample_rate_hz=settings.feed.sample_rate_hz,
-        channels=settings.feed.channels,
-    )
-    station = Station(_fabrique_de_chaine(programme, stream_format, counter))
-    server = StreamServer(
-        station,
-        stream_format,
-        address=settings.feed.address,
-        port=settings.feed.port,
-        path=STREAM_PATH,
-        name=NAME,
-    )
-    return server, radio, station
-
-
-def _fabrique_de_chaine(
-    programme: RadioProgramme,
-    stream_format: StreamFormat,
-    counter: ListenerCount,
-) -> Callable[[Broadcast], Chain]:
-    """Rend de quoi construire une chaîne, en tenant le compteur à jour.
-
-    Le compteur existe pour que l'API sache si quelqu'un écoute **sans rien
-    connaître du serveur** (`app/radio.py`) : c'est la seule information que la
-    façade a besoin de recevoir d'en bas.
-    """
-
-    def build_chain(broadcast: Broadcast) -> Chain:
-        counter.declare(on_air=True)
-
-        def end(reason: str) -> None:
-            counter.declare(on_air=False)
-            logger.warning("la chaîne s'arrête : %s", reason)
-
-        return Chain(programme, stream_format, broadcast.publish, end)
-
-    return build_chain
+    playout = LiquidsoapPlayout(programme, radio, counter)
+    branche.append(playout)
+    return playout, radio
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -198,11 +164,12 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("%s %s", NAME, version())
 
     config = load(options.config, options.env)
-    server, radio, _ = build(config)
+    playout, radio = build(config)
     web = config.settings.web
     app = create_app(
         radio,
         refresh=timedelta(seconds=web.refresh_seconds),
+        playout=playout,
     )
 
     shutdown = threading.Event()
@@ -218,12 +185,10 @@ def main(argv: list[str] | None = None) -> int:
         daemon=True,
     )
     web_thread.start()
-    server.start()
-    logger.info("flux sur %s, interface sur le port %d", STREAM_PATH, web.port)
+    logger.info("interface, API et routes de Liquidsoap sur le port %d", web.port)
 
     shutdown.wait()
     logger.info("arrêt demandé")
-    server.stop_all()
     return 0
 
 

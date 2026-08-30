@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 PLAYOUT_PATH = "/playout"
 NEXT_PATH = "/next"
 LISTENERS_PATH = "/listeners"
+PLAYING_PATH = "/playing"
 
 NOTHING_MORE = 204
 BAD_REQUEST = 400
@@ -39,6 +40,14 @@ class Playout(Protocol):
 
     def declare_listeners(self, count: int) -> None:
         """Combien écoutent, d'après celui qui tient les connexions."""
+        ...
+
+    def playing(self, entry: str) -> None:
+        """Ce que Liquidsoap vient de **commencer** — pas ce qu'il a demandé.
+
+        Un morceau est toujours demandé d'avance (docs/liquidsoap.md §3) :
+        « à l'antenne » ne se déduit pas de `next_entry`, il se constate ici.
+        """
         ...
 
 
@@ -64,6 +73,15 @@ def create_playout_api(playout: Playout) -> Blueprint:
             logger.info("annonce refusée — %s", reason)
             return reason, BAD_REQUEST
         playout.declare_listeners(int(body))
+        return "", NOTHING_MORE
+
+    @api.post(PLAYING_PATH)
+    def playing() -> ResponseReturnValue:
+        """Le morceau que Liquidsoap commence, tel qu'il l'a reçu de `/next`."""
+        entry = request.get_data(as_text=True).strip()
+        if not entry:
+            return "entrée vide", BAD_REQUEST
+        playout.playing(entry)
         return "", NOTHING_MORE
 
     return api

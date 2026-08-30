@@ -22,7 +22,6 @@ from webradio.adapters.config.schema import (
     SettingsError,
     Show,
     StateSettings,
-    StreamSettings,
     VoteSettings,
     validate,
 )
@@ -38,7 +37,6 @@ __all__ = [
     "SettingsError",
     "Show",
     "StateSettings",
-    "StreamSettings",
     "VoteSettings",
     "credentials_from",
     "load",

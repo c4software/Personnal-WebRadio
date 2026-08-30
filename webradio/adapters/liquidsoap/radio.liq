@@ -40,7 +40,10 @@ def next_entry() =
   if answer.status_code == 200 then
     failures := 0
     entry = string.trim(answer)
-    log("suivant : #{entry}")
+    # Sans la chaîne de requête : une URL Navidrome porte le jeton d'accès
+    # (docs/navidrome.md), et un journal n'est pas un endroit pour un secret.
+    shown = list.hd(default=entry, string.split(separator="\\?", entry))
+    log("suivant : #{shown}")
     request.create(entry)
   elsif answer.status_code == 204 then
     stop_saying_why("l'API n'a plus rien à jouer")
@@ -56,6 +59,17 @@ end
 # prefetch=1 est le minimum : à 0 la source n'est jamais prête
 # (docs/liquidsoap.md §3). Un morceau est donc toujours demandé d'avance.
 programme = request.dynamic(id="programme", retry_delay=5., prefetch=1, next_entry)
+
+# Ce qui COMMENCE, par opposition à ce qui a été demandé : c'est de là que
+# l'API sait ce qui passe (GOAL-016-T08).
+def on_track(metadata) =
+  entry = metadata["initial_uri"]
+  answer = http.post(timeout=api_timeout, data=entry, "#{api}/playout/playing")
+  if answer.status_code != 204 then
+    log(level=2, "l'API n'a pas pris l'annonce du morceau (#{answer.status_code})")
+  end
+end
+programme.on_track(on_track)
 programme = normalize(programme)
 programme = crossfade(duration=2., fade_in=1., fade_out=1., programme)
 

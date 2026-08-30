@@ -799,7 +799,7 @@ tient dans *quand l'arrêter*.
 
 ## GOAL-016 — Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse
 
-**État : EN COURS** — `T01` à `T05` faites (`T03` : câblage en `T06`)
+**État : EN COURS** — `T01` à `T10` faites ; `T11` et `T13` (documents) en cours ; `T12` attend l'auteur
 
 Décision SPECS.md §7 n°23, relevé [docs/liquidsoap.md](./docs/liquidsoap.md),
 architecture ARCHITECTURE.md §4. Le noyau, les sources, les émissions, les
@@ -814,14 +814,14 @@ annonce, il diffuse.
 
 - [x] `GOAL-016-T01` Le relevé complète ses incertitudes (`docs/liquidsoap.md` §3) : `prefetch=0` ou équivalent, en-têtes `icy-*` par `headers=`, comportement quand l'API ne répond pas, bascule réelle vers `input.http`. **Contre 2.3.3, dans le conteneur**
 - [x] `GOAL-016-T02` `adapters/web/playout_api.py` : la route que Liquidsoap appelle pour **le morceau suivant** — rend un chemin ou une URL, et rien d'autre ; passe par `app/playout.next_entry()` comme tout le monde
-- [-] `GOAL-016-T03` La route par laquelle Liquidsoap **annonce un auditeur qui arrive ou part** — **écrite et testée** (`POST /playout/listeners`) ; le câblage vers `ListenerCount` se fait avec `T06`, quand l'ancienne chaîne cesse d'être l'autre source
+- [x] `GOAL-016-T03` La route par laquelle Liquidsoap **annonce un auditeur qui arrive ou part** — **écrite et testée** (`POST /playout/listeners`) ; le câblage vers `ListenerCount` se fait avec `T06`, quand l'ancienne chaîne cesse d'être l'autre source
 - [x] `GOAL-016-T04` `adapters/liquidsoap/radio.liq` : `request.dynamic` → l'API, `switch`/`blank()` sans auditeur, `normalize`, `crossfade`, `output.harbor` avec les en-têtes de `docs/flux-icy.md` §1. **Aucune décision dans le script** — un test le lit et refuse `playlist(`, `random`, `.mp3`
 - [x] `GOAL-016-T05` `verifier.sh` : `liquidsoap --check radio.liq` **dans l'image épinglée** — la syntaxe change de version en version (docs/liquidsoap.md §1.7)
-- [ ] `GOAL-016-T06` Docker : un second service `liquidsoap` épinglé `v2.3.3`, le port du flux passe chez lui ; `webradio` ne publie plus que l'API. La version dans l'image se **vérifie** à la construction (comme pour ffmpeg, docs/ffmpeg.md)
-- [ ] `GOAL-016-T07` Les jingles : le chemin unique reste `next_entry()` — un jingle est un morceau suivant comme un autre. Test : émissions câblées **et** jingle dû → il sort (c'est `GOAL-014-T01` rejoué dans la nouvelle chaîne)
-- [ ] `GOAL-016-T08` **Un morceau est toujours demandé d'avance** (`prefetch=1` est le minimum, docs/liquidsoap.md §3) : distinguer *demandé* et *à l'antenne*, et l'API dit ce qui passe d'après le second
-- [ ] `GOAL-016-T09` Les pannes (SPECS.md §5.1) : **Liquidsoap boucle par défaut** (cinq tentatives en 8 s, silence servi). Quand `next_entry()` n'a plus rien, l'API répond « fini » et le script arrête de servir — `fallible`/`shutdown()` à relever. Test avec l'API arrêtée
-- [ ] `GOAL-016-T10` **Supprimer** `adapters/ffmpeg/`, `adapters/http/`, leurs tests, et le câblage de `main.py` ; `docs/ffmpeg.md` reste comme relevé historique et pour le décodage des podcasts
+- [x] `GOAL-016-T06` Docker : un second service `liquidsoap` épinglé `v2.3.3`, le port du flux passe chez lui ; `webradio` ne publie plus que l'API. La version dans l'image se **vérifie** à la construction (comme pour ffmpeg, docs/ffmpeg.md)
+- [x] `GOAL-016-T07` Les jingles : le chemin unique reste `next_entry()` — un jingle est un morceau suivant comme un autre. Test : émissions câblées **et** jingle dû → il sort (c'est `GOAL-014-T01` rejoué dans la nouvelle chaîne)
+- [x] `GOAL-016-T08` **Un morceau est toujours demandé d'avance** (`prefetch=1` est le minimum, docs/liquidsoap.md §3) : distinguer *demandé* et *à l'antenne*, et l'API dit ce qui passe d'après le second
+- [x] `GOAL-016-T09` Les pannes (SPECS.md §5.1) : **Liquidsoap boucle par défaut** (cinq tentatives en 8 s, silence servi). Quand `next_entry()` n'a plus rien, l'API répond « fini » et le script arrête de servir — `fallible`/`shutdown()` à relever. Test avec l'API arrêtée
+- [x] `GOAL-016-T10` **Supprimer** `adapters/ffmpeg/`, `adapters/http/`, leurs tests, et le câblage de `main.py` ; `docs/ffmpeg.md` reste comme relevé historique et pour le décodage des podcasts
 - [ ] `GOAL-016-T11` `SPECS.md §1` et §4.7 reformulés : « rien n'est décodé ni demandé » ; `docs/flux-icy.md` rejoué contre `harbor`
 - [ ] `GOAL-016-T12` **Écoute réelle** : fondus, niveau, VLC / navigateur / enceinte — la matrice de `docs/flux-icy.md` §6
 - [ ] `GOAL-016-T13` Carte du dépôt

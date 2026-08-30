@@ -14,14 +14,6 @@ from webradio.app import main as module_main
 from webradio.app.main import _arguments, build, version
 
 TOML_MINIMAL = """
-[stream]
-address = "127.0.0.1"
-port = 8123
-format = "mp3"
-bitrate_kbps = 128
-sample_rate_hz = 44100
-channels = 2
-
 [draw]
 artist_gap = 5
 
@@ -93,12 +85,11 @@ def test_les_chemins_se_declarent() -> None:
 def test_l_assemblage_construit_une_radio_qui_ne_tourne_pas(reglages_dessai: object) -> None:
     """Construire n'est pas démarrer : rien ne tourne tant que personne
     n'écoute (SPECS.md §1)."""
-    server, radio, station = build(reglages_dessai)  # type: ignore[arg-type]
+    playout, radio = build(reglages_dessai)  # type: ignore[arg-type]
     assert not radio.on_air()
     assert radio.on_air_now() is None
-    assert station.listeners == 0
-    assert not station.on_air
-    assert server is not None
+    playout.declare_listeners(1)
+    assert radio.on_air()
 
 
 def test_une_configuration_invalide_empeche_le_demarrage(tmp_path: Path) -> None:

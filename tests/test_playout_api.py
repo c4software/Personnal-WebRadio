@@ -12,12 +12,16 @@ class FakePlayout:
     def __init__(self, entries: list[str | None]) -> None:
         self._entries = entries
         self.listeners: list[int] = []
+        self.played: list[str] = []
 
     def next_entry(self) -> str | None:
         return self._entries.pop(0)
 
     def declare_listeners(self, count: int) -> None:
         self.listeners.append(count)
+
+    def playing(self, entry: str) -> None:
+        self.played.append(entry)
 
 
 def _client(playout: FakePlayout | None) -> FlaskClient:
@@ -63,3 +67,15 @@ def test_un_nombre_d_auditeurs_invalide_est_refuse_en_le_disant() -> None:
 
 def test_sans_playout_les_routes_n_existent_pas() -> None:
     assert _client(None).post("/playout/next").status_code == 404
+
+
+def test_ce_qui_commence_est_transmis_tel_quel() -> None:
+    playout = FakePlayout([])
+    assert _client(playout).post("/playout/playing", data="/jingles/20h.mp3\n").status_code == 204
+    assert playout.played == ["/jingles/20h.mp3"]
+
+
+def test_une_entree_vide_est_refusee() -> None:
+    playout = FakePlayout([])
+    assert _client(playout).post("/playout/playing", data="  ").status_code == 400
+    assert playout.played == []
