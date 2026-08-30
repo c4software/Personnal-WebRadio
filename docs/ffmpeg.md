@@ -19,6 +19,22 @@ ffmpeg version n9.0.1 — Copyright (c) 2000-2026 the FFmpeg developers
 Tout ce qui suit doit être vérifié **contre cette version**, et le constat
 réétabli si elle change.
 
+**Le conteneur épingle la même** (`GOAL-011-T01`, 2026-08-30) :
+
+```
+image  : ffmpeg version 9.0.1   (mwader/static-ffmpeg:9.0.1)
+hôte   : ffmpeg version n9.0.1
+```
+
+Le préfixe `n` est la convention de nom de tag Git de FFmpeg, pas une
+différence de version.
+
+> **Un premier essai avait épinglé la 7.1**, et l'image se construisait
+> parfaitement. C'est exactement ce que ce conteneur devait empêcher : figer une
+> version, mais la mauvaise, et tous les constats ci-dessous auraient été faux
+> sans que rien ne le signale. **Vérifier la version dans l'image fait partie de
+> la construction**, pas de la confiance.
+
 ---
 
 ## 1. Enchaîner deux morceaux sans blanc — **relevé**

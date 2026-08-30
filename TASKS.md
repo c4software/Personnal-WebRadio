@@ -397,12 +397,12 @@ systématique, voie PCM, un seul chemin d'insertion, `-re` pour cadencer.
 chose à faire tourner. Le faire avant serait emballer du vide ; beaucoup plus
 tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
-- [ ] `GOAL-011-T01` `Dockerfile` : image Python fine, **ffmpeg épinglé à la version relevée**
-- [ ] `GOAL-011-T02` `docker-compose.yml` : un service, `env_file`, ports
-- [ ] `GOAL-011-T03` Volumes : configuration et jingles en **lecture seule**, état SQLite en écriture
+- [x] `GOAL-011-T01` `Dockerfile` : image Python fine, **ffmpeg épinglé à la version relevée**
+- [x] `GOAL-011-T02` `docker-compose.yml` : un service, `env_file`, ports
+- [x] `GOAL-011-T03` Volumes : configuration et jingles en **lecture seule**, état SQLite en écriture
 - [ ] `GOAL-011-T04` **Le conteneur joint-il Navidrome ?** `http://music` est résolu par l'hôte, pas forcément par le conteneur
 - [ ] `GOAL-011-T05` Arrêt propre : `SIGTERM` doit arrêter tout l'arbre, pas seulement le processus 1
-- [ ] `GOAL-011-T06` Le conteneur ne tourne pas en `root`, et n'écrit que dans le volume d'état
+- [x] `GOAL-011-T06` Le conteneur ne tourne pas en `root`, et n'écrit que dans le volume d'état
 - [ ] `GOAL-011-T07` `CONTRIBUTING.md` et `README.md` : lancer en conteneur, et vérifier **hors** conteneur
 
 > **`T05` est le piège classique** : un processus 1 qui ignore `SIGTERM` laisse
