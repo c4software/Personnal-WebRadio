@@ -32,7 +32,7 @@ des jingles — va dans un fichier TOML **jamais versionné** (SPECS.md §6).
 4. Lancer la vérification, et **regarder sa sortie** :
 
    ```bash
-   ruff format --check . && ruff check . && mypy . && pytest --cov --cov-fail-under=80
+   ./verifier.sh
    ```
 
    Pour corriger la mise en forme : `ruff format . && ruff check --fix .`

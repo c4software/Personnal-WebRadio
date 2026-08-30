@@ -125,7 +125,7 @@ Décisions à trancher:
 - ... (SPECS.md §7 n°X)
 
 Validation:
-- ruff format --check . && ruff check . && mypy . && pytest --cov --cov-fail-under=80
+- ./verifier.sh
 ```
 
 Puis **inscrire le Goal et ses tâches dans `TASKS.md`** — table de vue

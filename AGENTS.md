@@ -280,16 +280,32 @@ l'allowlist : une action sortante se confirme.
 À lancer **avant tout commit** :
 
 ```bash
-ruff format --check . && ruff check . && mypy . && pytest --cov --cov-fail-under=80
+./verifier.sh
 ```
 
 C'est exactement ce que fait `/verify`. **Si elle change, elle change ici**, et
 les autres fichiers la recopient.
 
+Le script enchaîne cinq contrôles, du moins cher au plus cher, et **s'arrête au
+premier échec** (`set -euo pipefail`) :
+
+| Contrôle | Ce qu'il refuse |
+|---|---|
+| `ruff format --check` | Une mise en forme qui s'écarte |
+| `ruff check` | Import ou variable inutilisés, `print()`, `except` nu, argument ignoré, `import random`/`secrets` |
+| `mypy` (strict) | Une fonction sans annotations, un type incohérent, du code inatteignable |
+| **Les interdits d'AGENTS.md §2** | Entrée-sortie dans le noyau, horloge hors de `core/clock.py`, hasard hors de `core/rng.py`, Flask hors de `adapters/web/`, `TODO` sans tâche |
+| `pytest --cov --cov-fail-under=80` | Un test en échec, une couverture sous 80 % |
+
+Le quatrième contrôle est ce qui distingue ce script d'un simple `make check` :
+il transforme les interdits en **recherches textuelles exécutées**. Un interdit
+que rien ne contrôle n'est pas un interdit, c'est un vœu — et il est toujours
+enfreint, tôt ou tard, par quelqu'un de bonne foi.
+
 Correction automatique de la mise en forme :
 
 ```bash
-ruff format . && ruff check --fix .
+.venv/bin/ruff format . && .venv/bin/ruff check --fix .
 ```
 
 Rien n'est déclaré terminé sans que la commande de vérification ait été lancée
@@ -298,7 +314,7 @@ jamais annoncer un succès non observé.
 
 ### 5.3 Définition de « terminé »
 
-- [ ] `ruff format --check . && ruff check . && mypy . && pytest --cov --cov-fail-under=80` passe.
+- [ ] `./verifier.sh` passe.
 - [ ] Les tests couvrent le comportement ajouté, cas limites compris.
 - [ ] Si la tâche touche au son, aux transitions, à la durée ou aux lecteurs
       (§4.1) : la radio a été **écoutée**, et ce qui a été entendu est écrit

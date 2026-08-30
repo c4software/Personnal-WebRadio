@@ -18,7 +18,7 @@ coche aucune case.
 ## 1 — Construction, tests, analyse statique
 
 ```bash
-ruff format --check . && ruff check . && mypy . && pytest --cov --cov-fail-under=80
+./verifier.sh
 ```
 
 C'est **la** commande d'`AGENTS.md §5.2` : si elle change, elle change là-bas, et

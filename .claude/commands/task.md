@@ -74,7 +74,7 @@ Rappels qui coûtent cher à oublier (AGENTS.md §2) :
 ## Étape 4 — Vérifier
 
 ```bash
-ruff format --check . && ruff check . && mypy . && pytest --cov --cov-fail-under=80
+./verifier.sh
 ```
 
 **Si la tâche touche au son, aux transitions, à la tenue dans la durée ou aux

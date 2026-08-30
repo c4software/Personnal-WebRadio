@@ -14,3 +14,71 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["webradio*"]
+
+[project.optional-dependencies]
+dev = ["ruff>=0.16", "mypy>=2.0", "pytest>=9.0", "pytest-cov>=7.0"]
+
+# --------------------------------------------------------------------------
+# ruff — mise en forme et analyse statique
+# --------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes — dont les imports et variables inutilisés
+    "I",        # ordre des imports
+    "UP",       # tournures obsolètes
+    "B",        # pièges courants (bugbear)
+    "SIM",      # simplifications
+    "ARG",      # arguments ignorés — interdit par AGENTS.md §2
+    "T20",      # print() — interdit par AGENTS.md §2
+    "BLE",      # except nu / trop large — interdit par AGENTS.md §2
+    "DTZ",      # datetime sans fuseau
+    "PTH",      # os.path là où pathlib convient
+    "RUF",
+]
+# Les règles suivantes traduisent des interdits d'AGENTS.md §2 en contrôles
+# exécutables. Sans elles, l'interdit reste un vœu (GOAL-001-T13).
+
+[tool.ruff.lint.flake8-tidy-imports.banned-api]
+"random".msg = "Le hasard est injecté : voir webradio/core/rng.py (AGENTS.md §2)"
+"secrets".msg = "Le hasard est injecté : voir webradio/core/rng.py (AGENTS.md §2)"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["T20"]
+
+# --------------------------------------------------------------------------
+# mypy — strict, sans échappatoire silencieuse
+# --------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_unreachable = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_any_explicit = false
+no_implicit_reexport = true
+show_error_codes = true
+files = ["webradio", "tests"]
+
+# --------------------------------------------------------------------------
+# pytest et couverture
+# --------------------------------------------------------------------------
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config"
+
+[tool.coverage.run]
+source = ["webradio"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

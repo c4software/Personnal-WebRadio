@@ -79,7 +79,7 @@ La documentation structurante et les commandes de pilotage sont posées.
 faire, et la commande de vérification n'a donc jamais été exécutée avec succès —
 elle n'a rien à vérifier.
 
-**Prochaine tâche** : `GOAL-001-T03` — outillage qualité.
+**Prochaine tâche** : `GOAL-001-T04` — prouver la chaîne de vérification.
 
 Sur quinze décisions, **treize sont tranchées**. La n°9 est une conséquence
 consignée, non une question ; la n°12 est délibérément différée jusqu'à la
@@ -115,7 +115,7 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 
 - [x] `GOAL-001-T01` Constater l'existant et arrêter la stack (Python, version, gestionnaire de dépendances)
 - [x] `GOAL-001-T02` Squelette exécutable : `pyproject.toml`, `webradio/{core,adapters,app}/`, `tests/`, un point d'entrée qui démarre et s'arrête proprement
-- [ ] `GOAL-001-T03` Outillage qualité : `ruff` (format + analyse), `mypy` strict, `pytest` + `pytest-cov` à 80 %
+- [x] `GOAL-001-T03` Outillage qualité : `ruff` (format + analyse), `mypy` strict, `pytest` + `pytest-cov` à 80 %
 - [ ] `GOAL-001-T04` **Prouver la chaîne de vérification** : écrire un test qui échoue, une violation de style et une erreur de type ; constater que la commande sort en erreur sur chacune ; puis les corriger et constater qu'elle passe
 - [x] `GOAL-001-T05` Rédiger `SPECS.md`
 - [x] `GOAL-001-T06` Rédiger `ARCHITECTURE.md`
@@ -138,6 +138,7 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 | Python 3.11+ | `tomllib` dans la bibliothèque standard, et l'écosystème audio le plus fourni. Le flux temps réel partagé demandera du soin (ARCHITECTURE.md §4.1). **Constaté sur cette machine : 3.14.7** |
 | `venv` + `pip` de la bibliothèque standard | `uv` était le premier choix, mais il n'est présent que comme **shim mise sans version fixée** : s'en servir aurait exigé de modifier la configuration mise **globale** de la machine. Le Harness ne touche pas à ce qui déborde du dépôt. `venv` + `pip` ne demandent rien et suffisent |
 | `ruff` + `mypy` strict + `pytest --cov-fail-under=80` | Une seule commande, qui échoue bruyamment, tenant dans une règle de permission |
+| La commande de vérification devient **`./verifier.sh`** | Une forme unique et stable, donc une seule règle de permission. Et surtout, elle porte les **contrôles textuels des interdits d'AGENTS.md §2** que ruff ne sait pas exprimer — ce qui lève `GOAL-001-T13` |
 | Horloge et hasard injectés, chacun dans un module unique | Une radio *est* une grille horaire et un tirage : les lire n'importe où rendrait la moitié du produit intestable (ARCHITECTURE.md §3.1) |
 | Aucune persistance | « Ce qui est passé est perdu » (SPECS.md §2). Pas de base, pas de cache, pas d'historique |
 | Tout le projet en français | Choix de l'auteur à l'initialisation : code, docstrings, documentation et commits |
@@ -171,12 +172,13 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 - [ ] `GOAL-001-T12` **La commande de vérification n'a jamais été exécutée.**
       Le Harness a été livré avant le code qu'il doit vérifier — c'est l'ordre
       voulu, mais cela signifie que rien n'a encore prouvé que
-      `ruff format --check . && ruff check . && mypy . && pytest --cov --cov-fail-under=80`
+      `./verifier.sh`
       fonctionne sur cette machine. Levée par `T04` puis `T11`.
-- [ ] `GOAL-001-T13` **Les interdits d'AGENTS.md §2 n'ont aucun contrôle
-      exécutable.** `/verify` §5 les décrit en `grep`, mais aucun script ne les
-      lance. Tant que le code n'existe pas, ils ne coûtent rien ; dès `GOAL-003`,
-      ils doivent être vérifiés à chaque passage.
+- [x] `GOAL-001-T13` ~~Les interdits d'AGENTS.md §2 n'ont aucun contrôle
+      exécutable.~~ **Levée par `GOAL-001-T03`** : `verifier.sh` les exécute à
+      chaque appel — entrée-sortie dans le noyau, horloge, hasard, Flask hors de
+      `adapters/web/`, `TODO` sans tâche. `print()`, `except` nu et argument
+      ignoré sont attrapés par ruff.
 - [ ] `GOAL-001-T14` **Neuf décisions restent ouvertes** dans SPECS.md §7 — deux
       ont été tranchées le 2026-08-30 (n°1 et n°6), deux ont été ouvertes le même
       jour (n°10 et n°11). Trois bloquent un Goal précis :

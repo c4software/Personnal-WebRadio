@@ -21,7 +21,8 @@ def version() -> str:
     Lue depuis les métadonnées d'installation plutôt que recopiée ici : deux
     endroits qui portent le même numéro finissent toujours par diverger.
     """
-    from importlib.metadata import PackageNotFoundError, version as _version
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as _version
 
     try:
         return _version("local-webradio")

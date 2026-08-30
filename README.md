@@ -67,7 +67,7 @@ Commandes de pilotage : `/status`, `/goal <objectif>`, `/task [ID]`, `/verify`.
 Vérification avant tout commit :
 
 ```bash
-ruff format --check . && ruff check . && mypy . && pytest --cov --cov-fail-under=80
+./verifier.sh
 ```
 
 ## Licence
