@@ -264,7 +264,7 @@ Le découpage sépare les deux, pour que ce qui peut avancer avance.
 
 ### Ce qui dépend du réseau
 
-- [ ] `GOAL-002-T07` France Info : trouver la source du flash, son format, sa durée, sa fraîcheur
+- [x] `GOAL-002-T07` France Info : trouver la source du flash, son format, sa durée, sa fraîcheur
 
 ### Ce qui dépend de l'auteur
 
