@@ -82,4 +82,7 @@ exclude_lines = [
     "pragma: no cover",
     "if __name__ == .__main__.:",
     "if TYPE_CHECKING:",
+    # Le corps d'une méthode de Protocol est une déclaration, pas du code :
+    # il n'y a rien à exécuter, donc rien à couvrir.
+    "^\\s*\\.\\.\\.$",
 ]
