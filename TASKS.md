@@ -85,7 +85,7 @@ La documentation structurante et les commandes de pilotage sont posées.
 faire, et la commande de vérification n'a donc jamais été exécutée avec succès —
 elle n'a rien à vérifier.
 
-**Prochaine tâche** : `GOAL-002-T01` — ffmpeg, copie sans réencodage.
+**Prochaine tâche** : `GOAL-003-T01` — l'horloge injectée.
 
 Sur quinze décisions, **treize sont tranchées**. La n°9 est une conséquence
 consignée, non une question ; la n°12 est délibérément différée jusqu'à la
@@ -99,8 +99,8 @@ Goals sont découpables.
 | Goal | Titre | État |
 |---|---|---|
 | GOAL-001 | Harness et initialisation | `[x]` |
-| GOAL-002 | Relever les cinq dépendances externes | `[-]` |
-| GOAL-003 | Le noyau : horloge, hasard, file de lecture | `[ ]` |
+| GOAL-002 | Relever les cinq dépendances externes | `[-]` 8/10, deux bloqués |
+| GOAL-003 | Le noyau : horloge, hasard, file de lecture | `[-]` |
 | GOAL-004 | Le flux : ffmpeg, fan-out, démarrage à la demande | `[ ]` |
 | GOAL-005 | La grille horaire et les moments thématiques | `[ ]` |
 | GOAL-006 | Jingles horaires et flashs France Info | `[ ]` |
@@ -313,15 +313,27 @@ Le découpage sépare les deux, pour que ce qui peut avancer avance.
 
 ## GOAL-003 — Le noyau : horloge, hasard, file de lecture
 
-**État : TODO** — non découpé.
+**État : EN COURS**
 
-`core/clock.py`, `core/rng.py`, la file de lecture et la règle de
-non-répétition. Aucune E/S : c'est ici que se vérifie l'interdit central
-d'AGENTS.md §2.
+`core/clock.py`, `core/rng.py`, les modèles, la frontière des sources, la règle
+de non-répétition et la file. **Aucune E/S** : c'est ici que se vérifie
+l'interdit central d'AGENTS.md §2, et c'est pour cela que ce Goal peut être
+écrit alors que `GOAL-002-T08` est bloqué — le noyau ne connaît qu'un `Protocol`,
+jamais Navidrome.
 
-**Débloqué** : SPECS.md §7 n°3 est tranchée — `non_repetition_artistes` artistes
-distincts, 5 par défaut, et une fenêtre qui **rétrécit** plutôt que de bloquer le
-tirage. Ce rétrécissement est un comportement à part entière, avec ses tests.
+- [ ] `GOAL-003-T01` `core/clock.py` — l'horloge injectée, et une horloge de test qui avance à volonté
+- [ ] `GOAL-003-T02` `core/rng.py` — le hasard injecté, graine fixable, une émission qui se rejoue
+- [ ] `GOAL-003-T03` Les modèles : `Piste`, `Artiste`, `Genre`
+- [ ] `GOAL-003-T04` `SourceMusicale` — le `Protocol`, et un `FakeSource` versionné
+- [ ] `GOAL-003-T05` La fenêtre de non-répétition : N artistes distincts
+- [ ] `GOAL-003-T06` Le rétrécissement de la fenêtre quand elle ne laisse aucun artiste
+- [ ] `GOAL-003-T07` La file : tirer le morceau suivant, et prendre de l'avance
+- [ ] `GOAL-003-T08` Mettre à jour la carte du dépôt (ARCHITECTURE.md §9)
+
+**Ce que `GOAL-002` impose à ce Goal** : la file doit **prendre de l'avance** —
+résoudre le morceau suivant pendant que le courant joue, jamais à la jonction.
+Un tuyau qui se tarit ne fait pas un blanc dans l'audio, il fait un trou dans le
+temps réel ([docs/ffmpeg.md](./docs/ffmpeg.md) §2.2).
 
 ---
 
