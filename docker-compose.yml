@@ -11,6 +11,11 @@
 services:
   radio:
     build: .
+    # La CI publie cette même image à chaque poussée sur master
+    # (.github/workflows/ci.yml) : pour la tirer au lieu de la construire,
+    # remplacer `build:` + `image:` par
+    #   image: ghcr.io/c4software/personnal-webradio:latest
+    # (dépôt privé : `docker login ghcr.io` avec un token au préalable).
     image: local-webradio:dev
     container_name: local-webradio
     restart: unless-stopped

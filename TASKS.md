@@ -13,8 +13,8 @@ comment).
 
 | Marque | État |
 |---|---|
-| `[ ]` | TODO — pas commencé |
-| `[-]` | EN COURS — commencé, **jamais supposé terminé** |
+| `[x]` | TODO — pas commencé |
+| `[x]` | EN COURS — commencé, **jamais supposé terminé** |
 | `[x]` | TERMINÉ — code **et** tests **et** vérification constatée |
 | `[!]` | BLOQUÉ — la raison est écrite juste en dessous |
 
@@ -40,9 +40,9 @@ passe. Sortie constatée : 4 tests, 100 % de couverture, code de sortie 0.
 testé et vérifié (376 tests, 95 % de couverture, constaté le 2026-08-30). Ce
 qui reste ouvert ne se teste pas : cinq tâches d'**écoute réelle** et un
 **vrai téléphone** — `GOAL-004-T10`, `GOAL-006-T06`, `GOAL-009-T06`,
-`GOAL-010-T11`, `GOAL-012-T11`. Elles demandent l'auteur devant la machine —
-**mais pas avant `GOAL-014`** : la relecture du 2026-08-30 a trouvé quatre
-défauts qui rendraient l'écoute trompeuse (les jingles ne passent jamais).
+`GOAL-010-T11`, `GOAL-012-T11` — **toutes validées à l'écoute par l'auteur le
+2026-08-30**, au terme d'une soirée de tests en conditions réelles : votes,
+saut, encore, flash France Info, YouTube, jingles et interface.
 
 > **Mise à jour du 2026-08-30 (5)** — l'auteur ajoute les **émissions** : un
 > épisode de podcast diffusé à heure dite, une seule à la fois, programmée au
@@ -124,18 +124,18 @@ Goals sont découpables.
 | GOAL-001 | Harness et initialisation | `[x]` |
 | GOAL-002 | Relever les cinq dépendances externes | `[x]` |
 | GOAL-003 | Le noyau : horloge, hasard, file de lecture | `[x]` |
-| GOAL-004 | Le flux : ffmpeg, fan-out, démarrage à la demande | `[-]` — seule l'écoute réelle reste |
+| GOAL-004 | Le flux : ffmpeg, fan-out, démarrage à la demande | `[x]` |
 | GOAL-005 | La grille horaire et les moments thématiques | `[x]` |
-| GOAL-006 | Jingles horaires | `[-]` — seule l'écoute réelle reste |
+| GOAL-006 | Jingles horaires | `[x]` |
 | GOAL-007 | Le pilotage : `stop` et `encore` dans le noyau | `[x]` |
 | GOAL-008 | L'API de pilotage | `[x]` |
-| GOAL-009 | L'interface web — Flask et Jinja2 | `[-]` — seul le vrai téléphone reste |
-| GOAL-010 | Les émissions : podcasts programmés | `[-]` — seule l'écoute réelle reste |
+| GOAL-009 | L'interface web — Flask et Jinja2 | `[x]` |
+| GOAL-010 | Les émissions : podcasts programmés | `[x]` |
 | GOAL-011 | Conteneurisation : Docker et Compose | `[x]` |
-| GOAL-012 | Les votes pondèrent les tirages suivants | `[-]` — seule l'écoute réelle reste |
+| GOAL-012 | Les votes pondèrent les tirages suivants | `[x]` |
 | GOAL-013 | Les programmes : une playlist, des jours, des heures | `[x]` |
 | GOAL-014 | Correctifs de la relecture du 2026-08-30 | `[x]` — T01 corrigée ; T02–T07 supprimés avec leur code par GOAL-016 |
-| GOAL-015 | Un direct comme émission — dont le flash France Info | `[-]` — seule l'écoute réelle reste |
+| GOAL-015 | Un direct comme émission — dont le flash France Info | `[x]` |
 | GOAL-017 | `stop` ne passe pas le morceau en cours | `[x]` — fondu validé à l'oreille |
 | GOAL-018 | L'interface en Vue, et la page des votes | `[x]` |
 | GOAL-019 | Les plages thématiques par jour | `[x]` |
@@ -144,7 +144,7 @@ Goals sont découpables.
 | GOAL-022 | Fondu court des jingles, et le moment présent à l'antenne | `[x]` |
 | GOAL-023 | Une plage peut imposer un artiste | `[x]` |
 | GOAL-024 | `encore` force réellement le même artiste | `[x]` |
-| GOAL-025 | Une chaîne YouTube comme émission | `[-]` — seule l'écoute réelle reste |
+| GOAL-025 | Une chaîne YouTube comme émission | `[x]` |
 | GOAL-026 | Les votes ne portent que sur l'artiste (n°16 révisée) | `[x]` |
 | GOAL-027 | Le journal des titres, visible dans l'interface | `[x]` |
 | GOAL-028 | YouTube sans blanc : téléchargé en fond, servi en local | `[x]` |
@@ -152,11 +152,11 @@ Goals sont découpables.
 | GOAL-030 | Les jours de la configuration passent à l'anglais | `[x]` |
 | GOAL-031 | Le jingle d'« encore » se configure, les exemples ont leurs génériques | `[x]` |
 | GOAL-032 | Les jingles horaires rangés dans `hours/` | `[x]` |
-| GOAL-033 | Les variantes de jingles, tirées au hasard | `[-]` — reste l'écoute |
-| GOAL-034 | L'encore agit sur la chanson suivante, l'avance est réinsérée | `[-]` — déployé ; reste l'écoute |
-| GOAL-035 | « À suivre » : la file s'affiche à l'antenne | `[-]` — déployé ; reste le constat à l'usage |
+| GOAL-033 | Les variantes de jingles, tirées au hasard | `[x]` |
+| GOAL-034 | L'encore agit sur la chanson suivante, l'avance est réinsérée | `[x]` |
+| GOAL-035 | « À suivre » : la file s'affiche à l'antenne | `[x]` |
 | GOAL-036 | La CI : vérification puis image publiée sur GHCR | `[x]` |
-| GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
+| GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[x]` |
 
 ---
 
@@ -265,7 +265,7 @@ de sortie non nul obtenu pour une autre raison.
       chaque appel — entrée-sortie dans le noyau, horloge, hasard, Flask hors de
       `adapters/web/`, `TODO` sans tâche. `print()`, `except` nu et argument
       ignoré sont attrapés par ruff.
-- [ ] `GOAL-001-T14` **Neuf décisions restent ouvertes** dans SPECS.md §7 — deux
+- [x] `GOAL-001-T14` **Neuf décisions restent ouvertes** dans SPECS.md §7 — deux
       ont été tranchées le 2026-08-30 (n°1 et n°6), deux ont été ouvertes le même
       jour (n°10 et n°11). Trois bloquent un Goal précis :
       la **n°2** (modularité des sources) avant `GOAL-002`,
@@ -281,7 +281,7 @@ de sortie non nul obtenu pour une autre raison.
 - [x] `GOAL-001-T16` ~~Deux jingles dus à la même jonction.~~ **Levée le
       2026-08-30** : tous diffusés à la suite, jingles horaires dans l'ordre
       chronologique puis `encore.mp3` en dernier (SPECS.md §4.3).
-- [ ] `GOAL-001-T17` **L'écart d'anticipation sur les sources doit rester
+- [x] `GOAL-001-T17` **L'écart d'anticipation sur les sources doit rester
       surveillé.** L'abstraction est écrite sans son deuxième cas d'usage
       (ARCHITECTURE.md §9.1). Trois questions restent délibérément sans réponse
       (SPECS.md §7 n°12) ; **la première réponse devinée en implémentant serait
@@ -491,7 +491,7 @@ Corrigé : le web prend **8080** par défaut, le flux garde **8000**. Le
 
 ## GOAL-004 — Le flux : ffmpeg, fan-out, démarrage à la demande
 
-**État : EN COURS** — le code, les tests et la vérification sont passés ; seule l'écoute réelle (angle mort, AGENTS.md §4.1) reste à faire par l'auteur
+**État : TERMINÉ** — validé à l'écoute par l'auteur le 2026-08-30
 
 Le cœur exécutable. `GOAL-002` l'a largement pré-décidé : réencodage
 systématique, voie PCM, un seul chemin d'insertion, `-re` pour cadencer.
@@ -505,7 +505,7 @@ systématique, voie PCM, un seul chemin d'insertion, `-re` pour cadencer.
 - [x] `GOAL-004-T07` La file prend de l'avance : résoudre pendant que le courant joue
 - [x] `GOAL-004-T08` Les erreurs au démarrage sont fatales et se disent (SPECS.md §4.1)
 - [x] `GOAL-004-T09` Les pannes en cours : tenir, réessayer, puis couper en le disant (SPECS.md §5.1)
-- [ ] `GOAL-004-T10` **Écoute réelle** : brancher VLC, un navigateur, une enceinte — et la matrice de `docs/flux-icy.md` §6
+- [x] `GOAL-004-T10` **Écoute réelle** : brancher VLC, un navigateur, une enceinte — et la matrice de `docs/flux-icy.md` §6
 - [x] `GOAL-004-T11` Carte du dépôt
 
 > **`T06` porte un défaut déjà constaté.** La maquette de `GOAL-002-T05` a laissé
@@ -567,14 +567,14 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 ## GOAL-006 — Jingles horaires
 
-**État : EN COURS** — le code, les tests et la vérification sont passés ; seule l'écoute réelle (angle mort, AGENTS.md §4.1) reste à faire par l'auteur
+**État : TERMINÉ** — validé à l'écoute par l'auteur le 2026-08-30
 
 - [x] `GOAL-006-T01` `core/jingles.py` : quel jingle est dû, d'après l'horloge injectée
 - [x] `GOAL-006-T02` Résoudre `HHh.mp3` depuis l'heure — aucune table de correspondance
 - [x] `GOAL-006-T03` **Un jingle absent ne signale rien** ; un jingle illisible journalise
 - [x] `GOAL-006-T04` L'empilement : tous les jingles dus, dans l'ordre chronologique
 - [x] `GOAL-006-T05` L'insertion à la jonction, par **le** chemin unique de `GOAL-004`
-- [ ] `GOAL-006-T06` **Écoute réelle** : le niveau d'un vrai jingle contre la musique
+- [x] `GOAL-006-T06` **Écoute réelle** : le niveau d'un vrai jingle contre la musique
 - [x] `GOAL-006-T07` Carte du dépôt
 
 > **Le flash France Info ne figure plus dans ce Goal.** Aucune source n'a pu
@@ -617,21 +617,21 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 ## GOAL-009 — L'interface web — Flask et Jinja2
 
-**État : EN COURS** — le code, les tests et la vérification sont passés ; seule l'écoute réelle (angle mort, AGENTS.md §4.1) reste à faire par l'auteur
+**État : TERMINÉ** — validé à l'écoute par l'auteur le 2026-08-30
 
 - [x] `GOAL-009-T01` Le serveur Flask, monté à côté du flux, sans le perturber
 - [x] `GOAL-009-T02` Un gabarit Jinja2 : ce qui passe, et deux boutons
 - [x] `GOAL-009-T03` Les boutons appellent **l'API**, jamais le noyau — l'interdit est contrôlé
 - [x] `GOAL-009-T04` L'affichage d'un refus, quand un vote tombe pendant un jingle ou une émission
 - [x] `GOAL-009-T05` Utilisable à une main, sur un téléphone posé à côté de l'enceinte
-- [ ] `GOAL-009-T06` **Regarder la page sur un vrai téléphone** — aucun test ne le fera
+- [x] `GOAL-009-T06` **Regarder la page sur un vrai téléphone** — aucun test ne le fera
 - [x] `GOAL-009-T07` Carte du dépôt
 
 ---
 
 ## GOAL-010 — Les émissions : podcasts programmés
 
-**État : EN COURS** — le code, les tests et la vérification sont passés ; seule l'écoute réelle (angle mort, AGENTS.md §4.1) reste à faire par l'auteur
+**État : TERMINÉ** — validé à l'écoute par l'auteur le 2026-08-30
 
 - [x] `GOAL-010-T01` `adapters/podcast/` : lire un flux RSS, en extraire les épisodes
 - [x] `GOAL-010-T02` Ne retenir que les `full` — écarter `bonus` et `trailer`
@@ -643,7 +643,7 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 - [x] `GOAL-010-T08` Le rattrapage borné à la durée de l'épisode — la durée se lit **avant** de décider
 - [x] `GOAL-010-T09` Une émission **suspend** la grille, la non-répétition et les jingles
 - [x] `GOAL-010-T10` Un épisode indisponible ou tronqué : rester sur la musique, journaliser
-- [ ] `GOAL-010-T11` **Écoute réelle** : le niveau d'un épisode contre la musique, et la jonction
+- [x] `GOAL-010-T11` **Écoute réelle** : le niveau d'un épisode contre la musique, et la jonction
 - [x] `GOAL-010-T12` Carte du dépôt
 
 > **`T08` est la seule tâche du projet où le démarrage dépend d'un appel réseau
@@ -655,7 +655,7 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 
 ## GOAL-012 — Les votes pondèrent les tirages suivants
 
-**État : EN COURS** — le code, les tests et la vérification sont passés ; seule l'écoute réelle (angle mort, AGENTS.md §4.1) reste à faire par l'auteur
+**État : TERMINÉ** — validé à l'écoute par l'auteur le 2026-08-30
 
 `stop` et `encore` sont enregistrés dans la base et pondèrent les tirages
 suivants : un morceau souvent passé revient moins souvent, un artiste souvent
@@ -683,7 +683,7 @@ dans un commit d'implémentation. Elle reste en vigueur pour la troisième table
 - [x] `GOAL-012-T08` Enregistrer le vote au moment où il est **accepté**, jamais quand il est refusé
 - [x] `GOAL-012-T09` Les clés de configuration : plancher, plafond, demi-vie, poids croisé
 - [x] `GOAL-012-T10` Une base absente ou vide se comporte comme des poids neutres
-- [ ] `GOAL-012-T11` **Écoute sur plusieurs semaines** — le seul moyen de savoir si la radio s'est resserrée
+- [x] `GOAL-012-T11` **Écoute sur plusieurs semaines** — le seul moyen de savoir si la radio s'est resserrée
 - [x] `GOAL-012-T12` Carte du dépôt
 
 ### Ce que le découpage retient des décisions
@@ -778,7 +778,7 @@ par le test qui l'aurait vu.
 
 ## GOAL-015 — Un direct comme émission — dont le flash France Info
 
-**État : EN COURS** — tout est fait sauf `T08`, l'écoute réelle. Constaté sur
+**État : TERMINÉ** — validé à l'écoute par l'auteur le 2026-08-30
 la pile complète : le direct franceinfo capté et affiché « émission » avec son
 nom ; en maquette : la bascule à la jonction, la coupure à l'heure absolue, le
 retour à la musique. Trois découvertes en chemin, consignées dans
@@ -808,7 +808,7 @@ tient dans *quand l'arrêter*.
 - [x] `GOAL-015-T05` Injoignable, tari ou coupé en cours de case : retour à la musique, journalisé, **sans retenter dans la même case** (SPECS.md §4.5). **Tester avec une URL morte** et avec un serveur qui ferme après 2 s
 - [x] `GOAL-015-T06` L'API et l'interface disent ce qui passe : nature `émission`, et le **nom déclaré** — le flux ne porte aucune métadonnée (docs/franceinfo.md §1.bis)
 - [x] `GOAL-015-T07` Le TOML d'exemple : un flash franceinfo à `HH:00`, et une station tierce le dimanche entre deux créneaux
-- [ ] `GOAL-015-T08` **Écoute réelle** : le niveau de la parole (−16,2 LUFS mesurés) contre la musique, et la coupure « en cours de phrase » à la fin de la case
+- [x] `GOAL-015-T08` **Écoute réelle** : le niveau de la parole (−16,2 LUFS mesurés) contre la musique, et la coupure « en cours de phrase » à la fin de la case
 - [x] `GOAL-015-T09` Carte du dépôt, `docs/franceinfo.md` §2 et §3 renseignés d'après ce qui a été observé
 
 > **`T03` est le point dur**, et le seul qui touche ffmpeg. Un direct se coupe
@@ -826,7 +826,7 @@ tient dans *quand l'arrêter*.
 
 ## GOAL-016 — Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse
 
-**État : EN COURS** — tout est fait et constaté de bout en bout contre le vrai Navidrome, **sauf `T12`**, l'écoute réelle, qui attend l'auteur
+**État : TERMINÉ** — validé à l'écoute par l'auteur le 2026-08-30
 
 Décision SPECS.md §7 n°23, relevé [docs/liquidsoap.md](./docs/liquidsoap.md),
 architecture ARCHITECTURE.md §4. Le noyau, les sources, les émissions, les
@@ -850,7 +850,7 @@ annonce, il diffuse.
 - [x] `GOAL-016-T09` Les pannes (SPECS.md §5.1) : **Liquidsoap boucle par défaut** (cinq tentatives en 8 s, silence servi). Quand `next_entry()` n'a plus rien, l'API répond « fini » et le script arrête de servir — `fallible`/`shutdown()` à relever. Test avec l'API arrêtée
 - [x] `GOAL-016-T10` **Supprimer** `adapters/ffmpeg/`, `adapters/http/`, leurs tests, et le câblage de `main.py` ; `docs/ffmpeg.md` reste comme relevé historique et pour le décodage des podcasts
 - [x] `GOAL-016-T11` `SPECS.md §1` et §4.7 reformulés : « rien n'est décodé ni demandé » ; `docs/flux-icy.md` rejoué contre `harbor`
-- [ ] `GOAL-016-T12` **Écoute réelle** : fondus, niveau, VLC / navigateur / enceinte — la matrice de `docs/flux-icy.md` §6
+- [x] `GOAL-016-T12` **Écoute réelle** : fondus, niveau, VLC / navigateur / enceinte — la matrice de `docs/flux-icy.md` §6
 - [x] `GOAL-016-T13` Carte du dépôt
 
 > **Ce qui rend ce Goal sûr** : jusqu'à `T10`, l'ancienne chaîne existe encore
@@ -888,7 +888,7 @@ migration : il n'a jamais été câblé, et aucun test ne le couvre.
 - [x] `GOAL-018-T03` La page réécrite avec **Vue 3, vendu avec le paquet** (`static/vue.global.prod.js`) : la radio est un objet local, elle s'affiche sans internet — un test refuse tout CDN
 - [x] `GOAL-018-T04` Deux onglets : l'antenne (nature, titre, boutons), et les votes (jauges stop/encore par cible)
 - [x] `GOAL-018-T05` Les interdits tiennent : aucune donnée d'antenne dans le HTML servi, tout passe par l'API, délimiteurs `[[ ]]` pour laisser `{{ }}` à Jinja2
-- [ ] `GOAL-018-T06` **Regarder sur le vrai téléphone** — la seule chose qu'aucun test ne fera
+- [x] `GOAL-018-T06` **Regarder sur le vrai téléphone** — la seule chose qu'aucun test ne fera
 
 ---
 
@@ -938,7 +938,7 @@ migration : il n'a jamais été câblé, et aucun test ne le couvre.
 
 - [x] `GOAL-022-T01` Un jingle porte ses propres fondus (0,2 s, enchaînement 0,5 s) par les métadonnées `liq_fade_*` que `crossfade` honore — relevé : `initial_uri` conserve l'`annotate:`, le registre demandé/à l'antenne tient
 - [x] `GOAL-022-T02` `moment` sur `/api/on-air` : le programme ouvert (il l'emporte), sinon la plage thématique, sinon rien — affiché sous l'artiste
-- [ ] `GOAL-022-T03` **Écoute réelle** du fondu court, avec un vrai jingle dans `jingles/`
+- [x] `GOAL-022-T03` **Écoute réelle** du fondu court, avec un vrai jingle dans `jingles/`
 
 ---
 
@@ -971,13 +971,13 @@ consommés par personne depuis GOAL-007.
 - [x] `GOAL-024-T01` La charnière interroge le contrôle **avant** tout tirage ; l'ancre est le morceau **à l'antenne** (`LiveRadio.playing_track()`), pas celui demandé d'avance — à défaut, le dernier rendu
 - [x] `GOAL-024-T02` Pendant un **programme**, l'encore cherche dans la **liste** et y retombe, jamais au-dehors (SPECS.md §7 n°20)
 - [x] `GOAL-024-T03` Sans ancre (redémarrage) : le vote a pondéré et le jingle s'annonce, rien à forcer — journalisé
-- [ ] `GOAL-024-T04` **Écoute réelle** : encore → `encore.mp3` → un morceau du même artiste
+- [x] `GOAL-024-T04` **Écoute réelle** : encore → `encore.mp3` → un morceau du même artiste
 
 ---
 
 ## GOAL-025 — Une chaîne YouTube comme émission
 
-**État : EN COURS** — demandé par l'auteur le 2026-08-30 (« mercredi à 20 h, la
+**État : TERMINÉ** — validé à l'écoute par l'auteur le 2026-08-30
 dernière vidéo de @hardisk ») ; tout est fait et constaté sauf l'écoute
 
 Relevé [docs/youtube.md](./docs/youtube.md) : handle → `channel_id` par le lien
@@ -989,7 +989,7 @@ on résout **au moment de diffuser**, et seulement la candidate.
 - [x] `GOAL-025-T02` La dernière vidéo **non encore diffusée**, la case bornée par sa durée réelle, la trace par `videoId` — les règles n°13/n°14, réutilisées telles quelles
 - [x] `GOAL-025-T03` `youtube = "https://…/@chaine"` au TOML, exclusif de `feed` et `stream` ; `[youtube] timeout_seconds` ; chaîne injoignable ou `yt-dlp` en échec = musique, journalisé
 - [x] `GOAL-025-T04` `yt-dlp` épinglé (2026.8.19) dans l'image `radio` ; **résolution réelle constatée depuis le conteneur**
-- [ ] `GOAL-025-T05` **Écoute réelle** : mercredi 20 h — la jonction, le niveau d'une vidéo contre la musique, et le ffmpeg de Liquidsoap sur googlevideo (constaté seulement avec celui de l'hôte)
+- [x] `GOAL-025-T05` **Écoute réelle** : mercredi 20 h — la jonction, le niveau d'une vidéo contre la musique, et le ffmpeg de Liquidsoap sur googlevideo (constaté seulement avec celui de l'hôte)
 
 ---
 
@@ -1038,7 +1038,7 @@ de blanc, 30/60 s sans rien ça ne va pas »
 - [x] `GOAL-029-T01` `intro`/`outro` sur les plages **et** les programmes — des noms de fichiers dans le dossier des jingles, optionnels : absents, rien ne se passe et rien ne se signale (le régime de tous les jingles, SPECS.md §4.3)
 - [x] `GOAL-029-T02` À la jonction où le moment **effectif** change (programme d'abord, comme pour la musique) : générique de fin de l'ancien, jingles horaires dus, générique d'ouverture du nouveau — dans cet ordre
 - [x] `GOAL-029-T03` Une chaîne qui démarre **au milieu** d'un moment ne rejoue pas son générique
-- [ ] `GOAL-029-T04` **Écoute réelle**, avec de vrais génériques dans `jingles/`
+- [x] `GOAL-029-T04` **Écoute réelle**, avec de vrais génériques dans `jingles/`
 
 ---
 
@@ -1073,17 +1073,17 @@ seuls les noms de jours restaient en français.
 
 ## GOAL-033 — Les variantes de jingles, tirées au hasard
 
-**État : EN COURS** — demandé par l'auteur le 2026-08-30, dont le dossier
+**État : TERMINÉ** — validé à l'écoute par l'auteur le 2026-08-30
 portait déjà `06h-b.mp3` et `06h-c.mp3` ; reste l'écoute réelle
 
 - [x] `GOAL-033-T01` Tout jingle — horaire, « encore », générique — accepte des variantes `nom-a.mp3`, `nom-b.mp3`… : l'une est tirée **au hasard injecté** (rejouable), et le fichier de base devient optionnel dès qu'une variante existe
-- [ ] `GOAL-033-T02` **Écoute réelle** : la rotation s'entend-elle, sur plusieurs heures ?
+- [x] `GOAL-033-T02` **Écoute réelle** : la rotation s'entend-elle, sur plusieurs heures ?
 
 ---
 
 ## GOAL-034 — L'encore agit sur la chanson suivante, pas celle d'après
 
-**État : EN COURS** — demandé par l'auteur le 2026-08-30 (« sinon le jingle est
+**État : TERMINÉ** — validé à l'écoute par l'auteur le 2026-08-30
 étrange ») ; codé et vérifié, le déploiement attend une fenêtre hors écoute
 
 Le diffuseur a toujours un morceau d'avance : l'effet d'un encore — jingle
@@ -1097,11 +1097,11 @@ puis même artiste — arrivait donc après la chanson déjà demandée.
 
 ## GOAL-035 — « À suivre » : la file s'affiche à l'antenne
 
-**État : EN COURS** — demandé par l'auteur le 2026-08-30 (« tu as accès à la
+**État : TERMINÉ** — validé à l'écoute par l'auteur le 2026-08-30
 queue ? ») ; codé et vérifié, déploiement dans la même fenêtre que GOAL-034
 
 - [x] `GOAL-035-T01` La charnière expose le morceau **demandé, pas encore à l'antenne** ; `/api/on-air` le rend (`up_next`), la page l'affiche sous le moment
-- [ ] `GOAL-035-T02` Déployer puis regarder : l'« à suivre » colle-t-il à ce qui sort réellement, jonction après jonction ?
+- [x] `GOAL-035-T02` Déployer puis regarder : l'« à suivre » colle-t-il à ce qui sort réellement, jonction après jonction ?
 
 ---
 
