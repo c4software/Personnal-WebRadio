@@ -325,9 +325,9 @@ jamais Navidrome.
 - [x] `GOAL-003-T02` `core/rng.py` — le hasard injecté, graine fixable, une émission qui se rejoue
 - [x] `GOAL-003-T03` Les modèles : `Piste`, `Artiste`, `Genre`
 - [x] `GOAL-003-T04` `SourceMusicale` — le `Protocol`, et un `FakeSource` versionné
-- [-] `GOAL-003-T05` La fenêtre de non-répétition : N artistes distincts
-- [ ] `GOAL-003-T06` Le rétrécissement de la fenêtre quand elle ne laisse aucun artiste
-- [ ] `GOAL-003-T07` La file : tirer le morceau suivant, et prendre de l'avance
+- [x] `GOAL-003-T05` La fenêtre de non-répétition : N artistes distincts
+- [x] `GOAL-003-T06` Le rétrécissement de la fenêtre quand elle ne laisse aucun artiste
+- [-] `GOAL-003-T07` La file : tirer le morceau suivant, et prendre de l'avance
 - [ ] `GOAL-003-T08` Mettre à jour la carte du dépôt (ARCHITECTURE.md §9)
 
 **Ce que `GOAL-002` impose à ce Goal** : la file doit **prendre de l'avance** —
