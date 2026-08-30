@@ -72,7 +72,10 @@ l'auteur). Depuis GOAL-028 :
   résolution est alors instantanée, l'émission part à la jonction suivante,
   sans blanc ;
 - le cache (`<dossier de l'état>/cache`, partagé en lecture seule avec le
-  diffuseur) ne garde que la vidéo en route, et **la vidéo lue s'efface dès
-  que la suite commence** — le moment sûr, le diffuseur a fini de la lire ;
+  diffuseur) nomme le fichier **d'un nom stable par émission**
+  (`hardisk.m4a` + témoin `hardisk.id`) : le téléchargement suivant écrase,
+  un fichier mal supprimé ne s'accumule jamais, et le témoin garantit qu'un
+  reste d'une autre semaine n'est jamais diffusé à la place de la candidate ;
+  **la vidéo lue s'efface dès que la suite commence** — le moment sûr ;
 - un téléchargement qui finit après la fin de case a manqué son heure : la
   case borne tout, comme partout.

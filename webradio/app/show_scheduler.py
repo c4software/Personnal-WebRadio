@@ -13,6 +13,7 @@ savoir si l'on s'en servira.
 """
 
 import logging
+import re
 import threading
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -113,6 +114,13 @@ class Shows:
         )
         return case.show, f"live:{int(case.end.timestamp())}:{url}", None
 
+    @staticmethod
+    def _nom_de_cache(show_name: str) -> str:
+        """Un nom STABLE par émission : le prochain téléchargement écrase le
+        précédent — un fichier mal supprimé ne s'accumule jamais (demandé par
+        l'auteur, GOAL-028). Le compagnon `.id` dit quelle vidéo c'est."""
+        return re.sub(r"[^a-z0-9]+", "-", show_name.lower()).strip("-") or "emission"
+
     def _video_de(
         self, show: Show, catalogue: list[EpisodeDuFlux]
     ) -> tuple[Show, str, str | None] | None:
@@ -130,18 +138,25 @@ class Shows:
         chosen = self._choisir_l_episode(show, catalogue)
         if chosen is None:
             return None
-        fichier = self._youtube_cache / f"{chosen.guid}.m4a"
-        if fichier.is_file():
+        nom = self._nom_de_cache(show.name)
+        fichier = self._youtube_cache / f"{nom}.m4a"
+        temoin = self._youtube_cache / f"{nom}.id"
+        # Le fichier ne vaut que s'il EST la vidéo candidate : un reste d'une
+        # autre semaine sous le même nom serait diffusé à sa place sinon.
+        est_la_bonne = (
+            fichier.is_file() and temoin.is_file() and temoin.read_text().strip() == chosen.guid
+        )
+        if est_la_bonne:
             try:
                 self._etat.record_airing(show.name, chosen.guid)
             except StateUnavailable as failure:
                 logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
             titre = next((e.title for e in catalogue if e.identifier == chosen.guid), None)
             return show, str(fichier), titre
-        self._telecharger_en_fond(show.name, chosen.guid)
+        self._telecharger_en_fond(show.name, nom, chosen.guid)
         return None
 
-    def _telecharger_en_fond(self, show_name: str, video: str) -> None:
+    def _telecharger_en_fond(self, show_name: str, nom: str, video: str) -> None:
         with self._verrou_telechargements:
             if video in self._telechargements:
                 return
@@ -152,11 +167,17 @@ class Shows:
             assert self._youtube_adapter is not None and self._youtube_cache is not None
             try:
                 self._youtube_cache.mkdir(parents=True, exist_ok=True)
-                self._purger_le_cache(sauf=video)
+                cible = self._youtube_cache / f"{nom}.m4a"
+                temoin = self._youtube_cache / f"{nom}.id"
+                # Le témoin de l'ancienne vidéo tombe d'abord : à aucun moment
+                # un vieux fichier ne peut passer pour la nouvelle.
+                temoin.unlink(missing_ok=True)
+                cible.unlink(missing_ok=True)
+                (self._youtube_cache / f"{nom}.m4a.part").unlink(missing_ok=True)
                 self._youtube_adapter.download(
-                    f"https://www.youtube.com/watch?v={video}",
-                    str(self._youtube_cache / f"{video}.m4a"),
+                    f"https://www.youtube.com/watch?v={video}", str(cible)
                 )
+                temoin.write_text(video)
                 logger.info("« %s » : %s est prêt, il partira à la jonction", show_name, video)
             except YoutubeUnavailable as failure:
                 logger.warning("« %s » : téléchargement en échec — %s", show_name, failure)
@@ -165,13 +186,6 @@ class Shows:
                     self._telechargements.discard(video)
 
         threading.Thread(target=au_travail, name=f"youtube-{video}", daemon=True).start()
-
-    def _purger_le_cache(self, sauf: str) -> None:
-        """Le cache ne garde que la vidéo en route : un cache, pas une archive."""
-        assert self._youtube_cache is not None
-        for fichier in self._youtube_cache.glob("*.m4a*"):
-            if not fichier.name.startswith(sauf):
-                fichier.unlink(missing_ok=True)
 
     def _choisir_l_episode(self, show: Show, catalogue: list[EpisodeDuFlux]) -> Episode | None:
         try:

@@ -284,8 +284,10 @@ def test_sans_fichier_local_la_musique_continue_et_le_telechargement_part(
 
     assert shows.due() is None  # la musique continue
     _attendre_le_telechargement(yt)
+    # Un nom STABLE par émission : le prochain téléchargement écrase le
+    # précédent, un fichier mal supprimé ne s'accumule jamais.
     assert yt.telecharges == [
-        ("https://www.youtube.com/watch?v=v1", str(tmp_path / "cache" / "v1.m4a"))
+        ("https://www.youtube.com/watch?v=v1", str(tmp_path / "cache" / "hardisk.m4a"))
     ]
 
 
@@ -294,14 +296,30 @@ def test_le_fichier_pret_part_a_la_jonction_et_une_seule_fois(tmp_path: Path) ->
     yt = FakeYoutube([_video("v1")])
     shows = _youtube_show(tmp_path, yt, clock)
     (tmp_path / "cache").mkdir()
-    (tmp_path / "cache" / "v1.m4a").write_bytes(b"audio")
+    (tmp_path / "cache" / "hardisk.m4a").write_bytes(b"audio")
+    (tmp_path / "cache" / "hardisk.id").write_text("v1")
 
     due = shows.due()
 
     assert due is not None
     assert due[0].name == "Hardisk"
-    assert due[1] == str(tmp_path / "cache" / "v1.m4a")
+    assert due[1] == str(tmp_path / "cache" / "hardisk.m4a")
     assert shows.due() is None  # déjà diffusée : la case est sautée
+
+
+def test_un_reste_d_une_autre_video_n_est_jamais_servi(tmp_path: Path) -> None:
+    """Le nom est stable : sans le témoin `.id` assorti, le fichier est un
+    reste — on retélécharge par-dessus, on ne le diffuse pas."""
+    clock = FrozenClock(VENDREDI_20H)
+    yt = FakeYoutube([_video("v2")])
+    shows = _youtube_show(tmp_path, yt, clock)
+    (tmp_path / "cache").mkdir()
+    (tmp_path / "cache" / "hardisk.m4a").write_bytes(b"vieille video")
+    (tmp_path / "cache" / "hardisk.id").write_text("v1")
+
+    assert shows.due() is None  # jamais la vieille
+    _attendre_le_telechargement(yt)
+    assert yt.telecharges[0][0].endswith("v=v2")
 
 
 def test_une_chaine_injoignable_laisse_la_musique(tmp_path: Path) -> None:
