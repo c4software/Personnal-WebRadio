@@ -286,6 +286,60 @@ L'interface web n'est rien de plus que la mise en page de cela : ce qui passe, e
 deux boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
 d'entrée des réglages (§6) — et ne touche pas à la bibliothèque (§2).
 
+### 4.13 Les programmes
+
+Un **programme** est une plage de temps — **des jours et des heures** — pendant
+laquelle la musique est tirée au hasard dans une **liste de lecture** que
+l'auteur a constituée dans Navidrome.
+
+```toml
+[[programmes]]
+nom      = "Le vendredi de Chloé"
+playlist = "Chloé"
+jours    = ["vendredi"]
+debut    = "18:00"
+fin      = "20:00"
+```
+
+C'est la différence avec une plage thématique (§4.4) : une plage contraint le
+**genre** dans toute la bibliothèque, un programme puise dans une **sélection
+faite à la main**. « Du rock le soir » et « ma sélection du vendredi » ne sont
+pas la même intention.
+
+#### Ce qu'un programme ne change pas
+
+Un programme reste de la musique. Tout ce qui vaut ailleurs vaut ici :
+
+- la **non-répétition** s'applique, et sa fenêtre rétrécit si la liste est
+  courte (§4.2) — une liste de dix titres ne bloque pas la radio ;
+- les **jingles horaires** passent normalement ;
+- **`stop` et `encore` sont acceptés** — un programme n'est pas un habillage.
+
+#### `encore` reste dans la liste
+
+Un `encore` pendant un programme cherche l'artiste **dans la liste**, pas dans
+la bibliothèque. S'il n'a pas d'autre titre dans la liste, on retombe sur un
+tirage **dans la liste**, jamais au-dehors.
+
+> **Un programme est une intention.** Vous avez choisi ces morceaux-là, à cette
+> heure-là ; en sortir sur un `encore` trahirait ce choix. C'est le seul endroit
+> où `encore` a une portée plus étroite qu'ailleurs, et c'est délibéré.
+
+#### Quand la liste manque
+
+Une liste introuvable, vidée ou renommée **ne fait pas taire la radio** : elle
+se replie sur le tirage libre, et le repli est journalisé — exactement comme une
+plage thématique sans musique (§4.4) ou un flash absent (§4.5).
+
+Aucune règle nouvelle à retenir : c'est la même que partout.
+
+#### Ce qui reste à trancher
+
+Programmes et plages thématiques sont **deux mécanismes qui répondent à la même
+question** — que jouer à telle heure. Faut-il les garder tous les deux ? Voir
+§7 n°19. En attendant, **le programme l'emporte** là où les deux se recouvrent,
+parce qu'il est le plus précis.
+
 ### 4.9 Ce que le flux doit être
 
 Trois exigences, qui tirent en sens contraire et qu'il faut pourtant tenir
@@ -647,6 +701,8 @@ Ce que le TOML doit décrire, au minimum :
   doivent passer avant qu'un artiste puisse revenir (§4.2, défaut 5) ;
 - **Les sources** : une section par source, avec son type et ses paramètres
   (§4.10) ;
+- **Les programmes** : une entrée `[[programmes]]` par programme — nom, liste
+  de lecture, jours, début et fin (§4.13) ;
 - **Les émissions** : une entrée `[[emissions]]` par émission — nom, flux de
   podcast, jours et heure (§4.11). Il n'y a pas de limite au nombre
   d'émissions ;
@@ -835,6 +891,19 @@ dans le temps, demi-vie déclarée au TOML, **trois mois** par défaut (§4.12).
 > l'amplifier. Sans oubli, la radio se fige sur les premiers mois d'usage et
 > pénalise durablement ce qu'on aime le plus.
 
+**n°20 — `encore` pendant un programme ? Il reste dans la liste.** Tranchée le
+2026-08-30. L'artiste est cherché dans la liste ; à défaut, on retire dans la
+liste, jamais au-dehors (§4.13).
+> *Raison* : un programme est une intention, et en sortir sur un `encore`
+> trahirait le choix des morceaux. C'est le seul endroit où `encore` a une
+> portée plus étroite qu'ailleurs.
+
+**n°21 — Une liste de lecture manquante ? Repli sur la musique.** Tranchée le
+2026-08-30. Introuvable, vidée ou renommée : tirage libre, et le repli est
+journalisé (§4.13).
+> *Raison* : c'est la règle de tout le reste de la spécification — une plage
+> sans musique, un flash absent. Aucune règle nouvelle à retenir.
+
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :
 elle appelle la même API que tout autre client (§4.8).
@@ -851,6 +920,25 @@ couvre** : les tâches qui touchent au son seront cochées sur la foi de tests q
 n'entendent rien. C'est un choix d'autonomie maximale, pris à l'initialisation et
 assumé. Il est consigné ici pour être visible, et pour pouvoir être révisé à la
 première fois où un défaut sonore traversera plusieurs Goals.
+
+**n°19 — Programmes et plages thématiques : faut-il les deux ?**
+Ils répondent à la même question — *que jouer à telle heure* — et le programme
+est strictement plus expressif : il a des **jours**, et sa source est une liste
+choisie plutôt qu'un genre.
+
+Trois issues, et elles ne coûtent pas la même chose :
+
+| Voie | Ce qu'elle vaut |
+|---|---|
+| **Les deux coexistent** | Deux intentions distinctes, chacune son mot. Rien n'est jeté. Mais deux mécanismes à tenir, et une règle de priorité à retenir |
+| **Les programmes remplacent les plages** | Un seul concept. Mais cela **jette `core/grille.py`**, testé à 100 %, pour le réécrire autrement |
+| **Les plages gagnent des `jours` et une source « playlist »** | Le même résultat par extension plutôt que par remplacement. Rien n'est jeté, mais le mot « plage » recouvre alors deux choses |
+
+**Rien n'est décidé.** En attendant, la coexistence s'applique — c'est la seule
+des trois qui ne jette rien ni ne renomme quoi que ce soit — et **le programme
+l'emporte** là où les deux se recouvrent, parce qu'il est le plus précis. Ce
+choix est **provisoire et écrit comme tel** : il ne doit pas devenir la réponse
+par prescription.
 
 **n°12 — Plusieurs sources actives : comment le tirage les combine-t-il ?**
 Ouverte par la décision n°2. Le mécanisme permet de déclarer plusieurs sources ;

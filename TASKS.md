@@ -91,7 +91,7 @@ elle n'a rien à vérifier.
 `GOAL-012` s'ajoute en fin de parcours, découpé lui aussi : les trois décisions
 qui le bloquaient (n°16 à n°18) ont été tranchées le 2026-08-30.
 
-**Neuf lots, 83 tâches ouvertes.** Décisions : **19 tranchées sur 21**. Restent
+**Dix lots, 94 tâches ouvertes.** Décisions : **21 tranchées sur 24**. Restent
 la n°9 — une conséquence consignée, non une question — et la n°12, différée
 jusqu'à la deuxième source de musique.
 `GOAL-011` (conteneurisation) s'insère **après `GOAL-004`** : c'est le premier
@@ -125,6 +125,7 @@ Goals sont découpables.
 | GOAL-010 | Les émissions : podcasts programmés | `[ ]` |
 | GOAL-011 | Conteneurisation : Docker et Compose | `[ ]` — après GOAL-004 |
 | GOAL-012 | Les votes pondèrent les tirages suivants | `[ ]` |
+| GOAL-013 | Les programmes : une playlist, des jours, des heures | `[ ]` |
 
 ---
 
@@ -616,3 +617,43 @@ dans un commit d'implémentation. Elle reste en vigueur pour la troisième table
 - **`T11`** — c'est le **cinquième angle mort** (AGENTS.md §4.1), et le plus
   lent : un test vérifie la formule, aucun ne dit si la radio s'est resserrée.
   Cela ne se constate qu'après des semaines d'usage.
+
+---
+
+## GOAL-013 — Les programmes : une playlist, des jours, des heures
+
+**État : TODO**
+
+Une plage de temps — jours **et** heures — pendant laquelle la musique est tirée
+au hasard dans une liste de lecture Navidrome (SPECS.md §4.13).
+
+### Les tâches
+
+- [ ] `GOAL-013-T01` `adapters/sources/` : `getPlaylists` et `getPlaylist`, au format `Piste`
+- [ ] `GOAL-013-T02` **Ne jamais se fier à `songCount`** : une liste se juge sur ce qu'elle rend
+- [ ] `GOAL-013-T03` Résoudre une liste **par son nom** — c'est ce que le TOML déclare, pas un identifiant opaque
+- [ ] `GOAL-013-T04` `core/programmes.py` : quel programme est ouvert, d'après l'horloge injectée
+- [ ] `GOAL-013-T05` Le tirage **dans la liste**, avec la non-répétition et sa fenêtre qui rétrécit
+- [ ] `GOAL-013-T06` `encore` cherche **dans la liste**, et y retombe — jamais au-dehors
+- [ ] `GOAL-013-T07` Une liste introuvable, vidée ou renommée : repli sur le tirage libre, journalisé
+- [ ] `GOAL-013-T08` Le programme l'emporte sur une plage thématique qui le recouvre
+- [ ] `GOAL-013-T09` Une **émission** l'emporte sur un programme — elle remplace toute la programmation
+- [ ] `GOAL-013-T10` Les clés `[[programmes]]` au schéma, et le TOML d'exemple
+- [ ] `GOAL-013-T11` Carte du dépôt
+
+### Ce que le relevé impose
+
+`docs/navidrome.md` §2.6 a été établi pour ce Goal, et il change deux choses :
+
+| Constat | Conséquence |
+|---|---|
+| **`getRandomSongs&playlistId` est ignoré en silence** — `status: ok`, et aucun des vingt morceaux rendus n'appartenait à la liste | Le tirage se fait **chez nous**, sur les entrées récupérées. `T05` ne délègue rien au serveur |
+| **`songCount` et le nombre d'entrées divergent** — 67 annoncés, 32 rendus, tous distincts. Cause non établie | `T02`. Une liste « vide » se juge sur ses entrées, jamais sur son compteur |
+| Une liste inexistante rend HTTP 200 / code 70 | `T07`. Même régime que le reste : lire `status`, jamais le code HTTP |
+
+### Ce qui est encore ouvert
+
+**SPECS.md §7 n°19** — faut-il garder *à la fois* les programmes et les plages
+thématiques ? Ils répondent à la même question. La coexistence s'applique en
+attendant, **provisoirement et écrit comme tel** : `T08` la met en œuvre, et
+devra être rejouée si l'auteur tranche autrement.
