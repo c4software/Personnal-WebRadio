@@ -18,24 +18,24 @@ from types import TracebackType
 
 import pytest
 
-from webradio.adapters.config.schema import ConfigurationNavidrome, IdentifiantsNavidrome
+from webradio.adapters.config.schema import NavidromeCredentials, NavidromeSettings
 from webradio.adapters.sources.navidrome import (
-    PLAFOND_ECHANTILLON,
-    ReponseHttp,
-    SourceNavidrome,
-    TransportUrllib,
+    SAMPLE_CAP,
+    HttpResponse,
+    NavidromeSource,
+    UrllibTransport,
 )
-from webradio.core.models import Piste
-from webradio.core.rng import HasardScripte
-from webradio.core.sources import SourceIndisponible
+from webradio.core.models import Track
+from webradio.core.rng import ScriptedRandom
+from webradio.core.sources import SourceUnavailable
 
 UTILISATEUR = "auditeur-fictif"
 MOT_DE_PASSE = "passe-fictif"
 
-IDENTIFIANTS = IdentifiantsNavidrome(
+IDENTIFIANTS = NavidromeCredentials(
     url="http://exemple.local",
-    utilisateur=UTILISATEUR,
-    mot_de_passe=MOT_DE_PASSE,
+    username=UTILISATEUR,
+    password=MOT_DE_PASSE,
 )
 
 # ── Corps relevés (docs/navidrome.md) ──────────────────────────────────────
@@ -106,49 +106,49 @@ JSON_SANS_ENVELOPPE = '{"error": "quelque chose d\'autre"}'
 PAGE_404 = "404 page not found\n"
 
 
-class TransportScripte:
+class ScriptedTransport:
     """Un transport qui rend des réponses écrites d'avance, et retient les URL appelées."""
 
-    def __init__(self, reponses: list[ReponseHttp] | ReponseHttp) -> None:
+    def __init__(self, reponses: list[HttpResponse] | HttpResponse) -> None:
         self._reponses = reponses if isinstance(reponses, list) else [reponses]
         self.urls: list[str] = []
 
-    def recuperer(self, url: str) -> ReponseHttp:
+    def fetch(self, url: str) -> HttpResponse:
         self.urls.append(url)
         if len(self._reponses) == 1:
             return self._reponses[0]
         return self._reponses.pop(0)
 
 
-class TransportInjoignable:
+class UnreachableTransport:
     """Le serveur ne répond pas du tout : aucune réponse, une erreur système."""
 
-    def recuperer(self, url: str) -> ReponseHttp:
+    def fetch(self, url: str) -> HttpResponse:
         message = f"connexion refusée pour {url}"
         raise ConnectionRefusedError(message)
 
 
-def _reglages(taille: int = 100, resultats: int = 50) -> ConfigurationNavidrome:
-    return ConfigurationNavidrome(
-        taille_echantillon=taille,
-        resultats_artiste=resultats,
-        delai_secondes=1.0,
+def _reglages(taille: int = 100, resultats: int = 50) -> NavidromeSettings:
+    return NavidromeSettings(
+        sample_size=taille,
+        artist_results=resultats,
+        timeout_seconds=1.0,
     )
 
 
 def _source(
-    corps: str = "",
+    body: str = "",
     code: int = 200,
     *,
-    transport: TransportScripte | TransportInjoignable | None = None,
+    transport: ScriptedTransport | UnreachableTransport | None = None,
     taille: int = 100,
-) -> SourceNavidrome:
-    reel = transport if transport is not None else TransportScripte(ReponseHttp(code, corps))
-    return SourceNavidrome(
-        identifiants=IDENTIFIANTS,
-        reglages=_reglages(taille=taille),
+) -> NavidromeSource:
+    reel = transport if transport is not None else ScriptedTransport(HttpResponse(code, body))
+    return NavidromeSource(
+        credentials=IDENTIFIANTS,
+        config=_reglages(taille=taille),
         # Un sel écrit à l'avance : deux exécutions produisent la même URL.
-        hasard=HasardScripte([0] * 1000),
+        random=ScriptedRandom([0] * 1000),
         transport=reel,
     )
 
@@ -167,29 +167,29 @@ def _empreinte(texte: str) -> str:
 def test_un_mot_de_passe_faux_leve_une_source_indisponible_malgre_un_code_200() -> None:
     source = _source(MOT_DE_PASSE_FAUX)
 
-    with pytest.raises(SourceIndisponible) as panne:
-        source.pistes()
+    with pytest.raises(SourceUnavailable) as failure:
+        source.tracks()
 
-    assert "40" in str(panne.value)
-    assert "Wrong username or password" in str(panne.value)
+    assert "40" in str(failure.value)
+    assert "Wrong username or password" in str(failure.value)
 
 
 def test_un_identifiant_inconnu_leve_une_source_indisponible() -> None:
     source = _source(IDENTIFIANT_INCONNU)
 
-    with pytest.raises(SourceIndisponible) as panne:
-        source.pistes_de("Un artiste")
+    with pytest.raises(SourceUnavailable) as failure:
+        source.tracks_by("Un artiste")
 
-    assert "70" in str(panne.value)
+    assert "70" in str(failure.value)
 
 
 def test_un_echec_sans_detail_leve_quand_meme() -> None:
     source = _source(ECHEC_SANS_DETAIL)
 
-    with pytest.raises(SourceIndisponible) as panne:
+    with pytest.raises(SourceUnavailable) as failure:
         source.genres()
 
-    assert "getGenres" in str(panne.value)
+    assert "getGenres" in str(failure.value)
 
 
 def test_aucun_secret_ne_parait_dans_les_journaux_ni_dans_le_message_de_panne(
@@ -197,10 +197,10 @@ def test_aucun_secret_ne_parait_dans_les_journaux_ni_dans_le_message_de_panne(
 ) -> None:
     source = _source(MOT_DE_PASSE_FAUX)
 
-    with caplog.at_level(logging.DEBUG), pytest.raises(SourceIndisponible) as panne:
-        source.pistes()
+    with caplog.at_level(logging.DEBUG), pytest.raises(SourceUnavailable) as failure:
+        source.tracks()
 
-    assert MOT_DE_PASSE not in str(panne.value)
+    assert MOT_DE_PASSE not in str(failure.value)
     assert MOT_DE_PASSE not in caplog.text
     assert "t=" not in caplog.text
 
@@ -209,8 +209,8 @@ def test_aucun_secret_ne_parait_dans_les_journaux_ni_dans_le_message_de_panne(
 
 
 def test_le_mot_de_passe_ne_circule_jamais_en_clair() -> None:
-    transport = TransportScripte(ReponseHttp(200, DEUX_CHANSONS))
-    _source(transport=transport).pistes()
+    transport = ScriptedTransport(HttpResponse(200, DEUX_CHANSONS))
+    _source(transport=transport).tracks()
 
     (url,) = transport.urls
     assert MOT_DE_PASSE not in url
@@ -218,16 +218,16 @@ def test_le_mot_de_passe_ne_circule_jamais_en_clair() -> None:
 
 
 def test_le_jeton_est_l_empreinte_du_mot_de_passe_et_du_sel() -> None:
-    transport = TransportScripte(ReponseHttp(200, DEUX_CHANSONS))
-    _source(transport=transport).pistes()
+    transport = ScriptedTransport(HttpResponse(200, DEUX_CHANSONS))
+    _source(transport=transport).tracks()
 
-    parametres = _parametres(transport.urls[0])
-    sel = parametres["s"]
-    assert parametres["t"] == _empreinte(MOT_DE_PASSE + sel)
-    assert parametres["u"] == UTILISATEUR
-    assert parametres["v"] == "1.16.1"
-    assert parametres["c"] == "local-webradio"
-    assert parametres["f"] == "json"
+    params = _parametres(transport.urls[0])
+    salt = params["s"]
+    assert params["t"] == _empreinte(MOT_DE_PASSE + salt)
+    assert params["u"] == UTILISATEUR
+    assert params["v"] == "1.16.1"
+    assert params["c"] == "local-webradio"
+    assert params["f"] == "json"
 
 
 # ── Le piège n°2 : la troncature silencieuse à 500 ─────────────────────────
@@ -236,19 +236,19 @@ def test_le_jeton_est_l_empreinte_du_mot_de_passe_et_du_sel() -> None:
 def test_une_taille_au_dessus_du_plafond_est_ramenee_a_500(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    transport = TransportScripte(ReponseHttp(200, DEUX_CHANSONS))
+    transport = ScriptedTransport(HttpResponse(200, DEUX_CHANSONS))
 
     with caplog.at_level(logging.WARNING):
         source = _source(transport=transport, taille=1000)
-    source.pistes()
+    source.tracks()
 
-    assert _parametres(transport.urls[0])["size"] == str(PLAFOND_ECHANTILLON)
+    assert _parametres(transport.urls[0])["size"] == str(SAMPLE_CAP)
     assert "tronque" in caplog.text
 
 
 def test_une_taille_sous_le_plafond_est_demandee_telle_quelle() -> None:
-    transport = TransportScripte(ReponseHttp(200, DEUX_CHANSONS))
-    _source(transport=transport, taille=100).pistes()
+    transport = ScriptedTransport(HttpResponse(200, DEUX_CHANSONS))
+    _source(transport=transport, taille=100).tracks()
 
     assert _parametres(transport.urls[0])["size"] == "100"
 
@@ -257,28 +257,28 @@ def test_une_taille_sous_le_plafond_est_demandee_telle_quelle() -> None:
 
 
 def test_un_genre_inexistant_rend_une_liste_vide_sans_lever() -> None:
-    transport = TransportScripte(ReponseHttp(200, GENRE_INEXISTANT))
+    transport = ScriptedTransport(HttpResponse(200, GENRE_INEXISTANT))
     source = _source(transport=transport)
 
-    assert source.pistes(genre="Genre qui n'existe pas") == []
+    assert source.tracks(genre="Genre qui n'existe pas") == []
     assert _parametres(transport.urls[0])["genre"] == "Genre qui n'existe pas"
 
 
 def test_une_piste_sans_genre_est_conservee() -> None:
-    pistes = _source(DEUX_CHANSONS).pistes()
+    tracks = _source(DEUX_CHANSONS).tracks()
 
-    assert [piste.genre for piste in pistes] == ["Chanson française", None]
-    assert pistes[0].duree.total_seconds() == 213
-    assert pistes[0].identifiant == "0f1a"
+    assert [track.genre for track in tracks] == ["Chanson française", None]
+    assert tracks[0].duration.total_seconds() == 213
+    assert tracks[0].identifier == "0f1a"
 
 
 def test_une_piste_inexploitable_est_ecartee_sans_faire_echouer_l_appel(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     with caplog.at_level(logging.WARNING):
-        pistes = _source(CHANSONS_ABIMEES).pistes()
+        tracks = _source(CHANSONS_ABIMEES).tracks()
 
-    assert [piste.identifiant for piste in pistes] == ["0f1e"]
+    assert [track.identifier for track in tracks] == ["0f1e"]
     assert caplog.text.count("ignorée") == 4
 
 
@@ -286,17 +286,17 @@ def test_une_piste_inexploitable_est_ecartee_sans_faire_echouer_l_appel(
 
 
 def test_les_pistes_d_un_artiste_excluent_les_autres_artistes() -> None:
-    transport = TransportScripte(ReponseHttp(200, RECHERCHE_ARTISTE))
-    pistes = _source(transport=transport).pistes_de("Un artiste")
+    transport = ScriptedTransport(HttpResponse(200, RECHERCHE_ARTISTE))
+    tracks = _source(transport=transport).tracks_by("Un artiste")
 
-    assert [piste.identifiant for piste in pistes] == ["1a", "1c"]
-    parametres = _parametres(transport.urls[0])
-    assert parametres["query"] == "Un artiste"
-    assert parametres["songCount"] == "50"
+    assert [track.identifier for track in tracks] == ["1a", "1c"]
+    params = _parametres(transport.urls[0])
+    assert params["query"] == "Un artiste"
+    assert params["songCount"] == "50"
 
 
 def test_un_artiste_absent_de_la_bibliotheque_rend_une_liste_vide() -> None:
-    assert _source(GENRE_INEXISTANT).pistes_de("Personne") == []
+    assert _source(GENRE_INEXISTANT).tracks_by("Personne") == []
 
 
 # ── Le piège n°6 : les deux régimes d'erreur ───────────────────────────────
@@ -305,53 +305,53 @@ def test_un_artiste_absent_de_la_bibliotheque_rend_une_liste_vide() -> None:
 def test_un_404_sans_corps_subsonic_leve_une_source_indisponible() -> None:
     source = _source(PAGE_404, code=404)
 
-    with pytest.raises(SourceIndisponible) as panne:
-        source.pistes()
+    with pytest.raises(SourceUnavailable) as failure:
+        source.tracks()
 
-    assert "404" in str(panne.value)
+    assert "404" in str(failure.value)
 
 
 def test_une_page_html_rendue_en_200_leve_une_source_indisponible() -> None:
     source = _source(PAGE_HTML_EN_200)
 
-    with pytest.raises(SourceIndisponible) as panne:
-        source.pistes()
+    with pytest.raises(SourceUnavailable) as failure:
+        source.tracks()
 
-    assert "JSON" in str(panne.value)
+    assert "JSON" in str(failure.value)
 
 
 def test_un_json_tronque_leve_une_source_indisponible() -> None:
     source = _source(JSON_TRONQUE)
 
-    with pytest.raises(SourceIndisponible) as panne:
-        source.pistes()
+    with pytest.raises(SourceUnavailable) as failure:
+        source.tracks()
 
-    assert "JSON" in str(panne.value)
+    assert "JSON" in str(failure.value)
 
 
 def test_un_json_sans_enveloppe_subsonic_leve_une_source_indisponible() -> None:
     source = _source(JSON_SANS_ENVELOPPE)
 
-    with pytest.raises(SourceIndisponible) as panne:
-        source.pistes()
+    with pytest.raises(SourceUnavailable) as failure:
+        source.tracks()
 
-    assert "subsonic-response" in str(panne.value)
+    assert "subsonic-response" in str(failure.value)
 
 
 def test_un_corps_json_qui_n_est_pas_un_objet_leve_une_source_indisponible() -> None:
     source = _source("[1, 2, 3]")
 
-    with pytest.raises(SourceIndisponible):
-        source.pistes()
+    with pytest.raises(SourceUnavailable):
+        source.tracks()
 
 
 def test_un_serveur_injoignable_devient_une_source_indisponible() -> None:
-    source = _source(transport=TransportInjoignable())
+    source = _source(transport=UnreachableTransport())
 
-    with pytest.raises(SourceIndisponible) as panne:
-        source.pistes()
+    with pytest.raises(SourceUnavailable) as failure:
+        source.tracks()
 
-    assert "injoignable" in str(panne.value)
+    assert "injoignable" in str(failure.value)
 
 
 # ── Les genres connus ──────────────────────────────────────────────────────
@@ -366,9 +366,9 @@ def test_une_reponse_sans_genres_rend_une_liste_vide() -> None:
 
 
 def test_des_genres_d_un_type_inattendu_rendent_une_liste_vide() -> None:
-    corps = '{"subsonic-response": {"status": "ok", "genres": {"genre": "Rock"}}}'
+    body = '{"subsonic-response": {"status": "ok", "genres": {"genre": "Rock"}}}'
 
-    assert _source(corps).genres() == []
+    assert _source(body).genres() == []
 
 
 # ── Le transport réel, sans réseau ─────────────────────────────────────────
@@ -377,9 +377,9 @@ def test_des_genres_d_un_type_inattendu_rendent_une_liste_vide() -> None:
 class _ReponseUrllib:
     """Ce que `urlopen` rend : un gestionnaire de contexte avec un code et un corps."""
 
-    def __init__(self, status: int, corps: bytes) -> None:
+    def __init__(self, status: int, body: bytes) -> None:
         self.status = status
-        self._corps = corps
+        self._corps = body
 
     def __enter__(self) -> "_ReponseUrllib":
         return self
@@ -387,7 +387,7 @@ class _ReponseUrllib:
     def __exit__(
         self,
         genre: type[BaseException] | None,
-        valeur: BaseException | None,
+        value: BaseException | None,
         trace: TracebackType | None,
     ) -> None:
         return None
@@ -400,11 +400,11 @@ def test_le_transport_rend_le_code_et_le_corps() -> None:
     def ouvrir(requete: object, timeout: float) -> _ReponseUrllib:  # noqa: ARG001
         return _ReponseUrllib(200, b'{"ok": true}')
 
-    transport = TransportUrllib(delai_secondes=1.0, ouvrir=ouvrir)
+    transport = UrllibTransport(timeout_seconds=1.0, ouvrir=ouvrir)
 
-    reponse = transport.recuperer("http://exemple.local/rest/ping")
+    answer = transport.fetch("http://exemple.local/rest/ping")
 
-    assert reponse == ReponseHttp(code=200, corps='{"ok": true}')
+    assert answer == HttpResponse(code=200, body='{"ok": true}')
 
 
 def test_le_transport_rend_une_erreur_http_comme_une_reponse_ordinaire() -> None:
@@ -417,28 +417,28 @@ def test_le_transport_rend_une_erreur_http_comme_une_reponse_ordinaire() -> None
             fp=io.BytesIO(PAGE_404.encode("utf-8")),
         )
 
-    transport = TransportUrllib(delai_secondes=1.0, ouvrir=ouvrir)
-    reponse = transport.recuperer("http://exemple.local/rest/inconnu")
+    transport = UrllibTransport(timeout_seconds=1.0, ouvrir=ouvrir)
+    answer = transport.fetch("http://exemple.local/rest/inconnu")
 
-    assert reponse.code == 404
-    assert reponse.corps == PAGE_404
+    assert answer.code == 404
+    assert answer.body == PAGE_404
 
 
 def test_le_transport_traduit_une_panne_de_connexion() -> None:
     def ouvrir(requete: object, timeout: float) -> _ReponseUrllib:  # noqa: ARG001
         raise urllib.error.URLError("connexion refusée")
 
-    transport = TransportUrllib(delai_secondes=1.0, ouvrir=ouvrir)
+    transport = UrllibTransport(timeout_seconds=1.0, ouvrir=ouvrir)
 
-    with pytest.raises(SourceIndisponible) as panne:
-        transport.recuperer("http://exemple.local/rest/ping")
+    with pytest.raises(SourceUnavailable) as failure:
+        transport.fetch("http://exemple.local/rest/ping")
 
-    assert "injoignable" in str(panne.value)
+    assert "injoignable" in str(failure.value)
 
 
 def test_le_transport_par_defaut_existe_sans_etre_appele() -> None:
     """Construire le transport réel ne touche à rien : rien n'est ouvert avant un appel."""
-    transport = TransportUrllib(delai_secondes=1.0)
+    transport = UrllibTransport(timeout_seconds=1.0)
 
     assert transport is not None
 
@@ -447,14 +447,14 @@ def test_entree_rend_une_url_de_flux_portant_le_jeton() -> None:
     """La chaîne de diffusion ouvre cette URL telle quelle : c'est le seul
     endroit du projet où l'identifiant opaque redevient lisible."""
     source = _source()
-    piste = Piste(
-        identifiant="piste-1",
-        titre="un titre",
-        artiste="un artiste",
+    track = Track(
+        identifier="piste-1",
+        title="un titre",
+        artist="un artiste",
         genre=None,
-        duree=timedelta(seconds=180),
+        duration=timedelta(seconds=180),
     )
-    url = source.entree(piste)
+    url = source.entry(track)
     assert "stream.view" in url
     assert "id=piste-1" in url
     assert "t=" in url and "s=" in url
@@ -518,14 +518,14 @@ LISTE_INTROUVABLE = """
 
 def test_une_liste_de_lecture_est_resolue_par_son_nom() -> None:
     """Le TOML déclare un nom ; l'identifiant Subsonic ne remonte jamais au noyau."""
-    transport = TransportScripte(
-        [ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_CHLOE)],
+    transport = ScriptedTransport(
+        [HttpResponse(200, LISTES), HttpResponse(200, LISTE_CHLOE)],
     )
     source = _source(transport=transport)
 
-    pistes = source.pistes_de_la_liste_de_lecture("Chloé")
+    tracks = source.tracks_from_playlist("Chloé")
 
-    assert [piste.titre for piste in pistes] == ["La première", "Sans étiquette"]
+    assert [track.title for track in tracks] == ["La première", "Sans étiquette"]
     assert _parametres(transport.urls[0])["u"] == UTILISATEUR
     assert _parametres(transport.urls[1])["id"] == "pl-1"
 
@@ -534,54 +534,54 @@ def test_le_song_count_annonce_n_est_pas_ce_qui_est_rendu() -> None:
     """67 annoncés, deux entrées rendues : une liste se juge sur ses entrées
     (docs/navidrome.md §2.6.1)."""
     source = _source(
-        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_CHLOE)])
+        transport=ScriptedTransport([HttpResponse(200, LISTES), HttpResponse(200, LISTE_CHLOE)])
     )
 
-    assert len(source.pistes_de_la_liste_de_lecture("Chloé")) == 2
+    assert len(source.tracks_from_playlist("Chloé")) == 2
 
 
 def test_une_piste_de_liste_sans_genre_reste_retenue() -> None:
     source = _source(
-        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_CHLOE)])
+        transport=ScriptedTransport([HttpResponse(200, LISTES), HttpResponse(200, LISTE_CHLOE)])
     )
 
-    pistes = source.pistes_de_la_liste_de_lecture("Chloé")
+    tracks = source.tracks_from_playlist("Chloé")
 
-    assert pistes[0].genre == "Chanson française"
-    assert pistes[1].genre is None
+    assert tracks[0].genre == "Chanson française"
+    assert tracks[1].genre is None
 
 
 def test_un_nom_de_liste_inconnu_rend_une_liste_vide_sans_lever(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Le repli sur le tirage libre se décide au-dessus (SPECS.md §7 n°21)."""
-    transport = TransportScripte([ReponseHttp(200, LISTES)])
+    transport = ScriptedTransport([HttpResponse(200, LISTES)])
     source = _source(transport=transport)
 
     with caplog.at_level(logging.INFO):
-        pistes = source.pistes_de_la_liste_de_lecture("Inconnue")
+        tracks = source.tracks_from_playlist("Inconnue")
 
-    assert pistes == []
+    assert tracks == []
     assert len(transport.urls) == 1
     assert "Inconnue" in caplog.text
 
 
 def test_aucune_liste_declaree_rend_une_liste_vide() -> None:
-    source = _source(transport=TransportScripte([ReponseHttp(200, AUCUNE_LISTE)]))
+    source = _source(transport=ScriptedTransport([HttpResponse(200, AUCUNE_LISTE)]))
 
-    assert source.pistes_de_la_liste_de_lecture("Chloé") == []
+    assert source.tracks_from_playlist("Chloé") == []
 
 
 def test_deux_listes_homonymes_retiennent_la_premiere_en_le_disant(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    transport = TransportScripte(
-        [ReponseHttp(200, LISTES_HOMONYMES), ReponseHttp(200, LISTE_CHLOE)]
+    transport = ScriptedTransport(
+        [HttpResponse(200, LISTES_HOMONYMES), HttpResponse(200, LISTE_CHLOE)]
     )
     source = _source(transport=transport)
 
     with caplog.at_level(logging.WARNING):
-        source.pistes_de_la_liste_de_lecture("Chloé")
+        source.tracks_from_playlist("Chloé")
 
     assert _parametres(transport.urls[1])["id"] == "pl-1"
     assert "Chloé" in caplog.text
@@ -589,24 +589,24 @@ def test_deux_listes_homonymes_retiennent_la_premiere_en_le_disant(
 
 def test_une_liste_sans_entree_rend_une_liste_vide(caplog: pytest.LogCaptureFixture) -> None:
     source = _source(
-        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_VIDE)])
+        transport=ScriptedTransport([HttpResponse(200, LISTES), HttpResponse(200, LISTE_VIDE)])
     )
 
     with caplog.at_level(logging.INFO):
-        pistes = source.pistes_de_la_liste_de_lecture("Chloé")
+        tracks = source.tracks_from_playlist("Chloé")
 
-    assert pistes == []
+    assert tracks == []
     assert "Chloé" in caplog.text
 
 
 def test_les_entrees_abimees_d_une_liste_sont_ecartees_et_les_autres_gardees() -> None:
     source = _source(
-        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_ABIMEE)])
+        transport=ScriptedTransport([HttpResponse(200, LISTES), HttpResponse(200, LISTE_ABIMEE)])
     )
 
-    pistes = source.pistes_de_la_liste_de_lecture("Chloé")
+    tracks = source.tracks_from_playlist("Chloé")
 
-    assert [piste.identifiant for piste in pistes] == ["0f2d"]
+    assert [track.identifier for track in tracks] == ["0f2d"]
 
 
 def test_une_liste_disparue_entre_les_deux_appels_leve_une_source_indisponible() -> None:
@@ -614,51 +614,53 @@ def test_une_liste_disparue_entre_les_deux_appels_leve_une_source_indisponible()
     `getPlaylist` : HTTP 200, code 70. C'est une panne de source, et le repli
     est celui que la charnière applique déjà à toutes les pannes."""
     source = _source(
-        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_INTROUVABLE)])
+        transport=ScriptedTransport(
+            [HttpResponse(200, LISTES), HttpResponse(200, LISTE_INTROUVABLE)]
+        )
     )
 
-    with pytest.raises(SourceIndisponible) as panne:
-        source.pistes_de_la_liste_de_lecture("Chloé")
+    with pytest.raises(SourceUnavailable) as failure:
+        source.tracks_from_playlist("Chloé")
 
-    assert "70" in str(panne.value)
-    assert "playlist not found" in str(panne.value)
+    assert "70" in str(failure.value)
+    assert "playlist not found" in str(failure.value)
 
 
 def test_une_page_html_en_200_a_la_place_des_listes_leve_une_source_indisponible() -> None:
     source = _source(PAGE_HTML_EN_200)
 
-    with pytest.raises(SourceIndisponible) as panne:
-        source.pistes_de_la_liste_de_lecture("Chloé")
+    with pytest.raises(SourceUnavailable) as failure:
+        source.tracks_from_playlist("Chloé")
 
-    assert "getPlaylists" in str(panne.value)
+    assert "getPlaylists" in str(failure.value)
 
 
 def test_des_listes_sans_enveloppe_attendue_rendent_une_liste_vide() -> None:
     """Un contenant absent ou d'un type inattendu n'est pas une panne : c'est
     une bibliothèque sans liste de lecture."""
     sans_contenant = '{"subsonic-response": {"status": "ok", "playlists": {"playlist": "rien"}}}'
-    source = _source(transport=TransportScripte([ReponseHttp(200, sans_contenant)]))
+    source = _source(transport=ScriptedTransport([HttpResponse(200, sans_contenant)]))
 
-    assert source.pistes_de_la_liste_de_lecture("Chloé") == []
+    assert source.tracks_from_playlist("Chloé") == []
 
 
 def test_une_liste_dont_les_entrees_ont_un_type_inattendu_rend_une_liste_vide() -> None:
     entrees_folles = '{"subsonic-response": {"status": "ok", "playlist": {"entry": "rien"}}}'
     source = _source(
-        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, entrees_folles)])
+        transport=ScriptedTransport([HttpResponse(200, LISTES), HttpResponse(200, entrees_folles)])
     )
 
-    assert source.pistes_de_la_liste_de_lecture("Chloé") == []
+    assert source.tracks_from_playlist("Chloé") == []
 
 
 def test_aucun_secret_ne_parait_dans_les_journaux_d_une_liste_de_lecture(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """Les URL portent le jeton : elles n'ont leur place dans aucun journal."""
-    source = _source(transport=TransportScripte([ReponseHttp(200, LISTES)]))
+    source = _source(transport=ScriptedTransport([HttpResponse(200, LISTES)]))
 
     with caplog.at_level(logging.DEBUG):
-        source.pistes_de_la_liste_de_lecture("Inconnue")
+        source.tracks_from_playlist("Inconnue")
 
     assert MOT_DE_PASSE not in caplog.text
     assert "/rest/" not in caplog.text

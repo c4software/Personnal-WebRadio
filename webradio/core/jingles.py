@@ -17,13 +17,13 @@ Deux règles commandent tout le reste :
 
 from datetime import datetime, timedelta
 
-from webradio.core.clock import Horloge
+from webradio.core.clock import Clock
 
 JINGLE_ENCORE = "encore.mp3"
 UNE_HEURE = timedelta(hours=1)
 
 
-def nom_du_jingle(instant: datetime) -> str:
+def jingle_name(instant: datetime) -> str:
     """`14h.mp3` pour 14 h. Le nom du fichier *est* la programmation.
 
     Seule exception à « rien en dur » (AGENTS.md §2) : il n'y a pas de table de
@@ -50,16 +50,16 @@ class Jingles:
     (SPECS.md §1).
     """
 
-    def __init__(self, horloge: Horloge) -> None:
-        self._horloge = horloge
-        self._repere = horloge.maintenant()
+    def __init__(self, clock: Clock) -> None:
+        self._horloge = clock
+        self._repere = clock.now()
         self._encore_du = False
 
     @property
     def encore_du(self) -> bool:
         return self._encore_du
 
-    def marquer_encore(self) -> None:
+    def mark_more(self) -> None:
         """Un `encore` accepté s'annonce à la jonction suivante (SPECS.md §4.6).
 
         Deux votes avant la même jonction ne font pas deux jingles : l'accusé de
@@ -67,7 +67,7 @@ class Jingles:
         """
         self._encore_du = True
 
-    def dus(self, *, pendant_emission: bool = False) -> tuple[str, ...]:
+    def due_now(self, *, during_show: bool = False) -> tuple[str, ...]:
         """Les jingles à diffuser ici, dans l'ordre, `encore.mp3` en dernier.
 
         L'appel **consomme** : ce qui a été rendu ne le sera pas deux fois. Le
@@ -75,17 +75,17 @@ class Jingles:
         ressortiraient à la fin de l'épisode — ce que la décision n°15 refuse
         explicitement.
         """
-        maintenant = self._horloge.maintenant()
-        franchies = _heures_pleines(self._repere, maintenant)
-        self._repere = maintenant
+        now = self._horloge.now()
+        franchies = _heures_pleines(self._repere, now)
+        self._repere = now
 
         encore = self._encore_du
         self._encore_du = False
 
-        if pendant_emission:
+        if during_show:
             return ()
 
-        noms = [nom_du_jingle(heure) for heure in franchies]
+        names = [jingle_name(hour) for hour in franchies]
         if encore:
-            noms.append(JINGLE_ENCORE)
-        return tuple(noms)
+            names.append(JINGLE_ENCORE)
+        return tuple(names)

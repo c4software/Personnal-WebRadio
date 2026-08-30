@@ -6,22 +6,22 @@ se pas-à-pas, et son comportement est écrit une fois pour toutes.
 
 from datetime import timedelta
 
-from webradio.core.models import Piste
-from webradio.core.sources import SourceIndisponible
+from webradio.core.models import Track
+from webradio.core.sources import SourceUnavailable
 
 
-def piste(
-    identifiant: str,
-    artiste: str,
+def track(
+    identifier: str,
+    artist: str,
     genre: str | None = None,
     secondes: int = 180,
-) -> Piste:
-    return Piste(
-        identifiant=identifiant,
-        titre=f"titre {identifiant}",
-        artiste=artiste,
+) -> Track:
+    return Track(
+        identifier=identifier,
+        title=f"titre {identifier}",
+        artist=artist,
         genre=genre,
-        duree=timedelta(seconds=secondes),
+        duration=timedelta(seconds=secondes),
     )
 
 
@@ -30,10 +30,10 @@ class FakeSource:
 
     def __init__(
         self,
-        catalogue: list[Piste],
+        catalogue: list[Track],
         *,
         injoignable: bool = False,
-        listes: dict[str, list[Piste]] | None = None,
+        listes: dict[str, list[Track]] | None = None,
     ) -> None:
         self._catalogue = list(catalogue)
         self._listes = dict(listes or {})
@@ -44,32 +44,32 @@ class FakeSource:
         self.appels += 1
         if self.injoignable:
             message = "source d'essai déclarée injoignable"
-            raise SourceIndisponible(message)
+            raise SourceUnavailable(message)
 
-    def pistes(self, genre: str | None = None) -> list[Piste]:
+    def tracks(self, genre: str | None = None) -> list[Track]:
         self._verifier()
         if genre is None:
             return list(self._catalogue)
         return [p for p in self._catalogue if p.genre == genre]
 
-    def pistes_de(self, artiste: str) -> list[Piste]:
+    def tracks_by(self, artist: str) -> list[Track]:
         self._verifier()
-        return [p for p in self._catalogue if p.artiste == artiste]
+        return [p for p in self._catalogue if p.artist == artist]
 
     def genres(self) -> list[str]:
         self._verifier()
         return sorted({p.genre for p in self._catalogue if p.genre is not None})
 
-    def pistes_de_la_liste_de_lecture(self, nom: str) -> list[Piste]:
+    def tracks_from_playlist(self, name: str) -> list[Track]:
         """Une liste inconnue rend une liste vide, comme une vraie source : le
         repli se décide au-dessus, avec le contexte."""
         self._verifier()
-        return list(self._listes.get(nom, []))
+        return list(self._listes.get(name, []))
 
-    def entree(self, piste: Piste) -> str:
+    def entry(self, track: Track) -> str:
         """Une entrée factice mais reconnaissable.
 
         Elle ne consulte pas le catalogue : une source réelle non plus — elle
         construit une adresse depuis l'identifiant, sans vérifier qu'il existe.
         """
-        return f"fake://{piste.identifiant}"
+        return f"fake://{track.identifier}"

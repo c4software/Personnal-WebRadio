@@ -19,17 +19,17 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, time
 
-from webradio.core.clock import Horloge
+from webradio.core.clock import Clock
 
 # Les sept jours, dans l'ordre de `datetime.weekday()` — lundi vaut 0. C'est la
 # même convention que celle qu'`adapters/config/schema.py` impose aux émissions,
 # volontairement recopiée plutôt qu'importée : le noyau ne dépend d'aucun
 # adaptateur (ARCHITECTURE.md §2.1).
-JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+DAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
 
 # Le raccourci d'un programme quotidien. L'écrire évite d'avoir à énumérer les
 # sept jours pour dire « tous les jours », ce qu'un TOML ferait mal.
-TOUS_LES_JOURS = "tous"
+EVERY_DAY = "tous"
 
 
 @dataclass(frozen=True, slots=True)
@@ -45,46 +45,46 @@ class Programme:
     01 h comme un samedi ferait démarrer le programme une nuit trop tôt.
     """
 
-    nom: str
+    name: str
     playlist: str
-    jours: tuple[str, ...]
-    debut: time
-    fin: time
+    days: tuple[str, ...]
+    start: time
+    end: time
 
     def __post_init__(self) -> None:
-        if not self.nom:
+        if not self.name:
             message = "un programme sans nom ne peut être ni journalisé ni annoncé"
             raise ValueError(message)
         if not self.playlist:
-            message = f"« {self.nom} » ne désigne aucune liste de lecture"
+            message = f"« {self.name} » ne désigne aucune liste de lecture"
             raise ValueError(message)
-        if not self.jours:
-            message = f"« {self.nom} » ne tombe aucun jour : ne pas le déclarer"
+        if not self.days:
+            message = f"« {self.name} » ne tombe aucun jour : ne pas le déclarer"
             raise ValueError(message)
-        for jour in self.jours:
-            if jour not in JOURS and jour != TOUS_LES_JOURS:
-                attendus = ", ".join((*JOURS, TOUS_LES_JOURS))
+        for jour in self.days:
+            if jour not in DAYS and jour != EVERY_DAY:
+                attendus = ", ".join((*DAYS, EVERY_DAY))
                 message = f"« {jour} » n'est pas un jour ; attendu l'un de : {attendus}"
                 raise ValueError(message)
-        if self.debut == self.fin:
-            message = f"programme vide : {self.debut} → {self.fin}"
+        if self.start == self.end:
+            message = f"programme vide : {self.start} → {self.end}"
             raise ValueError(message)
 
-    def couvre(self, instant: datetime) -> bool:
+    def covers(self, instant: datetime) -> bool:
         moment = instant.time()
-        if self.debut < self.fin:
-            return self.debut <= moment < self.fin and self._tombe_le(instant.weekday())
-        if moment >= self.debut:
+        if self.start < self.end:
+            return self.start <= moment < self.end and self._tombe_le(instant.weekday())
+        if moment >= self.start:
             return self._tombe_le(instant.weekday())
-        if moment < self.fin:
-            return self._tombe_le((instant.weekday() - 1) % len(JOURS))
+        if moment < self.end:
+            return self._tombe_le((instant.weekday() - 1) % len(DAYS))
         return False
 
     def _tombe_le(self, indice_du_jour: int) -> bool:
-        return TOUS_LES_JOURS in self.jours or JOURS[indice_du_jour] in self.jours
+        return EVERY_DAY in self.days or DAYS[indice_du_jour] in self.days
 
 
-class Programmation:
+class Programming:
     """Le programme ouvert maintenant, ou aucun.
 
     L'horloge est injectée (ARCHITECTURE.md §3.1) : une semaine entière se
@@ -97,26 +97,26 @@ class Programmation:
     l'auteur peut donner sans qu'on la lui demande.
     """
 
-    def __init__(self, programmes: Sequence[Programme], horloge: Horloge) -> None:
+    def __init__(self, programmes: Sequence[Programme], clock: Clock) -> None:
         self._programmes = tuple(programmes)
-        self._horloge = horloge
+        self._horloge = clock
 
     @property
     def programmes(self) -> tuple[Programme, ...]:
         return self._programmes
 
-    def programme_courant(self) -> Programme | None:
-        instant = self._horloge.maintenant()
+    def current_programme(self) -> Programme | None:
+        instant = self._horloge.now()
         for programme in self._programmes:
-            if programme.couvre(instant):
+            if programme.covers(instant):
                 return programme
         return None
 
-    def playlist_a_tirer(self) -> str | None:
+    def playlist_to_draw(self) -> str | None:
         """Le nom de la liste où tirer maintenant, `None` hors de tout programme.
 
         C'est un nom, pas un identifiant : la résolution appartient à la source,
         seule à savoir ce que Navidrome appelle une liste (SPECS.md §4.13).
         """
-        programme = self.programme_courant()
+        programme = self.current_programme()
         return None if programme is None else programme.playlist

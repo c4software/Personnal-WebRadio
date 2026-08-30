@@ -6,16 +6,16 @@ Le format RSS, ses `enclosure` et ses redirections restent confinés ici
 
 from webradio.adapters.podcast.feed import (
     Episode,
-    FluxPodcast,
-    LecteurHttp,
-    LecteurUrllib,
-    PodcastIndisponible,
+    HttpReader,
+    PodcastFeed,
+    PodcastUnavailable,
+    UrllibReader,
 )
 
 __all__ = [
     "Episode",
-    "FluxPodcast",
-    "LecteurHttp",
-    "LecteurUrllib",
-    "PodcastIndisponible",
+    "HttpReader",
+    "PodcastFeed",
+    "PodcastUnavailable",
+    "UrllibReader",
 ]

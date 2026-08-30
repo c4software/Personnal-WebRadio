@@ -15,50 +15,50 @@ savoir si l'on s'en servira.
 import logging
 from datetime import timedelta
 
-from webradio.adapters.state.database import EtatIndisponible, EtatSQLite
 from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
-from webradio.adapters.podcast.feed import FluxPodcast, PodcastIndisponible
-from webradio.core.clock import Horloge
-from webradio.core.shows import Emission, Episode, GrilleDesEmissions, episode_a_diffuser
+from webradio.adapters.podcast.feed import PodcastFeed, PodcastUnavailable
+from webradio.adapters.state.database import SqliteState, StateUnavailable
+from webradio.core.clock import Clock
+from webradio.core.shows import Episode, Show, ShowSchedule, episode_to_air
 
 logger = logging.getLogger(__name__)
 
 
-class Emissions:
+class Shows:
     """Ce qui est dû à l'antenne, et l'URL audio à ouvrir pour le diffuser."""
 
     def __init__(
         self,
-        programme: GrilleDesEmissions,
-        flux: FluxPodcast,
-        etat: EtatSQLite,
-        horloge: Horloge,
-        adresses: dict[str, str],
+        programme: ShowSchedule,
+        feed: PodcastFeed,
+        state: SqliteState,
+        clock: Clock,
+        addresses: dict[str, str],
     ) -> None:
         self._programme = programme
-        self._flux = flux
-        self._etat = etat
-        self._horloge = horloge
-        self._adresses = adresses
+        self._flux = feed
+        self._etat = state
+        self._horloge = clock
+        self._adresses = addresses
 
-    def due(self) -> tuple[Emission, str] | None:
+    def due(self) -> tuple[Show, str] | None:
         """L'émission due maintenant et l'URL de son épisode, ou rien.
 
         Rend `None` dans tous les cas où « il n'y a pas d'émission » — aucune
         case ouverte, flux injoignable, épisode déjà diffusé. Aucun n'est une
         panne : la radio reste sur la musique (SPECS.md §4.11).
         """
-        instant = self._horloge.maintenant()
+        instant = self._horloge.now()
         catalogues = self._catalogues(instant)
-        durees = {
-            nom: episodes[0].duree
-            for nom, episodes in catalogues.items()
-            if episodes and episodes[0].duree is not None
+        durations = {
+            name: episodes[0].duration
+            for name, episodes in catalogues.items()
+            if episodes and episodes[0].duration is not None
         }
-        case = self._programme.due(durees, instant)
+        case = self._programme.due(durations, instant)
         if case is None:
             return None
-        return self._episode_de(case.emission, catalogues.get(case.emission.nom, []))
+        return self._episode_de(case.show, catalogues.get(case.show.name, []))
 
     def _catalogues(self, instant: object) -> dict[str, list[EpisodeDuFlux]]:
         """Lit les flux des émissions dont une case a pu commencer.
@@ -68,51 +68,49 @@ class Emissions:
         décision n°13.
         """
         catalogues: dict[str, list[EpisodeDuFlux]] = {}
-        for emission in self._programme.emissions:
-            if self._programme.debut_de_case(emission, instant) is None:  # type: ignore[arg-type]
+        for show in self._programme.shows:
+            if self._programme.slot_start(show, instant) is None:  # type: ignore[arg-type]
                 continue
-            adresse = self._adresses.get(emission.nom)
-            if adresse is None:
+            address = self._adresses.get(show.name)
+            if address is None:
                 continue
             try:
-                catalogues[emission.nom] = self._flux.episodes(adresse)
-            except PodcastIndisponible as panne:
+                catalogues[show.name] = self._flux.episodes(address)
+            except PodcastUnavailable as failure:
                 logger.warning(
-                    "flux de « %s » injoignable, pas de rattrapage : %s", emission.nom, panne
+                    "flux de « %s » injoignable, pas de rattrapage : %s", show.name, failure
                 )
         return catalogues
 
-    def _episode_de(
-        self, emission: Emission, catalogue: list[EpisodeDuFlux]
-    ) -> tuple[Emission, str] | None:
+    def _episode_de(self, show: Show, catalogue: list[EpisodeDuFlux]) -> tuple[Show, str] | None:
         if not catalogue:
             return None
         try:
-            deja = self._etat.derniere_diffusion(emission.nom)
-        except EtatIndisponible as panne:
+            deja = self._etat.last_airing(show.name)
+        except StateUnavailable as failure:
             # Sans mémoire, on rediffuserait en boucle. Mieux vaut sauter la
             # case : une émission manquée est bien moins gênante qu'une
             # émission qui repasse indéfiniment (SPECS.md §4.11).
-            logger.warning("mémoire indisponible, émission « %s » sautée : %s", emission.nom, panne)
+            logger.warning("mémoire indisponible, émission « %s » sautée : %s", show.name, failure)
             return None
-        choisi = episode_a_diffuser(
+        choisi = episode_to_air(
             [
                 Episode(
-                    guid=e.identifiant,
-                    publie_le=e.publie_le,
-                    duree=e.duree if e.duree is not None else timedelta(0),
-                    nature="full",
+                    guid=e.identifier,
+                    published_at=e.published_at,
+                    duration=e.duration if e.duration is not None else timedelta(0),
+                    kind="full",
                 )
                 for e in catalogue
             ],
             deja.episode if deja is not None else None,
         )
         if choisi is None:
-            logger.info("« %s » n'a rien de neuf : la case est sautée", emission.nom)
+            logger.info("« %s » n'a rien de neuf : la case est sautée", show.name)
             return None
-        audio = next(e.audio for e in catalogue if e.identifiant == choisi.guid)
+        audio = next(e.audio for e in catalogue if e.identifier == choisi.guid)
         try:
-            self._etat.enregistrer_diffusion(emission.nom, choisi.guid)
-        except EtatIndisponible as panne:
-            logger.warning("diffusion non retenue, elle se rejouera : %s", panne)
-        return emission, audio
+            self._etat.record_airing(show.name, choisi.guid)
+        except StateUnavailable as failure:
+            logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
+        return show, audio

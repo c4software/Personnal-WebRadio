@@ -10,10 +10,10 @@ code ne doit supposer qu'il y en a plusieurs (SPECS.md §7 n°12).
 """
 
 from webradio.adapters.sources.navidrome import (
-    ReponseHttp,
-    SourceNavidrome,
-    TransportHttp,
-    TransportUrllib,
+    HttpResponse,
+    HttpTransport,
+    NavidromeSource,
+    UrllibTransport,
 )
 
-__all__ = ["ReponseHttp", "SourceNavidrome", "TransportHttp", "TransportUrllib"]
+__all__ = ["HttpResponse", "HttpTransport", "NavidromeSource", "UrllibTransport"]

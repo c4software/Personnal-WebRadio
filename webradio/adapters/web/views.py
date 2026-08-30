@@ -21,18 +21,18 @@ from datetime import timedelta
 from flask import Blueprint, Flask, render_template, url_for
 from flask.typing import ResponseReturnValue
 
-from webradio.adapters.web.api import Radio, Vote, creer_api
+from webradio.adapters.web.api import Radio, Vote, create_api
 
 MILLISECONDES = 1000
 
 
-def creer_vue(*, rafraichissement: timedelta) -> Blueprint:
+def create_view(*, refresh: timedelta) -> Blueprint:
     """La page unique.
 
     `rafraichissement` vient du TOML : c'est une durée, et aucune durée ne
     s'écrit dans le code (AGENTS.md §2).
     """
-    if rafraichissement <= timedelta(0):
+    if refresh <= timedelta(0):
         message = "un rafraîchissement nul ferait boucler la page sans reprendre son souffle"
         raise ValueError(message)
 
@@ -42,22 +42,22 @@ def creer_vue(*, rafraichissement: timedelta) -> Blueprint:
     def page() -> ResponseReturnValue:
         return render_template(
             "index.html",
-            url_antenne=url_for("api.antenne"),
-            url_stop=url_for("api.voter", nom=str(Vote.STOP)),
-            url_encore=url_for("api.voter", nom=str(Vote.ENCORE)),
-            rafraichissement_ms=int(rafraichissement.total_seconds() * MILLISECONDES),
+            url_antenne=url_for("api.on_air_now"),
+            url_stop=url_for("api.vote", name=str(Vote.SKIP)),
+            url_encore=url_for("api.vote", name=str(Vote.MORE)),
+            rafraichissement_ms=int(refresh.total_seconds() * MILLISECONDES),
         )
 
     return vue
 
 
-def creer_application(radio: Radio, *, rafraichissement: timedelta) -> Flask:
+def create_app(radio: Radio, *, refresh: timedelta) -> Flask:
     """L'application complète : l'API, puis la page qui s'en sert.
 
     Les deux sont montées ensemble parce que la page ne sait rien faire sans
     l'API — c'est exactement ce qu'on veut vérifier.
     """
-    application = Flask(__name__)
-    application.register_blueprint(creer_api(radio))
-    application.register_blueprint(creer_vue(rafraichissement=rafraichissement))
-    return application
+    app = Flask(__name__)
+    app.register_blueprint(create_api(radio))
+    app.register_blueprint(create_view(refresh=refresh))
+    return app

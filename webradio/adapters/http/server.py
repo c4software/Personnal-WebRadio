@@ -18,22 +18,22 @@ from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Any, Protocol
 
-from webradio.adapters.ffmpeg.encoder import ChaineIndisponible, FormatFlux
-from webradio.adapters.http.broadcast import Abonne, Diffusion
+from webradio.adapters.ffmpeg.encoder import ChainUnavailable, StreamFormat
+from webradio.adapters.http.broadcast import Broadcast, Subscriber
 
 logger = logging.getLogger(__name__)
 
 
-class Alimentation(Protocol):
+class Feed(Protocol):
     """Ce que le serveur attend d'une chaîne : qu'elle démarre et qu'elle s'arrête.
 
     Le serveur ignore délibérément d'où viennent les octets — il ne les touche
     même pas, ils vont de la chaîne à la `Diffusion` sans passer par ici.
     """
 
-    def demarrer(self) -> None: ...
+    def start(self) -> None: ...
 
-    def arreter(self) -> None: ...
+    def stop_all(self) -> None: ...
 
 
 class Station:
@@ -41,27 +41,27 @@ class Station:
 
     def __init__(
         self,
-        fabrique: Callable[[Diffusion], Alimentation],
+        factory: Callable[[Broadcast], Feed],
         *,
-        capacite_par_auditeur: int = 64,
+        capacity_per_listener: int = 64,
     ) -> None:
-        self._fabrique = fabrique
-        self._capacite = capacite_par_auditeur
+        self._fabrique = factory
+        self._capacite = capacity_per_listener
         self._verrou = threading.RLock()
-        self._diffusion: Diffusion | None = None
-        self._chaine: Alimentation | None = None
+        self._diffusion: Broadcast | None = None
+        self._chaine: Feed | None = None
 
     @property
-    def auditeurs(self) -> int:
+    def listeners(self) -> int:
         with self._verrou:
-            return self._diffusion.auditeurs if self._diffusion is not None else 0
+            return self._diffusion.listeners if self._diffusion is not None else 0
 
     @property
-    def en_antenne(self) -> bool:
+    def on_air(self) -> bool:
         with self._verrou:
             return self._chaine is not None
 
-    def brancher(self) -> Abonne:
+    def connect(self) -> Subscriber:
         """Branche un auditeur, en démarrant la chaîne s'il est le premier.
 
         Une chaîne qui refuse de démarrer laisse la station intacte : l'auditeur
@@ -70,24 +70,24 @@ class Station:
         """
         with self._verrou:
             if self._diffusion is None:
-                diffusion = Diffusion(self._capacite)
-                chaine = self._fabrique(diffusion)
-                chaine.demarrer()
-                self._diffusion, self._chaine = diffusion, chaine
+                broadcast = Broadcast(self._capacite)
+                chaine = self._fabrique(broadcast)
+                chaine.start()
+                self._diffusion, self._chaine = broadcast, chaine
                 logger.info("premier auditeur : la chaîne démarre")
-            return self._diffusion.abonner()
+            return self._diffusion.subscribe()
 
-    def debrancher(self, abonne: Abonne) -> None:
+    def disconnect(self, subscriber: Subscriber) -> None:
         """Débranche un auditeur, et arrête tout s'il était le dernier."""
         with self._verrou:
             if self._diffusion is None:
                 return
-            self._diffusion.desabonner(abonne)
-            if self._diffusion.auditeurs == 0:
+            self._diffusion.unsubscribe(subscriber)
+            if self._diffusion.listeners == 0:
                 logger.info("dernier auditeur parti : la chaîne s'arrête")
-                self.arreter()
+                self.stop_all()
 
-    def arreter(self) -> None:
+    def stop_all(self) -> None:
         """Arrête la chaîne et oublie la diffusion. Idempotente.
 
         Oublier la diffusion n'est pas un détail : un auditeur qui se rebranche
@@ -96,33 +96,33 @@ class Station:
         """
         with self._verrou:
             chaine, self._chaine = self._chaine, None
-            diffusion, self._diffusion = self._diffusion, None
+            broadcast, self._diffusion = self._diffusion, None
         if chaine is not None:
-            chaine.arreter()
-        if diffusion is not None:
-            diffusion.fermer("la chaîne est arrêtée")
+            chaine.stop_all()
+        if broadcast is not None:
+            broadcast.close("la chaîne est arrêtée")
 
 
-class GestionnaireFlux(BaseHTTPRequestHandler):
+class StreamHandler(BaseHTTPRequestHandler):
     """Une connexion d'auditeur, de son branchement à sa déconnexion."""
 
     def __init__(
         self,
         *args: Any,
         station: Station,
-        format_flux: FormatFlux,
-        chemin: str,
-        nom: str,
-        delai_attente: float,
+        stream_format: StreamFormat,
+        path: str,
+        name: str,
+        lock_timeout: float,
         **kwargs: Any,
     ) -> None:
         # Renseignés avant l'appel au parent : celui-ci traite la requête depuis
         # son propre constructeur.
         self._station = station
-        self._format = format_flux
-        self._chemin = chemin
-        self._nom = nom
-        self._delai = delai_attente
+        self._format = stream_format
+        self._chemin = path
+        self._nom = name
+        self._delai = lock_timeout
         super().__init__(*args, **kwargs)
 
     def do_GET(self) -> None:
@@ -130,31 +130,31 @@ class GestionnaireFlux(BaseHTTPRequestHandler):
             self._repondre_texte(HTTPStatus.NOT_FOUND, f"le flux est servi sur {self._chemin}")
             return
         try:
-            abonne = self._station.brancher()
-        except ChaineIndisponible as erreur:
-            logger.error("branchement refusé : %s", erreur)
+            subscriber = self._station.connect()
+        except ChainUnavailable as error:
+            logger.error("branchement refusé : %s", error)
             self._repondre_texte(
-                HTTPStatus.SERVICE_UNAVAILABLE, f"la radio ne démarre pas : {erreur}"
+                HTTPStatus.SERVICE_UNAVAILABLE, f"la radio ne démarre pas : {error}"
             )
             return
         try:
-            self._servir(abonne)
+            self._servir(subscriber)
         finally:
-            self._station.debrancher(abonne)
+            self._station.disconnect(subscriber)
 
     def log_message(self, format: str, *args: Any) -> None:
         """Le journal du serveur passe par `logging`, pas par la sortie d'erreur."""
         logger.debug("%s %s", self.address_string(), format % args)
 
-    def _servir(self, abonne: Abonne) -> None:
+    def _servir(self, subscriber: Subscriber) -> None:
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type", self._format.type_mime)
         self.send_header("icy-name", self._nom)
-        self.send_header("icy-br", str(self._format.debit_kbps))
+        self.send_header("icy-br", str(self._format.bitrate_kbps))
         self.end_headers()
         try:
-            for bloc in abonne.blocs(self._delai):
-                self.wfile.write(bloc)
+            for block in subscriber.blocks(self._delai):
+                self.wfile.write(block)
         except (BrokenPipeError, ConnectionResetError, TimeoutError):
             # La seule façon fiable de constater une déconnexion brutale : la
             # socket ne l'annonce pas, elle refuse la prochaine écriture
@@ -163,43 +163,43 @@ class GestionnaireFlux(BaseHTTPRequestHandler):
 
     def _repondre_texte(self, code: HTTPStatus, message: str) -> None:
         """Une erreur se dit en clair : jamais un 200 suivi d'un flux vide."""
-        corps = f"{message}\n".encode()
+        body = f"{message}\n".encode()
         self.send_response(code)
         self.send_header("Content-Type", "text/plain; charset=utf-8")
-        self.send_header("Content-Length", str(len(corps)))
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(corps)
+        self.wfile.write(body)
 
 
-class ServeurFlux:
+class StreamServer:
     """Le serveur HTTP qui sert le flux, et lui seul."""
 
     def __init__(
         self,
         station: Station,
-        format_flux: FormatFlux,
+        stream_format: StreamFormat,
         *,
-        adresse: str,
+        address: str,
         port: int,
-        chemin: str,
-        nom: str,
-        delai_attente: float = 30.0,
-        delai_arret: float = 5.0,
+        path: str,
+        name: str,
+        lock_timeout: float = 30.0,
+        stop_timeout: float = 5.0,
     ) -> None:
         gestionnaire = partial(
-            GestionnaireFlux,
+            StreamHandler,
             station=station,
-            format_flux=format_flux,
-            chemin=chemin,
-            nom=nom,
-            delai_attente=delai_attente,
+            stream_format=stream_format,
+            path=path,
+            name=name,
+            lock_timeout=lock_timeout,
         )
         # Un fil par connexion, tous démons : une socket muette ne doit jamais
         # retenir l'arrêt du programme.
-        self._serveur = ThreadingHTTPServer((adresse, port), gestionnaire)
+        self._serveur = ThreadingHTTPServer((address, port), gestionnaire)
         self._serveur.daemon_threads = True
         self._station = station
-        self._delai_arret = delai_arret
+        self._delai_arret = stop_timeout
         self._fil: threading.Thread | None = None
 
     @property
@@ -207,17 +207,17 @@ class ServeurFlux:
         """Le port réellement ouvert — un test demande le port 0 et le découvre ici."""
         return int(self._serveur.server_address[1])
 
-    def demarrer(self) -> None:
+    def start(self) -> None:
         self._fil = threading.Thread(
             target=self._serveur.serve_forever, name="serveur-flux", daemon=True
         )
         self._fil.start()
         logger.info("flux servi sur le port %d", self.port)
 
-    def arreter(self) -> None:
+    def stop_all(self) -> None:
         """Ferme le serveur, puis la chaîne : plus personne ne peut se brancher."""
         self._serveur.shutdown()
         self._serveur.server_close()
         if self._fil is not None:
             self._fil.join(self._delai_arret)
-        self._station.arreter()
+        self._station.stop_all()

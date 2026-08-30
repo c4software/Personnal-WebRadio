@@ -6,11 +6,11 @@ troisième — elle n'arrive qu'avec une décision écrite.
 """
 
 from webradio.adapters.state.database import (
-    Diffusion,
-    EtatIndisponible,
-    EtatSQLite,
-    Portee,
+    Broadcast,
+    Scope,
     Scores,
+    SqliteState,
+    StateUnavailable,
 )
 
-__all__ = ["Diffusion", "EtatIndisponible", "EtatSQLite", "Portee", "Scores"]
+__all__ = ["Broadcast", "Scope", "Scores", "SqliteState", "StateUnavailable"]

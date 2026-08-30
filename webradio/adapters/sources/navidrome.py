@@ -34,32 +34,32 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Protocol
 
-from webradio.adapters.config.schema import ConfigurationNavidrome, IdentifiantsNavidrome
-from webradio.core.models import Piste
-from webradio.core.rng import Hasard
-from webradio.core.sources import SourceIndisponible
+from webradio.adapters.config.schema import NavidromeCredentials, NavidromeSettings
+from webradio.core.models import Track
+from webradio.core.rng import Random
+from webradio.core.sources import SourceUnavailable
 
 journal = logging.getLogger(__name__)
 
-CHEMIN_API = "/rest"
-VERSION_API = "1.16.1"
-NOM_CLIENT = "local-webradio"
+API_PATH = "/rest"
+API_VERSION = "1.16.1"
+CLIENT_NAME = "local-webradio"
 FORMAT_REPONSE = "json"
-CODE_HTTP_OK = 200
+HTTP_OK = 200
 
 # Le plafond de `getRandomSongs`, constaté : `size=501` rend 500 pistes avec
 # `status: ok`. Ce n'est pas un réglage, c'est une propriété du serveur.
-PLAFOND_ECHANTILLON = 500
+SAMPLE_CAP = 500
 
 # Le sel accompagne le jeton dans l'URL ; sa seule exigence est de varier d'un
 # appel à l'autre. Il est tiré par le hasard injecté, parce que `random` et
 # `secrets` sont interdits partout ailleurs que dans `core/rng.py`.
-ALPHABET_SEL = list("0123456789abcdef")
-LONGUEUR_SEL = 12
+SALT_ALPHABET = list("0123456789abcdef")
+SALT_LENGTH = 12
 
 
 @dataclass(frozen=True, slots=True)
-class ReponseHttp:
+class HttpResponse:
     """Ce que l'adaptateur a besoin de savoir d'une réponse : un code et un corps.
 
     Le corps est du texte et non du JSON déjà analysé : la seule chose dont on
@@ -67,20 +67,20 @@ class ReponseHttp:
     """
 
     code: int
-    corps: str
+    body: str
 
 
-class TransportHttp(Protocol):
+class HttpTransport(Protocol):
     """Le seul point par lequel ce dossier touche au réseau.
 
     L'isoler derrière un `Protocol` est ce qui permet de tester l'adaptateur
     contre des réponses littérales, sans réseau (AGENTS.md §4).
     """
 
-    def recuperer(self, url: str) -> ReponseHttp: ...
+    def fetch(self, url: str) -> HttpResponse: ...
 
 
-class TransportUrllib:
+class UrllibTransport:
     """Le transport réel, sur `urllib` de la bibliothèque standard.
 
     Une erreur HTTP est rendue comme une réponse ordinaire — le code fait partie
@@ -90,95 +90,95 @@ class TransportUrllib:
 
     def __init__(
         self,
-        delai_secondes: float,
+        timeout_seconds: float,
         ouvrir: Callable[..., Any] | None = None,
     ) -> None:
-        self._delai = delai_secondes
+        self._delai = timeout_seconds
         self._ouvrir = urllib.request.urlopen if ouvrir is None else ouvrir
 
-    def recuperer(self, url: str) -> ReponseHttp:
-        requete = urllib.request.Request(url, headers={"User-Agent": NOM_CLIENT})
+    def fetch(self, url: str) -> HttpResponse:
+        requete = urllib.request.Request(url, headers={"User-Agent": CLIENT_NAME})
         try:
-            with self._ouvrir(requete, timeout=self._delai) as reponse:
-                return ReponseHttp(code=int(reponse.status), corps=_texte(reponse.read()))
-        except urllib.error.HTTPError as erreur:
-            return ReponseHttp(code=int(erreur.code), corps=_texte(erreur.read()))
-        except OSError as erreur:
-            message = f"Navidrome injoignable : {erreur}"
-            raise SourceIndisponible(message) from erreur
+            with self._ouvrir(requete, timeout=self._delai) as answer:
+                return HttpResponse(code=int(answer.status), body=_texte(answer.read()))
+        except urllib.error.HTTPError as error:
+            return HttpResponse(code=int(error.code), body=_texte(error.read()))
+        except OSError as error:
+            message = f"Navidrome injoignable : {error}"
+            raise SourceUnavailable(message) from error
 
 
 def _texte(brut: bytes) -> str:
     return brut.decode("utf-8", errors="replace")
 
 
-class SourceNavidrome:
+class NavidromeSource:
     """La bibliothèque Navidrome, vue comme une `SourceMusicale`."""
 
     def __init__(
         self,
-        identifiants: IdentifiantsNavidrome,
-        reglages: ConfigurationNavidrome,
-        hasard: Hasard,
-        transport: TransportHttp,
+        credentials: NavidromeCredentials,
+        config: NavidromeSettings,
+        random: Random,
+        transport: HttpTransport,
     ) -> None:
-        self._identifiants = identifiants
-        self._reglages = reglages
-        self._hasard = hasard
+        self._identifiants = credentials
+        self._reglages = config
+        self._hasard = random
         self._transport = transport
-        self._taille = self._plafonner(reglages.taille_echantillon)
+        self._taille = self._plafonner(config.sample_size)
 
-    def _plafonner(self, demandee: int) -> int:
+    def _plafonner(self, requested: int) -> int:
         """Le dépassement est ramené au plafond une fois, au démarrage, et dit.
 
         Le serveur tronque sans rien signaler : croire une demande de 1000
         pistes reviendrait à tirer dans 500 en pensant tirer dans 1000.
         """
-        if demandee > PLAFOND_ECHANTILLON:
+        if requested > SAMPLE_CAP:
             journal.warning(
                 "taille d'échantillon %d ramenée à %d : le serveur tronque en silence au-delà",
-                demandee,
-                PLAFOND_ECHANTILLON,
+                requested,
+                SAMPLE_CAP,
             )
-            return PLAFOND_ECHANTILLON
-        return demandee
+            return SAMPLE_CAP
+        return requested
 
-    def pistes(self, genre: str | None = None) -> list[Piste]:
-        parametres = {"size": str(self._taille)}
+    def tracks(self, genre: str | None = None) -> list[Track]:
+        params = {"size": str(self._taille)}
         if genre is not None:
-            parametres["genre"] = genre
-        enveloppe = self._appeler("getRandomSongs", parametres)
-        pistes = self._pistes_de_la_liste(enveloppe, "randomSongs")
-        if genre is not None and not pistes:
+            params["genre"] = genre
+        envelope = self._appeler("getRandomSongs", params)
+        tracks = self._pistes_de_la_liste(envelope, "randomSongs")
+        if genre is not None and not tracks:
             journal.info(
                 "le genre « %s » ne rend aucune piste : le repli se décide plus haut", genre
             )
-        return pistes
+        return tracks
 
-    def pistes_de(self, artiste: str) -> list[Piste]:
+    def tracks_by(self, artist: str) -> list[Track]:
         """Les pistes de cet artiste, et de lui seul.
 
         `search3` ramène aussi des voisins : sur 50 résultats relevés pour un
         artiste, 49 étaient de lui et un ne l'était pas. Sans l'égalité exacte,
         `encore` servirait cet intrus.
         """
-        enveloppe = self._appeler(
+        envelope = self._appeler(
             "search3",
             {
-                "query": artiste,
-                "songCount": str(self._reglages.resultats_artiste),
+                "query": artist,
+                "songCount": str(self._reglages.artist_results),
                 "artistCount": "0",
                 "albumCount": "0",
             },
         )
-        trouvees = self._pistes_de_la_liste(enveloppe, "searchResult3")
-        retenues = [piste for piste in trouvees if piste.artiste == artiste]
+        trouvees = self._pistes_de_la_liste(envelope, "searchResult3")
+        retenues = [track for track in trouvees if track.artist == artist]
         ecartees = len(trouvees) - len(retenues)
         if ecartees:
             journal.debug(
                 "%d résultat(s) écarté(s) pour « %s » : la recherche ramène d'autres artistes",
                 ecartees,
-                artiste,
+                artist,
             )
         return retenues
 
@@ -188,21 +188,19 @@ class SourceNavidrome:
         L'ordre du serveur n'est pas garanti stable ; le trier rend deux
         démarrages comparables, ce que le tri seul suffit à obtenir.
         """
-        enveloppe = self._appeler("getGenres", {})
-        contenu = enveloppe.get("genres")
-        entrees = contenu.get("genre") if isinstance(contenu, Mapping) else None
+        envelope = self._appeler("getGenres", {})
+        content = envelope.get("genres")
+        entrees = content.get("genre") if isinstance(content, Mapping) else None
         if not isinstance(entrees, Sequence) or isinstance(entrees, str):
             return []
-        noms = {
-            entree["value"]
-            for entree in entrees
-            if isinstance(entree, Mapping)
-            and isinstance(entree.get("value"), str)
-            and entree["value"]
+        names = {
+            entry["value"]
+            for entry in entrees
+            if isinstance(entry, Mapping) and isinstance(entry.get("value"), str) and entry["value"]
         }
-        return sorted(noms)
+        return sorted(names)
 
-    def pistes_de_la_liste_de_lecture(self, nom: str) -> list[Piste]:
+    def tracks_from_playlist(self, name: str) -> list[Track]:
         """Les pistes d'une liste de lecture désignée par son nom.
 
         Deux appels, et c'est irréductible : le TOML déclare un **nom**
@@ -220,61 +218,63 @@ class SourceNavidrome:
         établie (docs/navidrome.md §2.6.1). Une liste se juge sur ce que
         `getPlaylist` rend.
         """
-        identifiant = self._identifiant_de_liste(nom)
-        if identifiant is None:
+        identifier = self._identifiant_de_liste(name)
+        if identifier is None:
             journal.info(
-                "aucune liste de lecture ne s'appelle « %s » : le repli se décide plus haut", nom
+                "aucune liste de lecture ne s'appelle « %s » : le repli se décide plus haut", name
             )
             return []
-        enveloppe = self._appeler("getPlaylist", {"id": identifiant})
-        pistes = self._entrees_de_liste(enveloppe)
-        if not pistes:
-            journal.info("la liste « %s » ne rend aucune piste : le repli se décide plus haut", nom)
-        return pistes
+        envelope = self._appeler("getPlaylist", {"id": identifier})
+        tracks = self._entrees_de_liste(envelope)
+        if not tracks:
+            journal.info(
+                "la liste « %s » ne rend aucune piste : le repli se décide plus haut", name
+            )
+        return tracks
 
-    def _identifiant_de_liste(self, nom: str) -> str | None:
+    def _identifiant_de_liste(self, name: str) -> str | None:
         """Traduit un nom de liste en identifiant Subsonic, par égalité exacte.
 
         L'égalité exacte plutôt qu'une comparaison indulgente : deux listes
         peuvent différer par une seule majuscule, et servir l'une pour l'autre
         se remarquerait à l'antenne bien plus tard que le repli journalisé.
         """
-        enveloppe = self._appeler("getPlaylists", {})
-        contenu = enveloppe.get("playlists")
-        brutes = contenu.get("playlist") if isinstance(contenu, Mapping) else None
+        envelope = self._appeler("getPlaylists", {})
+        content = envelope.get("playlists")
+        brutes = content.get("playlist") if isinstance(content, Mapping) else None
         if not isinstance(brutes, Sequence) or isinstance(brutes, str):
             return None
         trouves: list[str] = []
         for brute in brutes:
             if not isinstance(brute, Mapping):
                 continue
-            identifiant = brute.get("id")
-            if brute.get("name") == nom and isinstance(identifiant, str) and identifiant:
-                trouves.append(identifiant)
+            identifier = brute.get("id")
+            if brute.get("name") == name and isinstance(identifier, str) and identifier:
+                trouves.append(identifier)
         if not trouves:
             return None
         if len(trouves) > 1:
             journal.warning(
                 "%d listes de lecture s'appellent « %s » : la première est retenue",
                 len(trouves),
-                nom,
+                name,
             )
         return trouves[0]
 
-    def _entrees_de_liste(self, enveloppe: Mapping[str, Any]) -> list[Piste]:
+    def _entrees_de_liste(self, envelope: Mapping[str, Any]) -> list[Track]:
         """Les entrées d'une liste, sous la clé `entry` et non `song`.
 
         C'est la seule différence de forme avec les autres réponses : les
         entrées sont des chansons ordinaires, converties comme partout ailleurs,
         et les incomplètes sont écartées de la même façon.
         """
-        contenu = enveloppe.get("playlist")
-        brutes = contenu.get("entry") if isinstance(contenu, Mapping) else None
+        content = envelope.get("playlist")
+        brutes = content.get("entry") if isinstance(content, Mapping) else None
         if not isinstance(brutes, Sequence) or isinstance(brutes, str):
             return []
-        return [piste for brute in brutes if (piste := _en_piste(brute)) is not None]
+        return [track for brute in brutes if (track := _en_piste(brute)) is not None]
 
-    def entree(self, piste: Piste) -> str:
+    def entry(self, track: Track) -> str:
         """L'URL de flux de la piste, jeton compris.
 
         `stream` plutôt que `download` : le relevé a constaté qu'ils rendent le
@@ -285,96 +285,94 @@ class SourceNavidrome:
         paraître dans un journal (AGENTS.md §2). Elle est rendue à la chaîne de
         diffusion, qui l'ouvre et ne la consigne pas.
         """
-        return self._url("stream.view", {"id": piste.identifiant})
+        return self._url("stream.view", {"id": track.identifier})
 
     def _sel(self) -> str:
-        return "".join(self._hasard.choisir(ALPHABET_SEL) for _ in range(LONGUEUR_SEL))
+        return "".join(self._hasard.pick(SALT_ALPHABET) for _ in range(SALT_LENGTH))
 
-    def _url(self, methode: str, parametres: Mapping[str, str]) -> str:
+    def _url(self, method: str, params: Mapping[str, str]) -> str:
         """Construit l'appel authentifié par jeton dérivé.
 
         Le mot de passe ne circule jamais : seul `md5(motdepasse + sel)` part sur
         le réseau, et le sel change à chaque appel (docs/navidrome.md §1).
         """
-        sel = self._sel()
-        empreinte = hashlib.md5((self._identifiants.mot_de_passe + sel).encode("utf-8")).hexdigest()
+        salt = self._sel()
+        empreinte = hashlib.md5((self._identifiants.password + salt).encode("utf-8")).hexdigest()
         commun = {
-            "u": self._identifiants.utilisateur,
+            "u": self._identifiants.username,
             "t": empreinte,
-            "s": sel,
-            "v": VERSION_API,
-            "c": NOM_CLIENT,
+            "s": salt,
+            "v": API_VERSION,
+            "c": CLIENT_NAME,
             "f": FORMAT_REPONSE,
         }
-        requete = urllib.parse.urlencode({**commun, **parametres})
-        return f"{self._identifiants.url}{CHEMIN_API}/{methode}?{requete}"
+        requete = urllib.parse.urlencode({**commun, **params})
+        return f"{self._identifiants.url}{API_PATH}/{method}?{requete}"
 
-    def _appeler(self, methode: str, parametres: Mapping[str, str]) -> Mapping[str, Any]:
+    def _appeler(self, method: str, params: Mapping[str, str]) -> Mapping[str, Any]:
         """Un appel, et les quatre façons dont il peut mal tourner.
 
         Aucun message ne contient l'URL : elle porte le jeton et le sel, et un
         journal n'est pas un endroit où les écrire (AGENTS.md §2).
         """
         try:
-            reponse = self._transport.recuperer(self._url(methode, parametres))
-        except OSError as erreur:
-            message = f"« {methode} » : Navidrome injoignable ({erreur})"
-            raise SourceIndisponible(message) from erreur
+            answer = self._transport.fetch(self._url(method, params))
+        except OSError as error:
+            message = f"« {method} » : Navidrome injoignable ({error})"
+            raise SourceUnavailable(message) from error
 
-        if reponse.code != CODE_HTTP_OK:
-            message = (
-                f"« {methode} » a répondu HTTP {reponse.code}, sans corps Subsonic exploitable"
-            )
-            raise SourceIndisponible(message)
+        if answer.code != HTTP_OK:
+            message = f"« {method} » a répondu HTTP {answer.code}, sans corps Subsonic exploitable"
+            raise SourceUnavailable(message)
 
         try:
-            donnees = json.loads(reponse.corps)
-        except json.JSONDecodeError as erreur:
+            donnees = json.loads(answer.body)
+        except json.JSONDecodeError as error:
             message = (
-                f"« {methode} » a répondu HTTP 200 avec un corps qui n'est pas du JSON "
+                f"« {method} » a répondu HTTP 200 avec un corps qui n'est pas du JSON "
                 "(une page d'erreur intercalée, ou une réponse tronquée)"
             )
-            raise SourceIndisponible(message) from erreur
+            raise SourceUnavailable(message) from error
 
-        enveloppe = donnees.get("subsonic-response") if isinstance(donnees, Mapping) else None
-        if not isinstance(enveloppe, Mapping):
-            message = f"« {methode} » a répondu du JSON sans enveloppe « subsonic-response »"
-            raise SourceIndisponible(message)
+        envelope = donnees.get("subsonic-response") if isinstance(donnees, Mapping) else None
+        if not isinstance(envelope, Mapping):
+            message = f"« {method} » a répondu du JSON sans enveloppe « subsonic-response »"
+            raise SourceUnavailable(message)
 
-        if enveloppe.get("status") != "ok":
-            raise SourceIndisponible(_echec(methode, enveloppe))
-        return enveloppe
+        if envelope.get("status") != "ok":
+            raise SourceUnavailable(_echec(method, envelope))
+        return envelope
 
-    def _pistes_de_la_liste(self, enveloppe: Mapping[str, Any], contenant: str) -> list[Piste]:
+    def _pistes_de_la_liste(self, envelope: Mapping[str, Any], contenant: str) -> list[Track]:
         """Extrait les pistes d'une réponse valable.
 
         Un contenant absent n'est pas une anomalie : c'est ce que rend un genre
         inexistant, avec `status: ok` (docs/navidrome.md §2.2).
         """
-        contenu = enveloppe.get(contenant)
-        brutes = contenu.get("song") if isinstance(contenu, Mapping) else None
+        content = envelope.get(contenant)
+        brutes = content.get("song") if isinstance(content, Mapping) else None
         if not isinstance(brutes, Sequence) or isinstance(brutes, str):
             return []
-        pistes = [piste for brute in brutes if (piste := _en_piste(brute)) is not None]
-        return pistes
+        tracks = [track for brute in brutes if (track := _en_piste(brute)) is not None]
+        return tracks
 
 
-def _echec(methode: str, enveloppe: Mapping[str, Any]) -> str:
+def _echec(method: str, envelope: Mapping[str, Any]) -> str:
     """Le message d'un refus applicatif, arrivé en HTTP 200.
 
     Le code Subsonic est repris tel quel : c'est lui qui distingue un mot de
     passe faux (40) d'un identifiant inconnu (70), et la distinction est ce qui
     évite de chercher une panne réseau là où il y a une erreur de configuration.
     """
-    erreur = enveloppe.get("error")
-    if isinstance(erreur, Mapping):
-        code = erreur.get("code")
-        texte = erreur.get("message")
-        return f"« {methode} » a échoué en HTTP 200 : code Subsonic {code} ({texte})"
-    return f"« {methode} » a échoué en HTTP 200, sans détail d'erreur"
+    error = envelope.get("error")
+    if isinstance(error, Mapping):
+        code = error.get("code")
+        texte = error.get("message")
+        return f"« {method} » a échoué en HTTP 200 : code Subsonic {code} ({texte})"
+    return f"« {method} » a échoué en HTTP 200, sans détail d'erreur"
 
 
-def _en_piste(brute: Any) -> Piste | None:
+def _en_piste(brute: Any) -> Track | None:
     """Traduit une chanson Subsonic en `Piste`, ou l'écarte en le disant.
 
     `genre` est facultatif — il manque sur près d'une piste sur cinq — mais un
@@ -384,28 +382,28 @@ def _en_piste(brute: Any) -> Piste | None:
     if not isinstance(brute, Mapping):
         journal.warning("entrée ignorée : une chanson est attendue, pas %s", type(brute).__name__)
         return None
-    identifiant = brute.get("id")
-    titre = brute.get("title")
-    artiste = brute.get("artist")
-    duree = brute.get("duration")
+    identifier = brute.get("id")
+    title = brute.get("title")
+    artist = brute.get("artist")
+    duration = brute.get("duration")
     genre = brute.get("genre")
     if (
-        not isinstance(identifiant, str)
-        or not isinstance(titre, str)
-        or not isinstance(artiste, str)
-        or isinstance(duree, bool)
-        or not isinstance(duree, int)
+        not isinstance(identifier, str)
+        or not isinstance(title, str)
+        or not isinstance(artist, str)
+        or isinstance(duration, bool)
+        or not isinstance(duration, int)
     ):
         journal.warning("chanson ignorée : champ obligatoire absent ou d'un type inattendu")
         return None
     try:
-        return Piste(
-            identifiant=identifiant,
-            titre=titre,
-            artiste=artiste,
+        return Track(
+            identifier=identifier,
+            title=title,
+            artist=artist,
             genre=genre if isinstance(genre, str) and genre else None,
-            duree=timedelta(seconds=duree),
+            duration=timedelta(seconds=duration),
         )
-    except ValueError as erreur:
-        journal.warning("chanson ignorée : %s", erreur)
+    except ValueError as error:
+        journal.warning("chanson ignorée : %s", error)
         return None

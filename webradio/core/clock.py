@@ -12,20 +12,20 @@ from datetime import UTC, datetime, timedelta
 from typing import Protocol
 
 
-class Horloge(Protocol):
+class Clock(Protocol):
     """Ce que le noyau sait du temps : rien de plus que l'instant courant."""
 
-    def maintenant(self) -> datetime: ...
+    def now(self) -> datetime: ...
 
 
-class HorlogeSysteme:
+class SystemClock:
     """L'horloge réelle. Le seul endroit du projet qui lit le temps du système."""
 
-    def maintenant(self) -> datetime:
+    def now(self) -> datetime:
         return datetime.now(tz=UTC)
 
 
-class HorlogeFigee:
+class FrozenClock:
     """Une horloge que le test déplace à volonté.
 
     Elle n'avance pas toute seule : une journée entière de programmation se
@@ -39,16 +39,16 @@ class HorlogeFigee:
             raise ValueError(message)
         self._instant = depart
 
-    def maintenant(self) -> datetime:
+    def now(self) -> datetime:
         return self._instant
 
-    def avancer(self, duree: timedelta) -> None:
-        if duree < timedelta(0):
+    def advance(self, duration: timedelta) -> None:
+        if duration < timedelta(0):
             message = "le temps ne recule pas : un test qui en a besoin teste autre chose"
             raise ValueError(message)
-        self._instant += duree
+        self._instant += duration
 
-    def aller_a(self, instant: datetime) -> None:
+    def jump_to(self, instant: datetime) -> None:
         if instant < self._instant:
             message = "le temps ne recule pas : un test qui en a besoin teste autre chose"
             raise ValueError(message)

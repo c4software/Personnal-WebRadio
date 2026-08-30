@@ -25,36 +25,36 @@ from flask.typing import ResponseReturnValue
 
 logger = logging.getLogger(__name__)
 
-CHEMIN_API = "/api"
-CHEMIN_ANTENNE = "/antenne"
-CHEMIN_VOTE = "/votes/<nom>"
+API_PATH = "/api"
+ON_AIR_PATH = "/on-air"
+VOTE_PATH = "/votes/<name>"
 
 REFUS = 409
 DEMANDE_INVALIDE = 400
 
 
-class Nature(StrEnum):
+class Kind(StrEnum):
     """De quelle nature est ce qui passe (SPECS.md §4.8).
 
     L'auditeur doit pouvoir distinguer un morceau d'un habillage : c'est aussi
     ce qui rend un refus de vote compréhensible plutôt que surprenant.
     """
 
-    MUSIQUE = "musique"
+    MUSIC = "musique"
     JINGLE = "jingle"
-    FLASH = "flash"
-    EMISSION = "emission"
+    NEWS = "flash"
+    SHOW = "emission"
 
 
 class Vote(StrEnum):
     """Les deux commandes de SPECS.md §4.6. « Vote » est un mot pour « bouton »."""
 
-    STOP = "stop"
-    ENCORE = "encore"
+    SKIP = "stop"
+    MORE = "encore"
 
 
 @dataclass(frozen=True, slots=True)
-class Antenne:
+class OnAir:
     """Ce qui passe à cet instant.
 
     `titre` et `artiste` sont facultatifs : un jingle horaire ou un flash n'ont
@@ -62,9 +62,9 @@ class Antenne:
     dans un adaptateur.
     """
 
-    nature: Nature
-    titre: str | None = None
-    artiste: str | None = None
+    kind: Kind
+    title: str | None = None
+    artist: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -75,11 +75,11 @@ class Verdict:
     indistinguable d'une panne et pousse à réessayer (ARCHITECTURE.md §6.1).
     """
 
-    accepte: bool
-    motif: str | None = None
+    accepted: bool
+    reason: str | None = None
 
     def __post_init__(self) -> None:
-        if not self.accepte and not self.motif:
+        if not self.accepted and not self.reason:
             message = "un refus sans motif est indistinguable d'une panne"
             raise ValueError(message)
 
@@ -92,15 +92,15 @@ class Radio(Protocol):
     d'un `encore` — est décidé derrière cette frontière.
     """
 
-    def en_diffusion(self) -> bool:
+    def on_air(self) -> bool:
         """La chaîne tourne-t-elle ? Elle ne tourne que si quelqu'un écoute."""
         ...
 
-    def antenne(self) -> Antenne | None:
+    def on_air_now(self) -> OnAir | None:
         """Ce qui passe, ou `None` quand la chaîne est à l'arrêt."""
         ...
 
-    def voter(self, vote: Vote) -> Verdict:
+    def vote(self, vote: Vote) -> Verdict:
         """Applique un vote, ou le refuse en disant pourquoi.
 
         Une voix suffit : il n'y a ni quorum ni fenêtre de dépouillement
@@ -109,51 +109,51 @@ class Radio(Protocol):
         ...
 
 
-def _antenne_en_donnees(antenne: Antenne | None) -> dict[str, str | None] | None:
-    if antenne is None:
+def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | None] | None:
+    if on_air_now is None:
         return None
     return {
-        "nature": str(antenne.nature),
-        "titre": antenne.titre,
-        "artiste": antenne.artiste,
+        "kind": str(on_air_now.kind),
+        "title": on_air_now.title,
+        "artist": on_air_now.artist,
     }
 
 
-def creer_api(radio: Radio) -> Blueprint:
+def create_api(radio: Radio) -> Blueprint:
     """L'API, montée sous `/api`.
 
     Rendue par une fabrique plutôt que par un module global : c'est ce qui
     permet de l'assembler à la main dans `app/` (ARCHITECTURE.md §3) et de la
     tester contre un Fake sans variable de module à remettre à zéro.
     """
-    api = Blueprint("api", __name__, url_prefix=CHEMIN_API)
+    api = Blueprint("api", __name__, url_prefix=API_PATH)
 
-    @api.get(CHEMIN_ANTENNE)
-    def antenne() -> ResponseReturnValue:
+    @api.get(ON_AIR_PATH)
+    def on_air_now() -> ResponseReturnValue:
         """Ce qui passe, et si la chaîne tourne."""
         return jsonify(
             {
-                "en_diffusion": radio.en_diffusion(),
-                "antenne": _antenne_en_donnees(radio.antenne()),
+                "on_air": radio.on_air(),
+                "on_air_now": _antenne_en_donnees(radio.on_air_now()),
             }
         )
 
-    @api.post(CHEMIN_VOTE)
-    def voter(nom: str) -> ResponseReturnValue:
+    @api.post(VOTE_PATH)
+    def vote(name: str) -> ResponseReturnValue:
         """Un vote `stop` ou `encore`, accepté ou refusé **avec son motif**."""
         try:
-            vote = Vote(nom)
+            vote = Vote(name)
         except ValueError:
-            motif = f"vote inconnu : « {nom} »"
-            logger.info("vote refusé — %s", motif)
-            return jsonify({"accepte": False, "vote": nom, "motif": motif}), DEMANDE_INVALIDE
+            reason = f"vote inconnu : « {name} »"
+            logger.info("vote refusé — %s", reason)
+            return jsonify({"accepted": False, "vote": name, "reason": reason}), DEMANDE_INVALIDE
 
-        verdict = radio.voter(vote)
-        corps = {"accepte": verdict.accepte, "vote": str(vote), "motif": verdict.motif}
-        if verdict.accepte:
+        verdict = radio.vote(vote)
+        body = {"accepted": verdict.accepted, "vote": str(vote), "reason": verdict.reason}
+        if verdict.accepted:
             logger.info("vote « %s » accepté", vote)
-            return jsonify(corps)
-        logger.info("vote « %s » refusé — %s", vote, verdict.motif)
-        return jsonify(corps), REFUS
+            return jsonify(body)
+        logger.info("vote « %s » refusé — %s", vote, verdict.reason)
+        return jsonify(body), REFUS
 
     return api

@@ -6,18 +6,18 @@ from pathlib import Path
 
 import pytest
 
-from webradio.adapters.state.database import EtatSQLite
 from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
-from webradio.adapters.podcast.feed import PodcastIndisponible
-from webradio.app.show_scheduler import Emissions
-from webradio.core.clock import HorlogeFigee
-from webradio.core.shows import Emission, GrilleDesEmissions
+from webradio.adapters.podcast.feed import PodcastUnavailable
+from webradio.adapters.state.database import SqliteState
+from webradio.app.show_scheduler import Shows
+from webradio.core.clock import FrozenClock
+from webradio.core.shows import Show, ShowSchedule
 
 VENDREDI_20H = datetime(2026, 8, 28, 20, 0, tzinfo=UTC)  # 2026-08-28 est un vendredi
-EMISSION = Emission(nom="A la French", jours=("vendredi",), heure=time(20, 0))
+SHOW = Show(name="A la French", days=("vendredi",), hour=time(20, 0))
 
 
-class FauxFlux:
+class FakeFeed:
     """Un flux versionné : il rend ce qu'on lui a mis, ou il tombe en panne."""
 
     def __init__(self, episodes: list[EpisodeDuFlux], *, injoignable: bool = False) -> None:
@@ -29,56 +29,56 @@ class FauxFlux:
         self.lectures += 1
         if self.injoignable:
             message = f"flux d'essai injoignable : {url}"
-            raise PodcastIndisponible(message)
+            raise PodcastUnavailable(message)
         return list(self._episodes)
 
 
-def _episode(guid: str, jours: int = 0, minutes: int = 90) -> EpisodeDuFlux:
+def _episode(guid: str, days: int = 0, minutes: int = 90) -> EpisodeDuFlux:
     return EpisodeDuFlux(
-        identifiant=guid,
-        titre=f"épisode {guid}",
-        publie_le=VENDREDI_20H - timedelta(days=jours),
+        identifier=guid,
+        title=f"épisode {guid}",
+        published_at=VENDREDI_20H - timedelta(days=days),
         audio=f"https://exemple.test/{guid}.mp3",
-        duree=timedelta(minutes=minutes),
+        duration=timedelta(minutes=minutes),
     )
 
 
 def _emissions(
     tmp_path: Path,
-    flux: FauxFlux,
-    horloge: HorlogeFigee,
-) -> tuple[Emissions, EtatSQLite]:
-    etat = EtatSQLite(
+    feed: FakeFeed,
+    clock: FrozenClock,
+) -> tuple[Shows, SqliteState]:
+    state = SqliteState(
         tmp_path / "etat.sqlite3",
-        horloge,
-        delai_attente=timedelta(seconds=5),
-        demi_vie_votes=timedelta(days=90),
+        clock,
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
     )
     return (
-        Emissions(
-            GrilleDesEmissions([EMISSION]),
-            flux,  # type: ignore[arg-type]
-            etat,
-            horloge,
+        Shows(
+            ShowSchedule([SHOW]),
+            feed,  # type: ignore[arg-type]
+            state,
+            clock,
             {"A la French": "https://exemple.test/flux.xml"},
         ),
-        etat,
+        state,
     )
 
 
 def test_une_emission_due_rend_l_url_de_son_episode(tmp_path: Path) -> None:
-    flux = FauxFlux([_episode("ep1")])
-    emissions, _ = _emissions(tmp_path, flux, HorlogeFigee(VENDREDI_20H))
-    due = emissions.due()
+    feed = FakeFeed([_episode("ep1")])
+    shows, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    due = shows.due()
     assert due is not None
-    assert due[0].nom == "A la French"
+    assert due[0].name == "A la French"
     assert due[1] == "https://exemple.test/ep1.mp3"
 
 
 def test_hors_de_sa_case_aucune_emission_n_est_due(tmp_path: Path) -> None:
-    flux = FauxFlux([_episode("ep1")])
-    emissions, _ = _emissions(tmp_path, flux, HorlogeFigee(VENDREDI_20H - timedelta(days=1)))
-    assert emissions.due() is None
+    feed = FakeFeed([_episode("ep1")])
+    shows, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H - timedelta(days=1)))
+    assert shows.due() is None
 
 
 def test_un_episode_deja_diffuse_fait_sauter_la_case(
@@ -86,20 +86,20 @@ def test_un_episode_deja_diffuse_fait_sauter_la_case(
 ) -> None:
     """« Une émission qui n'a rien de neuf est une émission qui n'a pas lieu »
     (SPECS.md §4.11). On ne redescend pas à l'avant-dernier."""
-    flux = FauxFlux([_episode("ep1")])
-    emissions, _ = _emissions(tmp_path, flux, HorlogeFigee(VENDREDI_20H))
-    assert emissions.due() is not None
+    feed = FakeFeed([_episode("ep1")])
+    shows, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    assert shows.due() is not None
     with caplog.at_level(logging.INFO):
-        assert emissions.due() is None
+        assert shows.due() is None
     assert "rien de neuf" in caplog.text
 
 
 def test_un_episode_neuf_rouvre_la_case(tmp_path: Path) -> None:
-    flux = FauxFlux([_episode("ep1")])
-    emissions, _ = _emissions(tmp_path, flux, HorlogeFigee(VENDREDI_20H))
-    emissions.due()
-    flux._episodes = [_episode("ep2"), _episode("ep1", jours=7)]
-    due = emissions.due()
+    feed = FakeFeed([_episode("ep1")])
+    shows, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    shows.due()
+    feed._episodes = [_episode("ep2"), _episode("ep1", days=7)]
+    due = shows.due()
     assert due is not None
     assert due[1].endswith("ep2.mp3")
 
@@ -108,28 +108,28 @@ def test_un_flux_injoignable_ne_fait_pas_taire_la_radio(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     """Une émission perdue n'est pas une panne : la musique continue."""
-    flux = FauxFlux([], injoignable=True)
-    emissions, _ = _emissions(tmp_path, flux, HorlogeFigee(VENDREDI_20H))
+    feed = FakeFeed([], injoignable=True)
+    shows, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
     with caplog.at_level(logging.WARNING):
-        assert emissions.due() is None
+        assert shows.due() is None
     assert "injoignable" in caplog.text
 
 
 def test_un_flux_vide_ne_donne_aucune_emission(tmp_path: Path) -> None:
-    emissions, _ = _emissions(tmp_path, FauxFlux([]), HorlogeFigee(VENDREDI_20H))
-    assert emissions.due() is None
+    shows, _ = _emissions(tmp_path, FakeFeed([]), FrozenClock(VENDREDI_20H))
+    assert shows.due() is None
 
 
 def test_le_rattrapage_est_borne_par_la_duree_de_l_episode(tmp_path: Path) -> None:
     """Se brancher dans la fenêtre rattrape ; au-delà, l'émission est perdue
     (SPECS.md §7 n°13)."""
-    flux = FauxFlux([_episode("ep1", minutes=60)])
-    dans_la_fenetre = HorlogeFigee(VENDREDI_20H + timedelta(minutes=40))
-    emissions, _ = _emissions(tmp_path, flux, dans_la_fenetre)
-    assert emissions.due() is not None
+    feed = FakeFeed([_episode("ep1", minutes=60)])
+    dans_la_fenetre = FrozenClock(VENDREDI_20H + timedelta(minutes=40))
+    shows, _ = _emissions(tmp_path, feed, dans_la_fenetre)
+    assert shows.due() is not None
 
-    flux_bis = FauxFlux([_episode("ep1", minutes=60)])
-    hors_fenetre = HorlogeFigee(VENDREDI_20H + timedelta(minutes=70))
+    flux_bis = FakeFeed([_episode("ep1", minutes=60)])
+    hors_fenetre = FrozenClock(VENDREDI_20H + timedelta(minutes=70))
     emissions_bis, _ = _emissions(tmp_path / "bis", flux_bis, hors_fenetre)
     (tmp_path / "bis").mkdir(exist_ok=True)
     assert emissions_bis.due() is None
@@ -139,8 +139,8 @@ def test_le_flux_est_lu_avant_de_savoir_s_il_servira(tmp_path: Path) -> None:
     """Le seul endroit du projet où une décision exige un appel réseau qui peut
     ne servir à rien : la durée borne le rattrapage, et elle n'est connue
     qu'après lecture (ARCHITECTURE.md §5.2)."""
-    flux = FauxFlux([_episode("ep1", minutes=1)])
-    tardif = HorlogeFigee(VENDREDI_20H + timedelta(hours=3))
-    emissions, _ = _emissions(tmp_path, flux, tardif)
-    assert emissions.due() is None
-    assert flux.lectures == 1, "le flux aurait dû être lu malgré tout"
+    feed = FakeFeed([_episode("ep1", minutes=1)])
+    tardif = FrozenClock(VENDREDI_20H + timedelta(hours=3))
+    shows, _ = _emissions(tmp_path, feed, tardif)
+    assert shows.due() is None
+    assert feed.lectures == 1, "le flux aurait dû être lu malgré tout"

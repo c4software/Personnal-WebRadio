@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from webradio.adapters.config.loading import charger
-from webradio.adapters.config.schema import ErreurConfiguration
+from webradio.adapters.config.loading import load
+from webradio.adapters.config.schema import SettingsError
 from webradio.app import main as module_main
-from webradio.app.main import _arguments, construire, version
+from webradio.app.main import _arguments, build, version
 
 TOML_MINIMAL = """
 [flux]
@@ -26,10 +26,10 @@ canaux = 2
 non_repetition_artistes = 5
 
 [jingles]
-dossier = "{dossier}"
+dossier = "{folder}"
 
 [etat]
-base = "{base}"
+base = "{database}"
 
 [[emissions]]
 nom = "Une émission"
@@ -47,13 +47,13 @@ NAVIDROME_MOT_DE_PASSE=passe-fictif
 
 @pytest.fixture
 def reglages_dessai(tmp_path: Path) -> object:
-    dossier = tmp_path / "jingles"
-    dossier.mkdir()
+    folder = tmp_path / "jingles"
+    folder.mkdir()
     toml = tmp_path / "webradio.toml"
-    toml.write_text(TOML_MINIMAL.format(dossier=dossier, base=tmp_path / "etat.sqlite3"))
+    toml.write_text(TOML_MINIMAL.format(folder=folder, database=tmp_path / "etat.sqlite3"))
     env = tmp_path / ".env"
     env.write_text(ENV_MINIMAL)
-    return charger(toml, env, environnement={})
+    return load(toml, env, environment={})
 
 
 def test_la_version_est_une_chaine_non_vide() -> None:
@@ -93,12 +93,12 @@ def test_les_chemins_se_declarent() -> None:
 def test_l_assemblage_construit_une_radio_qui_ne_tourne_pas(reglages_dessai: object) -> None:
     """Construire n'est pas démarrer : rien ne tourne tant que personne
     n'écoute (SPECS.md §1)."""
-    serveur, radio, station = construire(reglages_dessai)  # type: ignore[arg-type]
-    assert not radio.en_diffusion()
-    assert radio.antenne() is None
-    assert station.auditeurs == 0
-    assert not station.en_antenne
-    assert serveur is not None
+    server, radio, station = build(reglages_dessai)  # type: ignore[arg-type]
+    assert not radio.on_air()
+    assert radio.on_air_now() is None
+    assert station.listeners == 0
+    assert not station.on_air
+    assert server is not None
 
 
 def test_une_configuration_invalide_empeche_le_demarrage(tmp_path: Path) -> None:
@@ -108,21 +108,21 @@ def test_une_configuration_invalide_empeche_le_demarrage(tmp_path: Path) -> None
     toml.write_text("[flux]\nadresse = 'x'\n")
     env = tmp_path / ".env"
     env.write_text(ENV_MINIMAL)
-    with pytest.raises(ErreurConfiguration):
-        charger(toml, env, environnement={})
+    with pytest.raises(SettingsError):
+        load(toml, env, environment={})
 
 
 def test_un_secret_dans_le_toml_est_refuse(tmp_path: Path) -> None:
     """La séparation .env / TOML ne tiendrait pas une semaine sans ce refus
     (SPECS.md §6.2)."""
-    dossier = tmp_path / "jingles"
-    dossier.mkdir()
+    folder = tmp_path / "jingles"
+    folder.mkdir()
     toml = tmp_path / "webradio.toml"
     toml.write_text(
-        TOML_MINIMAL.format(dossier=dossier, base=tmp_path / "e.sqlite3")
+        TOML_MINIMAL.format(folder=folder, database=tmp_path / "e.sqlite3")
         + '\n[navidrome]\nmot_de_passe = "ne devrait pas être ici"\n'
     )
     env = tmp_path / ".env"
     env.write_text(ENV_MINIMAL)
-    with pytest.raises(ErreurConfiguration, match="mot_de_passe"):
-        charger(toml, env, environnement={})
+    with pytest.raises(SettingsError, match="mot_de_passe"):
+        load(toml, env, environment={})

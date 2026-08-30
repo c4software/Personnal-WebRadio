@@ -15,52 +15,52 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import cast
 
-from webradio.core.models import Piste
-from webradio.core.rotation import Fenetre
-from webradio.core.rng import Hasard, HasardPondere
-from webradio.core.sources import SourceMusicale
+from webradio.core.models import Track
+from webradio.core.rng import Random, WeightedRandom
+from webradio.core.rotation import Window
+from webradio.core.sources import MusicSource
 
 # Le poids d'une piste, fourni du dehors. La file ne va JAMAIS le chercher :
 # les scores vivent dans une base, et le noyau ne parle à personne
 # (ARCHITECTURE.md §1.1, §5.3).
-Peser = Callable[[Piste], float]
+Weigh = Callable[[Track], float]
 
 
 @dataclass(frozen=True, slots=True)
-class Choix:
+class Pick:
     """Une piste, et ce qui a dû être relâché pour l'obtenir.
 
     `replis` n'est pas décoratif : SPECS.md §5 demande que chaque repli soit
     journalisé, et c'est ici qu'on sait lesquels ont eu lieu.
     """
 
-    piste: Piste
-    replis: tuple[str, ...] = ()
+    track: Track
+    fallbacks: tuple[str, ...] = ()
 
 
-class FileVide(Exception):
+class EmptyQueue(Exception):
     """Aucune piste ne peut être servie, même après tous les replis.
 
     Distinct d'une source injoignable : ici la source a répondu, elle n'a rien.
     """
 
 
-class File:
+class Queue:
     """Tire le morceau suivant, en relâchant les contraintes plutôt que de se taire."""
 
     def __init__(
         self,
-        source: SourceMusicale,
-        hasard: Hasard,
-        fenetre: Fenetre | None = None,
-        peser: Peser | None = None,
+        source: MusicSource,
+        random: Random,
+        window: Window | None = None,
+        weigh: Weigh | None = None,
     ) -> None:
         self._source = source
-        self._hasard = hasard
-        self._fenetre = fenetre if fenetre is not None else Fenetre()
-        self._peser = peser
-        self._avance: Choix | None = None
-        if peser is not None and not hasattr(hasard, "choisir_pondere"):
+        self._hasard = random
+        self._fenetre = window if window is not None else Window()
+        self._peser = weigh
+        self._avance: Pick | None = None
+        if weigh is not None and not hasattr(random, "pick_weighted"):
             # Refuser ici plutôt qu'au premier tirage : une file construite avec
             # des poids et un hasard qui ne sait pas les honorer tirerait
             # uniformément sans que rien ne le signale, et la pondération
@@ -68,7 +68,7 @@ class File:
             message = "des poids sont fournis, mais ce hasard ne sait pas les honorer"
             raise TypeError(message)
 
-    def preparer(self, genre: str | None = None) -> None:
+    def prepare(self, genre: str | None = None) -> None:
         """Résout le morceau suivant à l'avance, sans le consommer.
 
         Appelée pendant que le courant joue. Une source lente coûte alors du
@@ -77,26 +77,26 @@ class File:
         if self._avance is None:
             self._avance = self._choisir(genre)
 
-    def suivant(self, genre: str | None = None) -> Choix:
+    def next_pick(self, genre: str | None = None) -> Pick:
         """Le morceau suivant. Sert l'avance si elle existe, la calcule sinon."""
-        choix = self._avance if self._avance is not None else self._choisir(genre)
+        pick = self._avance if self._avance is not None else self._choisir(genre)
         self._avance = None
-        self._fenetre.retenir(choix.piste)
-        return choix
+        self._fenetre.remember(pick.track)
+        return pick
 
-    def _choisir(self, genre: str | None) -> Choix:
-        replis: list[str] = []
-        candidates = self._source.pistes(genre)
+    def _choisir(self, genre: str | None) -> Pick:
+        fallbacks: list[str] = []
+        candidates = self._source.tracks(genre)
 
         # Une plage thématique sans musique ne fait pas taire la radio : on
         # revient au tirage libre (SPECS.md §4.4).
         if not candidates and genre is not None:
-            replis.append(f"plage « {genre} » sans musique : tirage libre")
-            candidates = self._source.pistes(None)
+            fallbacks.append(f"plage « {genre} » sans musique : tirage libre")
+            candidates = self._source.tracks(None)
 
         if not candidates:
             message = "la source a répondu, mais elle n'a aucune piste"
-            raise FileVide(message)
+            raise EmptyQueue(message)
 
         # La fenêtre rétrécit plutôt que de bloquer le tirage (SPECS.md §4.2).
         #
@@ -104,15 +104,15 @@ class File:
         # donc `filtrer` rendrait `candidates`, qui n'est pas vide ici. Un
         # garde-fou supplémentaire serait du code qu'aucun test ne peut
         # atteindre — donc du code mort (AGENTS.md §2).
-        autorisees = self._fenetre.filtrer(candidates)
-        while not autorisees:
-            self._fenetre.retrecir()
-            replis.append("fenêtre de non-répétition rétrécie")
-            autorisees = self._fenetre.filtrer(candidates)
+        allowed = self._fenetre.filter_out(candidates)
+        while not allowed:
+            self._fenetre.shrink()
+            fallbacks.append("fenêtre de non-répétition rétrécie")
+            allowed = self._fenetre.filter_out(candidates)
 
-        return Choix(self._tirer(autorisees), tuple(replis))
+        return Pick(self._tirer(allowed), tuple(fallbacks))
 
-    def _tirer(self, parmi: list[Piste]) -> Piste:
+    def _tirer(self, parmi: list[Track]) -> Track:
         """Un tirage pondéré si les poids sont fournis, uniforme sinon.
 
         La pondération est une **capacité en plus**, jamais un réglage de la
@@ -121,6 +121,6 @@ class File:
         comportement.
         """
         if self._peser is None:
-            return self._hasard.choisir(parmi)
-        pondere = cast(HasardPondere, self._hasard)
-        return pondere.choisir_pondere(parmi, [self._peser(p) for p in parmi])
+            return self._hasard.pick(parmi)
+        pondere = cast(WeightedRandom, self._hasard)
+        return pondere.pick_weighted(parmi, [self._peser(p) for p in parmi])

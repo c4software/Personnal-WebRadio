@@ -15,24 +15,24 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from webradio.core.clock import Horloge
-from webradio.core.control import Nature
-from webradio.core.queue import File, FileVide
-from webradio.core.bands import Grille
+from webradio.core.bands import Schedule
+from webradio.core.clock import Clock
+from webradio.core.control import Kind
 from webradio.core.jingles import Jingles
-from webradio.core.models import Piste
-from webradio.core.programmes import Programmation
-from webradio.core.rotation import Fenetre
-from webradio.core.rng import Hasard
-from webradio.core.sources import SourceIndisponible, SourceMusicale
+from webradio.core.models import Track
+from webradio.core.programmes import Programming
+from webradio.core.queue import EmptyQueue, Queue
+from webradio.core.rng import Random
+from webradio.core.rotation import Window
+from webradio.core.sources import MusicSource, SourceUnavailable
 
 if TYPE_CHECKING:
-    from webradio.app.show_scheduler import Emissions
+    from webradio.app.show_scheduler import Shows
 
 logger = logging.getLogger(__name__)
 
 
-class ProgrammeRadio:
+class RadioProgramme:
     """La suite des entrées à diffuser, une par une.
 
     `suivante()` ne lève jamais : une source injoignable est contournée
@@ -42,50 +42,50 @@ class ProgrammeRadio:
 
     def __init__(
         self,
-        file: File,
-        source: SourceMusicale,
-        grille: Grille,
+        queue: Queue,
+        source: MusicSource,
+        grille: Schedule,
         jingles: Jingles,
-        horloge: Horloge,
-        hasard: Hasard,
-        dossier_jingles: Path,
+        clock: Clock,
+        random: Random,
+        jingle_folder: Path,
         *,
-        sur_nature: Callable[[Nature, Piste | None], None],
-        programmation: Programmation | None = None,
-        fenetre_programme: Fenetre | None = None,
-        emissions: "Emissions | None" = None,
+        on_kind: Callable[[Kind, Track | None], None],
+        programming: Programming | None = None,
+        programme_window: Window | None = None,
+        shows: "Shows | None" = None,
     ) -> None:
-        self._file = file
+        self._file = queue
         self._source = source
         self._grille = grille
         self._jingles = jingles
-        self._horloge = horloge
-        self._hasard = hasard
-        self._dossier = dossier_jingles
-        self._sur_nature = sur_nature
-        self._programmation = programmation
-        self._emissions = emissions
+        self._horloge = clock
+        self._hasard = random
+        self._dossier = jingle_folder
+        self._sur_nature = on_kind
+        self._programmation = programming
+        self._emissions = shows
         # Un programme a sa propre fenêtre de non-répétition : la liste est
         # courte, et partager celle du tirage libre ferait rétrécir l'une à
         # cause de l'autre (SPECS.md §4.13).
-        self._fenetre_programme = fenetre_programme if fenetre_programme is not None else Fenetre()
+        self._fenetre_programme = programme_window if programme_window is not None else Window()
         # `Jingles.dus()` s'épuise en le disant : il rend tout ce qui est dû et
         # l'oublie. Ne consommer que le premier perdrait les autres — ce qui
         # est exactement ce que SPECS.md §4.3 refuse quand un morceau long a
         # enjambé deux heures. On garde donc ceux qu'on n'a pas encore servis.
         self._en_attente: deque[str] = deque()
 
-    def suivante(self) -> str | None:
-        emission = self._prochaine_emission()
-        if emission is not None:
-            return emission
+    def next_entry(self) -> str | None:
+        show = self._prochaine_emission()
+        if show is not None:
+            return show
         jingle = self._prochain_jingle()
         if jingle is not None:
-            self._sur_nature(Nature.JINGLE, None)
+            self._sur_nature(Kind.JINGLE, None)
             return str(jingle)
         return self._prochaine_piste()
 
-    def preparer(self) -> None:
+    def prepare(self) -> None:
         """Résout le morceau suivant pendant que le courant joue.
 
         Appelée hors verrou par la chaîne : une source lente coûte alors du
@@ -94,8 +94,8 @@ class ProgrammeRadio:
         jamais une cause d'arrêt.
         """
         try:
-            self._file.preparer(self._grille.genre_a_tirer(self._hasard))
-        except (SourceIndisponible, FileVide) as echec:
+            self._file.prepare(self._grille.genre_to_draw(self._hasard))
+        except (SourceUnavailable, EmptyQueue) as echec:
             logger.debug("préparation sans effet : %s", echec)
 
     def _prochaine_emission(self) -> str | None:
@@ -109,12 +109,12 @@ class ProgrammeRadio:
         if self._emissions is None:
             return None
         due = self._emissions.due()
-        self._jingles.dus(pendant_emission=due is not None)
+        self._jingles.due_now(during_show=due is not None)
         if due is None:
             return None
-        emission, audio = due
-        logger.info("émission « %s » à l'antenne", emission.nom)
-        self._sur_nature(Nature.EMISSION, None)
+        show, audio = due
+        logger.info("émission « %s » à l'antenne", show.name)
+        self._sur_nature(Kind.SHOW, None)
         return audio
 
     def _prochain_jingle(self) -> Path | None:
@@ -127,11 +127,11 @@ class ProgrammeRadio:
         Les jingles restants sont conservés pour les jonctions suivantes : ils
         passent tous, à la suite, dans l'ordre où le noyau les a rendus.
         """
-        self._en_attente.extend(self._jingles.dus())
+        self._en_attente.extend(self._jingles.due_now())
         while self._en_attente:
-            chemin = self._dossier / self._en_attente.popleft()
-            if chemin.is_file():
-                return chemin
+            path = self._dossier / self._en_attente.popleft()
+            if path.is_file():
+                return path
         return None
 
     def _prochaine_piste(self) -> str | None:
@@ -149,17 +149,17 @@ class ProgrammeRadio:
         if depuis_le_programme is not None:
             return depuis_le_programme
         try:
-            choix = self._file.suivant(self._grille.genre_a_tirer(self._hasard))
-        except SourceIndisponible as panne:
-            logger.warning("source injoignable, la radio coupe : %s", panne)
+            pick = self._file.next_pick(self._grille.genre_to_draw(self._hasard))
+        except SourceUnavailable as failure:
+            logger.warning("source injoignable, la radio coupe : %s", failure)
             return None
-        except FileVide as vide:
+        except EmptyQueue as vide:
             logger.warning("plus rien à diffuser : %s", vide)
             return None
-        for repli in choix.replis:
-            logger.info("repli : %s", repli)
-        self._sur_nature(Nature.MUSIQUE, choix.piste)
-        return self._source.entree(choix.piste)
+        for fallback in pick.fallbacks:
+            logger.info("repli : %s", fallback)
+        self._sur_nature(Kind.MUSIC, pick.track)
+        return self._source.entry(pick.track)
 
     def _piste_du_programme(self) -> str | None:
         """Un morceau tiré dans la liste du programme ouvert, s'il y en a un.
@@ -172,22 +172,22 @@ class ProgrammeRadio:
         """
         if self._programmation is None:
             return None
-        nom = self._programmation.playlist_a_tirer()
-        if nom is None:
+        name = self._programmation.playlist_to_draw()
+        if name is None:
             return None
         try:
-            pistes = self._source.pistes_de_la_liste_de_lecture(nom)
-        except SourceIndisponible as panne:
-            logger.warning("liste « %s » illisible, repli sur le tirage libre : %s", nom, panne)
+            tracks = self._source.tracks_from_playlist(name)
+        except SourceUnavailable as failure:
+            logger.warning("liste « %s » illisible, repli sur le tirage libre : %s", name, failure)
             return None
-        if not pistes:
-            logger.info("liste « %s » introuvable ou vide, repli sur le tirage libre", nom)
+        if not tracks:
+            logger.info("liste « %s » introuvable ou vide, repli sur le tirage libre", name)
             return None
-        autorisees = self._fenetre_programme.filtrer(pistes)
-        while not autorisees:
-            self._fenetre_programme.retrecir()
-            autorisees = self._fenetre_programme.filtrer(pistes)
-        piste = self._hasard.choisir(autorisees)
-        self._fenetre_programme.retenir(piste)
-        self._sur_nature(Nature.MUSIQUE, piste)
-        return self._source.entree(piste)
+        allowed = self._fenetre_programme.filter_out(tracks)
+        while not allowed:
+            self._fenetre_programme.shrink()
+            allowed = self._fenetre_programme.filter_out(tracks)
+        track = self._hasard.pick(allowed)
+        self._fenetre_programme.remember(track)
+        self._sur_nature(Kind.MUSIC, track)
+        return self._source.entry(track)

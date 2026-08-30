@@ -13,13 +13,13 @@ vérifie : le jour où ils divergeront, il cassera ici plutôt qu'à l'exécutio
 import threading
 from collections.abc import Callable
 
-from webradio.adapters.web.api import Antenne, Radio, Verdict, Vote
-from webradio.adapters.web.api import Nature as NatureWeb
-from webradio.core.control import Commande, Controle, Nature
-from webradio.core.models import Piste
+from webradio.adapters.web.api import Kind as NatureWeb
+from webradio.adapters.web.api import OnAir, Radio, Verdict, Vote
+from webradio.core.control import Command, Control, Kind
+from webradio.core.models import Track
 
 
-class RadioEnDirect(Radio):
+class LiveRadio(Radio):
     """Ce que la radio répond à l'API, à l'instant où on le lui demande.
 
     Elle ne décide de rien : `Controle` tranche les votes, la `Station` sait si
@@ -28,43 +28,43 @@ class RadioEnDirect(Radio):
 
     def __init__(
         self,
-        controle: Controle,
-        en_diffusion: "CompteurAuditeurs",
-        retenir: Callable[[Commande, Piste], None] | None = None,
+        control: Control,
+        on_air: "ListenerCount",
+        remember: Callable[[Command, Track], None] | None = None,
     ) -> None:
-        self._controle = controle
-        self._station = en_diffusion
-        self._retenir = retenir
+        self._controle = control
+        self._station = on_air
+        self._retenir = remember
         self._verrou = threading.Lock()
-        self._nature = Nature.MUSIQUE
-        self._piste: Piste | None = None
+        self._nature = Kind.MUSIC
+        self._piste: Track | None = None
 
-    def declarer(self, nature: Nature, piste: Piste | None) -> None:
+    def declare(self, kind: Kind, track: Track | None) -> None:
         """Appelée par le programme à chaque changement de ce qui passe.
 
         Deux destinataires : le noyau, qui en a besoin pour refuser un vote au
         bon moment, et l'API, qui l'affiche.
         """
         with self._verrou:
-            self._nature = nature
-            self._piste = piste
-        self._controle.declarer(nature)
+            self._nature = kind
+            self._piste = track
+        self._controle.declare(kind)
 
-    def en_diffusion(self) -> bool:
-        return self._station.en_antenne
+    def on_air(self) -> bool:
+        return self._station.on_air
 
-    def antenne(self) -> Antenne | None:
-        if not self._station.en_antenne:
+    def on_air_now(self) -> OnAir | None:
+        if not self._station.on_air:
             return None
         with self._verrou:
-            nature, piste = self._nature, self._piste
-        return Antenne(
-            nature=NatureWeb(nature.value),
-            titre=piste.titre if piste is not None else None,
-            artiste=piste.artiste if piste is not None else None,
+            kind, track = self._nature, self._piste
+        return OnAir(
+            kind=NatureWeb(kind.value),
+            title=track.title if track is not None else None,
+            artist=track.artist if track is not None else None,
         )
 
-    def voter(self, vote: Vote) -> Verdict:
+    def vote(self, vote: Vote) -> Verdict:
         """Le vote passe au noyau, et n'est retenu que s'il a produit un effet.
 
         **Un vote refusé n'enregistre rien** (SPECS.md §4.6) : sinon la radio
@@ -75,17 +75,17 @@ class RadioEnDirect(Radio):
         deux morceaux — n'a rien sur quoi porter : il agit, mais il ne
         s'apprend pas.
         """
-        commande = Commande(vote.value)
-        reponse = self._controle.voter(commande)
-        if reponse.accepte and self._retenir is not None:
+        command = Command(vote.value)
+        answer = self._controle.vote(command)
+        if answer.accepted and self._retenir is not None:
             with self._verrou:
                 courante = self._piste
             if courante is not None:
-                self._retenir(commande, courante)
-        return Verdict(accepte=reponse.accepte, motif=reponse.motif or None)
+                self._retenir(command, courante)
+        return Verdict(accepted=answer.accepted, reason=answer.reason or None)
 
 
-class CompteurAuditeurs:
+class ListenerCount:
     """Ce que la façade a besoin de savoir de la station : rien de plus.
 
     Un `Protocol` d'une seule propriété plutôt qu'une dépendance vers
@@ -96,8 +96,8 @@ class CompteurAuditeurs:
         self._en_antenne = False
 
     @property
-    def en_antenne(self) -> bool:
+    def on_air(self) -> bool:
         return self._en_antenne
 
-    def declarer(self, *, en_antenne: bool) -> None:
-        self._en_antenne = en_antenne
+    def declare(self, *, on_air: bool) -> None:
+        self._en_antenne = on_air

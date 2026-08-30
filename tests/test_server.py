@@ -15,19 +15,19 @@ from pathlib import Path
 
 import pytest
 
-from tests.test_ffmpeg import FakeProgramme, fabriquer, processus_du_groupe
-from webradio.adapters.ffmpeg.encoder import Chaine, ChaineIndisponible, FormatFlux
-from webradio.adapters.http.broadcast import Diffusion
-from webradio.adapters.http.server import Alimentation, ServeurFlux, Station
+from tests.test_ffmpeg import FakeProgramme, fabriquer, group_processes
+from webradio.adapters.ffmpeg.encoder import Chain, ChainUnavailable, StreamFormat
+from webradio.adapters.http.broadcast import Broadcast
+from webradio.adapters.http.server import Feed, Station, StreamServer
 
-FORMAT = FormatFlux(conteneur="mp3", debit_kbps=128, frequence_hz=44100, canaux=2)
+FORMAT = StreamFormat(container="mp3", bitrate_kbps=128, sample_rate_hz=44100, channels=2)
 CHEMIN = "/flux"
-NOM = "radio d'essai"
+NAME = "radio d'essai"
 DELAI = 30.0
 BLOC = b"x" * 8192
 
 
-class FakeChaine:
+class FakeChain:
     """Une chaîne qui ne lance aucun processus : elle émet ce qu'on lui dit.
 
     Elle suffit à tout ce que le serveur doit garantir — le démarrage à la
@@ -35,90 +35,90 @@ class FakeChaine:
     qui demande de vrais processus.
     """
 
-    def __init__(self, diffusion: Diffusion, refus: str | None = None) -> None:
-        self._diffusion = diffusion
+    def __init__(self, broadcast: Broadcast, refus: str | None = None) -> None:
+        self._diffusion = broadcast
         self._refus = refus
         self.demarrages = 0
         self.arrete = threading.Event()
 
-    def demarrer(self) -> None:
+    def start(self) -> None:
         if self._refus is not None:
-            raise ChaineIndisponible(self._refus)
+            raise ChainUnavailable(self._refus)
         self.demarrages += 1
 
-    def arreter(self) -> None:
+    def stop_all(self) -> None:
         self.arrete.set()
 
-    def emettre(self, bloc: bytes = BLOC) -> None:
-        self._diffusion.publier(bloc)
+    def emettre(self, block: bytes = BLOC) -> None:
+        self._diffusion.publish(block)
 
 
-class ChaineObservee:
+class ObservedChain:
     """Une vraie chaîne, qui prévient quand on l'arrête.
 
     Attendre cet événement vaut mieux que sonder l'état : un test qui sonde
     conclut au bout d'un délai, et c'est ainsi qu'on rend vert un défaut lent.
     """
 
-    def __init__(self, chaine: Chaine) -> None:
+    def __init__(self, chaine: Chain) -> None:
         self._chaine = chaine
         self.arrete = threading.Event()
 
     @property
-    def groupe(self) -> int:
-        return self._chaine.groupe
+    def group(self) -> int:
+        return self._chaine.group
 
-    def demarrer(self) -> None:
-        self._chaine.demarrer()
+    def start(self) -> None:
+        self._chaine.start()
 
-    def arreter(self) -> None:
-        self._chaine.arreter()
+    def stop_all(self) -> None:
+        self._chaine.stop_all()
         self.arrete.set()
 
 
-class Fabrique:
+class Factory:
     """Fabrique une chaîne par session, et garde la dernière sous la main."""
 
     def __init__(self, refus: str | None = None) -> None:
         self._refus = refus
-        self.chaines: list[FakeChaine] = []
+        self.chaines: list[FakeChain] = []
 
-    def __call__(self, diffusion: Diffusion) -> Alimentation:
-        chaine = FakeChaine(diffusion, self._refus)
+    def __call__(self, broadcast: Broadcast) -> Feed:
+        chaine = FakeChain(broadcast, self._refus)
         self.chaines.append(chaine)
         return chaine
 
     @property
-    def derniere(self) -> FakeChaine:
+    def derniere(self) -> FakeChain:
         return self.chaines[-1]
 
 
 @contextmanager
-def servir(station: Station) -> Iterator[ServeurFlux]:
+def servir(station: Station) -> Iterator[StreamServer]:
     """Ouvre le serveur sur un port libre choisi par le système."""
-    serveur = ServeurFlux(
-        station, FORMAT, adresse="127.0.0.1", port=0, chemin=CHEMIN, nom=NOM, delai_attente=DELAI
+    server = StreamServer(
+        station, FORMAT, address="127.0.0.1", port=0, path=CHEMIN, name=NAME, lock_timeout=DELAI
     )
-    serveur.demarrer()
+    server.start()
     try:
-        yield serveur
+        yield server
     finally:
-        serveur.arreter()
+        server.stop_all()
 
 
-def brancher(serveur: ServeurFlux, chemin: str = CHEMIN) -> http.client.HTTPResponse:
-    connexion = http.client.HTTPConnection("127.0.0.1", serveur.port, timeout=DELAI)
-    connexion.request("GET", chemin)
-    return connexion.getresponse()
+def connect(server: StreamServer, path: str = CHEMIN) -> http.client.HTTPResponse:
+    connection = http.client.HTTPConnection("127.0.0.1", server.port, timeout=DELAI)
+    connection.request("GET", path)
+    return connection.getresponse()
 
 
-def brancher_par_socket(serveur: ServeurFlux) -> socket.socket:
+def brancher_par_socket(server: StreamServer) -> socket.socket:
     """Une connexion tenue à la main, pour pouvoir la couper vraiment.
 
     `http.client` referme ce qu'il veut quand il veut : pour éprouver une
     déconnexion, il faut être seul maître de la socket.
     """
-    prise = socket.create_connection(("127.0.0.1", serveur.port), timeout=DELAI)
+    prise = socket.create_connection(("127.0.0.1", server.port), timeout=DELAI)
     prise.sendall(f"GET {CHEMIN} HTTP/1.0\r\nHost: local-webradio\r\n\r\n".encode())
     assert prise.recv(4096), "le serveur n'a rien répondu"
     return prise
@@ -131,7 +131,7 @@ def arracher(prise: socket.socket) -> None:
 
 
 @contextmanager
-def emission(chaine: FakeChaine, cadence: float = 0.01) -> Iterator[None]:
+def show(chaine: FakeChain, cadence: float = 0.01) -> Iterator[None]:
     """Fait émettre la chaîne en continu, le temps de l'observation.
 
     Sans émission, le serveur n'apprendrait jamais qu'un auditeur est parti : une
@@ -140,10 +140,10 @@ def emission(chaine: FakeChaine, cadence: float = 0.01) -> Iterator[None]:
     vitesse remplirait les tampons plus vite que le serveur ne les vide, et
     l'auditeur serait abandonné pour lenteur au lieu d'être vu parti.
     """
-    fin = threading.Event()
+    end = threading.Event()
 
     def emettre() -> None:
-        while not fin.wait(cadence):
+        while not end.wait(cadence):
             chaine.emettre()
 
     fil = threading.Thread(target=emettre, name="émission d'essai", daemon=True)
@@ -151,118 +151,118 @@ def emission(chaine: FakeChaine, cadence: float = 0.01) -> Iterator[None]:
     try:
         yield
     finally:
-        fin.set()
+        end.set()
         fil.join(DELAI)
 
 
 @pytest.fixture
-def fabrique() -> Fabrique:
-    return Fabrique()
+def factory() -> Factory:
+    return Factory()
 
 
 @pytest.fixture
-def station(fabrique: Fabrique) -> Station:
-    return Station(fabrique, capacite_par_auditeur=4096)
+def station(factory: Factory) -> Station:
+    return Station(factory, capacity_per_listener=4096)
 
 
 @pytest.fixture
-def serveur(station: Station) -> Iterator[ServeurFlux]:
+def server(station: Station) -> Iterator[StreamServer]:
     with servir(station) as ouvert:
         yield ouvert
 
 
 def test_le_flux_annonce_de_l_audio_sans_en_annoncer_la_longueur(
-    serveur: ServeurFlux, fabrique: Fabrique
+    server: StreamServer, factory: Factory
 ) -> None:
     """Les en-têtes constatés acceptés par les lecteurs (`docs/flux-icy.md` §1)."""
-    reponse = brancher(serveur)
-    fabrique.derniere.emettre()
+    answer = connect(server)
+    factory.derniere.emettre()
 
-    assert reponse.status == 200
-    assert reponse.getheader("Content-Type") == "audio/mpeg"
-    assert reponse.getheader("icy-name") == NOM
-    assert reponse.getheader("icy-br") == "128"
-    assert reponse.getheader("Content-Length") is None
-    assert reponse.getheader("Transfer-Encoding") is None
-    assert reponse.read(len(BLOC)) == BLOC
+    assert answer.status == 200
+    assert answer.getheader("Content-Type") == "audio/mpeg"
+    assert answer.getheader("icy-name") == NAME
+    assert answer.getheader("icy-br") == "128"
+    assert answer.getheader("Content-Length") is None
+    assert answer.getheader("Transfer-Encoding") is None
+    assert answer.read(len(BLOC)) == BLOC
 
 
 def test_rien_ne_tourne_tant_que_personne_n_ecoute(
-    serveur: ServeurFlux, station: Station, fabrique: Fabrique
+    server: StreamServer, station: Station, factory: Factory
 ) -> None:
-    avant = station.en_antenne
+    avant = station.on_air
 
-    brancher(serveur)
+    connect(server)
 
     assert not avant, "une chaîne tournait avant le premier auditeur"
-    assert station.en_antenne
-    assert fabrique.derniere.demarrages == 1
+    assert station.on_air
+    assert factory.derniere.demarrages == 1
 
 
 def test_le_deuxieme_auditeur_rejoint_le_flux_en_cours(
-    serveur: ServeurFlux, station: Station, fabrique: Fabrique
+    server: StreamServer, station: Station, factory: Factory
 ) -> None:
     """Un seul encodage alimente tout le monde (SPECS.md §4.1)."""
-    premier = brancher(serveur)
-    second = brancher(serveur)
-    fabrique.derniere.emettre()
+    premier = connect(server)
+    second = connect(server)
+    factory.derniere.emettre()
 
-    assert len(fabrique.chaines) == 1
-    assert fabrique.derniere.demarrages == 1
-    assert station.auditeurs == 2
+    assert len(factory.chaines) == 1
+    assert factory.derniere.demarrages == 1
+    assert station.listeners == 2
     assert premier.read(len(BLOC)) == second.read(len(BLOC)) == BLOC
 
 
 def test_la_chaine_s_arrete_a_la_derniere_deconnexion(
-    serveur: ServeurFlux, station: Station, fabrique: Fabrique
+    server: StreamServer, station: Station, factory: Factory
 ) -> None:
-    premier = brancher_par_socket(serveur)
-    second = brancher_par_socket(serveur)
-    chaine = fabrique.derniere
+    premier = brancher_par_socket(server)
+    second = brancher_par_socket(server)
+    chaine = factory.derniere
 
-    with emission(chaine):
+    with show(chaine):
         premier.close()
         assert not chaine.arrete.wait(1.0), "la chaîne s'est arrêtée alors qu'on écoutait encore"
-        assert station.auditeurs == 1
+        assert station.listeners == 1
 
         second.close()
         assert chaine.arrete.wait(DELAI), "le dernier auditeur parti, rien ne s'est arrêté"
 
-    assert station.auditeurs == 0
-    assert not station.en_antenne
+    assert station.listeners == 0
+    assert not station.on_air
 
 
 def test_une_deconnexion_brutale_vaut_une_deconnexion(
-    serveur: ServeurFlux, station: Station, fabrique: Fabrique
+    server: StreamServer, station: Station, factory: Factory
 ) -> None:
     """Câble arraché : la socket ne prévient pas, elle refuse la prochaine écriture."""
-    prise = brancher_par_socket(serveur)
-    chaine = fabrique.derniere
+    prise = brancher_par_socket(server)
+    chaine = factory.derniere
 
     arracher(prise)
 
-    with emission(chaine):
+    with show(chaine):
         assert chaine.arrete.wait(DELAI), "une déconnexion brutale n'a rien arrêté"
-    assert station.auditeurs == 0
+    assert station.listeners == 0
 
 
-def test_un_chemin_inconnu_ne_branche_personne(serveur: ServeurFlux, station: Station) -> None:
-    reponse = brancher(serveur, "/pas-le-flux")
+def test_un_chemin_inconnu_ne_branche_personne(server: StreamServer, station: Station) -> None:
+    answer = connect(server, "/pas-le-flux")
 
-    assert reponse.status == 404
-    assert not station.en_antenne
+    assert answer.status == 404
+    assert not station.on_air
 
 
 def test_une_chaine_qui_refuse_de_demarrer_le_dit_plutot_que_de_servir_du_vide() -> None:
     """SPECS.md §4.1 : jamais un flux vide, toujours une réponse explicite."""
-    station = Station(Fabrique(refus="Navidrome est injoignable"))
-    with servir(station) as serveur:
-        reponse = brancher(serveur)
+    station = Station(Factory(refus="Navidrome est injoignable"))
+    with servir(station) as server:
+        answer = connect(server)
 
-        assert reponse.status == 503
-        assert reponse.getheader("Content-Type") != "audio/mpeg"
-        assert "Navidrome est injoignable" in reponse.read().decode()
-        assert not station.en_antenne
+        assert answer.status == 503
+        assert answer.getheader("Content-Type") != "audio/mpeg"
+        assert "Navidrome est injoignable" in answer.read().decode()
+        assert not station.on_air
 
 
 def test_un_auditeur_recoit_un_flux_decodable_et_rien_ne_survit_a_son_depart(
@@ -274,30 +274,30 @@ def test_un_auditeur_recoit_un_flux_decodable_et_rien_ne_survit_a_son_depart(
     arrête doit être le départ de l'auditeur, pas l'arrêt du programme.
     """
     musique = fabriquer(tmp_path, "musique.mp3", 10, 44100, 2)
-    observees: list[ChaineObservee] = []
+    observees: list[ObservedChain] = []
 
-    def fabrique(diffusion: Diffusion) -> Alimentation:
-        observee = ChaineObservee(
-            Chaine(
+    def factory(broadcast: Broadcast) -> Feed:
+        observed = ObservedChain(
+            Chain(
                 FakeProgramme([musique], boucler=True),
                 FORMAT,
-                diffusion.publier,
-                diffusion.fermer,
+                broadcast.publish,
+                broadcast.close,
             )
         )
-        observees.append(observee)
-        return observee
+        observees.append(observed)
+        return observed
 
-    station = Station(fabrique)
-    with servir(station) as serveur:
-        reponse = brancher(serveur)
-        recu = reponse.read(16 * 1024)
-        groupe = observees[0].groupe
+    station = Station(factory)
+    with servir(station) as server:
+        answer = connect(server)
+        recu = answer.read(16 * 1024)
+        group = observees[0].group
         assert len(recu) == 16 * 1024
-        assert processus_du_groupe(groupe), "la chaîne devrait tourner pendant l'écoute"
+        assert group_processes(group), "la chaîne devrait tourner pendant l'écoute"
 
-        reponse.close()
+        answer.close()
 
         assert observees[0].arrete.wait(DELAI), "le départ de l'auditeur n'a rien arrêté"
-        assert processus_du_groupe(groupe) == []
-        assert station.auditeurs == 0
+        assert group_processes(group) == []
+        assert station.listeners == 0

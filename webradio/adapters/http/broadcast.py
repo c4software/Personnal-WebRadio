@@ -18,7 +18,7 @@ from collections.abc import Iterator
 logger = logging.getLogger(__name__)
 
 
-class Abonne:
+class Subscriber:
     """Une connexion branchée sur le flux, et le tampon qui la protège.
 
     `None` déposé dans la file signifie « c'est fini » : c'est ce qui réveille
@@ -26,28 +26,28 @@ class Abonne:
     fil, ce qui reviendrait à déréférencer ce qu'un fil est en train de lire.
     """
 
-    def __init__(self, capacite: int) -> None:
-        if capacite <= 0:
-            message = f"capacité de tampon non valable : {capacite}"
+    def __init__(self, capacity: int) -> None:
+        if capacity <= 0:
+            message = f"capacité de tampon non valable : {capacity}"
             raise ValueError(message)
-        self._blocs: queue.Queue[bytes | None] = queue.Queue(maxsize=capacite)
+        self._blocs: queue.Queue[bytes | None] = queue.Queue(maxsize=capacity)
         self._ferme = False
 
     @property
     def ferme(self) -> bool:
         return self._ferme
 
-    def deposer(self, bloc: bytes) -> bool:
+    def deposer(self, block: bytes) -> bool:
         """Dépose un bloc. Rend `False` si l'auditeur ne suit plus."""
         if self._ferme:
             return False
         try:
-            self._blocs.put_nowait(bloc)
+            self._blocs.put_nowait(block)
         except queue.Full:
             return False
         return True
 
-    def fermer(self) -> None:
+    def close(self) -> None:
         """Annonce la fin à qui lit ce flux. Idempotente.
 
         La sentinelle est déposée de force si nécessaire : une file pleine est
@@ -69,7 +69,7 @@ class Abonne:
             except queue.Empty:
                 return
 
-    def blocs(self, delai: float) -> Iterator[bytes]:
+    def blocks(self, timeout: float) -> Iterator[bytes]:
         """Les blocs à écrire dans la socket, jusqu'à la fin du flux.
 
         `delai` borne l'attente pour qu'une chaîne muette — un ffmpeg qui ne
@@ -78,53 +78,53 @@ class Abonne:
         """
         while True:
             try:
-                bloc = self._blocs.get(timeout=delai)
+                block = self._blocs.get(timeout=timeout)
             except queue.Empty:
                 if self._ferme:
                     return
                 continue
-            if bloc is None:
+            if block is None:
                 return
-            yield bloc
+            yield block
 
 
-class Diffusion:
+class Broadcast:
     """Le point de partage entre la chaîne et les auditeurs."""
 
-    def __init__(self, capacite_par_auditeur: int = 64) -> None:
-        self._capacite = capacite_par_auditeur
+    def __init__(self, capacity_per_listener: int = 64) -> None:
+        self._capacite = capacity_per_listener
         self._verrou = threading.Lock()
-        self._abonnes: list[Abonne] = []
+        self._abonnes: list[Subscriber] = []
 
     @property
-    def auditeurs(self) -> int:
+    def listeners(self) -> int:
         with self._verrou:
             return len(self._abonnes)
 
-    def abonner(self) -> Abonne:
-        abonne = Abonne(self._capacite)
+    def subscribe(self) -> Subscriber:
+        subscriber = Subscriber(self._capacite)
         with self._verrou:
-            self._abonnes.append(abonne)
-        return abonne
+            self._abonnes.append(subscriber)
+        return subscriber
 
-    def desabonner(self, abonne: Abonne) -> None:
+    def unsubscribe(self, subscriber: Subscriber) -> None:
         """Retire un auditeur. Idempotente : une déconnexion peut être vue deux fois."""
         with self._verrou:
-            if abonne in self._abonnes:
-                self._abonnes.remove(abonne)
-        abonne.fermer()
+            if subscriber in self._abonnes:
+                self._abonnes.remove(subscriber)
+        subscriber.close()
 
-    def publier(self, bloc: bytes) -> None:
+    def publish(self, block: bytes) -> None:
         """Verse le même bloc à tout le monde, sans jamais attendre personne."""
         with self._verrou:
-            lents = [abonne for abonne in self._abonnes if not abonne.deposer(bloc)]
+            lents = [subscriber for subscriber in self._abonnes if not subscriber.deposer(block)]
             for lent in lents:
                 self._abonnes.remove(lent)
         for lent in lents:
             logger.warning("auditeur trop lent : sa connexion est abandonnée")
-            lent.fermer()
+            lent.close()
 
-    def fermer(self, raison: str) -> None:
+    def close(self, reason: str) -> None:
         """Termine toutes les connexions, en disant pourquoi.
 
         Appelée quand la chaîne coupe (SPECS.md §5.1) : l'auditeur voit son flux
@@ -133,6 +133,6 @@ class Diffusion:
         with self._verrou:
             partants = list(self._abonnes)
             self._abonnes.clear()
-        logger.info("fin du flux pour %d auditeur(s) : %s", len(partants), raison)
+        logger.info("fin du flux pour %d auditeur(s) : %s", len(partants), reason)
         for partant in partants:
-            partant.fermer()
+            partant.close()

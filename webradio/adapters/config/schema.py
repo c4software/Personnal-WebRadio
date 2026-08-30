@@ -27,7 +27,7 @@ VARIABLE_MOT_DE_PASSE = "NAVIDROME_MOT_DE_PASSE"
 # Un fragment de nom de clé qui trahit un secret, et l'origine attendue de sa
 # valeur. La recherche porte sur le nom, jamais sur la valeur : une valeur qui
 # « ressemble » à un mot de passe n'est pas un critère, un nom de clé l'est.
-SECRETS_INTERDITS: Mapping[str, str] = {
+FORBIDDEN_SECRET_KEYS: Mapping[str, str] = {
     "mot_de_passe": VARIABLE_MOT_DE_PASSE,
     "motdepasse": VARIABLE_MOT_DE_PASSE,
     "password": VARIABLE_MOT_DE_PASSE,
@@ -42,40 +42,40 @@ SECRETS_INTERDITS: Mapping[str, str] = {
     "apikey": "",
 }
 
-JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+DAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
 # SPECS.md §4.11 autorise `jours = "tous"` comme raccourci des sept jours.
-TOUS_LES_JOURS = "tous"
+EVERY_DAY = "tous"
 
 # Défauts déclarés au même endroit que la clé qu'ils concernent, faute de quoi
 # ils seraient « en dur » quelque part dans le code (AGENTS.md §2).
-NON_REPETITION_DEFAUT = 5
-VOTES_PLANCHER_DEFAUT = 0.25
-VOTES_PLAFOND_DEFAUT = 4.0
-VOTES_DEMI_VIE_DEFAUT = 90
-VOTES_POIDS_CROISE_DEFAUT = 0.25
-TAILLE_ECHANTILLON_DEFAUT = 500
-RESULTATS_ARTISTE_DEFAUT = 50
-DELAI_SECONDES_DEFAUT = 10.0
+DEFAULT_ARTIST_GAP_KEY = 5
+DEFAULT_VOTE_FLOOR = 0.25
+DEFAULT_VOTE_CEILING = 4.0
+DEFAULT_VOTE_HALF_LIFE = 90
+DEFAULT_CROSS_WEIGHT = 0.25
+DEFAULT_SAMPLE_SIZE = 500
+DEFAULT_ARTIST_RESULTS = 50
+DEFAULT_TIMEOUT_SECONDS = 10.0
 
-PORT_MAXIMUM = 65535
+MAX_PORT = 65535
 
 # Le temps qu'une écriture accepte d'attendre un verrou SQLite. Deux processus
 # touchent la base : la chaîne et le serveur web (ARCHITECTURE.md §5.1).
-DELAI_ETAT_DEFAUT = 5.0
+DEFAULT_STATE_TIMEOUT = 5.0
 # Un flux de podcast qui ne répond pas ne bloque pas la radio : l'émission est
 # perdue et la musique continue (SPECS.md §4.11). Le délai reste donc court.
-DELAI_PODCAST_DEFAUT = 15.0
+DEFAULT_PODCAST_TIMEOUT = 15.0
 # L'interface et l'API partagent le port du flux : une seule chose à ouvrir.
 # Écoute sur toutes les interfaces : la radio est faite pour être jointe depuis
 # le réseau local, et elle n'est jamais exposée sur Internet (SPECS.md §3).
-ADRESSE_WEB_DEFAUT = "0.0.0.0"
-PORT_WEB_DEFAUT = 8000
+DEFAULT_WEB_ADDRESS = "0.0.0.0"
+DEFAULT_WEB_PORT = 8000
 # L'intervalle auquel la page redemande ce qui passe. Trop court, elle
 # interroge pour rien ; trop long, un « encore » semble sans effet.
-RAFRAICHISSEMENT_DEFAUT = 5.0
+DEFAULT_REFRESH = 5.0
 
 
-class ErreurConfiguration(Exception):
+class SettingsError(Exception):
     """Le démarrage est refusé, et la clé fautive est nommée.
 
     Elle est levée avant que quoi que ce soit ne soit diffusé : c'est le régime
@@ -84,53 +84,53 @@ class ErreurConfiguration(Exception):
 
 
 @dataclass(frozen=True, slots=True)
-class ConfigurationFlux:
+class StreamSettings:
     """Ce qui est servi aux auditeurs, et sous quelle forme."""
 
-    adresse: str
+    address: str
     port: int
     format: str
-    debit_kbps: int
-    frequence_hz: int
-    canaux: int
+    bitrate_kbps: int
+    sample_rate_hz: int
+    channels: int
 
 
 @dataclass(frozen=True, slots=True)
-class ConfigurationVotes:
+class VoteSettings:
     """La pondération d'un morceau par les votes (SPECS.md §4.12)."""
 
-    plancher: float
-    plafond: float
-    demi_vie_jours: int
-    poids_croise: float
+    floor: float
+    ceiling: float
+    half_life_days: int
+    cross_weight: float
 
 
 @dataclass(frozen=True, slots=True)
-class ConfigurationTirage:
+class DrawSettings:
     """Ce que le tirage doit respecter."""
 
-    non_repetition_artistes: int
-    votes: ConfigurationVotes
+    artist_gap: int
+    votes: VoteSettings
 
 
 @dataclass(frozen=True, slots=True)
-class ConfigurationJingles:
+class JingleSettings:
     """Seul le dossier se configure : les noms des jingles sont fixes."""
 
-    dossier: str
+    folder: str
 
 
 @dataclass(frozen=True, slots=True)
-class Plage:
+class Band:
     """Un moment thématique : des genres, entre deux heures."""
 
-    debut: time
-    fin: time
+    start: time
+    end: time
     genres: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
-class ConfigurationEtat:
+class StateSettings:
     """La base qui retient le dernier épisode diffusé et les votes.
 
     `delai_secondes` est le temps qu'une écriture accepte d'attendre un verrou :
@@ -138,12 +138,12 @@ class ConfigurationEtat:
     serveur web (ARCHITECTURE.md §5.1).
     """
 
-    base: str
-    delai_secondes: float
+    database: str
+    timeout_seconds: float
 
 
 @dataclass(frozen=True, slots=True)
-class ConfigurationWeb:
+class WebSettings:
     """L'interface et l'API.
 
     `rafraichissement_secondes` est l'intervalle auquel la page redemande à
@@ -151,24 +151,24 @@ class ConfigurationWeb:
     « encore » semble sans effet.
     """
 
-    adresse: str
+    address: str
     port: int
-    rafraichissement_secondes: float
+    refresh_seconds: float
 
 
 @dataclass(frozen=True, slots=True)
-class ConfigurationPodcast:
+class PodcastSettings:
     """Le délai au-delà duquel un flux de podcast est réputé injoignable.
 
     Il doit rester court : une émission qui ne répond pas ne bloque pas la
     radio, elle est perdue et la musique continue (SPECS.md §4.11).
     """
 
-    delai_secondes: float
+    timeout_seconds: float
 
 
 @dataclass(frozen=True, slots=True)
-class ProgrammeDeclare:
+class DeclaredProgramme:
     """Une plage de temps où la musique vient d'une liste de lecture.
 
     Elle porte des **jours** en plus des heures, et sa source est une liste
@@ -176,25 +176,25 @@ class ProgrammeDeclare:
     (SPECS.md §4.13).
     """
 
-    nom: str
+    name: str
     playlist: str
-    jours: tuple[str, ...]
-    debut: time
-    fin: time
+    days: tuple[str, ...]
+    start: time
+    end: time
 
 
 @dataclass(frozen=True, slots=True)
-class Emission:
+class Show:
     """Un podcast diffusé à jour et heure dits."""
 
-    nom: str
-    flux: str
-    jours: tuple[str, ...]
-    heure: time
+    name: str
+    feed: str
+    days: tuple[str, ...]
+    hour: time
 
 
 @dataclass(frozen=True, slots=True)
-class ConfigurationNavidrome:
+class NavidromeSettings:
     """Ce que la source Navidrome a besoin de savoir, hors identifiants.
 
     `taille_echantillon` est un nombre de pistes demandé au serveur, pas une
@@ -202,29 +202,29 @@ class ConfigurationNavidrome:
     l'adaptateur sait et rappelle (docs/navidrome.md §2.1).
     """
 
-    taille_echantillon: int
-    resultats_artiste: int
-    delai_secondes: float
+    sample_size: int
+    artist_results: int
+    timeout_seconds: float
 
 
 @dataclass(frozen=True, slots=True)
-class Configuration:
+class Settings:
     """Tout ce que le TOML décrit, une fois validé. Aucun secret n'y figure."""
 
-    flux: ConfigurationFlux
-    tirage: ConfigurationTirage
-    jingles: ConfigurationJingles
-    plages: tuple[Plage, ...]
-    etat: ConfigurationEtat
-    emissions: tuple[Emission, ...]
-    programmes: tuple[ProgrammeDeclare, ...]
-    navidrome: ConfigurationNavidrome
-    web: ConfigurationWeb
-    podcast: ConfigurationPodcast
+    feed: StreamSettings
+    draw: DrawSettings
+    jingles: JingleSettings
+    bands: tuple[Band, ...]
+    state: StateSettings
+    shows: tuple[Show, ...]
+    programmes: tuple[DeclaredProgramme, ...]
+    navidrome: NavidromeSettings
+    web: WebSettings
+    podcast: PodcastSettings
 
 
 @dataclass(frozen=True, slots=True, repr=False)
-class IdentifiantsNavidrome:
+class NavidromeCredentials:
     """Les trois valeurs qui viennent du `.env`, et d'aucun autre endroit.
 
     La représentation masque le mot de passe : un objet passé par mégarde à un
@@ -232,191 +232,189 @@ class IdentifiantsNavidrome:
     """
 
     url: str
-    utilisateur: str
-    mot_de_passe: str
+    username: str
+    password: str
 
     def __repr__(self) -> str:
         return (
             f"IdentifiantsNavidrome(url={self.url!r}, "
-            f"utilisateur={self.utilisateur!r}, mot_de_passe=***)"
+            f"utilisateur={self.username!r}, mot_de_passe=***)"
         )
 
 
 @dataclass(frozen=True, slots=True)
-class Reglages:
+class Config:
     """Les deux moitiés de la configuration, réunies pour l'assemblage."""
 
-    configuration: Configuration
-    identifiants: IdentifiantsNavidrome
+    settings: Settings
+    credentials: NavidromeCredentials
 
 
-def _refuser(chemin: str, raison: str) -> NoReturn:
-    message = f"configuration invalide — clé « {chemin} » : {raison}"
-    raise ErreurConfiguration(message)
+def _refuser(path: str, reason: str) -> NoReturn:
+    message = f"configuration invalide — clé « {path} » : {reason}"
+    raise SettingsError(message)
 
 
-def _chemin(prefixe: str, cle: str) -> str:
-    return f"{prefixe}.{cle}" if prefixe else cle
+def _chemin(prefix: str, key: str) -> str:
+    return f"{prefix}.{key}" if prefix else key
 
 
-def refuser_les_secrets(brut: Mapping[str, Any], prefixe: str = "") -> None:
+def reject_secrets(brut: Mapping[str, Any], prefix: str = "") -> None:
     """Refuse toute clé dont le nom trahit un secret, à n'importe quelle profondeur.
 
     Le contrôle porte sur le nom de la clé et non sur sa valeur : une valeur qui
     ressemble à un mot de passe n'est pas un critère utilisable, alors qu'un nom
     l'est, et c'est le nom que l'auteur d'un TOML écrit en connaissance de cause.
     """
-    for cle, valeur in brut.items():
-        chemin = _chemin(prefixe, cle)
-        minuscule = cle.lower()
-        for fragment, origine in SECRETS_INTERDITS.items():
+    for key, value in brut.items():
+        path = _chemin(prefix, key)
+        minuscule = key.lower()
+        for fragment, origine in FORBIDDEN_SECRET_KEYS.items():
             if fragment in minuscule:
                 ou = f"« {origine} » dans le fichier .env" if origine else "le fichier .env"
-                _refuser(chemin, f"c'est un secret, sa valeur doit venir de {ou} (SPECS.md §6.1)")
-        if isinstance(valeur, Mapping):
-            refuser_les_secrets(valeur, chemin)
-        elif isinstance(valeur, list):
-            for rang, element in enumerate(valeur):
+                _refuser(path, f"c'est un secret, sa valeur doit venir de {ou} (SPECS.md §6.1)")
+        if isinstance(value, Mapping):
+            reject_secrets(value, path)
+        elif isinstance(value, list):
+            for index, element in enumerate(value):
                 if isinstance(element, Mapping):
-                    refuser_les_secrets(element, f"{chemin}[{rang}]")
+                    reject_secrets(element, f"{path}[{index}]")
 
 
-def _verifier_cles(table: Mapping[str, Any], connues: Sequence[str], prefixe: str) -> None:
-    for cle in table:
-        if cle not in connues:
+def _verifier_cles(table: Mapping[str, Any], connues: Sequence[str], prefix: str) -> None:
+    for key in table:
+        if key not in connues:
             attendues = ", ".join(connues)
-            _refuser(_chemin(prefixe, cle), f"clé inconnue ; attendu l'une de : {attendues}")
+            _refuser(_chemin(prefix, key), f"clé inconnue ; attendu l'une de : {attendues}")
 
 
-def _table(parent: Mapping[str, Any], cle: str, prefixe: str) -> Mapping[str, Any]:
-    chemin = _chemin(prefixe, cle)
-    if cle not in parent:
-        _refuser(chemin, "section obligatoire absente")
-    valeur = parent[cle]
-    if not isinstance(valeur, Mapping):
-        _refuser(chemin, f"une section est attendue, pas {type(valeur).__name__}")
-    return valeur
+def _table(parent: Mapping[str, Any], key: str, prefix: str) -> Mapping[str, Any]:
+    path = _chemin(prefix, key)
+    if key not in parent:
+        _refuser(path, "section obligatoire absente")
+    value = parent[key]
+    if not isinstance(value, Mapping):
+        _refuser(path, f"une section est attendue, pas {type(value).__name__}")
+    return value
 
 
-def _table_optionnelle(parent: Mapping[str, Any], cle: str, prefixe: str) -> Mapping[str, Any]:
-    if cle not in parent:
+def _table_optionnelle(parent: Mapping[str, Any], key: str, prefix: str) -> Mapping[str, Any]:
+    if key not in parent:
         return {}
-    return _table(parent, cle, prefixe)
+    return _table(parent, key, prefix)
 
 
-def _texte(table: Mapping[str, Any], cle: str, prefixe: str, *, defaut: str | None = None) -> str:
-    chemin = _chemin(prefixe, cle)
-    if cle not in table:
-        if defaut is None:
-            _refuser(chemin, "clé obligatoire absente")
-        return defaut
-    valeur = table[cle]
-    if not isinstance(valeur, str):
-        _refuser(chemin, f"un texte est attendu, pas {type(valeur).__name__}")
-    if not valeur:
-        _refuser(chemin, "un texte vide ne désigne rien")
-    return valeur
+def _texte(table: Mapping[str, Any], key: str, prefix: str, *, default: str | None = None) -> str:
+    path = _chemin(prefix, key)
+    if key not in table:
+        if default is None:
+            _refuser(path, "clé obligatoire absente")
+        return default
+    value = table[key]
+    if not isinstance(value, str):
+        _refuser(path, f"un texte est attendu, pas {type(value).__name__}")
+    if not value:
+        _refuser(path, "un texte vide ne désigne rien")
+    return value
 
 
 def _entier(
     table: Mapping[str, Any],
-    cle: str,
-    prefixe: str,
+    key: str,
+    prefix: str,
     *,
-    defaut: int | None = None,
+    default: int | None = None,
     minimum: int = 1,
     maximum: int | None = None,
 ) -> int:
-    chemin = _chemin(prefixe, cle)
-    if cle not in table:
-        if defaut is None:
-            _refuser(chemin, "clé obligatoire absente")
-        return defaut
-    valeur = table[cle]
+    path = _chemin(prefix, key)
+    if key not in table:
+        if default is None:
+            _refuser(path, "clé obligatoire absente")
+        return default
+    value = table[key]
     # `bool` est un `int` en Python : l'accepter ferait passer `true` pour 1.
-    if not isinstance(valeur, int) or isinstance(valeur, bool):
-        _refuser(chemin, f"un entier est attendu, pas {type(valeur).__name__}")
-    if valeur < minimum:
-        _refuser(chemin, f"{valeur} est inférieur au minimum {minimum}")
-    if maximum is not None and valeur > maximum:
-        _refuser(chemin, f"{valeur} dépasse le maximum {maximum}")
-    return valeur
+    if not isinstance(value, int) or isinstance(value, bool):
+        _refuser(path, f"un entier est attendu, pas {type(value).__name__}")
+    if value < minimum:
+        _refuser(path, f"{value} est inférieur au minimum {minimum}")
+    if maximum is not None and value > maximum:
+        _refuser(path, f"{value} dépasse le maximum {maximum}")
+    return value
 
 
 def _reel(
     table: Mapping[str, Any],
-    cle: str,
-    prefixe: str,
+    key: str,
+    prefix: str,
     *,
-    defaut: float,
+    default: float,
     minimum: float = 0.0,
 ) -> float:
-    chemin = _chemin(prefixe, cle)
-    if cle not in table:
-        return defaut
-    valeur = table[cle]
-    if isinstance(valeur, bool) or not isinstance(valeur, (int, float)):
-        _refuser(chemin, f"un nombre est attendu, pas {type(valeur).__name__}")
-    if valeur < minimum:
-        _refuser(chemin, f"{valeur} est inférieur au minimum {minimum}")
-    return float(valeur)
+    path = _chemin(prefix, key)
+    if key not in table:
+        return default
+    value = table[key]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        _refuser(path, f"un nombre est attendu, pas {type(value).__name__}")
+    if value < minimum:
+        _refuser(path, f"{value} est inférieur au minimum {minimum}")
+    return float(value)
 
 
-def _liste_textes(table: Mapping[str, Any], cle: str, prefixe: str) -> tuple[str, ...]:
-    chemin = _chemin(prefixe, cle)
-    if cle not in table:
-        _refuser(chemin, "clé obligatoire absente")
-    valeur = table[cle]
-    if not isinstance(valeur, list):
-        _refuser(chemin, f"une liste est attendue, pas {type(valeur).__name__}")
-    if not valeur:
-        _refuser(chemin, "une liste vide ne restreint rien")
-    for rang, element in enumerate(valeur):
+def _liste_textes(table: Mapping[str, Any], key: str, prefix: str) -> tuple[str, ...]:
+    path = _chemin(prefix, key)
+    if key not in table:
+        _refuser(path, "clé obligatoire absente")
+    value = table[key]
+    if not isinstance(value, list):
+        _refuser(path, f"une liste est attendue, pas {type(value).__name__}")
+    if not value:
+        _refuser(path, "une liste vide ne restreint rien")
+    for index, element in enumerate(value):
         if not isinstance(element, str) or not element:
-            _refuser(f"{chemin}[{rang}]", "un texte non vide est attendu")
-    return tuple(valeur)
+            _refuser(f"{path}[{index}]", "un texte non vide est attendu")
+    return tuple(value)
 
 
-def _heure(table: Mapping[str, Any], cle: str, prefixe: str) -> time:
-    texte = _texte(table, cle, prefixe)
+def _heure(table: Mapping[str, Any], key: str, prefix: str) -> time:
+    texte = _texte(table, key, prefix)
     try:
         return time.fromisoformat(texte)
-    except ValueError as erreur:
-        _refuser(
-            _chemin(prefixe, cle), f"« {texte} » n'est pas une heure au format HH:MM ({erreur})"
-        )
+    except ValueError as error:
+        _refuser(_chemin(prefix, key), f"« {texte} » n'est pas une heure au format HH:MM ({error})")
 
 
-def _liste_tables(parent: Mapping[str, Any], cle: str) -> list[Mapping[str, Any]]:
-    if cle not in parent:
+def _liste_tables(parent: Mapping[str, Any], key: str) -> list[Mapping[str, Any]]:
+    if key not in parent:
         return []
-    valeur = parent[cle]
-    if not isinstance(valeur, list):
-        _refuser(cle, f"une suite de sections [[{cle}]] est attendue, pas {type(valeur).__name__}")
-    for rang, element in enumerate(valeur):
+    value = parent[key]
+    if not isinstance(value, list):
+        _refuser(key, f"une suite de sections [[{key}]] est attendue, pas {type(value).__name__}")
+    for index, element in enumerate(value):
         if not isinstance(element, Mapping):
-            _refuser(f"{cle}[{rang}]", "une section est attendue")
-    return list(valeur)
+            _refuser(f"{key}[{index}]", "une section est attendue")
+    return list(value)
 
 
-def _flux(brut: Mapping[str, Any]) -> ConfigurationFlux:
+def _flux(brut: Mapping[str, Any]) -> StreamSettings:
     table = _table(brut, "flux", "")
     _verifier_cles(
         table,
         ("adresse", "port", "format", "debit_kbps", "frequence_hz", "canaux"),
         "flux",
     )
-    return ConfigurationFlux(
-        adresse=_texte(table, "adresse", "flux"),
-        port=_entier(table, "port", "flux", maximum=PORT_MAXIMUM),
+    return StreamSettings(
+        address=_texte(table, "adresse", "flux"),
+        port=_entier(table, "port", "flux", maximum=MAX_PORT),
         format=_texte(table, "format", "flux"),
-        debit_kbps=_entier(table, "debit_kbps", "flux"),
-        frequence_hz=_entier(table, "frequence_hz", "flux"),
-        canaux=_entier(table, "canaux", "flux", maximum=2),
+        bitrate_kbps=_entier(table, "debit_kbps", "flux"),
+        sample_rate_hz=_entier(table, "frequence_hz", "flux"),
+        channels=_entier(table, "canaux", "flux", maximum=2),
     )
 
 
-def _tirage(brut: Mapping[str, Any]) -> ConfigurationTirage:
+def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
     table = _table(brut, "tirage", "")
     _verifier_cles(table, ("non_repetition_artistes", "votes"), "tirage")
     votes = _table_optionnelle(table, "votes", "tirage")
@@ -425,73 +423,71 @@ def _tirage(brut: Mapping[str, Any]) -> ConfigurationTirage:
         ("plancher", "plafond", "demi_vie_jours", "poids_croise"),
         "tirage.votes",
     )
-    plancher = _reel(votes, "plancher", "tirage.votes", defaut=VOTES_PLANCHER_DEFAUT)
-    plafond = _reel(votes, "plafond", "tirage.votes", defaut=VOTES_PLAFOND_DEFAUT)
-    if plancher > plafond:
-        _refuser("tirage.votes.plancher", f"{plancher} dépasse le plafond {plafond}")
-    return ConfigurationTirage(
-        non_repetition_artistes=_entier(
+    floor = _reel(votes, "plancher", "tirage.votes", default=DEFAULT_VOTE_FLOOR)
+    ceiling = _reel(votes, "plafond", "tirage.votes", default=DEFAULT_VOTE_CEILING)
+    if floor > ceiling:
+        _refuser("tirage.votes.plancher", f"{floor} dépasse le plafond {ceiling}")
+    return DrawSettings(
+        artist_gap=_entier(
             table,
             "non_repetition_artistes",
             "tirage",
-            defaut=NON_REPETITION_DEFAUT,
+            default=DEFAULT_ARTIST_GAP_KEY,
             minimum=0,
         ),
-        votes=ConfigurationVotes(
-            plancher=plancher,
-            plafond=plafond,
-            demi_vie_jours=_entier(
-                votes, "demi_vie_jours", "tirage.votes", defaut=VOTES_DEMI_VIE_DEFAUT
+        votes=VoteSettings(
+            floor=floor,
+            ceiling=ceiling,
+            half_life_days=_entier(
+                votes, "demi_vie_jours", "tirage.votes", default=DEFAULT_VOTE_HALF_LIFE
             ),
-            poids_croise=_reel(
-                votes, "poids_croise", "tirage.votes", defaut=VOTES_POIDS_CROISE_DEFAUT
-            ),
+            cross_weight=_reel(votes, "poids_croise", "tirage.votes", default=DEFAULT_CROSS_WEIGHT),
         ),
     )
 
 
-def _plages(brut: Mapping[str, Any]) -> tuple[Plage, ...]:
-    plages: list[Plage] = []
-    for rang, table in enumerate(_liste_tables(brut, "plages")):
-        prefixe = f"plages[{rang}]"
-        _verifier_cles(table, ("debut", "fin", "genres"), prefixe)
-        plages.append(
-            Plage(
-                debut=_heure(table, "debut", prefixe),
-                fin=_heure(table, "fin", prefixe),
-                genres=_liste_textes(table, "genres", prefixe),
+def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
+    bands: list[Band] = []
+    for index, table in enumerate(_liste_tables(brut, "plages")):
+        prefix = f"plages[{index}]"
+        _verifier_cles(table, ("debut", "fin", "genres"), prefix)
+        bands.append(
+            Band(
+                start=_heure(table, "debut", prefix),
+                end=_heure(table, "fin", prefix),
+                genres=_liste_textes(table, "genres", prefix),
             )
         )
-    return tuple(plages)
+    return tuple(bands)
 
 
-def _jours(table: Mapping[str, Any], prefixe: str) -> tuple[str, ...]:
+def _jours(table: Mapping[str, Any], prefix: str) -> tuple[str, ...]:
     """Les jours d'une déclaration : une liste, ou le raccourci « tous ».
 
     Le raccourci est dans SPECS.md §4.11 depuis l'origine, mais il n'était
     accepté nulle part : `jours = "tous"` faisait échouer le démarrage avec
     « une liste est attendue ». C'est la spécification qui avait raison.
     """
-    chemin = _chemin(prefixe, "jours")
-    valeur = table.get("jours")
-    if isinstance(valeur, str):
-        if valeur.lower() != TOUS_LES_JOURS:
+    path = _chemin(prefix, "jours")
+    value = table.get("jours")
+    if isinstance(value, str):
+        if value.lower() != EVERY_DAY:
             _refuser(
-                chemin,
-                f"« {valeur} » n'est pas reconnu ; attendu « {TOUS_LES_JOURS} » ou une liste",
+                path,
+                f"« {value} » n'est pas reconnu ; attendu « {EVERY_DAY} » ou une liste",
             )
-        return JOURS
-    jours = _liste_textes(table, "jours", prefixe)
-    for position, jour in enumerate(jours):
-        if jour.lower() not in JOURS:
+        return DAYS
+    days = _liste_textes(table, "jours", prefix)
+    for position, jour in enumerate(days):
+        if jour.lower() not in DAYS:
             _refuser(
-                f"{prefixe}.jours[{position}]",
-                f"« {jour} » n'est pas un jour ; attendu l'un de : {', '.join(JOURS)}",
+                f"{prefix}.jours[{position}]",
+                f"« {jour} » n'est pas un jour ; attendu l'un de : {', '.join(DAYS)}",
             )
-    return tuple(jour.lower() for jour in jours)
+    return tuple(jour.lower() for jour in days)
 
 
-def _programmes(brut: Mapping[str, Any]) -> tuple[ProgrammeDeclare, ...]:
+def _programmes(brut: Mapping[str, Any]) -> tuple[DeclaredProgramme, ...]:
     """Les programmes déclarés. Le recouvrement n'est pas refusé.
 
     Contrairement aux émissions, deux programmes qui se recouvrent ne font pas
@@ -499,40 +495,40 @@ def _programmes(brut: Mapping[str, Any]) -> tuple[ProgrammeDeclare, ...]:
     SPECS.md ne réserve le refus qu'aux émissions, et l'étendre ici serait
     inventer une règle.
     """
-    programmes: list[ProgrammeDeclare] = []
-    for rang, table in enumerate(_liste_tables(brut, "programmes")):
-        prefixe = f"programmes[{rang}]"
-        _verifier_cles(table, ("nom", "playlist", "jours", "debut", "fin"), prefixe)
+    programmes: list[DeclaredProgramme] = []
+    for index, table in enumerate(_liste_tables(brut, "programmes")):
+        prefix = f"programmes[{index}]"
+        _verifier_cles(table, ("nom", "playlist", "jours", "debut", "fin"), prefix)
         programmes.append(
-            ProgrammeDeclare(
-                nom=_texte(table, "nom", prefixe),
-                playlist=_texte(table, "playlist", prefixe),
-                jours=_jours(table, prefixe),
-                debut=_heure(table, "debut", prefixe),
-                fin=_heure(table, "fin", prefixe),
+            DeclaredProgramme(
+                name=_texte(table, "nom", prefix),
+                playlist=_texte(table, "playlist", prefix),
+                days=_jours(table, prefix),
+                start=_heure(table, "debut", prefix),
+                end=_heure(table, "fin", prefix),
             )
         )
     return tuple(programmes)
 
 
-def _emissions(brut: Mapping[str, Any]) -> tuple[Emission, ...]:
-    emissions: list[Emission] = []
-    for rang, table in enumerate(_liste_tables(brut, "emissions")):
-        prefixe = f"emissions[{rang}]"
-        _verifier_cles(table, ("nom", "flux", "jours", "heure"), prefixe)
-        emissions.append(
-            Emission(
-                nom=_texte(table, "nom", prefixe),
-                flux=_texte(table, "flux", prefixe),
-                jours=_jours(table, prefixe),
-                heure=_heure(table, "heure", prefixe),
+def _emissions(brut: Mapping[str, Any]) -> tuple[Show, ...]:
+    shows: list[Show] = []
+    for index, table in enumerate(_liste_tables(brut, "emissions")):
+        prefix = f"emissions[{index}]"
+        _verifier_cles(table, ("nom", "flux", "jours", "heure"), prefix)
+        shows.append(
+            Show(
+                name=_texte(table, "nom", prefix),
+                feed=_texte(table, "flux", prefix),
+                days=_jours(table, prefix),
+                hour=_heure(table, "heure", prefix),
             )
         )
-    _refuser_les_collisions(emissions)
-    return tuple(emissions)
+    _refuser_les_collisions(shows)
+    return tuple(shows)
 
 
-def _refuser_les_collisions(emissions: Sequence[Emission]) -> None:
+def _refuser_les_collisions(shows: Sequence[Show]) -> None:
     """Deux émissions au même créneau font échouer le démarrage, en les nommant.
 
     C'est exigé par SPECS.md §5 : la radio ne peut pas en diffuser deux à la
@@ -540,44 +536,42 @@ def _refuser_les_collisions(emissions: Sequence[Emission]) -> None:
     sans personne.
     """
     occupes: dict[tuple[str, time], str] = {}
-    for emission in emissions:
-        for jour in emission.jours:
-            creneau = (jour, emission.heure)
+    for show in shows:
+        for jour in show.days:
+            creneau = (jour, show.hour)
             precedente = occupes.get(creneau)
             if precedente is not None:
                 _refuser(
                     "emissions",
-                    f"« {precedente} » et « {emission.nom} » tombent toutes deux "
-                    f"le {jour} à {emission.heure.isoformat('minutes')}",
+                    f"« {precedente} » et « {show.name} » tombent toutes deux "
+                    f"le {jour} à {show.hour.isoformat('minutes')}",
                 )
-            occupes[creneau] = emission.nom
+            occupes[creneau] = show.name
 
 
-def _navidrome(brut: Mapping[str, Any]) -> ConfigurationNavidrome:
+def _navidrome(brut: Mapping[str, Any]) -> NavidromeSettings:
     table = _table_optionnelle(brut, "navidrome", "")
     _verifier_cles(
         table, ("taille_echantillon", "resultats_artiste", "delai_secondes"), "navidrome"
     )
-    return ConfigurationNavidrome(
-        taille_echantillon=_entier(
-            table, "taille_echantillon", "navidrome", defaut=TAILLE_ECHANTILLON_DEFAUT
+    return NavidromeSettings(
+        sample_size=_entier(table, "taille_echantillon", "navidrome", default=DEFAULT_SAMPLE_SIZE),
+        artist_results=_entier(
+            table, "resultats_artiste", "navidrome", default=DEFAULT_ARTIST_RESULTS
         ),
-        resultats_artiste=_entier(
-            table, "resultats_artiste", "navidrome", defaut=RESULTATS_ARTISTE_DEFAUT
-        ),
-        delai_secondes=_reel(
-            table, "delai_secondes", "navidrome", defaut=DELAI_SECONDES_DEFAUT, minimum=0.1
+        timeout_seconds=_reel(
+            table, "delai_secondes", "navidrome", default=DEFAULT_TIMEOUT_SECONDS, minimum=0.1
         ),
     )
 
 
-def valider(brut: Mapping[str, Any]) -> Configuration:
+def validate(brut: Mapping[str, Any]) -> Settings:
     """Transforme un TOML déjà analysé en configuration, ou refuse le démarrage.
 
     Le refus des secrets passe **avant** tout le reste : une clé `mot_de_passe`
     doit s'entendre dire qu'elle est un secret, pas qu'elle est inconnue.
     """
-    refuser_les_secrets(brut)
+    reject_secrets(brut)
     _verifier_cles(
         brut,
         (
@@ -596,36 +590,38 @@ def valider(brut: Mapping[str, Any]) -> Configuration:
     )
     jingles = _table(brut, "jingles", "")
     _verifier_cles(jingles, ("dossier",), "jingles")
-    etat = _table(brut, "etat", "")
-    _verifier_cles(etat, ("base", "delai_secondes"), "etat")
+    state = _table(brut, "etat", "")
+    _verifier_cles(state, ("base", "delai_secondes"), "etat")
     web = _table_optionnelle(brut, "web", "")
     _verifier_cles(web, ("adresse", "port", "rafraichissement_secondes"), "web")
     podcast = _table_optionnelle(brut, "podcast", "")
     _verifier_cles(podcast, ("delai_secondes",), "podcast")
-    return Configuration(
-        flux=_flux(brut),
-        tirage=_tirage(brut),
-        jingles=ConfigurationJingles(dossier=_texte(jingles, "dossier", "jingles")),
-        plages=_plages(brut),
-        etat=ConfigurationEtat(
-            base=_texte(etat, "base", "etat"),
-            delai_secondes=_reel(etat, "delai_secondes", "etat", defaut=DELAI_ETAT_DEFAUT),
+    return Settings(
+        feed=_flux(brut),
+        draw=_tirage(brut),
+        jingles=JingleSettings(folder=_texte(jingles, "dossier", "jingles")),
+        bands=_plages(brut),
+        state=StateSettings(
+            database=_texte(state, "base", "etat"),
+            timeout_seconds=_reel(state, "delai_secondes", "etat", default=DEFAULT_STATE_TIMEOUT),
         ),
-        emissions=_emissions(brut),
+        shows=_emissions(brut),
         programmes=_programmes(brut),
         navidrome=_navidrome(brut),
-        web=ConfigurationWeb(
-            adresse=_texte(web, "adresse", "web", defaut=ADRESSE_WEB_DEFAUT),
-            port=_entier(web, "port", "web", defaut=PORT_WEB_DEFAUT, maximum=PORT_MAXIMUM),
-            rafraichissement_secondes=_reel(
+        web=WebSettings(
+            address=_texte(web, "adresse", "web", default=DEFAULT_WEB_ADDRESS),
+            port=_entier(web, "port", "web", default=DEFAULT_WEB_PORT, maximum=MAX_PORT),
+            refresh_seconds=_reel(
                 web,
                 "rafraichissement_secondes",
                 "web",
-                defaut=RAFRAICHISSEMENT_DEFAUT,
+                default=DEFAULT_REFRESH,
                 minimum=0.5,
             ),
         ),
-        podcast=ConfigurationPodcast(
-            delai_secondes=_reel(podcast, "delai_secondes", "podcast", defaut=DELAI_PODCAST_DEFAUT),
+        podcast=PodcastSettings(
+            timeout_seconds=_reel(
+                podcast, "delai_secondes", "podcast", default=DEFAULT_PODCAST_TIMEOUT
+            ),
         ),
     )

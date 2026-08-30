@@ -4,138 +4,138 @@ from typing import TypeVar
 
 import pytest
 
-from tests.fakes import FakeSource, piste
-from webradio.core.queue import File, FileVide
-from webradio.core.rotation import Fenetre
-from webradio.core.rng import HasardReel, HasardScripte
-from webradio.core.sources import SourceIndisponible
+from tests.fakes import FakeSource, track
+from webradio.core.queue import EmptyQueue, Queue
+from webradio.core.rng import RealRandom, ScriptedRandom
+from webradio.core.rotation import Window
+from webradio.core.sources import SourceUnavailable
 
 T = TypeVar("T")
 
 CATALOGUE = [
-    piste("1", "Air", genre="électro"),
-    piste("2", "Bowie", genre="rock"),
-    piste("3", "Portishead", genre="trip-hop"),
-    piste("4", "Massive Attack", genre="trip-hop"),
+    track("1", "Air", genre="électro"),
+    track("2", "Bowie", genre="rock"),
+    track("3", "Portishead", genre="trip-hop"),
+    track("4", "Massive Attack", genre="trip-hop"),
 ]
 
 
 def test_la_file_sert_une_piste_du_catalogue() -> None:
-    f = File(FakeSource(CATALOGUE), HasardScripte([0]))
-    assert f.suivant().piste in CATALOGUE
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0]))
+    assert f.next_pick().track in CATALOGUE
 
 
 def test_la_file_respecte_la_non_repetition() -> None:
     """Sur un catalogue de quatre artistes et une fenêtre de trois, aucun
     artiste ne doit revenir avant que trois autres soient passés."""
-    f = File(FakeSource(CATALOGUE), HasardReel(graine=1), Fenetre(largeur=3))
-    joues = [f.suivant().piste.artiste for _ in range(12)]
+    f = Queue(FakeSource(CATALOGUE), RealRandom(graine=1), Window(width=3))
+    joues = [f.next_pick().track.artist for _ in range(12)]
     for i in range(3, len(joues)):
         assert joues[i] not in joues[i - 3 : i], f"répétition en position {i} : {joues}"
 
 
 def test_une_plage_sans_musique_replie_sur_le_tirage_libre() -> None:
     """SPECS.md §4.4 : la radio ne se tait pas, et le repli est signalé."""
-    f = File(FakeSource(CATALOGUE), HasardScripte([0]))
-    choix = f.suivant(genre="jazz")
-    assert choix.piste in CATALOGUE
-    assert any("jazz" in r for r in choix.replis)
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0]))
+    pick = f.next_pick(genre="jazz")
+    assert pick.track in CATALOGUE
+    assert any("jazz" in r for r in pick.fallbacks)
 
 
 def test_une_plage_pourvue_ne_replie_pas() -> None:
-    f = File(FakeSource(CATALOGUE), HasardScripte([0]))
-    choix = f.suivant(genre="trip-hop")
-    assert choix.piste.genre == "trip-hop"
-    assert choix.replis == ()
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0]))
+    pick = f.next_pick(genre="trip-hop")
+    assert pick.track.genre == "trip-hop"
+    assert pick.fallbacks == ()
 
 
 def test_une_bibliotheque_de_trois_artistes_ne_bloque_pas() -> None:
     """Le cas de SPECS.md §4.2 : la fenêtre rétrécit plutôt que de se taire."""
-    trois = [piste("1", "Air"), piste("2", "Bowie"), piste("3", "Portishead")]
-    f = File(FakeSource(trois), HasardReel(graine=3), Fenetre(largeur=5))
-    joues = [f.suivant() for _ in range(10)]
+    trois = [track("1", "Air"), track("2", "Bowie"), track("3", "Portishead")]
+    f = Queue(FakeSource(trois), RealRandom(graine=3), Window(width=5))
+    joues = [f.next_pick() for _ in range(10)]
     assert len(joues) == 10
-    assert any(c.replis for c in joues), "la fenêtre aurait dû rétrécir au moins une fois"
+    assert any(c.fallbacks for c in joues), "la fenêtre aurait dû rétrécir au moins une fois"
 
 
 def test_le_retrecissement_est_signale() -> None:
-    un_seul = [piste("1", "Air"), piste("2", "Air")]
-    f = File(FakeSource(un_seul), HasardScripte([0, 0, 0]), Fenetre(largeur=2))
-    f.suivant()
-    assert any("rétréci" in r for r in f.suivant().replis)
+    un_seul = [track("1", "Air"), track("2", "Air")]
+    f = Queue(FakeSource(un_seul), ScriptedRandom([0, 0, 0]), Window(width=2))
+    f.next_pick()
+    assert any("rétréci" in r for r in f.next_pick().fallbacks)
 
 
 def test_une_source_vide_est_refusee_franchement() -> None:
     """La source a répondu, elle n'a rien. C'est distinct d'une panne : SPECS.md
     §4.1 en fait une erreur, pas un silence."""
-    f = File(FakeSource([]), HasardScripte([0]))
-    with pytest.raises(FileVide, match="aucune piste"):
-        f.suivant()
+    f = Queue(FakeSource([]), ScriptedRandom([0]))
+    with pytest.raises(EmptyQueue, match="aucune piste"):
+        f.next_pick()
 
 
 def test_une_source_injoignable_remonte_telle_quelle() -> None:
     """La file ne masque pas la panne : le repli en cours de diffusion se décide
     au-dessus, avec le contexte (SPECS.md §5.1)."""
-    f = File(FakeSource(CATALOGUE, injoignable=True), HasardScripte([0]))
-    with pytest.raises(SourceIndisponible):
-        f.suivant()
+    f = Queue(FakeSource(CATALOGUE, injoignable=True), ScriptedRandom([0]))
+    with pytest.raises(SourceUnavailable):
+        f.next_pick()
 
 
 def test_preparer_resout_a_l_avance_sans_consommer() -> None:
     """La contrainte de docs/ffmpeg.md §2.2 : résoudre pendant que le courant
     joue, jamais à la jonction."""
     source = FakeSource(CATALOGUE)
-    f = File(source, HasardScripte([0, 1]))
-    f.preparer()
+    f = Queue(source, ScriptedRandom([0, 1]))
+    f.prepare()
     appels_apres_preparation = source.appels
     assert appels_apres_preparation > 0
-    f.suivant()
+    f.next_pick()
     assert source.appels == appels_apres_preparation, "suivant() a réinterrogé la source"
 
 
 def test_preparer_deux_fois_ne_resout_qu_une_fois() -> None:
     source = FakeSource(CATALOGUE)
-    f = File(source, HasardScripte([0]))
-    f.preparer()
+    f = Queue(source, ScriptedRandom([0]))
+    f.prepare()
     appels = source.appels
-    f.preparer()
+    f.prepare()
     assert source.appels == appels
 
 
 def test_l_avance_est_bien_celle_qui_est_servie() -> None:
     source = FakeSource(CATALOGUE)
-    f = File(source, HasardScripte([2, 0]))
-    f.preparer()
-    assert f.suivant().piste.artiste == "Portishead"
+    f = Queue(source, ScriptedRandom([2, 0]))
+    f.prepare()
+    assert f.next_pick().track.artist == "Portishead"
 
 
 def test_apres_avoir_servi_l_avance_la_file_recalcule() -> None:
     source = FakeSource(CATALOGUE)
-    f = File(source, HasardScripte([0, 1]))
-    f.preparer()
-    f.suivant()
-    assert f.suivant().piste in CATALOGUE
+    f = Queue(source, ScriptedRandom([0, 1]))
+    f.prepare()
+    f.next_pick()
+    assert f.next_pick().track in CATALOGUE
 
 
 def test_sans_poids_la_file_tire_uniformement() -> None:
     """La pondération est une capacité en plus, jamais un réglage de la
     première : sans `peser`, rien de ce qui existait ne change."""
-    f = File(FakeSource(CATALOGUE), HasardScripte([0]))
-    assert f.suivant().piste in CATALOGUE
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0]))
+    assert f.next_pick().track in CATALOGUE
 
 
 def test_avec_des_poids_la_file_les_honore() -> None:
     """Un poids nul sur tout sauf un morceau : c'est celui-là qui doit sortir,
     quel que soit le tirage."""
     vise = CATALOGUE[2]
-    f = File(
+    f = Queue(
         FakeSource(CATALOGUE),
-        HasardReel(graine=1),
-        Fenetre(largeur=0),
-        peser=lambda p: 1000.0 if p.identifiant == vise.identifiant else 0.001,
+        RealRandom(graine=1),
+        Window(width=0),
+        weigh=lambda p: 1000.0 if p.identifier == vise.identifier else 0.001,
     )
-    sorties = [f.suivant().piste.identifiant for _ in range(30)]
-    assert sorties.count(vise.identifiant) > 25, sorties
+    sorties = [f.next_pick().track.identifier for _ in range(30)]
+    assert sorties.count(vise.identifier) > 25, sorties
 
 
 def test_des_poids_sans_hasard_pondere_sont_refuses_a_la_construction() -> None:
@@ -143,11 +143,11 @@ def test_des_poids_sans_hasard_pondere_sont_refuses_a_la_construction() -> None:
     uniformément sans rien signaler, et la pondération semblerait « ne pas
     marcher » des semaines durant."""
 
-    class HasardSimple:
+    class PlainRandom:
         """Un hasard qui sait tirer, mais pas pondérer. C'est le cas à refuser."""
 
-        def choisir(self, parmi: list[T]) -> T:
+        def pick(self, parmi: list[T]) -> T:
             return parmi[0]
 
     with pytest.raises(TypeError, match="ne sait pas les honorer"):
-        File(FakeSource(CATALOGUE), HasardSimple(), peser=lambda _: 1.0)
+        Queue(FakeSource(CATALOGUE), PlainRandom(), weigh=lambda _: 1.0)

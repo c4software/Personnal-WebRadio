@@ -15,37 +15,37 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import time
 
-from webradio.core.clock import Horloge
-from webradio.core.rng import Hasard
+from webradio.core.clock import Clock
+from webradio.core.rng import Random
 
 
 @dataclass(frozen=True, slots=True)
-class Plage:
+class Band:
     """Une tranche de la journée et le ou les genres qu'on y tire.
 
     Une plage dont la fin précède le début enjambe minuit : « 22 h → 02 h » est
     une soirée, pas une erreur de saisie.
     """
 
-    debut: time
-    fin: time
+    start: time
+    end: time
     genres: tuple[str, ...]
 
     def __post_init__(self) -> None:
         if not self.genres:
             message = "une plage sans genre ne restreint rien : ne pas la déclarer"
             raise ValueError(message)
-        if self.debut == self.fin:
-            message = f"plage vide : {self.debut} → {self.fin}"
+        if self.start == self.end:
+            message = f"plage vide : {self.start} → {self.end}"
             raise ValueError(message)
 
-    def couvre(self, moment: time) -> bool:
-        if self.debut < self.fin:
-            return self.debut <= moment < self.fin
-        return moment >= self.debut or moment < self.fin
+    def covers(self, moment: time) -> bool:
+        if self.start < self.end:
+            return self.start <= moment < self.end
+        return moment >= self.start or moment < self.end
 
 
-class Grille:
+class Schedule:
     """Le genre à tirer maintenant, ou rien du tout.
 
     L'horloge est injectée (ARCHITECTURE.md §3.1) : une journée entière de
@@ -57,31 +57,31 @@ class Grille:
     une réponse que l'auteur peut donner sans qu'on la lui demande.
     """
 
-    def __init__(self, plages: Sequence[Plage], horloge: Horloge) -> None:
-        self._plages = tuple(plages)
-        self._horloge = horloge
+    def __init__(self, bands: Sequence[Band], clock: Clock) -> None:
+        self._plages = tuple(bands)
+        self._horloge = clock
 
     @property
-    def plages(self) -> tuple[Plage, ...]:
+    def bands(self) -> tuple[Band, ...]:
         return self._plages
 
-    def plage_courante(self) -> Plage | None:
-        moment = self._horloge.maintenant().time()
-        for plage in self._plages:
-            if plage.couvre(moment):
-                return plage
+    def current_band(self) -> Band | None:
+        moment = self._horloge.now().time()
+        for band in self._plages:
+            if band.covers(moment):
+                return band
         return None
 
-    def genre_a_tirer(self, hasard: Hasard) -> str | None:
+    def genre_to_draw(self, random: Random) -> str | None:
         """Le genre à demander à la source, `None` pour un tirage libre.
 
         Une plage peut déclarer plusieurs genres (SPECS.md §4.4) alors que la
         source n'en accepte qu'un : c'est le hasard injecté qui tranche, pour
         que la soirée reste rejouable.
         """
-        plage = self.plage_courante()
-        if plage is None:
+        band = self.current_band()
+        if band is None:
             return None
-        if len(plage.genres) == 1:
-            return plage.genres[0]
-        return hasard.choisir(list(plage.genres))
+        if len(band.genres) == 1:
+            return band.genres[0]
+        return random.pick(list(band.genres))

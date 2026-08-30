@@ -21,9 +21,9 @@ from typing import IO, Protocol
 from urllib.parse import urlsplit, urlunsplit
 
 from webradio.adapters.ffmpeg.decoder import (
-    DecodageImpossible,
-    Decodeur,
-    FormatPcm,
+    DecodeFailed,
+    Decoder,
+    PcmFormat,
     journaliser_erreurs,
 )
 
@@ -33,10 +33,10 @@ logger = logging.getLogger(__name__)
 # format inconnu est refusé au démarrage plutôt que servi sous un type MIME
 # approximatif : un lecteur qui reçoit le mauvais type ne décroche pas, il ne
 # démarre jamais.
-TYPES_MIME = {"mp3": "audio/mpeg"}
+MIME_TYPES = {"mp3": "audio/mpeg"}
 
 
-class ChaineIndisponible(Exception):
+class ChainUnavailable(Exception):
     """La chaîne refuse de démarrer, et elle dit pourquoi.
 
     C'est le régime « au démarrage » d'ARCHITECTURE.md §7 : l'erreur est fatale
@@ -45,7 +45,7 @@ class ChaineIndisponible(Exception):
     """
 
 
-def _sans_secret(entree: str) -> str:
+def _sans_secret(entry: str) -> str:
     """Une entrée réduite à ce qui se journalise sans danger.
 
     Une entrée est un chemin **ou une URL**, et l'URL d'une source porte des
@@ -56,37 +56,37 @@ def _sans_secret(entree: str) -> str:
     Le défaut a été trouvé en exécutant la radio, jamais par un test : une URL
     ne ressemble pas à un secret, et rien ne signalait qu'elle en portait un.
     """
-    if "://" not in entree:
-        return entree
-    decoupee = urlsplit(entree)
+    if "://" not in entry:
+        return entry
+    decoupee = urlsplit(entry)
     return urlunsplit((decoupee.scheme, decoupee.hostname or "", decoupee.path, "", ""))
 
 
 @dataclass(frozen=True, slots=True)
-class FormatFlux:
+class StreamFormat:
     """Ce que reçoit l'auditeur, fixé une fois pour toutes au démarrage."""
 
-    conteneur: str
-    debit_kbps: int
-    frequence_hz: int
-    canaux: int
+    container: str
+    bitrate_kbps: int
+    sample_rate_hz: int
+    channels: int
 
     def __post_init__(self) -> None:
-        if self.conteneur not in TYPES_MIME:
-            message = f"format de flux inconnu : « {self.conteneur} »"
-            raise ChaineIndisponible(message)
-        if self.debit_kbps <= 0:
-            message = f"débit non valable : {self.debit_kbps}"
+        if self.container not in MIME_TYPES:
+            message = f"format de flux inconnu : « {self.container} »"
+            raise ChainUnavailable(message)
+        if self.bitrate_kbps <= 0:
+            message = f"débit non valable : {self.bitrate_kbps}"
             raise ValueError(message)
 
     @property
     def type_mime(self) -> str:
-        return TYPES_MIME[self.conteneur]
+        return MIME_TYPES[self.container]
 
     @property
-    def pcm(self) -> FormatPcm:
+    def pcm(self) -> PcmFormat:
         """Le PCM auquel les entrées sont ramenées : celui du flux, sans détour."""
-        return FormatPcm(frequence_hz=self.frequence_hz, canaux=self.canaux)
+        return PcmFormat(sample_rate_hz=self.sample_rate_hz, channels=self.channels)
 
 
 class Programme(Protocol):
@@ -98,7 +98,7 @@ class Programme(Protocol):
     `docs/ffmpeg.md` §2.ter.
     """
 
-    def suivante(self) -> str | None:
+    def next_entry(self) -> str | None:
         """L'entrée suivante, ou `None` quand il n'y a plus rien à jouer.
 
         `None` n'est pas une panne : c'est ce qui fait couper la radio en le
@@ -110,7 +110,7 @@ class Programme(Protocol):
         """
         ...
 
-    def preparer(self) -> None:
+    def prepare(self) -> None:
         """Résout l'entrée d'après pendant que la courante joue.
 
         Un tuyau qui se tarit ne fait pas un blanc dans l'audio : il fait un trou
@@ -120,12 +120,12 @@ class Programme(Protocol):
         ...
 
 
-class Encodeur:
+class Encoder:
     """L'unique ffmpeg qui produit le flux, cadencé au temps réel."""
 
-    def __init__(self, format_flux: FormatFlux, commande: str = "ffmpeg") -> None:
-        self._format = format_flux
-        self._commande = commande
+    def __init__(self, stream_format: StreamFormat, command: str = "ffmpeg") -> None:
+        self._format = stream_format
+        self._commande = command
 
     def arguments(self) -> list[str]:
         """La ligne relevée dans `docs/ffmpeg.md` §2.1.
@@ -143,21 +143,21 @@ class Encodeur:
             "-nostdin",
             "-re",
             "-f",
-            pcm.echantillon,
+            pcm.sample,
             "-ar",
-            str(pcm.frequence_hz),
+            str(pcm.sample_rate_hz),
             "-ac",
-            str(pcm.canaux),
+            str(pcm.channels),
             "-i",
             "-",
             "-f",
-            self._format.conteneur,
+            self._format.container,
             "-b:a",
-            f"{self._format.debit_kbps}k",
+            f"{self._format.bitrate_kbps}k",
             "-",
         ]
 
-    def demarrer(self) -> subprocess.Popen[bytes]:
+    def start(self) -> subprocess.Popen[bytes]:
         """Lance l'encodeur, meneur de son propre groupe de processus.
 
         `process_group=0` le fait chef de groupe : son PID devient l'identifiant
@@ -165,22 +165,22 @@ class Encodeur:
         d'arrêter **tout l'arbre** d'un seul signal (`docs/flux-icy.md` §3.bis).
         """
         try:
-            processus = subprocess.Popen(
+            processes = subprocess.Popen(
                 self.arguments(),
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 process_group=0,
             )
-        except OSError as erreur:
-            message = f"l'encodeur n'a pas pu démarrer : {erreur}"
-            raise ChaineIndisponible(message) from erreur
-        if processus.stderr is not None:
-            journaliser_erreurs(processus.stderr, "encodeur")
-        return processus
+        except OSError as error:
+            message = f"l'encodeur n'a pas pu démarrer : {error}"
+            raise ChainUnavailable(message) from error
+        if processes.stderr is not None:
+            journaliser_erreurs(processes.stderr, "encodeur")
+        return processes
 
 
-class Chaine:
+class Chain:
     """Le programme, les décodeurs, l'encodeur : un flux d'octets, et son arrêt.
 
     Elle ne connaît personne au-dessus d'elle : elle pousse ses octets dans
@@ -192,23 +192,23 @@ class Chaine:
     def __init__(
         self,
         programme: Programme,
-        format_flux: FormatFlux,
-        publier: Callable[[bytes], None],
-        sur_fin: Callable[[str], None],
+        stream_format: StreamFormat,
+        publish: Callable[[bytes], None],
+        on_end: Callable[[str], None],
         *,
-        commande: str = "ffmpeg",
-        taille_bloc: int = 4096,
-        relances: int = 1,
-        delai_arret: float = 5.0,
+        command: str = "ffmpeg",
+        block_size: int = 4096,
+        restarts: int = 1,
+        stop_timeout: float = 5.0,
     ) -> None:
         self._programme = programme
-        self._encodeur = Encodeur(format_flux, commande)
-        self._decodeur = Decodeur(format_flux.pcm, commande)
-        self._publier = publier
-        self._sur_fin = sur_fin
-        self._taille_bloc = taille_bloc
-        self._relances_restantes = relances
-        self._delai_arret = delai_arret
+        self._encodeur = Encoder(stream_format, command)
+        self._decodeur = Decoder(stream_format.pcm, command)
+        self._publier = publish
+        self._sur_fin = on_end
+        self._taille_bloc = block_size
+        self._relances_restantes = restarts
+        self._delai_arret = stop_timeout
 
         # `_etat` protège tout ce que deux fils peuvent voir changer, et sert
         # aussi de signal : le lecteur y attend la génération suivante quand
@@ -225,12 +225,12 @@ class Chaine:
         self._lecteur: threading.Thread | None = None
 
     @property
-    def groupe(self) -> int:
+    def group(self) -> int:
         """Le groupe de processus de la chaîne courante, 0 si rien ne tourne."""
         with self._etat:
             return self._groupe
 
-    def demarrer(self) -> None:
+    def start(self) -> None:
         """Monte la chaîne, ou refuse en disant pourquoi.
 
         Tout ce qui échoue ici est fatal : aucun auditeur ne doit recevoir un flux
@@ -243,11 +243,11 @@ class Chaine:
             self._lecteur = threading.Thread(
                 target=self._lire_sortie, name="chaine-lecteur", daemon=True
             )
-        self._programme.preparer()
+        self._programme.prepare()
         self._pompe.start()
         self._lecteur.start()
 
-    def arreter(self) -> None:
+    def stop_all(self) -> None:
         """Arrête tout l'arbre de processus, et n'en laisse aucun derrière.
 
         Idempotente, et appelable depuis n'importe quel fil — y compris depuis la
@@ -258,15 +258,15 @@ class Chaine:
                 return
             self._arrete = True
             self._fini = True
-            groupe = self._groupe
-            processus = list(self._processus)
+            group = self._groupe
+            processes = list(self._processus)
             self._processus.clear()
             self._encodeur_actif = None
             self._decodeur_actif = None
             self._groupe = 0
             self._etat.notify_all()
 
-        _arreter_arbre(groupe, processus, self._delai_arret)
+        _arreter_arbre(group, processes, self._delai_arret)
 
         courant = threading.current_thread()
         for fil in (self._pompe, self._lecteur):
@@ -276,58 +276,58 @@ class Chaine:
         # Les sorties ne sont fermées qu'une fois le lecteur parti : fermer un
         # tuyau qu'un autre fil est en train de lire, c'est reproduire sous une
         # autre forme la course de docs/flux-icy.md §3.bis.
-        for termine in processus:
+        for termine in processes:
             _fermer_sortie(termine)
 
     # ── Montage et démontage ───────────────────────────────────────────────
 
     def _monter(self) -> None:
         """Démarre l'encodeur puis le premier décodeur. Appelée sous `_etat`."""
-        premiere = self._programme.suivante()
+        premiere = self._programme.next_entry()
         if premiere is None:
             message = "le programme n'a rien à jouer : la radio ne démarre pas"
-            raise ChaineIndisponible(message)
+            raise ChainUnavailable(message)
 
-        encodeur = self._encodeur.demarrer()
-        self._encodeur_actif = encodeur
-        self._processus.append(encodeur)
-        self._groupe = encodeur.pid
+        encoder = self._encodeur.start()
+        self._encodeur_actif = encoder
+        self._processus.append(encoder)
+        self._groupe = encoder.pid
 
         try:
             self._ouvrir_decodeur(premiere)
-        except DecodageImpossible as erreur:
+        except DecodeFailed as error:
             self._demonter()
-            raise ChaineIndisponible(str(erreur)) from erreur
+            raise ChainUnavailable(str(error)) from error
 
         self._generation += 1
         self._etat.notify_all()
 
-    def _ouvrir_decodeur(self, entree: str) -> None:
+    def _ouvrir_decodeur(self, entry: str) -> None:
         """Appelée sous `_etat`.
 
         Elle ne prend pas l'avance elle-même : `preparer` peut être lent — c'est
         même sa raison d'être — et le tenir sous le verrou empêcherait le lecteur
         de publier pendant ce temps, donc creuserait le trou qu'il doit combler.
         """
-        decodeur = self._decodeur.ouvrir(entree, self._groupe)
-        self._decodeur_actif = decodeur
-        self._processus.append(decodeur)
-        logger.info("à l'antenne : %s", _sans_secret(entree))
+        decoder = self._decodeur.ouvrir(entry, self._groupe)
+        self._decodeur_actif = decoder
+        self._processus.append(decoder)
+        logger.info("à l'antenne : %s", _sans_secret(entry))
 
     def _demonter(self) -> None:
         """Tue le groupe courant et récolte les processus. Appelée sous `_etat`."""
-        groupe = self._groupe
-        processus = list(self._processus)
+        group = self._groupe
+        processes = list(self._processus)
         self._processus.clear()
         self._encodeur_actif = None
         self._decodeur_actif = None
         self._groupe = 0
-        _arreter_arbre(groupe, processus, self._delai_arret)
+        _arreter_arbre(group, processes, self._delai_arret)
 
-    def _terminer(self, raison: str) -> None:
-        logger.error("la radio coupe : %s", raison)
-        self.arreter()
-        self._sur_fin(raison)
+    def _terminer(self, reason: str) -> None:
+        logger.error("la radio coupe : %s", reason)
+        self.stop_all()
+        self._sur_fin(reason)
 
     # ── La pompe : décodeur → encodeur ─────────────────────────────────────
 
@@ -340,25 +340,25 @@ class Chaine:
         """
         while not self._fini:
             with self._etat:
-                decodeur = self._decodeur_actif
-            if decodeur is None or decodeur.stdout is None:
+                decoder = self._decodeur_actif
+            if decoder is None or decoder.stdout is None:
                 return
-            bloc = _lire(decodeur.stdout, self._taille_bloc)
-            if bloc:
-                if not self._ecrire(bloc) and not self._relancer("l'encodeur s'est arrêté"):
+            block = _lire(decoder.stdout, self._taille_bloc)
+            if block:
+                if not self._ecrire(block) and not self._relancer("l'encodeur s'est arrêté"):
                     return
                 continue
-            if not self._enchainer(decodeur):
+            if not self._enchainer(decoder):
                 return
 
-    def _ecrire(self, bloc: bytes) -> bool:
+    def _ecrire(self, block: bytes) -> bool:
         with self._etat:
-            encodeur = self._encodeur_actif
-        if encodeur is None or encodeur.stdin is None:
+            encoder = self._encodeur_actif
+        if encoder is None or encoder.stdin is None:
             return False
         try:
-            encodeur.stdin.write(bloc)
-            encodeur.stdin.flush()
+            encoder.stdin.write(block)
+            encoder.stdin.flush()
         except (BrokenPipeError, OSError, ValueError):
             return False
         return True
@@ -370,12 +370,12 @@ class Chaine:
             logger.warning("entrée illisible (code %s) : la radio passe à la suivante", code)
 
         with self._etat:
-            encodeur = self._encodeur_actif
-        if encodeur is not None and encodeur.poll() is not None:
+            encoder = self._encodeur_actif
+        if encoder is not None and encoder.poll() is not None:
             return self._relancer("l'encodeur s'est arrêté")
 
-        suivante = self._programme.suivante()
-        if suivante is None:
+        next_entry = self._programme.next_entry()
+        if next_entry is None:
             self._terminer("le programme n'a plus rien à jouer")
             return False
 
@@ -383,14 +383,14 @@ class Chaine:
             with self._etat:
                 if self._fini:
                     return False
-                self._ouvrir_decodeur(suivante)
-        except DecodageImpossible as erreur:
+                self._ouvrir_decodeur(next_entry)
+        except DecodeFailed as error:
             # Un décodeur qui ne se lance pas n'est pas un morceau illisible :
             # celui-là échoue en cours et le suivant le remplace. Ici, c'est
             # ffmpeg lui-même qui manque, et le suivant échouerait pareil.
-            self._terminer(str(erreur))
+            self._terminer(str(error))
             return False
-        self._programme.preparer()
+        self._programme.prepare()
         return True
 
     def _recolter_decodeur(self, termine: subprocess.Popen[bytes]) -> int | None:
@@ -411,7 +411,7 @@ class Chaine:
                 self._processus.remove(termine)
         return code
 
-    def _relancer(self, raison: str) -> bool:
+    def _relancer(self, reason: str) -> bool:
         """Relance la chaîne **une fois**, puis coupe (SPECS.md §5.1).
 
         Ne jamais relancer indéfiniment : une panne masquée n'est jamais réparée,
@@ -421,18 +421,18 @@ class Chaine:
         if self._fini:
             return False
         if self._relances_restantes <= 0:
-            self._terminer(f"{raison}, et elle ne se relève pas")
+            self._terminer(f"{reason}, et elle ne se relève pas")
             return False
         self._relances_restantes -= 1
-        logger.warning("%s : la chaîne est relancée une fois", raison)
+        logger.warning("%s : la chaîne est relancée une fois", reason)
         try:
             with self._etat:
                 self._demonter()
                 self._monter()
-        except ChaineIndisponible as erreur:
-            self._terminer(f"la relance a échoué : {erreur}")
+        except ChainUnavailable as error:
+            self._terminer(f"la relance a échoué : {error}")
             return False
-        self._programme.preparer()
+        self._programme.prepare()
         return True
 
     # ── Le lecteur : encodeur → auditeurs ──────────────────────────────────
@@ -446,13 +446,13 @@ class Chaine:
         """
         while not self._fini:
             with self._etat:
-                encodeur = self._encodeur_actif
+                encoder = self._encodeur_actif
                 generation = self._generation
-            if encodeur is None or encodeur.stdout is None:
+            if encoder is None or encoder.stdout is None:
                 return
-            bloc = _lire(encodeur.stdout, self._taille_bloc)
-            if bloc:
-                self._publier(bloc)
+            block = _lire(encoder.stdout, self._taille_bloc)
+            if block:
+                self._publier(block)
                 continue
             if not self._attendre_relance(generation):
                 return
@@ -471,7 +471,7 @@ class Chaine:
             return not self._fini and self._generation != generation
 
 
-def _lire(flux: IO[bytes], taille: int) -> bytes:
+def _lire(feed: IO[bytes], taille: int) -> bytes:
     """Lit sans exiger que le tuyau existe encore.
 
     Un tuyau fermé sous les pieds du lecteur lève `ValueError`, pas `OSError` :
@@ -479,58 +479,58 @@ def _lire(flux: IO[bytes], taille: int) -> bytes:
     qui remplace le déréférencement fautif de `docs/flux-icy.md` §3.bis.
     """
     try:
-        return flux.read(taille)
+        return feed.read(taille)
     except (OSError, ValueError):
         return b""
 
 
-def _arreter_arbre(groupe: int, processus: list[subprocess.Popen[bytes]], delai: float) -> None:
+def _arreter_arbre(group: int, processes: list[subprocess.Popen[bytes]], timeout: float) -> None:
     """Signale le groupe entier, puis récolte chaque processus.
 
     Les deux moitiés comptent. Le signal de groupe atteint ce dont on n'a pas
     gardé la référence ; la récolte évite les `<defunct>` — et c'est exactement
     ce qu'un test sur un booléen aurait manqué (`docs/flux-icy.md` §3.bis).
     """
-    if groupe:
-        _signaler(groupe, signal.SIGTERM)
-    survivants = [p for p in processus if not _recolter(p, delai)]
-    if survivants:
-        if groupe:
-            _signaler(groupe, signal.SIGKILL)
-        for restant in survivants:
-            if not _recolter(restant, delai):
+    if group:
+        _signaler(group, signal.SIGTERM)
+    survivors = [p for p in processes if not _recolter(p, timeout)]
+    if survivors:
+        if group:
+            _signaler(group, signal.SIGKILL)
+        for restant in survivors:
+            if not _recolter(restant, timeout):
                 logger.error("un processus ffmpeg (%s) survit à l'arrêt", restant.pid)
-    for termine in processus:
+    for termine in processes:
         _fermer_entree(termine)
 
 
-def _signaler(groupe: int, signalement: signal.Signals) -> None:
+def _signaler(group: int, signalement: signal.Signals) -> None:
     try:
-        os.killpg(groupe, signalement)
-    except (ProcessLookupError, PermissionError) as erreur:
-        logger.debug("le groupe %s ne peut plus être signalé : %s", groupe, erreur)
+        os.killpg(group, signalement)
+    except (ProcessLookupError, PermissionError) as error:
+        logger.debug("le groupe %s ne peut plus être signalé : %s", group, error)
 
 
-def _recolter(processus: subprocess.Popen[bytes], delai: float) -> bool:
+def _recolter(processes: subprocess.Popen[bytes], timeout: float) -> bool:
     try:
-        processus.wait(delai)
+        processes.wait(timeout)
     except subprocess.TimeoutExpired:
         return False
     return True
 
 
-def _fermer_entree(processus: subprocess.Popen[bytes]) -> None:
-    _fermer(processus.stdin, processus.pid)
+def _fermer_entree(processes: subprocess.Popen[bytes]) -> None:
+    _fermer(processes.stdin, processes.pid)
 
 
-def _fermer_sortie(processus: subprocess.Popen[bytes]) -> None:
-    _fermer(processus.stdout, processus.pid)
+def _fermer_sortie(processes: subprocess.Popen[bytes]) -> None:
+    _fermer(processes.stdout, processes.pid)
 
 
-def _fermer(tuyau: IO[bytes] | None, pid: int) -> None:
-    if tuyau is None:
+def _fermer(pipe: IO[bytes] | None, pid: int) -> None:
+    if pipe is None:
         return
     try:
-        tuyau.close()
-    except OSError as erreur:
-        logger.debug("tuyau déjà fermé pour %s : %s", pid, erreur)
+        pipe.close()
+    except OSError as error:
+        logger.debug("tuyau déjà fermé pour %s : %s", pid, error)

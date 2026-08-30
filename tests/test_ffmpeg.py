@@ -17,23 +17,23 @@ from pathlib import Path
 
 import pytest
 
-from webradio.adapters.ffmpeg.decoder import DecodageImpossible, Decodeur, FormatPcm
+from webradio.adapters.ffmpeg.decoder import DecodeFailed, Decoder, PcmFormat
 from webradio.adapters.ffmpeg.encoder import (
-    Chaine,
-    ChaineIndisponible,
-    Encodeur,
-    FormatFlux,
+    Chain,
+    ChainUnavailable,
+    Encoder,
+    StreamFormat,
     _sans_secret,
 )
 
-FORMAT = FormatFlux(conteneur="mp3", debit_kbps=128, frequence_hz=44100, canaux=2)
+FORMAT = StreamFormat(container="mp3", bitrate_kbps=128, sample_rate_hz=44100, channels=2)
 INTROUVABLE = "ffmpeg-qui-n-existe-pas"
 DELAI = 30.0
 
 
-def fabriquer(dossier: Path, nom: str, secondes: float, frequence_hz: int, canaux: int) -> str:
+def fabriquer(folder: Path, name: str, secondes: float, sample_rate_hz: int, channels: int) -> str:
     """Un fichier d'essai, produit par ffmpeg pour qu'il soit réellement décodable."""
-    chemin = dossier / nom
+    path = folder / name
     subprocess.run(
         [
             "ffmpeg",
@@ -44,17 +44,17 @@ def fabriquer(dossier: Path, nom: str, secondes: float, frequence_hz: int, canau
             "-f",
             "lavfi",
             "-i",
-            f"sine=frequency=440:duration={secondes}:sample_rate={frequence_hz}",
+            f"sine=frequency=440:duration={secondes}:sample_rate={sample_rate_hz}",
             "-ac",
-            str(canaux),
-            str(chemin),
+            str(channels),
+            str(path),
         ],
         check=True,
     )
-    return str(chemin)
+    return str(path)
 
 
-def processus_du_groupe(groupe: int) -> list[str]:
+def group_processes(group: int) -> list[str]:
     """Les processus vivants — zombies compris — rattachés à un groupe.
 
     C'est la seule mesure qui vaille pour l'arrêt : un booléen serait passé au
@@ -67,17 +67,17 @@ def processus_du_groupe(groupe: int) -> list[str]:
         text=True,
         check=True,
     )
-    lignes = []
-    for ligne in releve.stdout.splitlines():
-        champs = ligne.split(maxsplit=1)
-        if len(champs) == 2 and champs[0] == str(groupe):
-            lignes.append(ligne.strip())
-    return lignes
+    rows = []
+    for row in releve.stdout.splitlines():
+        champs = row.split(maxsplit=1)
+        if len(champs) == 2 and champs[0] == str(group):
+            rows.append(row.strip())
+    return rows
 
 
-def decrire(octets: bytes, dossier: Path) -> dict[str, str]:
+def decrire(octets: bytes, folder: Path) -> dict[str, str]:
     """Ce que ffprobe dit d'un flux capté : codec, fréquence, canaux."""
-    capture = dossier / "capture.mp3"
+    capture = folder / "capture.mp3"
     capture.write_bytes(octets)
     releve = subprocess.run(
         [
@@ -97,7 +97,7 @@ def decrire(octets: bytes, dossier: Path) -> dict[str, str]:
         text=True,
         check=True,
     )
-    return dict(ligne.split("=", 1) for ligne in releve.stdout.splitlines() if "=" in ligne)
+    return dict(row.split("=", 1) for row in releve.stdout.splitlines() if "=" in row)
 
 
 class FakeProgramme:
@@ -113,7 +113,7 @@ class FakeProgramme:
         self._rang = 0
         self.journal: list[str] = []
 
-    def suivante(self) -> str | None:
+    def next_entry(self) -> str | None:
         self.journal.append("suivante")
         if not self._entrees:
             return None
@@ -121,15 +121,15 @@ class FakeProgramme:
             if not self._boucler:
                 return None
             self._rang = 0
-        entree = self._entrees[self._rang]
+        entry = self._entrees[self._rang]
         self._rang += 1
-        return entree
+        return entry
 
-    def preparer(self) -> None:
+    def prepare(self) -> None:
         self.journal.append("preparer")
 
 
-class Collecteur:
+class Collector:
     """Recueille le flux publié et prévient dès qu'il y en a assez."""
 
     def __init__(self, seuil: int) -> None:
@@ -138,19 +138,19 @@ class Collecteur:
         self.octets = bytearray()
         self.assez = threading.Event()
         self.repris = threading.Event()
-        self.fin = threading.Event()
-        self.raison = ""
+        self.end = threading.Event()
+        self.reason = ""
 
-    def publier(self, bloc: bytes) -> None:
+    def publish(self, block: bytes) -> None:
         with self._verrou:
-            self.octets.extend(bloc)
+            self.octets.extend(block)
             if len(self.octets) >= self._seuil:
                 self.assez.set()
         self.repris.set()
 
-    def sur_fin(self, raison: str) -> None:
-        self.raison = raison
-        self.fin.set()
+    def on_end(self, reason: str) -> None:
+        self.reason = reason
+        self.end.set()
 
 
 @pytest.fixture
@@ -162,14 +162,14 @@ def test_le_decodeur_ramene_chaque_entree_au_meme_pcm(tmp_path: Path) -> None:
     """Deux entrées de formats différents rendent exactement la même quantité de PCM."""
     stereo = fabriquer(tmp_path, "stereo.mp3", 1, 44100, 2)
     mono = fabriquer(tmp_path, "mono.mp3", 1, 22050, 1)
-    decodeur = Decodeur(FORMAT.pcm)
+    decoder = Decoder(FORMAT.pcm)
 
     tailles = []
-    for entree in (stereo, mono):
-        processus = decodeur.ouvrir(entree)
-        assert processus.stdout is not None
-        tailles.append(len(processus.stdout.read()))
-        processus.wait(DELAI)
+    for entry in (stereo, mono):
+        processes = decoder.ouvrir(entry)
+        assert processes.stdout is not None
+        tailles.append(len(processes.stdout.read()))
+        processes.wait(DELAI)
 
     attendu = 44100 * 2 * 2
     for taille in tailles:
@@ -181,26 +181,26 @@ def test_une_entree_illisible_fait_echouer_le_decodeur(tmp_path: Path) -> None:
     faux = tmp_path / "pas-du-son.mp3"
     faux.write_text("ceci n'est pas de la musique")
 
-    processus = Decodeur(FORMAT.pcm).ouvrir(str(faux))
-    assert processus.stdout is not None
-    assert processus.stdout.read() == b""
-    assert processus.wait(DELAI) != 0
+    processes = Decoder(FORMAT.pcm).ouvrir(str(faux))
+    assert processes.stdout is not None
+    assert processes.stdout.read() == b""
+    assert processes.wait(DELAI) != 0
 
 
 def test_le_decodeur_dit_pourquoi_il_ne_demarre_pas() -> None:
-    with pytest.raises(DecodageImpossible):
-        Decodeur(FORMAT.pcm, commande=INTROUVABLE).ouvrir("peu importe")
+    with pytest.raises(DecodeFailed):
+        Decoder(FORMAT.pcm, command=INTROUVABLE).ouvrir("peu importe")
 
 
 def test_un_pcm_sans_canal_est_refuse() -> None:
     with pytest.raises(ValueError, match="canaux"):
-        FormatPcm(frequence_hz=44100, canaux=0)
+        PcmFormat(sample_rate_hz=44100, channels=0)
 
 
 def test_l_encodeur_cadence_le_flux_et_tient_son_format_du_parametre() -> None:
     """Le débit et la fréquence viennent du format, et `-re` est là."""
-    arguments = Encodeur(
-        FormatFlux(conteneur="mp3", debit_kbps=192, frequence_hz=48000, canaux=1)
+    arguments = Encoder(
+        StreamFormat(container="mp3", bitrate_kbps=192, sample_rate_hz=48000, channels=1)
     ).arguments()
 
     assert "-re" in arguments
@@ -211,22 +211,22 @@ def test_l_encodeur_cadence_le_flux_et_tient_son_format_du_parametre() -> None:
 
 def test_un_debit_non_valable_est_refuse() -> None:
     with pytest.raises(ValueError, match="débit"):
-        FormatFlux(conteneur="mp3", debit_kbps=0, frequence_hz=44100, canaux=2)
+        StreamFormat(container="mp3", bitrate_kbps=0, sample_rate_hz=44100, channels=2)
 
 
 def test_un_conteneur_inconnu_est_refuse_avant_toute_diffusion() -> None:
-    with pytest.raises(ChaineIndisponible, match="format de flux inconnu"):
-        FormatFlux(conteneur="ogg", debit_kbps=128, frequence_hz=44100, canaux=2)
+    with pytest.raises(ChainUnavailable, match="format de flux inconnu"):
+        StreamFormat(container="ogg", bitrate_kbps=128, sample_rate_hz=44100, channels=2)
 
 
 def test_la_chaine_produit_un_flux_lisible_au_format_annonce(tmp_path: Path, musique: str) -> None:
-    collecteur = Collecteur(seuil=32 * 1024)
-    chaine = Chaine(FakeProgramme([musique]), FORMAT, collecteur.publier, collecteur.sur_fin)
-    chaine.demarrer()
+    collecteur = Collector(seuil=32 * 1024)
+    chaine = Chain(FakeProgramme([musique]), FORMAT, collecteur.publish, collecteur.on_end)
+    chaine.start()
     try:
         assert collecteur.assez.wait(DELAI), "aucun octet servi"
     finally:
-        chaine.arreter()
+        chaine.stop_all()
 
     releve = decrire(bytes(collecteur.octets), tmp_path)
     assert releve["codec_name"] == "mp3"
@@ -236,79 +236,79 @@ def test_la_chaine_produit_un_flux_lisible_au_format_annonce(tmp_path: Path, mus
 
 def test_l_arret_ne_laisse_aucun_processus_derriere_lui(musique: str) -> None:
     """Le test qui manquait à la maquette : il compte les processus, pas un booléen."""
-    collecteur = Collecteur(seuil=8 * 1024)
-    chaine = Chaine(
-        FakeProgramme([musique], boucler=True), FORMAT, collecteur.publier, collecteur.sur_fin
+    collecteur = Collector(seuil=8 * 1024)
+    chaine = Chain(
+        FakeProgramme([musique], boucler=True), FORMAT, collecteur.publish, collecteur.on_end
     )
-    chaine.demarrer()
-    groupe = chaine.groupe
+    chaine.start()
+    group = chaine.group
     assert collecteur.assez.wait(DELAI)
-    assert processus_du_groupe(groupe), "la mesure elle-même doit voir les processus vivants"
+    assert group_processes(group), "la mesure elle-même doit voir les processus vivants"
 
-    chaine.arreter()
+    chaine.stop_all()
 
-    assert processus_du_groupe(groupe) == []
-    assert chaine.groupe == 0
+    assert group_processes(group) == []
+    assert chaine.group == 0
 
 
 def test_l_arret_est_idempotent(musique: str) -> None:
-    collecteur = Collecteur(seuil=1)
-    chaine = Chaine(FakeProgramme([musique]), FORMAT, collecteur.publier, collecteur.sur_fin)
-    chaine.demarrer()
-    groupe = chaine.groupe
-    chaine.arreter()
-    chaine.arreter()
-    assert processus_du_groupe(groupe) == []
+    collecteur = Collector(seuil=1)
+    chaine = Chain(FakeProgramme([musique]), FORMAT, collecteur.publish, collecteur.on_end)
+    chaine.start()
+    group = chaine.group
+    chaine.stop_all()
+    chaine.stop_all()
+    assert group_processes(group) == []
 
 
 def test_la_chaine_prend_de_l_avance_pendant_que_le_courant_joue(musique: str) -> None:
     """`preparer` tombe dès le morceau lancé, pas à la jonction suivante."""
-    collecteur = Collecteur(seuil=8 * 1024)
+    collecteur = Collector(seuil=8 * 1024)
     programme = FakeProgramme([musique], boucler=True)
-    chaine = Chaine(programme, FORMAT, collecteur.publier, collecteur.sur_fin)
-    chaine.demarrer()
+    chaine = Chain(programme, FORMAT, collecteur.publish, collecteur.on_end)
+    chaine.start()
     try:
         assert collecteur.assez.wait(DELAI)
     finally:
-        chaine.arreter()
+        chaine.stop_all()
 
     assert programme.journal[:2] == ["suivante", "preparer"]
 
 
 def test_un_programme_sans_rien_a_jouer_refuse_de_demarrer() -> None:
-    collecteur = Collecteur(seuil=1)
-    chaine = Chaine(FakeProgramme([]), FORMAT, collecteur.publier, collecteur.sur_fin)
-    with pytest.raises(ChaineIndisponible, match="rien à jouer"):
-        chaine.demarrer()
-    assert chaine.groupe == 0
+    collecteur = Collector(seuil=1)
+    chaine = Chain(FakeProgramme([]), FORMAT, collecteur.publish, collecteur.on_end)
+    with pytest.raises(ChainUnavailable, match="rien à jouer"):
+        chaine.start()
+    assert chaine.group == 0
 
 
 def test_un_ffmpeg_absent_refuse_de_demarrer(musique: str) -> None:
-    collecteur = Collecteur(seuil=1)
-    chaine = Chaine(
+    collecteur = Collector(seuil=1)
+    chaine = Chain(
         FakeProgramme([musique]),
         FORMAT,
-        collecteur.publier,
-        collecteur.sur_fin,
-        commande=INTROUVABLE,
+        collecteur.publish,
+        collecteur.on_end,
+        command=INTROUVABLE,
     )
-    with pytest.raises(ChaineIndisponible, match="n'a pas pu démarrer"):
-        chaine.demarrer()
+    with pytest.raises(ChainUnavailable, match="n'a pas pu démarrer"):
+        chaine.start()
 
 
 def test_la_radio_coupe_en_le_disant_quand_le_programme_s_epuise(tmp_path: Path) -> None:
     court = fabriquer(tmp_path, "court.mp3", 0.5, 44100, 2)
-    collecteur = Collecteur(seuil=1)
-    chaine = Chaine(FakeProgramme([court]), FORMAT, collecteur.publier, collecteur.sur_fin)
-    chaine.demarrer()
-    groupe = chaine.groupe
+    collecteur = Collector(seuil=1)
+    chaine = Chain(FakeProgramme([court]), FORMAT, collecteur.publish, collecteur.on_end)
+    chaine.start()
+    group = chaine.group
     try:
-        assert collecteur.fin.wait(DELAI), "la chaîne n'a pas annoncé sa fin"
+        assert collecteur.end.wait(DELAI), "la chaîne n'a pas annoncé sa fin"
     finally:
-        chaine.arreter()
+        chaine.stop_all()
 
-    assert "plus rien à jouer" in collecteur.raison
-    assert processus_du_groupe(groupe) == []
+    assert "plus rien à jouer" in collecteur.reason
+    assert group_processes(group) == []
 
 
 def test_une_entree_illisible_ne_fait_pas_taire_la_radio(tmp_path: Path) -> None:
@@ -317,25 +317,23 @@ def test_une_entree_illisible_ne_fait_pas_taire_la_radio(tmp_path: Path) -> None
     casse.write_text("pas du son")
     bon = fabriquer(tmp_path, "bon.mp3", 5, 44100, 2)
 
-    collecteur = Collecteur(seuil=16 * 1024)
-    chaine = Chaine(
-        FakeProgramme([str(casse), bon]), FORMAT, collecteur.publier, collecteur.sur_fin
-    )
-    chaine.demarrer()
+    collecteur = Collector(seuil=16 * 1024)
+    chaine = Chain(FakeProgramme([str(casse), bon]), FORMAT, collecteur.publish, collecteur.on_end)
+    chaine.start()
     try:
         assert collecteur.assez.wait(DELAI), "la radio s'est tue sur un morceau illisible"
     finally:
-        chaine.arreter()
+        chaine.stop_all()
 
 
 def test_la_chaine_se_releve_une_fois_puis_coupe_en_le_disant(musique: str) -> None:
     """ffmpeg meurt : relance unique, puis coupure — jamais de boucle (SPECS.md §5.1)."""
-    collecteur = Collecteur(seuil=4 * 1024)
-    chaine = Chaine(
-        FakeProgramme([musique], boucler=True), FORMAT, collecteur.publier, collecteur.sur_fin
+    collecteur = Collector(seuil=4 * 1024)
+    chaine = Chain(
+        FakeProgramme([musique], boucler=True), FORMAT, collecteur.publish, collecteur.on_end
     )
-    chaine.demarrer()
-    groupe_initial = chaine.groupe
+    chaine.start()
+    groupe_initial = chaine.group
     try:
         assert collecteur.assez.wait(DELAI)
 
@@ -346,18 +344,18 @@ def test_la_chaine_se_releve_une_fois_puis_coupe_en_le_disant(musique: str) -> N
         for _ in range(50):
             collecteur.repris.clear()
             assert collecteur.repris.wait(DELAI), "la chaîne ne s'est pas relevée"
-            nouveau = chaine.groupe
+            nouveau = chaine.group
             if nouveau not in (0, groupe_initial):
                 break
         assert nouveau not in (0, groupe_initial)
 
-        os.killpg(chaine.groupe, signal.SIGKILL)
-        assert collecteur.fin.wait(DELAI), "la chaîne n'a pas coupé après la seconde mort"
-        assert "ne se relève pas" in collecteur.raison
+        os.killpg(chaine.group, signal.SIGKILL)
+        assert collecteur.end.wait(DELAI), "la chaîne n'a pas coupé après la seconde mort"
+        assert "ne se relève pas" in collecteur.reason
     finally:
-        chaine.arreter()
+        chaine.stop_all()
 
-    assert processus_du_groupe(groupe_initial) == []
+    assert group_processes(groupe_initial) == []
 
 
 def test_une_url_journalisee_perd_son_jeton() -> None:
@@ -389,12 +387,12 @@ def test_le_journal_de_la_chaine_ne_porte_aucun_jeton(caplog: pytest.LogCaptureF
     """Le contrôle au bon endroit : ce qui sort réellement du logger."""
     import logging
 
-    from webradio.adapters.ffmpeg import encoder as encodeur
+    from webradio.adapters.ffmpeg import encoder as encoder
 
-    with caplog.at_level(logging.INFO, logger=encodeur.__name__):
-        encodeur.logger.info(
+    with caplog.at_level(logging.INFO, logger=encoder.__name__):
+        encoder.logger.info(
             "à l'antenne : %s",
-            encodeur._sans_secret("http://music/rest/stream.view?u=moi&t=secret123&s=sel"),
+            encoder._sans_secret("http://music/rest/stream.view?u=moi&t=secret123&s=sel"),
         )
     assert "secret123" not in caplog.text
     assert "u=moi" not in caplog.text

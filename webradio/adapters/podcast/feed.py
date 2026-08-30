@@ -36,11 +36,11 @@ from xml.etree import ElementTree
 logger = logging.getLogger(__name__)
 
 ITUNES = "http://www.itunes.com/dtds/podcast-1.0.dtd"
-TYPE_DIFFUSABLE = "full"
-SCHEMES_ACCEPTES = frozenset({"http", "https"})
+AIRABLE_KIND = "full"
+ALLOWED_SCHEMES = frozenset({"http", "https"})
 
 
-class PodcastIndisponible(Exception):
+class PodcastUnavailable(Exception):
     """Le flux ne répond pas, ou répond ce qu'on ne sait pas lire.
 
     Ce n'est pas une panne de la radio (SPECS.md §5) : la case est sautée, la
@@ -63,14 +63,14 @@ class Episode:
     compte pas la publicité insérée à la volée (docs/podcast.md §2.1).
     """
 
-    identifiant: str
-    titre: str
-    publie_le: datetime
+    identifier: str
+    title: str
+    published_at: datetime
     audio: str
-    duree: timedelta | None = None
+    duration: timedelta | None = None
 
 
-class LecteurHttp(Protocol):
+class HttpReader(Protocol):
     """Ce dont la lecture d'un flux a besoin du réseau, et rien de plus.
 
     Un `Protocol` plutôt qu'un appel direct : c'est ce qui rend les cas du
@@ -78,34 +78,34 @@ class LecteurHttp(Protocol):
     réseau, contre des réponses littérales (AGENTS.md §4).
     """
 
-    def lire(self, url: str) -> bytes: ...
+    def read(self, url: str) -> bytes: ...
 
 
-class LecteurUrllib:
+class UrllibReader:
     """Le lecteur réel, sur `urllib` de la bibliothèque standard.
 
     Le flux fait 3,5 Mo et se lit d'un bloc, une fois par branchement : rien
     n'y justifie une dépendance HTTP supplémentaire.
     """
 
-    def __init__(self, *, delai_attente: timedelta) -> None:
+    def __init__(self, *, lock_timeout: timedelta) -> None:
         """`delai_attente` vient du TOML : aucune durée ne s'écrit dans le code."""
-        if delai_attente <= timedelta(0):
+        if lock_timeout <= timedelta(0):
             message = "un délai d'attente nul rendrait tout flux injoignable"
             raise ValueError(message)
-        self._delai_attente = delai_attente
+        self._delai_attente = lock_timeout
 
-    def lire(self, url: str) -> bytes:
-        if urlsplit(url).scheme not in SCHEMES_ACCEPTES:
+    def read(self, url: str) -> bytes:
+        if urlsplit(url).scheme not in ALLOWED_SCHEMES:
             message = f"schéma d'URL refusé pour un flux de podcast : {url}"
-            raise PodcastIndisponible(message)
+            raise PodcastUnavailable(message)
         try:
-            with urlopen(url, timeout=self._delai_attente.total_seconds()) as reponse:
-                contenu: bytes = reponse.read()
-        except (URLError, OSError, ValueError) as erreur:
+            with urlopen(url, timeout=self._delai_attente.total_seconds()) as answer:
+                content: bytes = answer.read()
+        except (URLError, OSError, ValueError) as error:
             message = f"flux de podcast injoignable : {url}"
-            raise PodcastIndisponible(message) from erreur
-        return contenu
+            raise PodcastUnavailable(message) from error
+        return content
 
 
 def _duree(texte: str | None) -> timedelta | None:
@@ -118,13 +118,13 @@ def _duree(texte: str | None) -> timedelta | None:
         return None
     morceaux = texte.strip().split(":")
     try:
-        valeurs = [int(m) for m in morceaux]
+        values = [int(m) for m in morceaux]
     except ValueError:
         return None
-    if not 1 <= len(valeurs) <= 3:
+    if not 1 <= len(values) <= 3:
         return None
-    heures, minutes, secondes = ([0] * (3 - len(valeurs))) + valeurs
-    return timedelta(hours=heures, minutes=minutes, seconds=secondes)
+    hours, minutes, secondes = ([0] * (3 - len(values))) + values
+    return timedelta(hours=hours, minutes=minutes, seconds=secondes)
 
 
 def _publie_le(texte: str | None) -> datetime | None:
@@ -144,19 +144,19 @@ def _publie_le(texte: str | None) -> datetime | None:
     return instant
 
 
-def _texte(item: ElementTree.Element, chemin: str) -> str | None:
-    element = item.find(chemin)
+def _texte(item: ElementTree.Element, path: str) -> str | None:
+    element = item.find(path)
     if element is None or element.text is None:
         return None
-    valeur = element.text.strip()
-    return valeur or None
+    value = element.text.strip()
+    return value or None
 
 
-class FluxPodcast:
+class PodcastFeed:
     """Rend les épisodes diffusables d'un flux, du plus récent au plus ancien."""
 
-    def __init__(self, lecteur: LecteurHttp) -> None:
-        self._lecteur = lecteur
+    def __init__(self, reader: HttpReader) -> None:
+        self._lecteur = reader
 
     def episodes(self, url: str) -> list[Episode]:
         """Les épisodes `full` du flux, triés du plus récent au plus ancien.
@@ -165,12 +165,12 @@ class FluxPodcast:
         vide : ce n'est pas une erreur, c'est une émission qui n'a pas lieu
         (SPECS.md §4.11). Un flux injoignable ou illisible, lui, lève.
         """
-        racine = self._analyser(self._lecteur.lire(url), url)
-        episodes = sorted(self._extraire(racine, url), key=lambda e: e.publie_le, reverse=True)
+        root = self._analyser(self._lecteur.read(url), url)
+        episodes = sorted(self._extraire(root, url), key=lambda e: e.published_at, reverse=True)
         logger.debug("flux %s : %d épisode(s) diffusable(s)", url, len(episodes))
         return episodes
 
-    def _analyser(self, contenu: bytes, url: str) -> ElementTree.Element:
+    def _analyser(self, content: bytes, url: str) -> ElementTree.Element:
         """Un XML malformé, ou une page HTML servie en 200, ne sont pas des flux.
 
         Le second cas est le piège du relevé (docs/podcast.md §5) : un portail
@@ -178,17 +178,17 @@ class FluxPodcast:
         XML. Contrôler la racine `rss` est ce qui les sépare.
         """
         try:
-            racine = ElementTree.fromstring(contenu)
-        except ElementTree.ParseError as erreur:
+            root = ElementTree.fromstring(content)
+        except ElementTree.ParseError as error:
             message = f"flux de podcast illisible (XML malformé) : {url}"
-            raise PodcastIndisponible(message) from erreur
-        if racine.tag != "rss":
-            message = f"la réponse n'est pas un flux RSS (racine « {racine.tag} ») : {url}"
-            raise PodcastIndisponible(message)
-        return racine
+            raise PodcastUnavailable(message) from error
+        if root.tag != "rss":
+            message = f"la réponse n'est pas un flux RSS (racine « {root.tag} ») : {url}"
+            raise PodcastUnavailable(message)
+        return root
 
-    def _extraire(self, racine: ElementTree.Element, url: str) -> Iterator[Episode]:
-        for item in racine.iterfind("./channel/item"):
+    def _extraire(self, root: ElementTree.Element, url: str) -> Iterator[Episode]:
+        for item in root.iterfind("./channel/item"):
             episode = self._episode(item, url)
             if episode is not None:
                 yield episode
@@ -201,7 +201,7 @@ class FluxPodcast:
         contraire viderait un tel flux de tous ses épisodes.
         """
         type_episode = _texte(item, f"{{{ITUNES}}}episodeType")
-        if type_episode is not None and type_episode.lower() != TYPE_DIFFUSABLE:
+        if type_episode is not None and type_episode.lower() != AIRABLE_KIND:
             return None
 
         enclosure = item.find("enclosure")
@@ -210,20 +210,20 @@ class FluxPodcast:
             logger.info("épisode sans enclosure écarté dans %s", url)
             return None
 
-        publie_le = _publie_le(_texte(item, "pubDate"))
-        if publie_le is None:
+        published_at = _publie_le(_texte(item, "pubDate"))
+        if published_at is None:
             logger.info("épisode sans date exploitable écarté dans %s", url)
             return None
 
         # Le `guid` est facultatif en RSS. L'URL de l'enclosure est le
         # moins mauvais substitut : c'est elle que le flux publie, et c'est ce
         # que la base retiendra comme « déjà diffusé » (SPECS.md §4.11.1).
-        identifiant = _texte(item, "guid") or audio
+        identifier = _texte(item, "guid") or audio
 
         return Episode(
-            identifiant=identifiant,
-            titre=_texte(item, "title") or identifiant,
-            publie_le=publie_le,
+            identifier=identifier,
+            title=_texte(item, "title") or identifier,
+            published_at=published_at,
             audio=audio,
-            duree=_duree(_texte(item, f"{{{ITUNES}}}duration")),
+            duration=_duree(_texte(item, f"{{{ITUNES}}}duration")),
         )

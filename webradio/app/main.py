@@ -18,34 +18,34 @@ from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
 from pathlib import Path
 
-from webradio.adapters.config.loading import charger
-from webradio.adapters.config.schema import Reglages
-from webradio.adapters.state.database import EtatSQLite
-from webradio.adapters.ffmpeg.encoder import Chaine, FormatFlux
-from webradio.adapters.http.broadcast import Diffusion
-from webradio.adapters.http.server import ServeurFlux, Station
-from webradio.adapters.podcast.feed import FluxPodcast, LecteurUrllib
-from webradio.adapters.sources.navidrome import SourceNavidrome, TransportUrllib
-from webradio.adapters.web.views import creer_application
-from webradio.app.show_scheduler import Emissions
-from webradio.app.learning import Apprentissage
-from webradio.app.playout import ProgrammeRadio
-from webradio.app.radio import CompteurAuditeurs, RadioEnDirect
-from webradio.core.clock import HorlogeSysteme
-from webradio.core.control import Controle
-from webradio.core.shows import Emission, GrilleDesEmissions
-from webradio.core.queue import File
-from webradio.core.bands import Grille, Plage
+from webradio.adapters.config.loading import load
+from webradio.adapters.config.schema import Config
+from webradio.adapters.ffmpeg.encoder import Chain, StreamFormat
+from webradio.adapters.http.broadcast import Broadcast
+from webradio.adapters.http.server import Station, StreamServer
+from webradio.adapters.podcast.feed import PodcastFeed, UrllibReader
+from webradio.adapters.sources.navidrome import NavidromeSource, UrllibTransport
+from webradio.adapters.state.database import SqliteState
+from webradio.adapters.web.views import create_app
+from webradio.app.learning import Learning
+from webradio.app.playout import RadioProgramme
+from webradio.app.radio import ListenerCount, LiveRadio
+from webradio.app.show_scheduler import Shows
+from webradio.core.bands import Band, Schedule
+from webradio.core.clock import SystemClock
+from webradio.core.control import Control
 from webradio.core.jingles import Jingles
-from webradio.core.weighting import PENTE_PAR_VOTE
-from webradio.core.programmes import Programmation, Programme
-from webradio.core.rotation import Fenetre
-from webradio.core.rng import HasardReel
+from webradio.core.programmes import Programme, Programming
+from webradio.core.queue import Queue
+from webradio.core.rng import RealRandom
+from webradio.core.rotation import Window
+from webradio.core.shows import Show, ShowSchedule
+from webradio.core.weighting import SLOPE_PER_VOTE
 
 logger = logging.getLogger(__name__)
 
-NOM = "local-webradio"
-CHEMIN_DU_FLUX = "/flux"
+NAME = "local-webradio"
+STREAM_PATH = "/flux"
 
 
 def version() -> str:
@@ -61,115 +61,113 @@ def version() -> str:
 
 
 def _arguments(argv: list[str] | None) -> argparse.Namespace:
-    analyseur = argparse.ArgumentParser(prog=NOM, description="Une radio qui n'existe que branchée")
-    analyseur.add_argument("--config", type=Path, default=Path("webradio.toml"))
-    analyseur.add_argument("--env", type=Path, default=Path(".env"))
-    return analyseur.parse_args(argv)
+    parser = argparse.ArgumentParser(prog=NAME, description="Une radio qui n'existe que branchée")
+    parser.add_argument("--config", type=Path, default=Path("webradio.toml"))
+    parser.add_argument("--env", type=Path, default=Path(".env"))
+    return parser.parse_args(argv)
 
 
-def construire(reglages: Reglages) -> tuple[ServeurFlux, RadioEnDirect, Station]:
+def build(config: Config) -> tuple[StreamServer, LiveRadio, Station]:
     """Câble le tout, et rend ce qu'il faut pour le lancer et l'observer."""
-    config = reglages.configuration
-    horloge = HorlogeSysteme()
-    hasard = HasardReel()
+    settings = config.settings
+    clock = SystemClock()
+    random = RealRandom()
 
     # L'état est ouvert au démarrage : une base inaccessible **à ce moment-là**
     # est une erreur de configuration et doit se dire (SPECS.md §5). Devenue
     # inaccessible en cours, elle ne fait que rendre des poids neutres
     # (`app/apprentissage.py`).
-    etat = EtatSQLite(
-        Path(config.etat.base),
-        horloge,
-        delai_attente=timedelta(seconds=config.etat.delai_secondes),
-        demi_vie_votes=timedelta(days=config.tirage.votes.demi_vie_jours),
+    state = SqliteState(
+        Path(settings.state.database),
+        clock,
+        lock_timeout=timedelta(seconds=settings.state.timeout_seconds),
+        vote_half_life=timedelta(days=settings.draw.votes.half_life_days),
     )
-    apprentissage = Apprentissage(
-        etat,
-        plancher=config.tirage.votes.plancher,
-        plafond=config.tirage.votes.plafond,
-        pente=PENTE_PAR_VOTE,
-        poids_croise=config.tirage.votes.poids_croise,
+    learning = Learning(
+        state,
+        floor=settings.draw.votes.floor,
+        ceiling=settings.draw.votes.ceiling,
+        slope=SLOPE_PER_VOTE,
+        cross_weight=settings.draw.votes.cross_weight,
     )
 
-    source = SourceNavidrome(
-        identifiants=reglages.identifiants,
-        reglages=config.navidrome,
-        hasard=hasard,
-        transport=TransportUrllib(config.navidrome.delai_secondes),
+    source = NavidromeSource(
+        credentials=config.credentials,
+        config=settings.navidrome,
+        random=random,
+        transport=UrllibTransport(settings.navidrome.timeout_seconds),
     )
-    grille = Grille(
-        [Plage(p.debut, p.fin, p.genres) for p in config.plages],
-        horloge,
+    grille = Schedule(
+        [Band(p.start, p.end, p.genres) for p in settings.bands],
+        clock,
     )
-    jingles = Jingles(horloge)
-    controle = Controle(source=source, hasard=hasard, jingles=jingles)
-    compteur = CompteurAuditeurs()
-    radio = RadioEnDirect(controle, compteur, apprentissage.retenir)
+    jingles = Jingles(clock)
+    control = Control(source=source, random=random, jingles=jingles)
+    counter = ListenerCount()
+    radio = LiveRadio(control, counter, learning.remember)
 
-    programme = ProgrammeRadio(
-        file=File(
+    programme = RadioProgramme(
+        queue=Queue(
             source,
-            hasard,
-            Fenetre(config.tirage.non_repetition_artistes),
-            peser=apprentissage.peser,
+            random,
+            Window(settings.draw.artist_gap),
+            weigh=learning.weigh,
         ),
         source=source,
         grille=grille,
         jingles=jingles,
-        horloge=horloge,
-        hasard=hasard,
-        dossier_jingles=Path(config.jingles.dossier),
-        sur_nature=radio.declarer,
-        programmation=Programmation(
+        clock=clock,
+        random=random,
+        jingle_folder=Path(settings.jingles.folder),
+        on_kind=radio.declare,
+        programming=Programming(
             [
                 Programme(
-                    nom=p.nom,
+                    name=p.name,
                     playlist=p.playlist,
-                    jours=p.jours,
-                    debut=p.debut,
-                    fin=p.fin,
+                    days=p.days,
+                    start=p.start,
+                    end=p.end,
                 )
-                for p in config.programmes
+                for p in settings.programmes
             ],
-            horloge,
+            clock,
         ),
-        fenetre_programme=Fenetre(config.tirage.non_repetition_artistes),
-        emissions=Emissions(
-            GrilleDesEmissions(
-                [Emission(nom=e.nom, jours=e.jours, heure=e.heure) for e in config.emissions]
+        programme_window=Window(settings.draw.artist_gap),
+        shows=Shows(
+            ShowSchedule([Show(name=e.name, days=e.days, hour=e.hour) for e in settings.shows]),
+            PodcastFeed(
+                UrllibReader(lock_timeout=timedelta(seconds=settings.podcast.timeout_seconds))
             ),
-            FluxPodcast(
-                LecteurUrllib(delai_attente=timedelta(seconds=config.podcast.delai_secondes))
-            ),
-            etat,
-            horloge,
-            {e.nom: e.flux for e in config.emissions},
+            state,
+            clock,
+            {e.name: e.feed for e in settings.shows},
         ),
     )
 
-    format_flux = FormatFlux(
-        conteneur=config.flux.format,
-        debit_kbps=config.flux.debit_kbps,
-        frequence_hz=config.flux.frequence_hz,
-        canaux=config.flux.canaux,
+    stream_format = StreamFormat(
+        container=settings.feed.format,
+        bitrate_kbps=settings.feed.bitrate_kbps,
+        sample_rate_hz=settings.feed.sample_rate_hz,
+        channels=settings.feed.channels,
     )
-    station = Station(_fabrique_de_chaine(programme, format_flux, compteur))
-    serveur = ServeurFlux(
+    station = Station(_fabrique_de_chaine(programme, stream_format, counter))
+    server = StreamServer(
         station,
-        format_flux,
-        adresse=config.flux.adresse,
-        port=config.flux.port,
-        chemin=CHEMIN_DU_FLUX,
-        nom=NOM,
+        stream_format,
+        address=settings.feed.address,
+        port=settings.feed.port,
+        path=STREAM_PATH,
+        name=NAME,
     )
-    return serveur, radio, station
+    return server, radio, station
 
 
 def _fabrique_de_chaine(
-    programme: ProgrammeRadio,
-    format_flux: FormatFlux,
-    compteur: CompteurAuditeurs,
-) -> Callable[[Diffusion], Chaine]:
+    programme: RadioProgramme,
+    stream_format: StreamFormat,
+    counter: ListenerCount,
+) -> Callable[[Broadcast], Chain]:
     """Rend de quoi construire une chaîne, en tenant le compteur à jour.
 
     Le compteur existe pour que l'API sache si quelqu'un écoute **sans rien
@@ -177,16 +175,16 @@ def _fabrique_de_chaine(
     façade a besoin de recevoir d'en bas.
     """
 
-    def construire_la_chaine(diffusion: Diffusion) -> Chaine:
-        compteur.declarer(en_antenne=True)
+    def build_chain(broadcast: Broadcast) -> Chain:
+        counter.declare(on_air=True)
 
-        def fin(raison: str) -> None:
-            compteur.declarer(en_antenne=False)
-            logger.warning("la chaîne s'arrête : %s", raison)
+        def end(reason: str) -> None:
+            counter.declare(on_air=False)
+            logger.warning("la chaîne s'arrête : %s", reason)
 
-        return Chaine(programme, format_flux, diffusion.publier, fin)
+        return Chain(programme, stream_format, broadcast.publish, end)
 
-    return construire_la_chaine
+    return build_chain
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -197,35 +195,35 @@ def main(argv: list[str] | None = None) -> int:
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
     options = _arguments(argv)
-    logger.info("%s %s", NOM, version())
+    logger.info("%s %s", NAME, version())
 
-    reglages = charger(options.config, options.env)
-    serveur, radio, _ = construire(reglages)
-    web = reglages.configuration.web
-    application = creer_application(
+    config = load(options.config, options.env)
+    server, radio, _ = build(config)
+    web = config.settings.web
+    app = create_app(
         radio,
-        rafraichissement=timedelta(seconds=web.rafraichissement_secondes),
+        refresh=timedelta(seconds=web.refresh_seconds),
     )
 
-    arret = threading.Event()
+    shutdown = threading.Event()
 
     def demander_larret(*_: object) -> None:
-        arret.set()
+        shutdown.set()
 
     signal.signal(signal.SIGTERM, demander_larret)
     signal.signal(signal.SIGINT, demander_larret)
 
-    fil_web = threading.Thread(
-        target=lambda: application.run(host=web.adresse, port=web.port, threaded=True),
+    web_thread = threading.Thread(
+        target=lambda: app.run(host=web.address, port=web.port, threaded=True),
         daemon=True,
     )
-    fil_web.start()
-    serveur.demarrer()
-    logger.info("flux sur %s, interface sur le port %d", CHEMIN_DU_FLUX, web.port)
+    web_thread.start()
+    server.start()
+    logger.info("flux sur %s, interface sur le port %d", STREAM_PATH, web.port)
 
-    arret.wait()
+    shutdown.wait()
     logger.info("arrêt demandé")
-    serveur.arreter()
+    server.stop_all()
     return 0
 
 

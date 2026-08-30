@@ -107,16 +107,16 @@
         try {
           const reponse = await fetch(URL_ANTENNE, { headers: { Accept: "application/json" } });
           const donnees = await reponse.json();
-          if (!donnees.en_diffusion || donnees.antenne === null) {
+          if (!donnees.on_air || donnees.on_air_now === null) {
             nature.textContent = "—";
             titre.textContent = "Rien à l'antenne";
             artiste.textContent = "";
             afficher("Personne n'écoute : la radio ne tourne pas.", "");
             return;
           }
-          nature.textContent = donnees.antenne.nature;
-          titre.textContent = donnees.antenne.titre || donnees.antenne.nature;
-          artiste.textContent = donnees.antenne.artiste || "";
+          nature.textContent = donnees.on_air_now.kind;
+          titre.textContent = donnees.on_air_now.title || donnees.on_air_now.kind;
+          artiste.textContent = donnees.on_air_now.artist || "";
         } catch (erreur) {
           afficher("L'API ne répond pas : " + erreur, "refus");
         }
@@ -130,10 +130,10 @@
             headers: { Accept: "application/json" },
           });
           const donnees = await reponse.json();
-          if (donnees.accepte) {
+          if (donnees.accepted) {
             afficher("C'est noté.", "accepte");
           } else {
-            afficher(donnees.motif, "refus");
+            afficher(donnees.reason, "refus");
           }
         } catch (erreur) {
           afficher("L'API ne répond pas : " + erreur, "refus");

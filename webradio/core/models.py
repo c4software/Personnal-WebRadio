@@ -11,7 +11,7 @@ from datetime import timedelta
 
 
 @dataclass(frozen=True, slots=True)
-class Piste:
+class Track:
     """Un morceau, tel que le noyau a besoin de le connaître.
 
     `identifiant` est opaque : le noyau ne l'interprète jamais, il le rend à la
@@ -19,19 +19,19 @@ class Piste:
     identifiants Subsonic hexadécimaux sans que rien au-dessus ne le sache.
     """
 
-    identifiant: str
-    titre: str
-    artiste: str
+    identifier: str
+    title: str
+    artist: str
     genre: str | None
-    duree: timedelta
+    duration: timedelta
 
     def __post_init__(self) -> None:
-        if not self.identifiant:
+        if not self.identifier:
             message = "une piste sans identifiant ne peut pas être résolue par sa source"
             raise ValueError(message)
-        if not self.artiste:
+        if not self.artist:
             message = "une piste sans artiste rendrait la non-répétition inapplicable"
             raise ValueError(message)
-        if self.duree <= timedelta(0):
-            message = f"durée non valable pour « {self.titre} » : {self.duree}"
+        if self.duration <= timedelta(0):
+            message = f"durée non valable pour « {self.title} » : {self.duration}"
             raise ValueError(message)

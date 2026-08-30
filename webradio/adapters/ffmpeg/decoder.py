@@ -16,7 +16,7 @@ from typing import IO
 logger = logging.getLogger(__name__)
 
 
-class DecodageImpossible(Exception):
+class DecodeFailed(Exception):
     """ffmpeg n'a pas pu être lancé pour cette entrée.
 
     Distincte d'un décodage qui échoue en cours : ici rien n'a démarré, et la
@@ -25,7 +25,7 @@ class DecodageImpossible(Exception):
 
 
 @dataclass(frozen=True, slots=True)
-class FormatPcm:
+class PcmFormat:
     """Le format d'échange interne, celui auquel toute entrée est ramenée.
 
     Il n'est pas négociable morceau par morceau : c'est précisément parce que
@@ -33,20 +33,20 @@ class FormatPcm:
     et donc que le flux ne se coupe pas (SPECS.md §4.9).
     """
 
-    frequence_hz: int
-    canaux: int
-    echantillon: str = "s16le"
+    sample_rate_hz: int
+    channels: int
+    sample: str = "s16le"
 
     def __post_init__(self) -> None:
-        if self.frequence_hz <= 0:
-            message = f"fréquence non valable : {self.frequence_hz}"
+        if self.sample_rate_hz <= 0:
+            message = f"fréquence non valable : {self.sample_rate_hz}"
             raise ValueError(message)
-        if self.canaux <= 0:
-            message = f"nombre de canaux non valable : {self.canaux}"
+        if self.channels <= 0:
+            message = f"nombre de canaux non valable : {self.channels}"
             raise ValueError(message)
 
 
-def journaliser_erreurs(flux: IO[bytes], origine: str) -> None:
+def journaliser_erreurs(feed: IO[bytes], origine: str) -> None:
     """Draine en continu la sortie d'erreur d'un ffmpeg, dans un fil dédié.
 
     Un tuyau d'erreur plein bloque le processus qui écrit dedans. La question
@@ -56,16 +56,16 @@ def journaliser_erreurs(flux: IO[bytes], origine: str) -> None:
     """
 
     def boucle() -> None:
-        with flux:
-            for ligne in flux:
-                texte = ligne.decode("utf-8", errors="replace").rstrip()
+        with feed:
+            for row in feed:
+                texte = row.decode("utf-8", errors="replace").rstrip()
                 if texte:
                     logger.warning("%s : %s", origine, texte)
 
     threading.Thread(target=boucle, name=f"ffmpeg-erreurs-{origine}", daemon=True).start()
 
 
-class Decodeur:
+class Decoder:
     """Ouvre un ffmpeg par entrée, tous vers le même PCM.
 
     `commande` est un paramètre parce que le nom du programme peut différer
@@ -73,11 +73,11 @@ class Decodeur:
     fait la chaîne quand ffmpeg est absent.
     """
 
-    def __init__(self, format_pcm: FormatPcm, commande: str = "ffmpeg") -> None:
-        self._format = format_pcm
-        self._commande = commande
+    def __init__(self, pcm_format: PcmFormat, command: str = "ffmpeg") -> None:
+        self._format = pcm_format
+        self._commande = command
 
-    def arguments(self, entree: str) -> list[str]:
+    def arguments(self, entry: str) -> list[str]:
         """La ligne relevée dans `docs/ffmpeg.md` §2.1, et rien de plus.
 
         `-nostdin` parce qu'un ffmpeg qui hérite du terminal peut consommer les
@@ -92,17 +92,17 @@ class Decodeur:
             "error",
             "-nostdin",
             "-i",
-            entree,
+            entry,
             "-f",
-            self._format.echantillon,
+            self._format.sample,
             "-ar",
-            str(self._format.frequence_hz),
+            str(self._format.sample_rate_hz),
             "-ac",
-            str(self._format.canaux),
+            str(self._format.channels),
             "-",
         ]
 
-    def ouvrir(self, entree: str, groupe: int = 0) -> subprocess.Popen[bytes]:
+    def ouvrir(self, entry: str, group: int = 0) -> subprocess.Popen[bytes]:
         """Lance le décodage de `entree` dans le groupe de processus `groupe`.
 
         `groupe` vaut le PID du meneur de la chaîne, ou 0 pour en fonder une.
@@ -111,16 +111,16 @@ class Decodeur:
         processus dont on aurait pensé à garder la référence.
         """
         try:
-            processus = subprocess.Popen(
-                self.arguments(entree),
+            processes = subprocess.Popen(
+                self.arguments(entry),
                 stdin=subprocess.DEVNULL,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
-                process_group=groupe,
+                process_group=group,
             )
-        except OSError as erreur:
-            message = f"impossible de décoder « {entree} » : {erreur}"
-            raise DecodageImpossible(message) from erreur
-        if processus.stderr is not None:
-            journaliser_erreurs(processus.stderr, f"décodeur {entree}")
-        return processus
+        except OSError as error:
+            message = f"impossible de décoder « {entry} » : {error}"
+            raise DecodeFailed(message) from error
+        if processes.stderr is not None:
+            journaliser_erreurs(processes.stderr, f"décodeur {entry}")
+        return processes

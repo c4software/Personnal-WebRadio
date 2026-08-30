@@ -446,9 +446,33 @@ Appliquées par `ruff` (mise en forme et analyse), `mypy` (types) et
 - Docstring **en français**, sur ce qui n'est pas évident : un choix, une
   contrainte, une raison. Pas de paraphrase de la signature.
 - Un commentaire explique **pourquoi**, jamais **quoi**.
-- **Tout le projet est en français** : code, docstrings, commentaires,
-  documentation et messages de commit. Un texte en anglais est un écart à
-  corriger.
+
+### La langue : identifiants en anglais, prose en français
+
+**Révisé le 2026-08-30**, et c'est un renversement de la règle précédente
+(« tout le projet est en français »). La frontière passe désormais entre ce que
+l'outillage lit et ce qu'un humain lit :
+
+| Ce que c'est | Langue |
+|---|---|
+| Classes, fonctions, variables, paramètres, membres d'énumération | **anglais** |
+| Noms de modules et de fichiers de code | **anglais** |
+| Docstrings, commentaires | **français** |
+| SPECS, ARCHITECTURE, TASKS, AGENTS, README, relevés `docs/` | **français** |
+| Messages de commit | **français** |
+| Clés du TOML, chaînes affichées à l'auditeur, messages de journal | **français** |
+
+> **Pourquoi cette frontière et pas une autre.** Un identifiant est lu par
+> l'outillage autant que par un humain : `mypy`, `ruff`, les traces d'erreur,
+> la complétion et toutes les bibliothèques tierces sont anglophones, et un
+> `Fenetre` au milieu d'un `TypeError` détonne. La prose, elle, sert à
+> expliquer un **pourquoi** — et elle le fait mieux dans la langue de celui qui
+> l'écrit.
+>
+> **Ce que ce renversement coûte** : 83 classes et 248 fonctions renommées d'un
+> coup. L'historique porte donc un commit de renommage massif **sans aucun
+> changement de comportement** — c'est délibéré, et c'est ce qui le rend
+> relisible.
 
 Un exemple du style attendu :
 

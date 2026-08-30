@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
 
-from webradio.core.clock import Horloge
+from webradio.core.clock import Clock
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS votes (
 """
 
 
-class EtatIndisponible(Exception):
+class StateUnavailable(Exception):
     """La base existe mais ne se laisse ni lire ni écrire.
 
     Traduite au plus près de son origine : au-dessus de cet adaptateur, plus
@@ -56,7 +56,7 @@ class EtatIndisponible(Exception):
     """
 
 
-class Portee(StrEnum):
+class Scope(StrEnum):
     """Sur quoi porte un vote (SPECS.md §7 n°16).
 
     Un `StrEnum` plutôt qu'une chaîne libre : la valeur est écrite telle quelle
@@ -64,12 +64,12 @@ class Portee(StrEnum):
     une troisième portée que personne ne relirait jamais.
     """
 
-    PISTE = "piste"
-    ARTISTE = "artiste"
+    TRACK = "piste"
+    ARTIST = "artiste"
 
 
 @dataclass(frozen=True, slots=True)
-class Diffusion:
+class Broadcast:
     """Ce que la base retient d'une émission : un épisode, et quand il est passé.
 
     `diffuse_le` ne sert à aucune décision — c'est du diagnostic
@@ -95,7 +95,7 @@ class Scores:
     encore: float = 0.0
 
 
-def _decroitre(score: float, ecoule: timedelta, demi_vie: timedelta) -> float:
+def _decroitre(score: float, ecoule: timedelta, half_life: timedelta) -> float:
     """`score * 2 ** (-Δt / demi_vie)` — l'oubli de SPECS.md §4.12.
 
     Un `Δt` négatif — horloge reculée, fichier recopié d'une autre machine —
@@ -103,10 +103,10 @@ def _decroitre(score: float, ecoule: timedelta, demi_vie: timedelta) -> float:
     """
     if ecoule <= timedelta(0):
         return score
-    return float(score * 2.0 ** (-(ecoule / demi_vie)))
+    return float(score * 2.0 ** (-(ecoule / half_life)))
 
 
-class EtatSQLite:
+class SqliteState:
     """L'état durable, ouvert et refermé à chaque opération.
 
     Une connexion par opération plutôt qu'une connexion gardée : Flask sert
@@ -119,11 +119,11 @@ class EtatSQLite:
 
     def __init__(
         self,
-        chemin: Path,
-        horloge: Horloge,
+        path: Path,
+        clock: Clock,
         *,
-        delai_attente: timedelta,
-        demi_vie_votes: timedelta,
+        lock_timeout: timedelta,
+        vote_half_life: timedelta,
     ) -> None:
         """`delai_attente` et `demi_vie_votes` viennent du TOML (SPECS.md §6.2).
 
@@ -131,16 +131,16 @@ class EtatSQLite:
         interdit (AGENTS.md §2), et le défaut se déclare là où la clé est
         documentée.
         """
-        if delai_attente <= timedelta(0):
+        if lock_timeout <= timedelta(0):
             message = "un délai d'attente nul rendrait toute écriture concurrente perdante"
             raise ValueError(message)
-        if demi_vie_votes <= timedelta(0):
+        if vote_half_life <= timedelta(0):
             message = "une demi-vie nulle ou négative ne définit aucune décroissance"
             raise ValueError(message)
-        self._chemin = chemin
-        self._horloge = horloge
-        self._delai_attente = delai_attente
-        self._demi_vie = demi_vie_votes
+        self._chemin = path
+        self._horloge = clock
+        self._delai_attente = lock_timeout
+        self._demi_vie = vote_half_life
         self._preparer()
 
     def _preparer(self) -> None:
@@ -150,9 +150,9 @@ class EtatSQLite:
         n'étant pas une panne, il n'y a rien à faire évoluer.
         """
         self._chemin.parent.mkdir(parents=True, exist_ok=True)
-        with self._connexion() as connexion:
-            connexion.execute("PRAGMA journal_mode = WAL")
-            connexion.executescript(SCHEMA)
+        with self._connexion() as connection:
+            connection.execute("PRAGMA journal_mode = WAL")
+            connection.executescript(SCHEMA)
 
     @contextmanager
     def _connexion(self) -> Iterator[sqlite3.Connection]:
@@ -162,21 +162,21 @@ class EtatSQLite:
         web lit pendant que la chaîne écrit, et l'inverse.
         """
         try:
-            connexion = sqlite3.connect(
+            connection = sqlite3.connect(
                 self._chemin,
                 timeout=self._delai_attente.total_seconds(),
                 isolation_level=None,
             )
-        except sqlite3.Error as erreur:
+        except sqlite3.Error as error:
             message = f"base d'état inaccessible : {self._chemin}"
-            raise EtatIndisponible(message) from erreur
+            raise StateUnavailable(message) from error
         try:
-            yield connexion
-        except sqlite3.Error as erreur:
+            yield connection
+        except sqlite3.Error as error:
             message = f"base d'état illisible ou verrouillée : {self._chemin}"
-            raise EtatIndisponible(message) from erreur
+            raise StateUnavailable(message) from error
         finally:
-            connexion.close()
+            connection.close()
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
@@ -190,80 +190,80 @@ class EtatSQLite:
         la fermeture de la connexion, que `_connexion` garantit. L'écrire
         quand même serait du code qu'aucun test ne peut atteindre.
         """
-        with self._connexion() as connexion:
-            connexion.execute("BEGIN IMMEDIATE")
-            yield connexion
-            connexion.execute("COMMIT")
+        with self._connexion() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            yield connection
+            connection.execute("COMMIT")
 
     # ------------------------------------------------------------------
     # Les émissions diffusées (SPECS.md §4.11.1)
     # ------------------------------------------------------------------
 
-    def derniere_diffusion(self, emission: str) -> Diffusion | None:
+    def last_airing(self, show: str) -> Broadcast | None:
         """Le dernier épisode diffusé d'une émission, ou rien.
 
         Rendre `None` pour une base vide **est** le comportement nominal : la
         radio diffusera une fois l'épisode le plus récent, puis reprendra son
         cours (ARCHITECTURE.md §5.0).
         """
-        with self._connexion() as connexion:
-            ligne = connexion.execute(
+        with self._connexion() as connection:
+            row = connection.execute(
                 "SELECT episode, diffuse_le FROM emissions_diffusees WHERE emission = ?",
-                (emission,),
+                (show,),
             ).fetchone()
-        if ligne is None:
+        if row is None:
             return None
-        return Diffusion(episode=str(ligne[0]), diffuse_le=datetime.fromisoformat(str(ligne[1])))
+        return Broadcast(episode=str(row[0]), diffuse_le=datetime.fromisoformat(str(row[1])))
 
-    def enregistrer_diffusion(self, emission: str, episode: str) -> None:
+    def record_airing(self, show: str, episode: str) -> None:
         """Retient qu'un épisode est passé — au singulier, jamais un historique.
 
         Une seule ligne par émission : c'est la borne que s'impose
         ARCHITECTURE.md §5.0. Conserver les précédents serait l'historique
         d'antenne que ce projet a décidé de ne pas avoir.
         """
-        instant = self._horloge.maintenant().isoformat()
-        with self._transaction() as connexion:
-            connexion.execute(
+        instant = self._horloge.now().isoformat()
+        with self._transaction() as connection:
+            connection.execute(
                 """
                 INSERT INTO emissions_diffusees (emission, episode, diffuse_le)
                 VALUES (?, ?, ?)
                 ON CONFLICT(emission) DO UPDATE
                 SET episode = excluded.episode, diffuse_le = excluded.diffuse_le
                 """,
-                (emission, episode, instant),
+                (show, episode, instant),
             )
-        logger.info("émission « %s » : épisode %s retenu comme diffusé", emission, episode)
+        logger.info("émission « %s » : épisode %s retenu comme diffusé", show, episode)
 
     # ------------------------------------------------------------------
     # Les votes (SPECS.md §4.12)
     # ------------------------------------------------------------------
 
-    def scores(self, portee: Portee, cible: str) -> Scores:
+    def scores(self, scope: Scope, target: str) -> Scores:
         """Les scores d'une cible, décroissance appliquée jusqu'à maintenant.
 
         La décroissance vaut **aussi à la lecture** (ARCHITECTURE.md §5.2) :
         sans elle, un score écrit il y a un an pèserait encore son poids plein
         tant que personne ne revote.
         """
-        maintenant = self._horloge.maintenant()
-        with self._connexion() as connexion:
-            ligne = connexion.execute(
+        now = self._horloge.now()
+        with self._connexion() as connection:
+            row = connection.execute(
                 "SELECT score_stop, score_encore, vu_le FROM votes WHERE portee = ? AND cible = ?",
-                (str(portee), cible),
+                (str(scope), target),
             ).fetchone()
-        if ligne is None:
+        if row is None:
             return Scores()
-        ecoule = maintenant - datetime.fromisoformat(str(ligne[2]))
+        ecoule = now - datetime.fromisoformat(str(row[2]))
         return Scores(
-            stop=_decroitre(float(ligne[0]), ecoule, self._demi_vie),
-            encore=_decroitre(float(ligne[1]), ecoule, self._demi_vie),
+            stop=_decroitre(float(row[0]), ecoule, self._demi_vie),
+            encore=_decroitre(float(row[1]), ecoule, self._demi_vie),
         )
 
-    def enregistrer_vote(
+    def record_vote(
         self,
-        portee: Portee,
-        cible: str,
+        scope: Scope,
+        target: str,
         *,
         stop: float = 0.0,
         encore: float = 0.0,
@@ -274,22 +274,22 @@ class EtatSQLite:
         piste et combien sur son artiste est une décision, donc du noyau
         (SPECS.md §4.12). Ici, on additionne ce qu'on nous donne.
         """
-        maintenant = self._horloge.maintenant()
-        with self._transaction() as connexion:
-            ligne = connexion.execute(
+        now = self._horloge.now()
+        with self._transaction() as connection:
+            row = connection.execute(
                 "SELECT score_stop, score_encore, vu_le FROM votes WHERE portee = ? AND cible = ?",
-                (str(portee), cible),
+                (str(scope), target),
             ).fetchone()
-            if ligne is None:
+            if row is None:
                 courant = Scores()
             else:
-                ecoule = maintenant - datetime.fromisoformat(str(ligne[2]))
+                ecoule = now - datetime.fromisoformat(str(row[2]))
                 courant = Scores(
-                    stop=_decroitre(float(ligne[0]), ecoule, self._demi_vie),
-                    encore=_decroitre(float(ligne[1]), ecoule, self._demi_vie),
+                    stop=_decroitre(float(row[0]), ecoule, self._demi_vie),
+                    encore=_decroitre(float(row[1]), ecoule, self._demi_vie),
                 )
             nouveaux = Scores(stop=courant.stop + stop, encore=courant.encore + encore)
-            connexion.execute(
+            connection.execute(
                 """
                 INSERT INTO votes (portee, cible, score_stop, score_encore, vu_le)
                 VALUES (?, ?, ?, ?, ?)
@@ -299,11 +299,11 @@ class EtatSQLite:
                     vu_le = excluded.vu_le
                 """,
                 (
-                    str(portee),
-                    cible,
+                    str(scope),
+                    target,
                     nouveaux.stop,
                     nouveaux.encore,
-                    maintenant.isoformat(),
+                    now.isoformat(),
                 ),
             )
         return nouveaux

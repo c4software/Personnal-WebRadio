@@ -16,34 +16,34 @@ cassera ici plutôt qu'en base.
 
 import logging
 
-from webradio.adapters.state.database import EtatIndisponible, EtatSQLite
-from webradio.adapters.state.database import Portee as PorteeBase
-from webradio.core.control import Commande
-from webradio.core.models import Piste
-from webradio.core.weighting import Portee, Scores, poids_de_la_piste, poids_du_vote
+from webradio.adapters.state.database import Scope as PorteeBase
+from webradio.adapters.state.database import SqliteState, StateUnavailable
+from webradio.core.control import Command
+from webradio.core.models import Track
+from webradio.core.weighting import Scope, Scores, track_weight, vote_weight
 
 logger = logging.getLogger(__name__)
 
 
-class Apprentissage:
+class Learning:
     """Lit les poids avant un tirage, écrit les votes après qu'ils sont acceptés."""
 
     def __init__(
         self,
-        base: EtatSQLite,
+        database: SqliteState,
         *,
-        plancher: float,
-        plafond: float,
-        pente: float,
-        poids_croise: float,
+        floor: float,
+        ceiling: float,
+        slope: float,
+        cross_weight: float,
     ) -> None:
-        self._base = base
-        self._plancher = plancher
-        self._plafond = plafond
-        self._pente = pente
-        self._croise = poids_croise
+        self._base = database
+        self._plancher = floor
+        self._plafond = ceiling
+        self._pente = slope
+        self._croise = cross_weight
 
-    def peser(self, piste: Piste) -> float:
+    def weigh(self, track: Track) -> float:
         """Le multiplicateur de chance d'une piste, borné.
 
         Une base injoignable ne fait pas taire la radio : on rend un poids
@@ -51,20 +51,20 @@ class Apprentissage:
         qu'un tirage qui n'a pas lieu (SPECS.md §5).
         """
         try:
-            piste_brute = self._base.scores(PorteeBase.PISTE, piste.identifiant)
-            artiste_brut = self._base.scores(PorteeBase.ARTISTE, piste.artiste)
-        except EtatIndisponible as panne:
-            logger.warning("poids indisponibles, tirage neutre : %s", panne)
+            piste_brute = self._base.scores(PorteeBase.TRACK, track.identifier)
+            artiste_brut = self._base.scores(PorteeBase.ARTIST, track.artist)
+        except StateUnavailable as failure:
+            logger.warning("poids indisponibles, tirage neutre : %s", failure)
             return 1.0
-        return poids_de_la_piste(
+        return track_weight(
             Scores(stop=piste_brute.stop, encore=piste_brute.encore),
             Scores(stop=artiste_brut.stop, encore=artiste_brut.encore),
-            plancher=self._plancher,
-            plafond=self._plafond,
-            pente=self._pente,
+            floor=self._plancher,
+            ceiling=self._plafond,
+            slope=self._pente,
         )
 
-    def retenir(self, commande: Commande, piste: Piste) -> None:
+    def remember(self, command: Command, track: Track) -> None:
         """Enregistre un vote **accepté**, sur la piste et sur son artiste.
 
         À n'appeler que lorsque le vote a produit un effet : un vote refusé
@@ -72,16 +72,16 @@ class Apprentissage:
         (SPECS.md §4.6). Sinon la radio apprendrait de gestes qui n'ont rien
         changé, et l'auditeur pondérerait sans le savoir.
         """
-        sur_la_piste = poids_du_vote(commande, Portee.PISTE)
-        sur_l_artiste = poids_du_vote(commande, Portee.ARTISTE)
+        sur_la_piste = vote_weight(command, Scope.TRACK)
+        sur_l_artiste = vote_weight(command, Scope.ARTIST)
         try:
-            self._ecrire(PorteeBase.PISTE, piste.identifiant, commande, sur_la_piste)
-            self._ecrire(PorteeBase.ARTISTE, piste.artiste, commande, sur_l_artiste)
-        except EtatIndisponible as panne:
-            logger.warning("vote non retenu, la radio continue : %s", panne)
+            self._ecrire(PorteeBase.TRACK, track.identifier, command, sur_la_piste)
+            self._ecrire(PorteeBase.ARTIST, track.artist, command, sur_l_artiste)
+        except StateUnavailable as failure:
+            logger.warning("vote non retenu, la radio continue : %s", failure)
 
-    def _ecrire(self, portee: PorteeBase, cible: str, commande: Commande, poids: float) -> None:
-        if commande is Commande.STOP:
-            self._base.enregistrer_vote(portee, cible, stop=poids)
+    def _ecrire(self, scope: PorteeBase, target: str, command: Command, weight: float) -> None:
+        if command is Command.SKIP:
+            self._base.record_vote(scope, target, stop=weight)
         else:
-            self._base.enregistrer_vote(portee, cible, encore=poids)
+            self._base.record_vote(scope, target, encore=weight)

@@ -15,10 +15,10 @@ anticipation, celle-là non consignée.
 
 from typing import Protocol
 
-from webradio.core.models import Piste
+from webradio.core.models import Track
 
 
-class SourceIndisponible(Exception):
+class SourceUnavailable(Exception):
     """La source ne répond pas, ou répond ce qu'on ne sait pas lire.
 
     Traduite au plus près de son origine : au-dessus des adaptateurs, plus
@@ -27,14 +27,14 @@ class SourceIndisponible(Exception):
     """
 
 
-class SourceMusicale(Protocol):
+class MusicSource(Protocol):
     """Trois capacités, et pas une de plus.
 
     Tout le reste — la grille, le tirage, la non-répétition — est décidé
     au-dessus et ne dépend d'aucune source.
     """
 
-    def pistes(self, genre: str | None = None) -> list[Piste]:
+    def tracks(self, genre: str | None = None) -> list[Track]:
         """Les pistes disponibles, éventuellement restreintes à un genre.
 
         Une source qui ne connaît pas le genre demandé rend une liste vide
@@ -43,11 +43,11 @@ class SourceMusicale(Protocol):
         """
         ...
 
-    def pistes_de(self, artiste: str) -> list[Piste]:
+    def tracks_by(self, artist: str) -> list[Track]:
         """Les autres pistes d'un artiste. C'est ce dont `encore` dépend."""
         ...
 
-    def pistes_de_la_liste_de_lecture(self, nom: str) -> list[Piste]:
+    def tracks_from_playlist(self, name: str) -> list[Track]:
         """Les pistes d'une liste de lecture, désignée par son **nom**.
 
         Le noyau ne connaît que des noms : c'est ce que le TOML déclare
@@ -65,7 +65,7 @@ class SourceMusicale(Protocol):
         """Les genres que cette source connaît."""
         ...
 
-    def entree(self, piste: Piste) -> str:
+    def entry(self, track: Track) -> str:
         """Ce qu'il faut ouvrir pour entendre cette piste.
 
         Un chemin ou une URL — la chaîne de diffusion ne fait pas la différence

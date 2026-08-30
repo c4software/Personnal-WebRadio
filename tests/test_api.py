@@ -9,12 +9,12 @@ import pytest
 from flask.testing import FlaskClient
 
 from webradio.adapters.web import (
-    Antenne,
-    Nature,
+    Kind,
+    OnAir,
     Verdict,
     Vote,
-    creer_application,
-    creer_vue,
+    create_app,
+    create_view,
 )
 
 RAFRAICHISSEMENT = timedelta(seconds=5)
@@ -30,119 +30,119 @@ class FakeRadio:
     def __init__(
         self,
         *,
-        antenne: Antenne | None = None,
+        on_air_now: OnAir | None = None,
         verdict: Verdict | None = None,
     ) -> None:
-        self._antenne = antenne
-        self._verdict = verdict if verdict is not None else Verdict(accepte=True)
+        self._antenne = on_air_now
+        self._verdict = verdict if verdict is not None else Verdict(accepted=True)
         self.votes: list[Vote] = []
 
-    def en_diffusion(self) -> bool:
+    def on_air(self) -> bool:
         return self._antenne is not None
 
-    def antenne(self) -> Antenne | None:
+    def on_air_now(self) -> OnAir | None:
         return self._antenne
 
-    def voter(self, vote: Vote) -> Verdict:
+    def vote(self, vote: Vote) -> Verdict:
         self.votes.append(vote)
         return self._verdict
 
 
 def client(radio: FakeRadio) -> FlaskClient:
-    application = creer_application(radio, rafraichissement=RAFRAICHISSEMENT)
-    application.config.update(TESTING=True)
-    return application.test_client()
+    app = create_app(radio, refresh=RAFRAICHISSEMENT)
+    app.config.update(TESTING=True)
+    return app.test_client()
 
 
-MORCEAU = Antenne(nature=Nature.MUSIQUE, titre="Sexy Boy", artiste="Air")
+MORCEAU = OnAir(kind=Kind.MUSIC, title="Sexy Boy", artist="Air")
 
 
 def test_l_api_dit_ce_qui_passe_et_de_quelle_nature() -> None:
-    reponse = client(FakeRadio(antenne=MORCEAU)).get("/api/antenne")
-    assert reponse.status_code == 200
-    assert reponse.get_json() == {
-        "en_diffusion": True,
-        "antenne": {"nature": "musique", "titre": "Sexy Boy", "artiste": "Air"},
+    answer = client(FakeRadio(on_air_now=MORCEAU)).get("/api/on-air")
+    assert answer.status_code == 200
+    assert answer.get_json() == {
+        "on_air": True,
+        "on_air_now": {"kind": "musique", "title": "Sexy Boy", "artist": "Air"},
     }
 
 
 @pytest.mark.parametrize(
-    "nature",
-    [Nature.MUSIQUE, Nature.JINGLE, Nature.FLASH, Nature.EMISSION],
+    "kind",
+    [Kind.MUSIC, Kind.JINGLE, Kind.NEWS, Kind.SHOW],
 )
-def test_l_api_distingue_les_quatre_natures(nature: Nature) -> None:
-    reponse = client(FakeRadio(antenne=Antenne(nature=nature))).get("/api/antenne")
-    assert reponse.get_json()["antenne"]["nature"] == str(nature)
+def test_l_api_distingue_les_quatre_natures(kind: Kind) -> None:
+    answer = client(FakeRadio(on_air_now=OnAir(kind=kind))).get("/api/on-air")
+    assert answer.get_json()["on_air_now"]["kind"] == str(kind)
 
 
 def test_l_api_dit_quand_la_chaine_ne_tourne_pas() -> None:
     """La radio n'existe que lorsqu'on l'écoute (SPECS.md §1)."""
-    reponse = client(FakeRadio()).get("/api/antenne")
-    assert reponse.get_json() == {"en_diffusion": False, "antenne": None}
+    answer = client(FakeRadio()).get("/api/on-air")
+    assert answer.get_json() == {"on_air": False, "on_air_now": None}
 
 
 def test_un_jingle_n_a_ni_titre_ni_artiste() -> None:
-    reponse = client(FakeRadio(antenne=Antenne(nature=Nature.JINGLE))).get("/api/antenne")
-    assert reponse.get_json()["antenne"] == {
-        "nature": "jingle",
-        "titre": None,
-        "artiste": None,
+    answer = client(FakeRadio(on_air_now=OnAir(kind=Kind.JINGLE))).get("/api/on-air")
+    assert answer.get_json()["on_air_now"] == {
+        "kind": "jingle",
+        "title": None,
+        "artist": None,
     }
 
 
-@pytest.mark.parametrize("vote", [Vote.STOP, Vote.ENCORE])
+@pytest.mark.parametrize("vote", [Vote.SKIP, Vote.MORE])
 def test_une_seule_voix_suffit_a_faire_passer_un_vote(vote: Vote) -> None:
     """Ni quorum, ni fenêtre de dépouillement (SPECS.md §4.6)."""
-    radio = FakeRadio(antenne=MORCEAU)
-    reponse = client(radio).post(f"/api/votes/{vote}")
-    assert reponse.status_code == 200
-    assert reponse.get_json() == {"accepte": True, "vote": str(vote), "motif": None}
+    radio = FakeRadio(on_air_now=MORCEAU)
+    answer = client(radio).post(f"/api/votes/{vote}")
+    assert answer.status_code == 200
+    assert answer.get_json() == {"accepted": True, "vote": str(vote), "reason": None}
     assert radio.votes == [vote]
 
 
 def test_un_vote_pendant_un_jingle_est_refuse_avec_son_motif() -> None:
     """Un refus muet est indistinguable d'une panne (ARCHITECTURE.md §6.1)."""
-    motif = "un jingle passe : on ne demande pas « encore » d'un jingle"
+    reason = "un jingle passe : on ne demande pas « encore » d'un jingle"
     radio = FakeRadio(
-        antenne=Antenne(nature=Nature.JINGLE),
-        verdict=Verdict(accepte=False, motif=motif),
+        on_air_now=OnAir(kind=Kind.JINGLE),
+        verdict=Verdict(accepted=False, reason=reason),
     )
-    reponse = client(radio).post("/api/votes/encore")
-    assert reponse.status_code == 409
-    assert reponse.get_json() == {"accepte": False, "vote": "encore", "motif": motif}
+    answer = client(radio).post("/api/votes/encore")
+    assert answer.status_code == 409
+    assert answer.get_json() == {"accepted": False, "vote": "encore", "reason": reason}
 
 
 def test_un_vote_pendant_une_emission_est_refuse_avec_son_motif() -> None:
     """On ne passe pas une émission (SPECS.md §4.11)."""
-    motif = "une émission passe : elle remplace la programmation"
+    reason = "une émission passe : elle remplace la programmation"
     radio = FakeRadio(
-        antenne=Antenne(nature=Nature.EMISSION),
-        verdict=Verdict(accepte=False, motif=motif),
+        on_air_now=OnAir(kind=Kind.SHOW),
+        verdict=Verdict(accepted=False, reason=reason),
     )
-    reponse = client(radio).post("/api/votes/stop")
-    assert reponse.status_code == 409
-    assert reponse.get_json()["motif"] == motif
+    answer = client(radio).post("/api/votes/stop")
+    assert answer.status_code == 409
+    assert answer.get_json()["reason"] == reason
 
 
 def test_un_vote_inconnu_est_refuse_en_disant_lequel() -> None:
-    radio = FakeRadio(antenne=MORCEAU)
-    reponse = client(radio).post("/api/votes/plus-fort")
-    assert reponse.status_code == 400
-    assert "plus-fort" in reponse.get_json()["motif"]
+    radio = FakeRadio(on_air_now=MORCEAU)
+    answer = client(radio).post("/api/votes/plus-fort")
+    assert answer.status_code == 400
+    assert "plus-fort" in answer.get_json()["reason"]
     assert radio.votes == []
 
 
 def test_un_refus_sans_motif_est_impossible_a_construire() -> None:
     """La contrainte est portée par le type, pas par la discipline de l'appelant."""
     with pytest.raises(ValueError, match="refus sans motif"):
-        Verdict(accepte=False)
+        Verdict(accepted=False)
 
 
 def test_l_api_ne_rend_que_des_donnees() -> None:
     """L'API rend des données, la vue les met en page (AGENTS.md §2)."""
-    reponse = client(FakeRadio(antenne=MORCEAU)).get("/api/antenne")
-    assert reponse.mimetype == "application/json"
-    assert b"<html" not in reponse.data
+    answer = client(FakeRadio(on_air_now=MORCEAU)).get("/api/on-air")
+    assert answer.mimetype == "application/json"
+    assert b"<html" not in answer.data
 
 
 def test_la_page_ne_recoit_aucune_donnee_d_antenne() -> None:
@@ -151,30 +151,30 @@ def test_la_page_ne_recoit_aucune_donnee_d_antenne() -> None:
     Si le titre du morceau apparaissait dans le HTML servi, c'est que la vue
     serait allée le chercher elle-même — un second chemin vers le noyau.
     """
-    reponse = client(FakeRadio(antenne=MORCEAU)).get("/")
-    assert reponse.status_code == 200
-    assert b"Sexy Boy" not in reponse.data
-    assert b"Air" not in reponse.data
+    answer = client(FakeRadio(on_air_now=MORCEAU)).get("/")
+    assert answer.status_code == 200
+    assert b"Sexy Boy" not in answer.data
+    assert b"Air" not in answer.data
 
 
 def test_les_boutons_de_la_page_pointent_vers_l_api() -> None:
-    reponse = client(FakeRadio(antenne=MORCEAU)).get("/")
-    assert b"/api/votes/stop" in reponse.data
-    assert b"/api/votes/encore" in reponse.data
-    assert b"/api/antenne" in reponse.data
+    answer = client(FakeRadio(on_air_now=MORCEAU)).get("/")
+    assert b"/api/votes/stop" in answer.data
+    assert b"/api/votes/encore" in answer.data
+    assert b"/api/on-air" in answer.data
 
 
 def test_la_page_est_faite_pour_un_telephone() -> None:
-    reponse = client(FakeRadio()).get("/")
-    assert b'name="viewport"' in reponse.data
+    answer = client(FakeRadio()).get("/")
+    assert b'name="viewport"' in answer.data
 
 
 def test_le_rafraichissement_de_la_page_vient_de_la_configuration() -> None:
     """Aucune durée en dur : cinq secondes doivent se retrouver dans la page."""
-    reponse = client(FakeRadio()).get("/")
-    assert b"5000" in reponse.data
+    answer = client(FakeRadio()).get("/")
+    assert b"5000" in answer.data
 
 
 def test_un_rafraichissement_nul_est_refuse() -> None:
     with pytest.raises(ValueError, match="rafraîchissement"):
-        creer_vue(rafraichissement=timedelta(0))
+        create_view(refresh=timedelta(0))

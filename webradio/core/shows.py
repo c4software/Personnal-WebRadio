@@ -20,10 +20,10 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
-TOUS_LES_JOURS = "tous"
+EVERY_DAY = "tous"
 EPISODE_COMPLET = "full"
 
-JOURS_DE_LA_SEMAINE = {
+WEEKDAYS = {
     "lundi": 0,
     "mardi": 1,
     "mercredi": 2,
@@ -34,7 +34,7 @@ JOURS_DE_LA_SEMAINE = {
 }
 
 
-class EmissionsEnConflit(Exception):
+class ConflictingShows(Exception):
     """Deux émissions à la même heure le même jour.
 
     La radio refuse de démarrer en les nommant toutes les deux (SPECS.md §4.11) :
@@ -43,7 +43,7 @@ class EmissionsEnConflit(Exception):
 
 
 @dataclass(frozen=True, slots=True)
-class Emission:
+class Show:
     """Une case déclarée : des jours, une heure. Rien de plus.
 
     Ce dénuement est délibéré (SPECS.md §4.11) : des champs déclaratifs
@@ -51,28 +51,26 @@ class Emission:
     grammaire de récurrence n'arrivera qu'avec son deuxième cas d'usage.
     """
 
-    nom: str
-    jours: tuple[str, ...]
-    heure: time
+    name: str
+    days: tuple[str, ...]
+    hour: time
 
     def __post_init__(self) -> None:
-        if not self.nom:
+        if not self.name:
             message = "une émission sans nom ne peut pas être désignée dans un conflit"
             raise ValueError(message)
-        if not self.jours:
-            message = f"« {self.nom} » n'a aucun jour : elle n'aurait jamais lieu"
+        if not self.days:
+            message = f"« {self.name} » n'a aucun jour : elle n'aurait jamais lieu"
             raise ValueError(message)
-        for jour in self.jours:
-            if jour != TOUS_LES_JOURS and jour not in JOURS_DE_LA_SEMAINE:
-                message = f"jour inconnu pour « {self.nom} » : {jour}"
+        for jour in self.days:
+            if jour != EVERY_DAY and jour not in WEEKDAYS:
+                message = f"jour inconnu pour « {self.name} » : {jour}"
                 raise ValueError(message)
 
     def a_lieu_le(self, jour: date) -> bool:
-        if TOUS_LES_JOURS in self.jours:
+        if EVERY_DAY in self.days:
             return True
-        return any(
-            JOURS_DE_LA_SEMAINE[j] == jour.weekday() for j in self.jours if j != TOUS_LES_JOURS
-        )
+        return any(WEEKDAYS[j] == jour.weekday() for j in self.days if j != EVERY_DAY)
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,42 +82,40 @@ class Episode:
     """
 
     guid: str
-    publie_le: datetime
-    duree: timedelta
-    nature: str = EPISODE_COMPLET
+    published_at: datetime
+    duration: timedelta
+    kind: str = EPISODE_COMPLET
 
 
 @dataclass(frozen=True, slots=True)
-class Case:
+class Slot:
     """Une émission due, et l'heure à laquelle elle aurait dû commencer.
 
     Le début sert au rattrapage : l'épisode démarre **depuis le début**, donc
     une émission rattrapée décale sa propre fin (SPECS.md §7 n°13).
     """
 
-    emission: Emission
-    debut: datetime
+    show: Show
+    start: datetime
 
 
-def episode_a_diffuser(
-    episodes: Sequence[Episode], deja_diffuse: str | None = None
-) -> Episode | None:
+def episode_to_air(episodes: Sequence[Episode], already_aired: str | None = None) -> Episode | None:
     """Le `full` le plus récent, sauf s'il a déjà été diffusé — alors la case est sautée.
 
     On ne redescend **pas** à l'avant-dernier : « une émission qui n'a rien de
     neuf est une émission qui n'a pas lieu » (SPECS.md §4.11). Rejouer l'épisode
     d'avant serait une rediffusion de plus, pas moins.
     """
-    complets = [e for e in episodes if e.nature == EPISODE_COMPLET]
+    complets = [e for e in episodes if e.kind == EPISODE_COMPLET]
     if not complets:
         return None
-    recent = max(complets, key=lambda e: e.publie_le)
-    if recent.guid == deja_diffuse:
+    recent = max(complets, key=lambda e: e.published_at)
+    if recent.guid == already_aired:
         return None
     return recent
 
 
-class GrilleDesEmissions:
+class ShowSchedule:
     # Nommée « GrilleDesEmissions » et non « Programme » : depuis SPECS.md §4.13,
     # un *programme* est une plage de temps alimentée par une liste de lecture
     # (`core/programmes.py`). Deux classes du même nom pour deux choses
@@ -131,31 +127,31 @@ class GrilleDesEmissions:
     surprise trois jours plus tard (SPECS.md §6).
     """
 
-    def __init__(self, emissions: Sequence[Emission]) -> None:
-        self._emissions = tuple(emissions)
+    def __init__(self, shows: Sequence[Show]) -> None:
+        self._emissions = tuple(shows)
         self._refuser_les_conflits()
 
     @property
-    def emissions(self) -> tuple[Emission, ...]:
+    def shows(self) -> tuple[Show, ...]:
         return self._emissions
 
     def _refuser_les_conflits(self) -> None:
-        for rang, une in enumerate(self._emissions):
-            for autre in self._emissions[rang + 1 :]:
-                if une.heure == autre.heure and self._memes_jours(une, autre):
+        for index, une in enumerate(self._emissions):
+            for autre in self._emissions[index + 1 :]:
+                if une.hour == autre.hour and self._memes_jours(une, autre):
                     message = (
-                        f"« {une.nom} » et « {autre.nom} » sont déclarées à "
-                        f"{une.heure:%H:%M} le même jour"
+                        f"« {une.name} » et « {autre.name} » sont déclarées à "
+                        f"{une.hour:%H:%M} le même jour"
                     )
-                    raise EmissionsEnConflit(message)
+                    raise ConflictingShows(message)
 
     @staticmethod
-    def _memes_jours(une: Emission, autre: Emission) -> bool:
-        if TOUS_LES_JOURS in une.jours or TOUS_LES_JOURS in autre.jours:
+    def _memes_jours(une: Show, autre: Show) -> bool:
+        if EVERY_DAY in une.days or EVERY_DAY in autre.days:
             return True
-        return bool(set(une.jours) & set(autre.jours))
+        return bool(set(une.days) & set(autre.days))
 
-    def debut_de_case(self, emission: Emission, instant: datetime) -> datetime | None:
+    def slot_start(self, show: Show, instant: datetime) -> datetime | None:
         """Le début de la case la plus récente déjà commencée, ou `None`.
 
         La veille est examinée aussi : une case de 23 h 30 est encore en cours à
@@ -164,26 +160,26 @@ class GrilleDesEmissions:
         """
         for recul in (0, 1):
             jour = (instant - timedelta(days=recul)).date()
-            if not emission.a_lieu_le(jour):
+            if not show.a_lieu_le(jour):
                 continue
-            debut = datetime.combine(jour, emission.heure, tzinfo=instant.tzinfo)
-            if debut <= instant:
-                return debut
+            start = datetime.combine(jour, show.hour, tzinfo=instant.tzinfo)
+            if start <= instant:
+                return start
         return None
 
-    def case_ouverte(
+    def open_slot(
         self,
-        emission: Emission,
-        duree: timedelta,
+        show: Show,
+        duration: timedelta,
         instant: datetime,
-    ) -> Case | None:
+    ) -> Slot | None:
         """Une case n'est ouverte que pendant la durée de son propre épisode."""
-        debut = self.debut_de_case(emission, instant)
-        if debut is None or instant >= debut + duree:
+        start = self.slot_start(show, instant)
+        if start is None or instant >= start + duration:
             return None
-        return Case(emission, debut)
+        return Slot(show, start)
 
-    def due(self, durees: Mapping[str, timedelta], instant: datetime) -> Case | None:
+    def due(self, durations: Mapping[str, timedelta], instant: datetime) -> Slot | None:
         """La case ouverte maintenant, s'il y en a une.
 
         `durees` associe un nom d'émission à la durée de son épisode. Une
@@ -194,14 +190,14 @@ class GrilleDesEmissions:
         première commencée** qui l'emporte : c'est la même règle que « la
         première finit » (SPECS.md §4.11), et elle ne coupe rien.
         """
-        ouvertes: list[Case] = []
-        for emission in self._emissions:
-            duree = durees.get(emission.nom)
-            if duree is None:
+        ouvertes: list[Slot] = []
+        for show in self._emissions:
+            duration = durations.get(show.name)
+            if duration is None:
                 continue
-            case = self.case_ouverte(emission, duree, instant)
+            case = self.open_slot(show, duration, instant)
             if case is not None:
                 ouvertes.append(case)
         if not ouvertes:
             return None
-        return min(ouvertes, key=lambda c: c.debut)
+        return min(ouvertes, key=lambda c: c.start)

@@ -19,139 +19,139 @@ Trois règles tranchées portent ce module :
 from dataclasses import dataclass
 from enum import Enum
 
-from webradio.core.queue import Choix, FileVide
 from webradio.core.jingles import Jingles
-from webradio.core.models import Piste
-from webradio.core.rng import Hasard
-from webradio.core.sources import SourceMusicale
+from webradio.core.models import Track
+from webradio.core.queue import EmptyQueue, Pick
+from webradio.core.rng import Random
+from webradio.core.sources import MusicSource
 
 
-class Nature(Enum):
+class Kind(Enum):
     """Ce qui passe à l'antenne. C'est le noyau qui le sait, donc qui refuse."""
 
-    MUSIQUE = "musique"
+    MUSIC = "musique"
     JINGLE = "jingle"
-    FLASH = "flash"
-    EMISSION = "emission"
+    NEWS = "flash"
+    SHOW = "emission"
 
 
-class Commande(Enum):
-    STOP = "stop"
-    ENCORE = "encore"
+class Command(Enum):
+    SKIP = "stop"
+    MORE = "encore"
 
 
-MOTIFS_DE_REFUS = {
-    Nature.JINGLE: "un jingle est en cours : on ne passe pas un jingle",
-    Nature.FLASH: "un flash d'information est en cours : on ne passe pas un flash",
-    Nature.EMISSION: "une émission est en cours : on ne passe pas une émission",
+REFUSAL_REASONS = {
+    Kind.JINGLE: "un jingle est en cours : on ne passe pas un jingle",
+    Kind.NEWS: "un flash d'information est en cours : on ne passe pas un flash",
+    Kind.SHOW: "une émission est en cours : on ne passe pas une émission",
 }
 
 
 @dataclass(frozen=True, slots=True)
-class Reponse:
+class Answer:
     """Le sort d'un vote. `motif` est vide quand il est accepté.
 
     Un booléen seul aurait suffi à la file, pas à l'auditeur : c'est le motif
     qui distingue « refusé » de « en panne » (ARCHITECTURE.md §6.1).
     """
 
-    accepte: bool
-    motif: str = ""
+    accepted: bool
+    reason: str = ""
 
 
-class Controle:
+class Control:
     """L'effet des deux commandes sur ce que la file rendra ensuite."""
 
     def __init__(
         self,
-        source: SourceMusicale,
-        hasard: Hasard,
+        source: MusicSource,
+        random: Random,
         jingles: Jingles,
-        nature: Nature = Nature.MUSIQUE,
+        kind: Kind = Kind.MUSIC,
     ) -> None:
         self._source = source
-        self._hasard = hasard
+        self._hasard = random
         self._jingles = jingles
-        self._nature = nature
+        self._nature = kind
         self._saut_demande = False
         self._encore_demande = False
         self._servis: set[str] = set()
 
     @property
-    def nature(self) -> Nature:
+    def kind(self) -> Kind:
         return self._nature
 
-    def declarer(self, nature: Nature) -> None:
+    def declare(self, kind: Kind) -> None:
         """Ce qui passe maintenant. C'est ce qui rend les refus possibles."""
-        self._nature = nature
+        self._nature = kind
 
-    def voter(self, commande: Commande) -> Reponse:
+    def vote(self, command: Command) -> Answer:
         """Le premier vote reçu s'applique : une voix suffit (SPECS.md §7 n°10)."""
-        motif = MOTIFS_DE_REFUS.get(self._nature)
-        if motif is not None:
-            return Reponse(accepte=False, motif=motif)
-        if commande is Commande.STOP:
+        reason = REFUSAL_REASONS.get(self._nature)
+        if reason is not None:
+            return Answer(accepted=False, reason=reason)
+        if command is Command.SKIP:
             self._saut_demande = True
         else:
             self._encore_demande = True
-            self._jingles.marquer_encore()
-        return Reponse(accepte=True)
+            self._jingles.mark_more()
+        return Answer(accepted=True)
 
-    def reclamer_saut(self) -> bool:
+    def take_skip(self) -> bool:
         """Y a-t-il un `stop` à honorer ? L'appel le consomme."""
-        demande = self._saut_demande
+        requested = self._saut_demande
         self._saut_demande = False
-        return demande
+        return requested
 
-    def reclamer_encore(self) -> bool:
+    def take_more(self) -> bool:
         """Y a-t-il un `encore` à honorer ? L'appel le consomme.
 
         `encore` porte sur le morceau **suivant**, pas sur toute la suite : il
         n'installe pas un mode (SPECS.md §4.6).
         """
-        demande = self._encore_demande
+        requested = self._encore_demande
         self._encore_demande = False
-        return demande
+        return requested
 
-    def morceau_apres_encore(self, courant: Piste) -> Choix:
+    def track_after_more(self, courant: Track) -> Pick:
         """Même artiste, puis même genre, puis tirage libre — et chaque repli est dit.
 
         Ce qui borne l'enchaînement n'est pas un compteur mais la bibliothèque
         elle-même (SPECS.md §7 n°7) : quand l'artiste n'a plus de morceau non
         joué, on descend d'un cran.
         """
-        replis: list[str] = []
-        ecartes = self._servis | {courant.identifiant}
+        fallbacks: list[str] = []
+        ecartes = self._servis | {courant.identifier}
 
         candidates = [
-            p for p in self._source.pistes_de(courant.artiste) if p.identifiant not in ecartes
+            p for p in self._source.tracks_by(courant.artist) if p.identifier not in ecartes
         ]
 
         if not candidates:
-            replis.append(f"artiste « {courant.artiste} » épuisé")
+            fallbacks.append(f"artiste « {courant.artist} » épuisé")
             if courant.genre is None:
-                replis.append("morceau sans genre : tirage libre")
+                fallbacks.append("morceau sans genre : tirage libre")
             else:
                 candidates = [
-                    p for p in self._source.pistes(courant.genre) if p.identifiant not in ecartes
+                    p for p in self._source.tracks(courant.genre) if p.identifier not in ecartes
                 ]
                 if not candidates:
-                    replis.append(f"genre « {courant.genre} » épuisé : tirage libre")
+                    fallbacks.append(f"genre « {courant.genre} » épuisé : tirage libre")
 
         if not candidates:
-            candidates = [p for p in self._source.pistes(None) if p.identifiant not in ecartes]
+            candidates = [p for p in self._source.tracks(None) if p.identifier not in ecartes]
             # La chaîne d'`encore` s'arrête là où la bibliothèque s'arrête : on
             # relâche alors « non déjà servi » plutôt que de faire taire la radio
             # (SPECS.md §5.1).
             if not candidates:
                 self._servis.clear()
-                replis.append("bibliothèque entièrement servie : la chaîne repart")
-                candidates = self._source.pistes(None)
+                fallbacks.append("bibliothèque entièrement servie : la chaîne repart")
+                candidates = self._source.tracks(None)
 
         if not candidates:
             message = "la source a répondu, mais elle n'a aucune piste"
-            raise FileVide(message)
+            raise EmptyQueue(message)
 
-        choisi = self._hasard.choisir(candidates)
-        self._servis.add(choisi.identifiant)
-        return Choix(choisi, tuple(replis))
+        choisi = self._hasard.pick(candidates)
+        self._servis.add(choisi.identifier)
+        return Pick(choisi, tuple(fallbacks))

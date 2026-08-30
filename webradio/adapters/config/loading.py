@@ -20,11 +20,11 @@ from webradio.adapters.config.schema import (
     VARIABLE_MOT_DE_PASSE,
     VARIABLE_URL,
     VARIABLE_UTILISATEUR,
-    Configuration,
-    ErreurConfiguration,
-    IdentifiantsNavidrome,
-    Reglages,
-    valider,
+    Config,
+    NavidromeCredentials,
+    Settings,
+    SettingsError,
+    validate,
 )
 
 journal = logging.getLogger(__name__)
@@ -33,7 +33,7 @@ _MARQUE_COMMENTAIRE = "#"
 _PREFIXE_EXPORT = "export "
 
 
-def lire_env(chemin: Path) -> dict[str, str]:
+def read_env(path: Path) -> dict[str, str]:
     """Lit un fichier `clé=valeur`, sans rien journaliser de ce qu'il contient.
 
     Un fichier absent n'est pas une erreur : les variables peuvent venir de
@@ -41,93 +41,93 @@ def lire_env(chemin: Path) -> dict[str, str]:
     signalée avec son numéro — c'est la seule façon de la retrouver sans ouvrir
     le fichier, ce qu'on évite justement de faire avec un fichier de secrets.
     """
-    if not chemin.is_file():
+    if not path.is_file():
         journal.debug(
-            "aucun fichier d'environnement à %s : les variables du processus feront foi", chemin
+            "aucun fichier d'environnement à %s : les variables du processus feront foi", path
         )
         return {}
-    valeurs: dict[str, str] = {}
-    contenu = chemin.read_text(encoding="utf-8")
-    for numero, ligne_brute in enumerate(contenu.splitlines(), start=1):
-        ligne = ligne_brute.strip()
-        if not ligne or ligne.startswith(_MARQUE_COMMENTAIRE):
+    values: dict[str, str] = {}
+    content = path.read_text(encoding="utf-8")
+    for numero, ligne_brute in enumerate(content.splitlines(), start=1):
+        row = ligne_brute.strip()
+        if not row or row.startswith(_MARQUE_COMMENTAIRE):
             continue
-        if ligne.startswith(_PREFIXE_EXPORT):
-            ligne = ligne[len(_PREFIXE_EXPORT) :].strip()
-        if "=" not in ligne:
+        if row.startswith(_PREFIXE_EXPORT):
+            row = row[len(_PREFIXE_EXPORT) :].strip()
+        if "=" not in row:
             message = (
-                f"{chemin} ligne {numero} : une ligne « CLÉ=valeur » est attendue "
+                f"{path} ligne {numero} : une ligne « CLÉ=valeur » est attendue "
                 "(le contenu n'est pas répété ici, c'est un fichier de secrets)"
             )
-            raise ErreurConfiguration(message)
-        cle, _, valeur = ligne.partition("=")
-        cle = cle.strip()
-        if not cle:
-            message = f"{chemin} ligne {numero} : nom de variable vide"
-            raise ErreurConfiguration(message)
-        valeurs[cle] = _sans_guillemets(valeur.strip())
-    return valeurs
+            raise SettingsError(message)
+        key, _, value = row.partition("=")
+        key = key.strip()
+        if not key:
+            message = f"{path} ligne {numero} : nom de variable vide"
+            raise SettingsError(message)
+        values[key] = _sans_guillemets(value.strip())
+    return values
 
 
-def _sans_guillemets(valeur: str) -> str:
+def _sans_guillemets(value: str) -> str:
     for guillemet in ('"', "'"):
-        if len(valeur) >= 2 and valeur.startswith(guillemet) and valeur.endswith(guillemet):
-            return valeur[1:-1]
-    return valeur
+        if len(value) >= 2 and value.startswith(guillemet) and value.endswith(guillemet):
+            return value[1:-1]
+    return value
 
 
-def identifiants_depuis(variables: Mapping[str, str]) -> IdentifiantsNavidrome:
+def credentials_from(variables: Mapping[str, str]) -> NavidromeCredentials:
     """Extrait les trois identifiants, ou refuse le démarrage en nommant celui qui manque.
 
     Le message nomme la **variable**, jamais une valeur : dire ce qui manque
     n'oblige pas à dire ce qui est présent.
     """
     manquantes = [
-        nom
-        for nom in (VARIABLE_URL, VARIABLE_UTILISATEUR, VARIABLE_MOT_DE_PASSE)
-        if not variables.get(nom)
+        name
+        for name in (VARIABLE_URL, VARIABLE_UTILISATEUR, VARIABLE_MOT_DE_PASSE)
+        if not variables.get(name)
     ]
     if manquantes:
         message = (
             f"identifiants Navidrome absents : {', '.join(manquantes)} — "
             "ces valeurs viennent du fichier .env, jamais du TOML (SPECS.md §6.1)"
         )
-        raise ErreurConfiguration(message)
-    return IdentifiantsNavidrome(
+        raise SettingsError(message)
+    return NavidromeCredentials(
         url=variables[VARIABLE_URL].rstrip("/"),
-        utilisateur=variables[VARIABLE_UTILISATEUR],
-        mot_de_passe=variables[VARIABLE_MOT_DE_PASSE],
+        username=variables[VARIABLE_UTILISATEUR],
+        password=variables[VARIABLE_MOT_DE_PASSE],
     )
 
 
-def charger_toml(chemin: Path) -> Configuration:
+def load_toml(path: Path) -> Settings:
     """Lit et valide le TOML. Un fichier absent ou mal formé empêche le démarrage."""
-    if not chemin.is_file():
-        message = f"configuration absente : {chemin} (voir webradio.exemple.toml)"
-        raise ErreurConfiguration(message)
+    if not path.is_file():
+        message = f"configuration absente : {path} (voir webradio.exemple.toml)"
+        raise SettingsError(message)
     try:
-        brut = tomllib.loads(chemin.read_text(encoding="utf-8"))
-    except tomllib.TOMLDecodeError as erreur:
-        message = f"{chemin} n'est pas un TOML valable : {erreur}"
-        raise ErreurConfiguration(message) from erreur
-    return valider(brut)
+        brut = tomllib.loads(path.read_text(encoding="utf-8"))
+    except tomllib.TOMLDecodeError as error:
+        message = f"{path} n'est pas un TOML valable : {error}"
+        raise SettingsError(message) from error
+    return validate(brut)
 
 
-def charger(
-    chemin_toml: Path,
-    chemin_env: Path,
-    environnement: Mapping[str, str] | None = None,
-) -> Reglages:
+def load(
+    toml_path: Path,
+    env_path: Path,
+    environment: Mapping[str, str] | None = None,
+) -> Config:
     """Réunit les deux moitiés de la configuration : le TOML et les secrets.
 
     `environnement` est injecté pour que les tests n'aient pas à toucher aux
     variables du processus — les toucher rendrait deux tests dépendants de leur
     ordre d'exécution.
     """
-    processus = os.environ if environnement is None else environnement
-    variables = lire_env(chemin_env)
-    variables.update({cle: valeur for cle, valeur in processus.items() if valeur})
-    return Reglages(
-        configuration=charger_toml(chemin_toml),
-        identifiants=identifiants_depuis(variables),
+    processes = os.environ if environment is None else environment
+    variables = read_env(env_path)
+    variables.update({key: value for key, value in processes.items() if value})
+    return Config(
+        settings=load_toml(toml_path),
+        credentials=credentials_from(variables),
     )
