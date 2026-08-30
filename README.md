@@ -101,7 +101,8 @@ Le **nom du fichier est la programmation**. Le jingle de 14 h s'appelle
 jingles/
 ├── hours/           les jingles horaires, dans leur tiroir
 │   ├── 08h.mp3      diffusé à 8 h
-│   └── 20h.mp3      diffusé à 20 h
+│   ├── 20h.mp3      diffusé à 20 h
+│   └── 20h-b.mp3    une VARIANTE : l'une des deux est tirée au hasard
 ├── encore.mp3       diffusé quand un « encore » est enregistré
 └── chloe-debut.mp3  un générique — nom libre, sous-dossiers permis
 ```

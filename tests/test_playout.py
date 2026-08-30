@@ -498,3 +498,46 @@ def test_demarrer_au_milieu_d_un_moment_ne_rejoue_pas_son_generique(
     programme, clock = _matinale(tmp_path)
     clock.advance(timedelta(minutes=32))  # première jonction à 08:30
     assert programme.next_entry() == "fake://1"
+
+
+# ── Les variantes de jingles (GOAL-033) ─────────────────────────────────────
+
+
+def test_les_variantes_d_un_jingle_se_tirent_au_hasard_injecte(tmp_path: Path) -> None:
+    """`14h.mp3`, `14h-a.mp3`, `14h-b.mp3`… — l'une au hasard, rejouable."""
+    (tmp_path / "hours").mkdir()
+    for nom in ("13h.mp3", "13h-a.mp3", "13h-b.mp3"):
+        (tmp_path / "hours" / nom).write_bytes(b"jingle")
+    clock = FrozenClock(MIDI)
+    # ScriptedRandom : le tirage de la piste (0), puis celui de la variante (2).
+    programme, _ = _programme(tmp_path, clock=clock)
+    clock.advance(timedelta(hours=1))
+
+    choisi = programme.next_entry()
+
+    assert choisi is not None
+    assert Path(choisi).name in {"13h.mp3", "13h-a.mp3", "13h-b.mp3"}
+
+
+def test_les_variantes_suffisent_sans_fichier_de_base(tmp_path: Path) -> None:
+    (tmp_path / "hours").mkdir()
+    (tmp_path / "hours" / "13h-b.mp3").write_bytes(b"jingle")
+    clock = FrozenClock(MIDI)
+    programme, vues = _programme(tmp_path, clock=clock)
+    clock.advance(timedelta(hours=1))
+
+    assert programme.next_entry() == str(tmp_path / "hours" / "13h-b.mp3")
+    assert vues[-1] == (Kind.JINGLE, None, None)
+
+
+def test_un_generique_a_aussi_ses_variantes(tmp_path: Path) -> None:
+    (tmp_path / "matinale-debut-a.mp3").write_bytes(b"generique")
+    (tmp_path / "matinale-debut-b.mp3").write_bytes(b"generique")
+    programme, clock = _matinale(tmp_path)
+    programme.next_entry()
+    clock.advance(timedelta(minutes=3))
+
+    choisi = programme.next_entry()
+
+    assert choisi is not None
+    assert Path(choisi).name.startswith("matinale-debut-")

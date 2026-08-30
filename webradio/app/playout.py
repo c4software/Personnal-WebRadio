@@ -140,6 +140,11 @@ class RadioProgramme:
 
         Les jingles restants sont conservés pour les jonctions suivantes : ils
         passent tous, à la suite, dans l'ordre où le noyau les a rendus.
+
+        Un nom peut avoir des **variantes** — `14h.mp3`, `14h-a.mp3`,
+        `14h-b.mp3`… — et l'une d'elles est tirée au hasard injecté, pour que
+        la radio ne serine pas le même jingle (GOAL-033). Le fichier de base
+        est lui-même optionnel dès qu'une variante existe.
         """
         sortant, entrant = self._generiques_de_transition()
         if sortant is not None:
@@ -149,8 +154,11 @@ class RadioProgramme:
             self._en_attente.append(entrant)
         while self._en_attente:
             path = self._dossier / self._en_attente.popleft()
+            candidates = sorted(path.parent.glob(f"{path.stem}-*{path.suffix}"))
             if path.is_file():
-                return path
+                candidates.insert(0, path)
+            if candidates:
+                return candidates[0] if len(candidates) == 1 else self._hasard.pick(candidates)
         return None
 
     def _generiques_de_transition(self) -> tuple[str | None, str | None]:

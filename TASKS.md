@@ -152,6 +152,7 @@ Goals sont découpables.
 | GOAL-030 | Les jours de la configuration passent à l'anglais | `[x]` |
 | GOAL-031 | Le jingle d'« encore » se configure, les exemples ont leurs génériques | `[x]` |
 | GOAL-032 | Les jingles horaires rangés dans `hours/` | `[x]` |
+| GOAL-033 | Les variantes de jingles, tirées au hasard | `[-]` — reste l'écoute |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -1064,3 +1065,13 @@ seuls les noms de jours restaient en français.
 
 - [x] `GOAL-032-T01` `jingle_name` rend `hours/14h.mp3` — l'« encore » et les génériques restent à la racine, et leurs noms libres acceptent des sous-chemins
 - [x] `GOAL-032-T02` Le dossier local de l'auteur migré (46 fichiers, variantes `-b`/`-c` comprises — inutilisées par l'app, rangées avec), structure versionnée
+
+---
+
+## GOAL-033 — Les variantes de jingles, tirées au hasard
+
+**État : EN COURS** — demandé par l'auteur le 2026-08-30, dont le dossier
+portait déjà `06h-b.mp3` et `06h-c.mp3` ; reste l'écoute réelle
+
+- [x] `GOAL-033-T01` Tout jingle — horaire, « encore », générique — accepte des variantes `nom-a.mp3`, `nom-b.mp3`… : l'une est tirée **au hasard injecté** (rejouable), et le fichier de base devient optionnel dès qu'une variante existe
+- [ ] `GOAL-033-T02` **Écoute réelle** : la rotation s'entend-elle, sur plusieurs heures ?
