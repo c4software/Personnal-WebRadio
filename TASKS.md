@@ -28,7 +28,13 @@ Rappel (AGENTS.md §1.1) : `code écrit ≠ tâche terminée`.
 
 ## Phase courante
 
-**Phase 0 — Harness** `[-]` en cours.
+**Phase 0 — Harness** `[x]` **terminée le 2026-08-30.**
+
+Le squelette se lance, l'outillage est posé, et la chaîne de vérification a été
+**prouvée** — onze violations refusées une par une, puis un état propre qui
+passe. Sortie constatée : 4 tests, 100 % de couverture, code de sortie 0.
+
+**Phase 1 — Relevés et noyau** `[ ]` à venir (`GOAL-002`, `GOAL-003`).
 
 > **Mise à jour du 2026-08-30 (5)** — l'auteur ajoute les **émissions** : un
 > épisode de podcast diffusé à heure dite, une seule à la fois, programmée au
@@ -79,7 +85,9 @@ La documentation structurante et les commandes de pilotage sont posées.
 faire, et la commande de vérification n'a donc jamais été exécutée avec succès —
 elle n'a rien à vérifier.
 
-**Prochaine tâche** : `GOAL-001-T11` — vérification complète et carte du dépôt.
+**Prochaine tâche** : `GOAL-002` — les cinq relevés. Il n'est pas découpé :
+lancer `/goal Relever Navidrome, France Info, les podcasts, ffmpeg et les
+lecteurs de webradio`.
 
 Sur quinze décisions, **treize sont tranchées**. La n°9 est une conséquence
 consignée, non une question ; la n°12 est délibérément différée jusqu'à la
@@ -92,8 +100,8 @@ Goals sont découpables.
 
 | Goal | Titre | État |
 |---|---|---|
-| GOAL-001 | Harness et initialisation | `[-]` |
-| GOAL-002 | Relever Navidrome, France Info et ffmpeg | `[ ]` |
+| GOAL-001 | Harness et initialisation | `[x]` |
+| GOAL-002 | Relever Navidrome, France Info, ffmpeg, podcasts, lecteurs | `[ ]` |
 | GOAL-003 | Le noyau : horloge, hasard, file de lecture | `[ ]` |
 | GOAL-004 | Le flux : ffmpeg, fan-out, démarrage à la demande | `[ ]` |
 | GOAL-005 | La grille horaire et les moments thématiques | `[ ]` |
@@ -107,7 +115,7 @@ Goals sont découpables.
 
 ## GOAL-001 — Harness et initialisation
 
-**État : EN COURS**
+**État : TERMINÉ**
 
 Mise en place du dépôt, de sa documentation et des commandes de pilotage. Aucune
 fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans lequel
@@ -123,7 +131,7 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 - [x] `GOAL-001-T08` Rédiger `TASKS.md`, `CONTRIBUTING.md`, `README.md`, `CLAUDE.md`
 - [x] `GOAL-001-T09` Installer `/goal`, `/task`, `/status`, `/verify` et `.claude/settings.json`
 - [x] `GOAL-001-T10` Ouvrir les relevés `docs/{navidrome,franceinfo,ffmpeg,flux-icy}.md` avec **les questions auxquelles GOAL-002 devra répondre**
-- [ ] `GOAL-001-T11` Vérification complète passée et **sa sortie constatée**, carte du dépôt (ARCHITECTURE.md §9) mise à jour
+- [x] `GOAL-001-T11` Vérification complète passée et **sa sortie constatée**, carte du dépôt (ARCHITECTURE.md §9) mise à jour
 
 > `T05` à `T10` ont été produites par `/init-project-harness`. Elles sont cochées
 > parce que les fichiers existent et sont complets — **pas** parce qu'une
@@ -201,11 +209,10 @@ de sortie non nul obtenu pour une autre raison.
 
 ### Dettes ouvertes par ce Goal
 
-- [ ] `GOAL-001-T12` **La commande de vérification n'a jamais été exécutée.**
-      Le Harness a été livré avant le code qu'il doit vérifier — c'est l'ordre
-      voulu, mais cela signifie que rien n'a encore prouvé que
-      `./verifier.sh`
-      fonctionne sur cette machine. Levée par `T04` puis `T11`.
+- [x] `GOAL-001-T12` ~~La commande de vérification n'a jamais été exécutée.~~
+      **Levée le 2026-08-30** par `T04` (elle refuse onze violations) puis `T11`
+      (elle passe sur l'état propre, sortie constatée : 4 tests, 100 % de
+      couverture, code de sortie 0).
 - [x] `GOAL-001-T13` ~~Les interdits d'AGENTS.md §2 n'ont aucun contrôle
       exécutable.~~ **Levée par `GOAL-001-T03`** : `verifier.sh` les exécute à
       chaque appel — entrée-sortie dans le noyau, horloge, hasard, Flask hors de

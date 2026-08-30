@@ -361,21 +361,34 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 ├── TASKS.md ............. l'ordre — mémoire persistante
 ├── CONTRIBUTING.md ...... comment contribuer
 ├── README.md ............ documentation générale
+├── pyproject.toml ....... paquet, ruff, mypy, pytest, couverture
+├── verifier.sh .......... LA commande de vérification (AGENTS.md §5.2)
+│
+├── webradio/
+│   ├── core/ ............ les décisions — ne parle à personne
+│   ├── adapters/ ........ le monde extérieur — ne décide de rien
+│   └── app/ ............. l'assemblage, et le point d'entrée
+│       └── main.py ...... squelette : démarre, annonce, s'arrête
+│
+├── tests/ ............... miroir de webradio/, pytest
+│
 ├── docs/
 │   ├── navidrome.md ..... relevé de l'API Subsonic telle que Navidrome l'implémente
 │   ├── franceinfo.md .... relevé du flash d'information
+│   ├── podcast.md ....... relevé des flux de podcast des émissions
 │   ├── ffmpeg.md ........ relevé des options réellement acceptées
 │   └── flux-icy.md ...... relevé de ce qu'attendent les lecteurs de webradio
+│
 └── .claude/
     ├── settings.json .... permissions partagées, versionnées
     └── commands/ ........ goal · task · status · verify
 ```
 
-**Le code n'existe pas encore.** `GOAL-001` le posera :
-`webradio/core/`, `webradio/adapters/`, `webradio/app/`, `tests/`,
-`pyproject.toml`. `adapters/web/` (Flask) et ses gabarits Jinja2 arrivent avec
-`GOAL-009`. Cette section est mise à jour par `GOAL-001-T02` puis par la
-dernière tâche de chaque Goal (AGENTS.md §5.3).
+**`core/`, `adapters/` et `app/` existent, mais seul `app/main.py` contient du
+code.** Le squelette démarre et s'arrête ; il ne diffuse rien. Les sous-dossiers
+annoncés en §1 — `adapters/sources/`, `news/`, `podcast/`, `ffmpeg/`, `http/`,
+`web/`, `config/` — **ne sont pas créés** : le Harness ne fabrique pas de
+structure vide (AGENTS.md §2). Chacun naîtra avec son premier fichier.
 
 ### 9.1 Écarts assumés
 
