@@ -231,9 +231,51 @@ CREATE TABLE IF NOT EXISTS emissions_diffusees (
 );
 ```
 
-**Une table, trois colonnes, et la garde de §5.0 tient toujours** : rien d'autre
-n'a le droit d'entrer, et surtout pas « puisqu'on a une base ». Une seconde table
-n'arrive qu'avec une décision écrite, comme celle-ci.
+**La garde de §5.0 disait** : *rien d'autre n'a le droit d'entrer, et surtout pas
+« puisqu'on a une base ». Une seconde table n'arrive qu'avec une décision
+écrite.*
+
+### 5.2 La seconde table, et sa décision écrite
+
+**Décidée le 2026-08-30** : les votes `stop` et `encore` sont enregistrés et
+pondèrent les tirages suivants (SPECS.md §4.12, `GOAL-012`).
+
+```sql
+CREATE TABLE IF NOT EXISTS votes (
+    portee     TEXT NOT NULL,      -- 'piste' ou 'artiste'  (SPECS.md §7 n°16)
+    cible      TEXT NOT NULL,      -- l'identifiant de piste, ou le nom d'artiste
+    stops      INTEGER NOT NULL DEFAULT 0,
+    encores    INTEGER NOT NULL DEFAULT 0,
+    vu_le      TEXT NOT NULL,      -- dernier vote, pour l'oubli (SPECS.md §7 n°18)
+    PRIMARY KEY (portee, cible)
+);
+```
+
+**La garde n'a pas sauté, elle a fonctionné** : c'est parce qu'elle exigeait une
+décision écrite que cet ajout est spécifié, borné et daté, au lieu d'être glissé
+dans un commit d'implémentation. Elle reste en vigueur pour la **troisième**
+table.
+
+### 5.3 Ce que la pondération impose au noyau
+
+`core/rng.py` ne sait aujourd'hui que **choisir uniformément**
+(`Hasard.choisir(parmi)`). Un tirage pondéré est une capacité **différente**, pas
+un réglage de la première.
+
+Deux conséquences à ne pas manquer :
+
+- **Le noyau reste pur.** Les poids lui sont **fournis**, comme les pistes : il
+  ne va pas les chercher dans SQLite. C'est un adaptateur qui les charge, et la
+  frontière du §1.1 tient sans exception.
+- **Un tirage pondéré reste rejouable.** À graine et poids fixés, la même
+  émission doit se rejouer à l'identique — sans quoi on perd ce que
+  `GOAL-003-T02` avait acheté, et les tests de la file avec.
+
+### 5.4 Ce que la base ne contiendra toujours pas
+
+Ni l'historique de ce qui est passé à l'antenne, ni de statistiques d'écoute, ni
+de position de lecture, ni de profil. Deux tables : le dernier épisode diffusé de
+chaque émission, et les compteurs de votes.
 
 Le fichier vit à un chemin déclaré au TOML, hors du dépôt. Il n'est pas
 versionné, il n'a pas de sauvegarde, et le perdre n'est pas une panne (§5.0).

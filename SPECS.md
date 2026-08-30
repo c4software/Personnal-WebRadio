@@ -481,6 +481,49 @@ complète — de type `cron`, ou un langage à écrire — serait un analyseur, 
 limites et sa documentation. Elle n'arrivera pas avant son deuxième cas d'usage
 (AGENTS.md §2).
 
+### 4.12 Ce que la radio retient de vos votes
+
+`stop` et `encore` ne valent pas que pour le morceau en cours : ils sont
+**enregistrés**, et ils **pondèrent les tirages suivants**.
+
+- Un morceau souvent passé revient **moins souvent**.
+- Un artiste souvent redemandé revient **plus souvent**.
+
+**Rien n'est jamais supprimé.** Un morceau passé cent fois reste dans la
+bibliothèque et peut toujours sortir : sa chance diminue, elle ne s'annule pas.
+C'est la différence entre une radio qui apprend et une radio qui se rétrécit —
+et c'est la seconde qui finit par ne plus rien passer d'inattendu.
+
+#### Ce que cela n'est pas
+
+Ce n'est **pas** une note, ni un système de favoris, ni une liste noire. Il n'y a
+rien à consulter, rien à corriger, rien à remettre à zéro depuis l'interface. La
+radio écoute ce que vous faites, et elle en tient compte. C'est tout.
+
+Ce n'est pas non plus une **recommandation** : aucun modèle, aucune similarité
+calculée, aucun profil. Un compteur par piste et par artiste, et une
+pondération du tirage.
+
+#### Un biais à connaître
+
+Un `stop` ne dit pas « je n'aime pas ». Il dit souvent « pas maintenant », ou
+« encore celui-là ». **Une radio qui pénalise durablement ce qu'on passe finit
+par pénaliser ce qu'on aime le plus** — puisque c'est ce qu'elle joue le plus, et
+donc ce qu'on passe le plus.
+
+C'est la raison d'être de la décision ouverte §7 n°18 : sans oubli, la
+pondération dérive dans le sens contraire de son intention.
+
+#### Ce qui reste à trancher
+
+Trois points, et ils changent la radio :
+
+- **sur quoi porte le poids** — la piste, l'artiste, ou les deux (§7 n°16) ;
+- **les poids s'oublient-ils** avec le temps (§7 n°18) ;
+- **de combien** un morceau passé revient-il moins souvent (§7 n°17).
+
+Tant qu'ils ne sont pas tranchés, `GOAL-012` n'est pas découpé.
+
 ---
 
 ## 5. Comportement en cas d'erreur
@@ -742,6 +785,30 @@ couvre** : les tâches qui touchent au son seront cochées sur la foi de tests q
 n'entendent rien. C'est un choix d'autonomie maximale, pris à l'initialisation et
 assumé. Il est consigné ici pour être visible, et pour pouvoir être révisé à la
 première fois où un défaut sonore traversera plusieurs Goals.
+
+**n°16 — Le poids porte sur quoi ?**
+Un `encore` nomme explicitement un **artiste** (§4.6). Un `stop` porte sur le
+**morceau en cours** — mais dit-il quelque chose de son artiste ? Trois lectures,
+trois radios différentes :
+
+- **la piste seule** — passer un morceau ne dit rien de l'artiste ;
+- **l'artiste seul** — c'est le grain auquel `encore` travaille déjà ;
+- **les deux**, avec des poids distincts : un `stop` pénalise beaucoup la piste
+  et un peu l'artiste, un `encore` favorise beaucoup l'artiste et un peu la piste
+  qui l'a déclenché.
+
+**n°17 — De combien ?**
+« Moins souvent » doit devenir un nombre. Il faut une **borne basse non nulle**
+(§4.12 : rien n'est supprimé) et une **borne haute**, sans quoi un artiste
+redemandé dix fois saturerait la radio.
+
+**n°18 — Les poids s'oublient-ils ?**
+Sans oubli, un `stop` d'il y a deux ans pèse autant qu'un `stop` d'hier, et la
+radio se fige sur ce qu'on a cliqué le premier mois. Avec oubli, elle suit vos
+goûts mais retient moins.
+
+C'est la décision qui compte le plus des trois : c'est elle qui décide si la
+pondération **corrige** le biais de §4.12 ou l'**amplifie**.
 
 **n°12 — Plusieurs sources actives : comment le tirage les combine-t-il ?**
 Ouverte par la décision n°2. Le mécanisme permet de déclarer plusieurs sources ;

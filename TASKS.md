@@ -87,7 +87,9 @@ elle n'a rien à vérifier.
 
 **Prochaine tâche** : `GOAL-004-T01` — décoder une entrée vers le PCM du flux.
 
-**Les sept lots restants sont découpés** (2026-08-30), soit 66 tâches.
+**Les sept lots restants sont découpés** (2026-08-30), soit 71 tâches.
+`GOAL-012` s'ajoute en fin de parcours, **non découpé** : trois décisions
+ouvertes le bloquent (SPECS.md §7 n°16 à n°18).
 `GOAL-011` (conteneurisation) s'insère **après `GOAL-004`** : c'est le premier
 moment où il y a quelque chose à faire tourner.
 
@@ -118,6 +120,7 @@ Goals sont découpables.
 | GOAL-009 | L'interface web — Flask et Jinja2 | `[ ]` |
 | GOAL-010 | Les émissions : podcasts programmés | `[ ]` |
 | GOAL-011 | Conteneurisation : Docker et Compose | `[ ]` — après GOAL-004 |
+| GOAL-012 | Les votes pondèrent les tirages suivants | `[ ]` — non découpé |
 
 ---
 
@@ -514,3 +517,45 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 > ([docs/podcast.md](./docs/podcast.md) §3.1).
 
 ---
+
+## GOAL-012 — Les votes pondèrent les tirages suivants
+
+**État : TODO — non découpé.**
+
+`stop` et `encore` sont enregistrés dans la base et pondèrent les tirages
+suivants : un morceau souvent passé revient moins souvent, un artiste souvent
+redemandé revient plus souvent (SPECS.md §4.12).
+
+**Rien n'est jamais supprimé** : une chance diminue, elle ne s'annule pas. C'est
+la différence entre une radio qui apprend et une radio qui se rétrécit.
+
+### Pourquoi ce Goal existe sous cette forme
+
+`ARCHITECTURE.md §5.0` posait une garde : *« une seconde table n'arrive qu'avec
+une décision écrite »*. Ce Goal **est** cette décision. La garde n'a pas sauté,
+elle a fonctionné — l'ajout est spécifié, borné et daté au lieu d'être glissé
+dans un commit d'implémentation. Elle reste en vigueur pour la troisième table.
+
+### Bloqué par trois décisions ouvertes
+
+Il ne se découpe pas avant qu'elles soient tranchées (SPECS.md §7) :
+
+- **n°16** — le poids porte-t-il sur la piste, sur l'artiste, ou sur les deux ?
+- **n°17** — de combien ? Il faut une borne basse **non nulle** et une borne
+  haute, sans quoi un artiste redemandé dix fois saturerait la radio.
+- **n°18** — les poids s'oublient-ils ? **C'est la plus importante des trois** :
+  sans oubli, la radio se fige sur ce qu'on a cliqué le premier mois, et surtout
+  elle pénalise ce qu'on aime le plus — puisque c'est ce qu'elle joue le plus,
+  donc ce qu'on passe le plus (SPECS.md §4.12).
+
+### Ce que ce Goal impose au reste
+
+- `core/rng.py` gagne une capacité **nouvelle** — le tirage pondéré — et non un
+  réglage de l'ancienne (ARCHITECTURE.md §5.3).
+- **Le noyau ne va pas chercher les poids** : ils lui sont fournis, comme les
+  pistes. La frontière du §1.1 tient sans exception.
+- **Le tirage pondéré doit rester rejouable** à graine et poids fixés, sans quoi
+  on perd ce que `GOAL-003-T02` avait acheté — et les tests de la file avec.
+- L'effet n'est **pas constatable par un test** : qu'une radio « joue moins
+  souvent » ce qu'on passe ne s'observe qu'à l'usage, sur des semaines. C'est un
+  cinquième angle mort, à ajouter à AGENTS.md §4.1 le jour du découpage.
