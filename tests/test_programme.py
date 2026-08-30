@@ -14,6 +14,7 @@ from webradio.core.file import File
 from webradio.core.grille import Grille, Plage
 from webradio.core.jingles import Jingles
 from webradio.core.modeles import Piste
+from webradio.core.programmes import Programmation, Programme
 from webradio.core.repetition import Fenetre
 from webradio.core.rng import HasardScripte
 
@@ -148,4 +149,145 @@ def test_plusieurs_jingles_dus_passent_a_la_suite(tmp_path: Path) -> None:
     horloge.avancer(timedelta(hours=2))
     assert programme.suivante() == str(tmp_path / "13h.mp3")
     assert programme.suivante() == str(tmp_path / "14h.mp3")
+    assert programme.suivante() == "fake://1"
+
+
+def _avec_programme(
+    dossier: Path,
+    *,
+    horloge: HorlogeFigee,
+    listes: dict[str, list[Piste]],
+    programmes: list[Programme],
+    plages: list[Plage] | None = None,
+) -> tuple[ProgrammeRadio, list[tuple[Nature, Piste | None]]]:
+    source = FakeSource(CATALOGUE, listes=listes)
+    hasard = HasardScripte([0] * 200)
+    vues: list[tuple[Nature, Piste | None]] = []
+    return (
+        ProgrammeRadio(
+            file=File(source, hasard, Fenetre(largeur=1)),
+            source=source,
+            grille=Grille(plages or [], horloge),
+            jingles=Jingles(horloge),
+            horloge=horloge,
+            hasard=hasard,
+            dossier_jingles=dossier,
+            sur_nature=lambda n, p: vues.append((n, p)),
+            programmation=Programmation(programmes, horloge),
+            fenetre_programme=Fenetre(largeur=1),
+        ),
+        vues,
+    )
+
+
+PROG = Programme(
+    nom="Le vendredi de Chloé",
+    playlist="Chloé",
+    jours=("dimanche",),
+    debut=time(11, 0),
+    fin=time(14, 0),
+)
+LISTE = [piste("p1", "Nina Simone"), piste("p2", "Chet Baker")]
+
+
+def test_un_programme_ouvert_puise_dans_sa_liste(tmp_path: Path) -> None:
+    horloge = HorlogeFigee(MIDI)  # 2026-08-30 est un dimanche
+    programme, vues = _avec_programme(
+        tmp_path, horloge=horloge, listes={"Chloé": LISTE}, programmes=[PROG]
+    )
+    assert programme.suivante() in {"fake://p1", "fake://p2"}
+    assert vues[-1][1] is not None
+    assert vues[-1][1].artiste in {"Nina Simone", "Chet Baker"}
+
+
+def test_hors_des_heures_du_programme_on_revient_au_tirage_libre(tmp_path: Path) -> None:
+    horloge = HorlogeFigee(MIDI)
+    programme, _ = _avec_programme(
+        tmp_path, horloge=horloge, listes={"Chloé": LISTE}, programmes=[PROG]
+    )
+    horloge.avancer(timedelta(hours=4))  # 16 h, le programme est fermé
+    assert programme.suivante() == "fake://1"
+
+
+def test_le_programme_l_emporte_sur_une_plage_thematique(tmp_path: Path) -> None:
+    """SPECS.md §4.13 : le programme est le plus précis. Ce choix est
+    provisoire tant que §7 n°19 n'est pas tranchée."""
+    plages = [Plage(time(0, 0), time(23, 59), ("électro",))]
+    horloge = HorlogeFigee(MIDI)
+    programme, _ = _avec_programme(
+        tmp_path, horloge=horloge, listes={"Chloé": LISTE}, programmes=[PROG], plages=plages
+    )
+    assert programme.suivante() in {"fake://p1", "fake://p2"}
+
+
+def test_une_liste_introuvable_replie_sur_le_tirage_libre(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Une liste renommée ou vidée ne fait pas taire la radio (SPECS.md §7 n°21)."""
+    horloge = HorlogeFigee(MIDI)
+    programme, _ = _avec_programme(tmp_path, horloge=horloge, listes={}, programmes=[PROG])
+    with caplog.at_level(logging.INFO):
+        assert programme.suivante() == "fake://1"
+    assert "Chloé" in caplog.text
+
+
+def test_une_source_illisible_pendant_un_programme_replie_aussi(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    horloge = HorlogeFigee(MIDI)
+    source = FakeSource(CATALOGUE, injoignable=True, listes={"Chloé": LISTE})
+    hasard = HasardScripte([0] * 50)
+    programme = ProgrammeRadio(
+        file=File(source, hasard, Fenetre(largeur=1)),
+        source=source,
+        grille=Grille([], horloge),
+        jingles=Jingles(horloge),
+        horloge=horloge,
+        hasard=hasard,
+        dossier_jingles=tmp_path,
+        sur_nature=lambda _n, _p: None,
+        programmation=Programmation([PROG], horloge),
+    )
+    with caplog.at_level(logging.WARNING):
+        assert programme.suivante() is None
+    assert "illisible" in caplog.text
+
+
+def test_une_liste_courte_ne_bloque_pas_le_programme(tmp_path: Path) -> None:
+    """La fenêtre du programme rétrécit plutôt que de se taire.
+
+    Une fenêtre de trois sur une liste de deux titres n'autorise personne dès
+    le second morceau : sans rétrécissement, le programme se tairait.
+    """
+    horloge = HorlogeFigee(MIDI)
+    source = FakeSource(CATALOGUE, listes={"Chloé": LISTE})
+    hasard = HasardScripte([0] * 200)
+    programme = ProgrammeRadio(
+        file=File(source, hasard, Fenetre(largeur=1)),
+        source=source,
+        grille=Grille([], horloge),
+        jingles=Jingles(horloge),
+        horloge=horloge,
+        hasard=hasard,
+        dossier_jingles=tmp_path,
+        sur_nature=lambda _n, _p: None,
+        programmation=Programmation([PROG], horloge),
+        fenetre_programme=Fenetre(largeur=3),
+    )
+    for _ in range(8):
+        assert programme.suivante() in {"fake://p1", "fake://p2"}
+
+
+def test_la_fenetre_du_programme_est_distincte_de_celle_du_tirage_libre(
+    tmp_path: Path,
+) -> None:
+    """Partager la fenêtre ferait rétrécir l'une à cause de l'autre : une
+    liste de deux titres condamnerait la bibliothèque entière."""
+    horloge = HorlogeFigee(MIDI)
+    programme, _ = _avec_programme(
+        tmp_path, horloge=horloge, listes={"Chloé": LISTE}, programmes=[PROG]
+    )
+    for _ in range(4):
+        programme.suivante()
+    horloge.avancer(timedelta(hours=4))  # le programme se ferme
     assert programme.suivante() == "fake://1"

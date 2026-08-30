@@ -20,6 +20,8 @@ from webradio.core.file import File, FileVide
 from webradio.core.grille import Grille
 from webradio.core.jingles import Jingles
 from webradio.core.modeles import Piste
+from webradio.core.programmes import Programmation
+from webradio.core.repetition import Fenetre
 from webradio.core.rng import Hasard
 from webradio.core.sources import SourceIndisponible, SourceMusicale
 
@@ -45,6 +47,8 @@ class ProgrammeRadio:
         dossier_jingles: Path,
         *,
         sur_nature: Callable[[Nature, Piste | None], None],
+        programmation: Programmation | None = None,
+        fenetre_programme: Fenetre | None = None,
     ) -> None:
         self._file = file
         self._source = source
@@ -54,6 +58,11 @@ class ProgrammeRadio:
         self._hasard = hasard
         self._dossier = dossier_jingles
         self._sur_nature = sur_nature
+        self._programmation = programmation
+        # Un programme a sa propre fenêtre de non-répétition : la liste est
+        # courte, et partager celle du tirage libre ferait rétrécir l'une à
+        # cause de l'autre (SPECS.md §4.13).
+        self._fenetre_programme = fenetre_programme if fenetre_programme is not None else Fenetre()
         # `Jingles.dus()` s'épuise en le disant : il rend tout ce qui est dû et
         # l'oublie. Ne consommer que le premier perdrait les autres — ce qui
         # est exactement ce que SPECS.md §4.3 refuse quand un morceau long a
@@ -98,6 +107,19 @@ class ProgrammeRadio:
         return None
 
     def _prochaine_piste(self) -> str | None:
+        """La piste suivante, en respectant l'ordre de priorité.
+
+        **Une émission l'emporte sur un programme, un programme sur une plage
+        thématique.** L'émission remplace toute la programmation (SPECS.md
+        §4.11) ; le programme est plus précis qu'une plage puisqu'il nomme des
+        morceaux plutôt qu'un genre (SPECS.md §4.13).
+
+        La priorité programme/plage est **provisoire** : SPECS.md §7 n°19 n'est
+        pas tranchée, et la coexistence des deux mécanismes reste en question.
+        """
+        depuis_le_programme = self._piste_du_programme()
+        if depuis_le_programme is not None:
+            return depuis_le_programme
         try:
             choix = self._file.suivant(self._grille.genre_a_tirer(self._hasard))
         except SourceIndisponible as panne:
@@ -110,3 +132,34 @@ class ProgrammeRadio:
             logger.info("repli : %s", repli)
         self._sur_nature(Nature.MUSIQUE, choix.piste)
         return self._source.entree(choix.piste)
+
+    def _piste_du_programme(self) -> str | None:
+        """Un morceau tiré dans la liste du programme ouvert, s'il y en a un.
+
+        Rend `None` quand aucun programme n'est ouvert **et** quand la liste ne
+        donne rien : une liste introuvable, vidée ou renommée ne fait pas taire
+        la radio, elle se replie sur le tirage libre (SPECS.md §7 n°21). Le
+        repli est journalisé, parce qu'une liste qui ne répond plus est presque
+        toujours une faute de frappe qu'on veut voir.
+        """
+        if self._programmation is None:
+            return None
+        nom = self._programmation.playlist_a_tirer()
+        if nom is None:
+            return None
+        try:
+            pistes = self._source.pistes_de_la_liste_de_lecture(nom)
+        except SourceIndisponible as panne:
+            logger.warning("liste « %s » illisible, repli sur le tirage libre : %s", nom, panne)
+            return None
+        if not pistes:
+            logger.info("liste « %s » introuvable ou vide, repli sur le tirage libre", nom)
+            return None
+        autorisees = self._fenetre_programme.filtrer(pistes)
+        while not autorisees:
+            self._fenetre_programme.retrecir()
+            autorisees = self._fenetre_programme.filtrer(pistes)
+        piste = self._hasard.choisir(autorisees)
+        self._fenetre_programme.retenir(piste)
+        self._sur_nature(Nature.MUSIQUE, piste)
+        return self._source.entree(piste)

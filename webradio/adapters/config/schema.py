@@ -43,6 +43,8 @@ SECRETS_INTERDITS: Mapping[str, str] = {
 }
 
 JOURS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
+# SPECS.md §4.11 autorise `jours = "tous"` comme raccourci des sept jours.
+TOUS_LES_JOURS = "tous"
 
 # Défauts déclarés au même endroit que la clé qu'ils concernent, faute de quoi
 # ils seraient « en dur » quelque part dans le code (AGENTS.md §2).
@@ -166,6 +168,22 @@ class ConfigurationPodcast:
 
 
 @dataclass(frozen=True, slots=True)
+class ProgrammeDeclare:
+    """Une plage de temps où la musique vient d'une liste de lecture.
+
+    Elle porte des **jours** en plus des heures, et sa source est une liste
+    choisie plutôt qu'un genre — c'est ce qui la distingue d'une `Plage`
+    (SPECS.md §4.13).
+    """
+
+    nom: str
+    playlist: str
+    jours: tuple[str, ...]
+    debut: time
+    fin: time
+
+
+@dataclass(frozen=True, slots=True)
 class Emission:
     """Un podcast diffusé à jour et heure dits."""
 
@@ -199,6 +217,7 @@ class Configuration:
     plages: tuple[Plage, ...]
     etat: ConfigurationEtat
     emissions: tuple[Emission, ...]
+    programmes: tuple[ProgrammeDeclare, ...]
     navidrome: ConfigurationNavidrome
     web: ConfigurationWeb
     podcast: ConfigurationPodcast
@@ -446,23 +465,66 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Plage, ...]:
     return tuple(plages)
 
 
+def _jours(table: Mapping[str, Any], prefixe: str) -> tuple[str, ...]:
+    """Les jours d'une déclaration : une liste, ou le raccourci « tous ».
+
+    Le raccourci est dans SPECS.md §4.11 depuis l'origine, mais il n'était
+    accepté nulle part : `jours = "tous"` faisait échouer le démarrage avec
+    « une liste est attendue ». C'est la spécification qui avait raison.
+    """
+    chemin = _chemin(prefixe, "jours")
+    valeur = table.get("jours")
+    if isinstance(valeur, str):
+        if valeur.lower() != TOUS_LES_JOURS:
+            _refuser(
+                chemin,
+                f"« {valeur} » n'est pas reconnu ; attendu « {TOUS_LES_JOURS} » ou une liste",
+            )
+        return JOURS
+    jours = _liste_textes(table, "jours", prefixe)
+    for position, jour in enumerate(jours):
+        if jour.lower() not in JOURS:
+            _refuser(
+                f"{prefixe}.jours[{position}]",
+                f"« {jour} » n'est pas un jour ; attendu l'un de : {', '.join(JOURS)}",
+            )
+    return tuple(jour.lower() for jour in jours)
+
+
+def _programmes(brut: Mapping[str, Any]) -> tuple[ProgrammeDeclare, ...]:
+    """Les programmes déclarés. Le recouvrement n'est pas refusé.
+
+    Contrairement aux émissions, deux programmes qui se recouvrent ne font pas
+    échouer le démarrage : le premier déclaré l'emporte, comme pour les plages.
+    SPECS.md ne réserve le refus qu'aux émissions, et l'étendre ici serait
+    inventer une règle.
+    """
+    programmes: list[ProgrammeDeclare] = []
+    for rang, table in enumerate(_liste_tables(brut, "programmes")):
+        prefixe = f"programmes[{rang}]"
+        _verifier_cles(table, ("nom", "playlist", "jours", "debut", "fin"), prefixe)
+        programmes.append(
+            ProgrammeDeclare(
+                nom=_texte(table, "nom", prefixe),
+                playlist=_texte(table, "playlist", prefixe),
+                jours=_jours(table, prefixe),
+                debut=_heure(table, "debut", prefixe),
+                fin=_heure(table, "fin", prefixe),
+            )
+        )
+    return tuple(programmes)
+
+
 def _emissions(brut: Mapping[str, Any]) -> tuple[Emission, ...]:
     emissions: list[Emission] = []
     for rang, table in enumerate(_liste_tables(brut, "emissions")):
         prefixe = f"emissions[{rang}]"
         _verifier_cles(table, ("nom", "flux", "jours", "heure"), prefixe)
-        jours = _liste_textes(table, "jours", prefixe)
-        for position, jour in enumerate(jours):
-            if jour.lower() not in JOURS:
-                _refuser(
-                    f"{prefixe}.jours[{position}]",
-                    f"« {jour} » n'est pas un jour ; attendu l'un de : {', '.join(JOURS)}",
-                )
         emissions.append(
             Emission(
                 nom=_texte(table, "nom", prefixe),
                 flux=_texte(table, "flux", prefixe),
-                jours=tuple(jour.lower() for jour in jours),
+                jours=_jours(table, prefixe),
                 heure=_heure(table, "heure", prefixe),
             )
         )
@@ -528,6 +590,7 @@ def valider(brut: Mapping[str, Any]) -> Configuration:
             "navidrome",
             "web",
             "podcast",
+            "programmes",
         ),
         "",
     )
@@ -549,6 +612,7 @@ def valider(brut: Mapping[str, Any]) -> Configuration:
             delai_secondes=_reel(etat, "delai_secondes", "etat", defaut=DELAI_ETAT_DEFAUT),
         ),
         emissions=_emissions(brut),
+        programmes=_programmes(brut),
         navidrome=_navidrome(brut),
         web=ConfigurationWeb(
             adresse=_texte(web, "adresse", "web", defaut=ADRESSE_WEB_DEFAUT),

@@ -84,6 +84,19 @@ taille_echantillon = 500
 resultats_artiste  = 50
 delai_secondes     = 10.0
 
+# ── Les programmes ──────────────────────────────────────────────────────────
+# Des jours ET des heures, et la musique vient d'une liste de lecture que vous
+# avez faite dans Navidrome — pas d'un genre. Un programme l'emporte sur une
+# plage thématique qui le recouvre.
+# Une liste introuvable, vidée ou renommée ne fait pas taire la radio : elle se
+# replie sur le tirage libre et le journalise.
+[[programmes]]
+nom      = "Le vendredi de Chloé"
+playlist = "Chloé"
+jours    = ["vendredi"]
+debut    = "18:00"
+fin      = "20:00"
+
 # ── Les émissions ──────────────────────────────────────────────────────────
 # Autant qu'on veut, mais jamais deux à la même heure le même jour : la radio
 # refuserait de démarrer en les nommant.

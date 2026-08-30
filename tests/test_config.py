@@ -21,6 +21,7 @@ from webradio.adapters.config import (
 )
 from webradio.adapters.config.chargement import charger_toml
 from webradio.adapters.config.schema import (
+    JOURS,
     RESULTATS_ARTISTE_DEFAUT,
     TAILLE_ECHANTILLON_DEFAUT,
 )
@@ -398,3 +399,43 @@ def test_une_variable_du_processus_prime_sur_le_fichier_env(tmp_path: Path) -> N
     assert reglages.identifiants.utilisateur == "autre-auditeur"
     assert reglages.identifiants.mot_de_passe == "passe-fictif"
     assert reglages.configuration.flux.port == 8000
+
+
+def test_le_raccourci_tous_les_jours_est_accepte() -> None:
+    """SPECS.md §4.11 l'autorise depuis l'origine, mais rien ne l'acceptait :
+    `jours = "tous"` échouait avec « une liste est attendue »."""
+    brut = tomllib.loads(
+        TOML_MINIMAL + '\n[[emissions]]\nnom = "E"\nflux = "https://x.test/f.xml"\n'
+        'jours = "tous"\nheure = "20:00"\n'
+    )
+    config = valider(brut)
+    assert config.emissions[0].jours == JOURS
+
+
+def test_un_raccourci_inconnu_est_refuse() -> None:
+    brut = tomllib.loads(
+        TOML_MINIMAL + '\n[[emissions]]\nnom = "E"\nflux = "https://x.test/f.xml"\n'
+        'jours = "parfois"\nheure = "20:00"\n'
+    )
+    with pytest.raises(ErreurConfiguration, match="parfois"):
+        valider(brut)
+
+
+def test_un_programme_est_lu() -> None:
+    brut = tomllib.loads(
+        TOML_MINIMAL + '\n[[programmes]]\nnom = "Vendredi"\nplaylist = "Chloé"\n'
+        'jours = ["vendredi"]\ndebut = "18:00"\nfin = "20:00"\n'
+    )
+    config = valider(brut)
+    assert config.programmes[0].nom == "Vendredi"
+    assert config.programmes[0].playlist == "Chloé"
+    assert config.programmes[0].jours == ("vendredi",)
+
+
+def test_un_programme_a_clef_inconnue_est_refuse() -> None:
+    brut = tomllib.loads(
+        TOML_MINIMAL + '\n[[programmes]]\nnom = "V"\nplaylist = "C"\njours = ["lundi"]\n'
+        'debut = "18:00"\nfin = "20:00"\ngenre = "rock"\n'
+    )
+    with pytest.raises(ErreurConfiguration, match="genre"):
+        valider(brut)

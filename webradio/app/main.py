@@ -35,6 +35,7 @@ from webradio.core.file import File
 from webradio.core.grille import Grille, Plage
 from webradio.core.jingles import Jingles
 from webradio.core.ponderation import PENTE_PAR_VOTE
+from webradio.core.programmes import Programmation, Programme
 from webradio.core.repetition import Fenetre
 from webradio.core.rng import HasardReel
 
@@ -116,6 +117,20 @@ def construire(reglages: Reglages) -> tuple[ServeurFlux, RadioEnDirect, Station]
         hasard=hasard,
         dossier_jingles=Path(config.jingles.dossier),
         sur_nature=radio.declarer,
+        programmation=Programmation(
+            [
+                Programme(
+                    nom=p.nom,
+                    playlist=p.playlist,
+                    jours=p.jours,
+                    debut=p.debut,
+                    fin=p.fin,
+                )
+                for p in config.programmes
+            ],
+            horloge,
+        ),
+        fenetre_programme=Fenetre(config.tirage.non_repetition_artistes),
     )
 
     format_flux = FormatFlux(

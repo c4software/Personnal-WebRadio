@@ -18,7 +18,13 @@ from pathlib import Path
 import pytest
 
 from webradio.adapters.ffmpeg.decodeur import DecodageImpossible, Decodeur, FormatPcm
-from webradio.adapters.ffmpeg.encodeur import Chaine, ChaineIndisponible, Encodeur, FormatFlux
+from webradio.adapters.ffmpeg.encodeur import (
+    Chaine,
+    ChaineIndisponible,
+    Encodeur,
+    FormatFlux,
+    _sans_secret,
+)
 
 FORMAT = FormatFlux(conteneur="mp3", debit_kbps=128, frequence_hz=44100, canaux=2)
 INTROUVABLE = "ffmpeg-qui-n-existe-pas"
@@ -352,3 +358,43 @@ def test_la_chaine_se_releve_une_fois_puis_coupe_en_le_disant(musique: str) -> N
         chaine.arreter()
 
     assert processus_du_groupe(groupe_initial) == []
+
+
+def test_une_url_journalisee_perd_son_jeton() -> None:
+    """Défaut trouvé en exécutant la radio, jamais par un test.
+
+    Le journal portait `…stream.view?u=<utilisateur>&t=<jeton>&s=<sel>…` — soit
+    les identifiants Navidrome répandus dans tous les fichiers de journal de la
+    machine, ce qu'AGENTS.md §2 interdit. Une URL ne ressemble pas à un secret,
+    et rien ne signalait qu'elle en portait un.
+    """
+    url = (
+        "http://music/rest/stream.view"
+        "?u=auditeur&t=7b53b54309774c29f2c1874cf74bd53c&s=95fdc898&id=AWFr5"
+    )
+    reduite = _sans_secret(url)
+    assert "auditeur" not in reduite
+    assert "7b53b54309774c29f2c1874cf74bd53c" not in reduite
+    assert "95fdc898" not in reduite
+    assert reduite == "http://music/rest/stream.view"
+
+
+def test_un_chemin_de_fichier_est_journalise_tel_quel() -> None:
+    """Un jingle local n'a rien à cacher, et le masquer rendrait le journal
+    inutile pour diagnostiquer un fichier manquant."""
+    assert _sans_secret("/var/lib/jingles/14h.mp3") == "/var/lib/jingles/14h.mp3"
+
+
+def test_le_journal_de_la_chaine_ne_porte_aucun_jeton(caplog: pytest.LogCaptureFixture) -> None:
+    """Le contrôle au bon endroit : ce qui sort réellement du logger."""
+    import logging
+
+    from webradio.adapters.ffmpeg import encodeur
+
+    with caplog.at_level(logging.INFO, logger=encodeur.__name__):
+        encodeur.logger.info(
+            "à l'antenne : %s",
+            encodeur._sans_secret("http://music/rest/stream.view?u=moi&t=secret123&s=sel"),
+        )
+    assert "secret123" not in caplog.text
+    assert "u=moi" not in caplog.text

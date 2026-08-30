@@ -18,6 +18,7 @@ import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import IO, Protocol
+from urllib.parse import urlsplit, urlunsplit
 
 from webradio.adapters.ffmpeg.decodeur import (
     DecodageImpossible,
@@ -42,6 +43,23 @@ class ChaineIndisponible(Exception):
     et remonte jusqu'à l'auditeur sous forme de réponse HTTP explicite, jamais
     sous forme de flux vide (SPECS.md §4.1).
     """
+
+
+def _sans_secret(entree: str) -> str:
+    """Une entrée réduite à ce qui se journalise sans danger.
+
+    Une entrée est un chemin **ou une URL**, et l'URL d'une source porte des
+    identifiants — jeton dérivé, nom d'utilisateur (`adapters/sources/`). Les
+    journaliser telle quelle les répandrait dans tous les fichiers de journal de
+    la machine, ce qu'AGENTS.md §2 interdit.
+
+    Le défaut a été trouvé en exécutant la radio, jamais par un test : une URL
+    ne ressemble pas à un secret, et rien ne signalait qu'elle en portait un.
+    """
+    if "://" not in entree:
+        return entree
+    decoupee = urlsplit(entree)
+    return urlunsplit((decoupee.scheme, decoupee.hostname or "", decoupee.path, "", ""))
 
 
 @dataclass(frozen=True, slots=True)
@@ -294,7 +312,7 @@ class Chaine:
         decodeur = self._decodeur.ouvrir(entree, self._groupe)
         self._decodeur_actif = decodeur
         self._processus.append(decodeur)
-        logger.info("à l'antenne : %s", entree)
+        logger.info("à l'antenne : %s", _sans_secret(entree))
 
     def _demonter(self) -> None:
         """Tue le groupe courant et récolte les processus. Appelée sous `_etat`."""
