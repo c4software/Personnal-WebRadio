@@ -27,22 +27,22 @@ from webradio.adapters.config.schema import (
 )
 
 TOML_MINIMAL = """
-[flux]
-adresse = "0.0.0.0"
+[stream]
+address = "0.0.0.0"
 port = 8000
 format = "mp3"
-debit_kbps = 128
-frequence_hz = 44100
-canaux = 2
+bitrate_kbps = 128
+sample_rate_hz = 44100
+channels = 2
 
-[tirage]
-non_repetition_artistes = 5
+[draw]
+artist_gap = 5
 
 [jingles]
-dossier = "/chemin/vers/jingles"
+folder = "/chemin/vers/jingles"
 
-[etat]
-base = "/var/lib/local-webradio/etat.sqlite3"
+[state]
+database = "/var/lib/local-webradio/etat.sqlite3"
 """
 
 ENV_FICTIF = """
@@ -66,22 +66,22 @@ def test_une_configuration_complete_est_lue(tmp_path: Path) -> None:
     content = (
         TOML_MINIMAL
         + """
-[tirage.votes]
-plancher = 0.5
-plafond = 3.0
-demi_vie_jours = 30
-poids_croise = 0.1
+[draw.votes]
+floor = 0.5
+ceiling = 3.0
+half_life_days = 30
+cross_weight = 0.1
 
-[[plages]]
-debut = "08:00"
-fin = "10:00"
+[[bands]]
+start = "08:00"
+end = "10:00"
 genres = ["Chanson française"]
 
-[[emissions]]
-nom = "Une émission"
-flux = "https://exemple.local/flux.xml"
-jours = ["Vendredi"]
-heure = "20:00"
+[[shows]]
+name = "Une émission"
+feed = "https://exemple.local/flux.xml"
+days = ["Vendredi"]
+time = "20:00"
 """
     )
     config = load_toml(_ecrire(tmp_path / "webradio.toml", content))
@@ -127,11 +127,11 @@ def test_un_secret_cache_dans_une_liste_de_sections_est_refuse() -> None:
     content = (
         TOML_MINIMAL
         + """
-[[emissions]]
-nom = "Une émission"
-flux = "https://exemple.local/flux.xml"
-jours = ["mardi"]
-heure = "20:00"
+[[shows]]
+name = "Une émission"
+feed = "https://exemple.local/flux.xml"
+days = ["mardi"]
+time = "20:00"
 token = "peu importe"
 """
     )
@@ -139,14 +139,14 @@ token = "peu importe"
     with pytest.raises(SettingsError) as refus:
         _valider(content)
 
-    assert "emissions[0].token" in str(refus.value)
+    assert "shows[0].token" in str(refus.value)
 
 
 def test_une_cle_inconnue_est_nommee() -> None:
     with pytest.raises(SettingsError) as refus:
         _valider(TOML_MINIMAL.replace("port = 8000", "port = 8000\nprot = 8001"))
 
-    assert "flux.prot" in str(refus.value)
+    assert "stream.prot" in str(refus.value)
 
 
 def test_une_section_obligatoire_absente_est_nommee() -> None:
@@ -158,16 +158,16 @@ def test_une_section_obligatoire_absente_est_nommee() -> None:
 
 def test_une_cle_obligatoire_absente_est_nommee() -> None:
     with pytest.raises(SettingsError) as refus:
-        _valider(TOML_MINIMAL.replace('adresse = "0.0.0.0"\n', ""))
+        _valider(TOML_MINIMAL.replace('address = "0.0.0.0"\n', ""))
 
-    assert "flux.adresse" in str(refus.value)
+    assert "stream.address" in str(refus.value)
 
 
 def test_un_type_incorrect_est_nomme() -> None:
     with pytest.raises(SettingsError) as refus:
         _valider(TOML_MINIMAL.replace("port = 8000", 'port = "huit-mille"'))
 
-    assert "flux.port" in str(refus.value)
+    assert "stream.port" in str(refus.value)
     assert "entier" in str(refus.value)
 
 
@@ -175,23 +175,23 @@ def test_un_booleen_ne_passe_pas_pour_un_entier() -> None:
     with pytest.raises(SettingsError) as refus:
         _valider(TOML_MINIMAL.replace("port = 8000", "port = true"))
 
-    assert "flux.port" in str(refus.value)
+    assert "stream.port" in str(refus.value)
 
 
 def test_un_port_hors_borne_est_refuse() -> None:
     with pytest.raises(SettingsError) as refus:
         _valider(TOML_MINIMAL.replace("port = 8000", "port = 70000"))
 
-    assert "flux.port" in str(refus.value)
+    assert "stream.port" in str(refus.value)
 
 
 def test_une_heure_mal_formee_est_nommee() -> None:
     content = (
         TOML_MINIMAL
         + """
-[[plages]]
-debut = "8h"
-fin = "10:00"
+[[bands]]
+start = "8h"
+end = "10:00"
 genres = ["Rock"]
 """
     )
@@ -199,16 +199,16 @@ genres = ["Rock"]
     with pytest.raises(SettingsError) as refus:
         _valider(content)
 
-    assert "plages[0].debut" in str(refus.value)
+    assert "bands[0].start" in str(refus.value)
 
 
 def test_une_liste_de_genres_vide_est_refusee() -> None:
     content = (
         TOML_MINIMAL
         + """
-[[plages]]
-debut = "08:00"
-fin = "10:00"
+[[bands]]
+start = "08:00"
+end = "10:00"
 genres = []
 """
     )
@@ -216,25 +216,25 @@ genres = []
     with pytest.raises(SettingsError) as refus:
         _valider(content)
 
-    assert "plages[0].genres" in str(refus.value)
+    assert "bands[0].genres" in str(refus.value)
 
 
 def test_un_jour_inconnu_est_nomme() -> None:
     content = (
         TOML_MINIMAL
         + """
-[[emissions]]
-nom = "Une émission"
-flux = "https://exemple.local/flux.xml"
-jours = ["lundredi"]
-heure = "20:00"
+[[shows]]
+name = "Une émission"
+feed = "https://exemple.local/flux.xml"
+days = ["lundredi"]
+time = "20:00"
 """
     )
 
     with pytest.raises(SettingsError) as refus:
         _valider(content)
 
-    assert "emissions[0].jours[0]" in str(refus.value)
+    assert "shows[0].days[0]" in str(refus.value)
     assert "lundredi" in str(refus.value)
 
 
@@ -242,17 +242,17 @@ def test_deux_emissions_au_meme_creneau_font_echouer_le_demarrage_en_les_nommant
     content = (
         TOML_MINIMAL
         + """
-[[emissions]]
-nom = "Première"
-flux = "https://exemple.local/un.xml"
-jours = ["mardi", "vendredi"]
-heure = "20:00"
+[[shows]]
+name = "Première"
+feed = "https://exemple.local/un.xml"
+days = ["mardi", "vendredi"]
+time = "20:00"
 
-[[emissions]]
-nom = "Seconde"
-flux = "https://exemple.local/deux.xml"
-jours = ["vendredi"]
-heure = "20:00"
+[[shows]]
+name = "Seconde"
+feed = "https://exemple.local/deux.xml"
+days = ["vendredi"]
+time = "20:00"
 """
     )
 
@@ -268,17 +268,17 @@ def test_deux_emissions_a_la_meme_heure_des_jours_differents_sont_acceptees() ->
     content = (
         TOML_MINIMAL
         + """
-[[emissions]]
-nom = "Première"
-flux = "https://exemple.local/un.xml"
-jours = ["mardi"]
-heure = "20:00"
+[[shows]]
+name = "Première"
+feed = "https://exemple.local/un.xml"
+days = ["mardi"]
+time = "20:00"
 
-[[emissions]]
-nom = "Seconde"
-flux = "https://exemple.local/deux.xml"
-jours = ["vendredi"]
-heure = "20:00"
+[[shows]]
+name = "Seconde"
+feed = "https://exemple.local/deux.xml"
+days = ["vendredi"]
+time = "20:00"
 """
     )
 
@@ -288,34 +288,34 @@ heure = "20:00"
 
 
 def test_un_plancher_au_dessus_du_plafond_est_refuse() -> None:
-    content = TOML_MINIMAL + "\n[tirage.votes]\nplancher = 5.0\nplafond = 2.0\n"
+    content = TOML_MINIMAL + "\n[draw.votes]\nfloor = 5.0\nceiling = 2.0\n"
 
     with pytest.raises(SettingsError) as refus:
         _valider(content)
 
-    assert "tirage.votes.plancher" in str(refus.value)
+    assert "draw.votes.floor" in str(refus.value)
 
 
 def test_une_section_qui_n_en_est_pas_une_est_refusee() -> None:
     with pytest.raises(SettingsError) as refus:
-        _valider(TOML_MINIMAL.replace("[jingles]\ndossier", "jingles = 3\n[jinglez]\ndossier"))
+        _valider(TOML_MINIMAL.replace("[jingles]\nfolder", "jingles = 3\n[jinglez]\nfolder"))
 
     assert "jingles" in str(refus.value)
 
 
 def test_une_suite_de_sections_attendue_ailleurs_est_refusee() -> None:
     with pytest.raises(SettingsError) as refus:
-        _valider('plages = "aucune"\n' + TOML_MINIMAL)
+        _valider('bands = "aucune"\n' + TOML_MINIMAL)
 
-    assert "plages" in str(refus.value)
+    assert "bands" in str(refus.value)
     assert "sections" in str(refus.value)
 
 
 def test_une_section_de_plage_qui_n_en_est_pas_une_est_refusee() -> None:
     with pytest.raises(SettingsError) as refus:
-        _valider("plages = [1]\n" + TOML_MINIMAL)
+        _valider("bands = [1]\n" + TOML_MINIMAL)
 
-    assert "plages[0]" in str(refus.value)
+    assert "bands[0]" in str(refus.value)
 
 
 def test_un_toml_mal_forme_est_signale(tmp_path: Path) -> None:
@@ -403,10 +403,10 @@ def test_une_variable_du_processus_prime_sur_le_fichier_env(tmp_path: Path) -> N
 
 def test_le_raccourci_tous_les_jours_est_accepte() -> None:
     """SPECS.md §4.11 l'autorise depuis l'origine, mais rien ne l'acceptait :
-    `jours = "tous"` échouait avec « une liste est attendue »."""
+    `jours = "all"` échouait avec « une liste est attendue »."""
     brut = tomllib.loads(
-        TOML_MINIMAL + '\n[[emissions]]\nnom = "E"\nflux = "https://x.test/f.xml"\n'
-        'jours = "tous"\nheure = "20:00"\n'
+        TOML_MINIMAL + '\n[[shows]]\nname = "E"\nfeed = "https://x.test/f.xml"\n'
+        'days = "all"\ntime = "20:00"\n'
     )
     config = validate(brut)
     assert config.shows[0].days == DAYS
@@ -414,8 +414,8 @@ def test_le_raccourci_tous_les_jours_est_accepte() -> None:
 
 def test_un_raccourci_inconnu_est_refuse() -> None:
     brut = tomllib.loads(
-        TOML_MINIMAL + '\n[[emissions]]\nnom = "E"\nflux = "https://x.test/f.xml"\n'
-        'jours = "parfois"\nheure = "20:00"\n'
+        TOML_MINIMAL + '\n[[shows]]\nname = "E"\nfeed = "https://x.test/f.xml"\n'
+        'days = "parfois"\ntime = "20:00"\n'
     )
     with pytest.raises(SettingsError, match="parfois"):
         validate(brut)
@@ -423,8 +423,8 @@ def test_un_raccourci_inconnu_est_refuse() -> None:
 
 def test_un_programme_est_lu() -> None:
     brut = tomllib.loads(
-        TOML_MINIMAL + '\n[[programmes]]\nnom = "Vendredi"\nplaylist = "Chloé"\n'
-        'jours = ["vendredi"]\ndebut = "18:00"\nfin = "20:00"\n'
+        TOML_MINIMAL + '\n[[programmes]]\nname = "Vendredi"\nplaylist = "Chloé"\n'
+        'days = ["vendredi"]\nstart = "18:00"\nend = "20:00"\n'
     )
     config = validate(brut)
     assert config.programmes[0].name == "Vendredi"
@@ -434,8 +434,8 @@ def test_un_programme_est_lu() -> None:
 
 def test_un_programme_a_clef_inconnue_est_refuse() -> None:
     brut = tomllib.loads(
-        TOML_MINIMAL + '\n[[programmes]]\nnom = "V"\nplaylist = "C"\njours = ["lundi"]\n'
-        'debut = "18:00"\nfin = "20:00"\ngenre = "rock"\n'
+        TOML_MINIMAL + '\n[[programmes]]\nname = "V"\nplaylist = "C"\ndays = ["lundi"]\n'
+        'start = "18:00"\nend = "20:00"\ngenre = "rock"\n'
     )
     with pytest.raises(SettingsError, match="genre"):
         validate(brut)

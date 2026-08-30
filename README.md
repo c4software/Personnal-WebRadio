@@ -137,17 +137,17 @@ Une émission est un épisode de podcast diffusé à heure dite. Elle **remplace
 programmation pendant sa durée : ni grille, ni tirage, ni jingles.
 
 ```toml
-[[emissions]]
-nom   = "A la French"
-flux  = "https://feeds.acast.com/public/shows/a-la-french"
-jours = ["vendredi"]
-heure = "20:00"
+[[shows]]
+name   = "A la French"
+feed  = "https://feeds.acast.com/public/shows/a-la-french"
+days = ["vendredi"]
+time = "20:00"
 
-[[emissions]]
-nom   = "LEGEND"
-flux  = "https://feeds.acast.com/public/shows/legend-1"
-jours = ["mardi"]
-heure = "20:00"
+[[shows]]
+name   = "LEGEND"
+feed  = "https://feeds.acast.com/public/shows/legend-1"
+days = ["mardi"]
+time = "20:00"
 ```
 
 Autant d'émissions que voulu, **mais jamais deux à la même heure le même jour** :

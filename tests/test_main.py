@@ -14,28 +14,28 @@ from webradio.app import main as module_main
 from webradio.app.main import _arguments, build, version
 
 TOML_MINIMAL = """
-[flux]
-adresse = "127.0.0.1"
+[stream]
+address = "127.0.0.1"
 port = 8123
 format = "mp3"
-debit_kbps = 128
-frequence_hz = 44100
-canaux = 2
+bitrate_kbps = 128
+sample_rate_hz = 44100
+channels = 2
 
-[tirage]
-non_repetition_artistes = 5
+[draw]
+artist_gap = 5
 
 [jingles]
-dossier = "{folder}"
+folder = "{folder}"
 
-[etat]
-base = "{database}"
+[state]
+database = "{database}"
 
-[[emissions]]
-nom = "Une émission"
-flux = "https://exemple.test/flux.xml"
-jours = ["vendredi"]
-heure = "20:00"
+[[shows]]
+name = "Une émission"
+feed = "https://exemple.test/flux.xml"
+days = ["vendredi"]
+time = "20:00"
 """
 
 ENV_MINIMAL = """
@@ -50,7 +50,7 @@ def reglages_dessai(tmp_path: Path) -> object:
     folder = tmp_path / "jingles"
     folder.mkdir()
     toml = tmp_path / "webradio.toml"
-    toml.write_text(TOML_MINIMAL.format(folder=folder, database=tmp_path / "etat.sqlite3"))
+    toml.write_text(TOML_MINIMAL.format(folder=folder, database=tmp_path / "state.sqlite3"))
     env = tmp_path / ".env"
     env.write_text(ENV_MINIMAL)
     return load(toml, env, environment={})
@@ -105,7 +105,7 @@ def test_une_configuration_invalide_empeche_le_demarrage(tmp_path: Path) -> None
     """Une radio qui démarre en ignorant la moitié de sa configuration est pire
     qu'une radio qui refuse de démarrer (SPECS.md §6)."""
     toml = tmp_path / "webradio.toml"
-    toml.write_text("[flux]\nadresse = 'x'\n")
+    toml.write_text("[flux]\naddress = 'x'\n")
     env = tmp_path / ".env"
     env.write_text(ENV_MINIMAL)
     with pytest.raises(SettingsError):

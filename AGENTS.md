@@ -462,10 +462,11 @@ l'outillage lit et ce qu'un humain lit :
 |---|---|
 | Classes, fonctions, variables, paramètres, membres d'énumération | **anglais** |
 | Noms de modules et de fichiers de code | **anglais** |
+| **Clés et sections du TOML** | **anglais** *(révisé le 2026-08-30)* |
 | Docstrings, commentaires | **français** |
 | SPECS, ARCHITECTURE, TASKS, AGENTS, README, relevés `docs/` | **français** |
 | Messages de commit | **français** |
-| Clés du TOML, chaînes affichées à l'auditeur, messages de journal | **français** |
+| Chaînes affichées à l'auditeur, messages de journal | **français** |
 
 > **Pourquoi cette frontière et pas une autre.** Un identifiant est lu par
 > l'outillage autant que par un humain : `mypy`, `ruff`, les traces d'erreur,

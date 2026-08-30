@@ -43,8 +43,8 @@ FORBIDDEN_SECRET_KEYS: Mapping[str, str] = {
 }
 
 DAYS = ("lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche")
-# SPECS.md §4.11 autorise `jours = "tous"` comme raccourci des sept jours.
-EVERY_DAY = "tous"
+# SPECS.md §4.11 autorise `jours = "all"` comme raccourci des sept jours.
+EVERY_DAY = "all"
 
 # Défauts déclarés au même endroit que la clé qu'ils concernent, faute de quoi
 # ils seraient « en dur » quelque part dans le code (AGENTS.md §2).
@@ -401,40 +401,40 @@ def _liste_tables(parent: Mapping[str, Any], key: str) -> list[Mapping[str, Any]
 
 
 def _flux(brut: Mapping[str, Any]) -> StreamSettings:
-    table = _table(brut, "flux", "")
+    table = _table(brut, "stream", "")
     _verifier_cles(
         table,
-        ("adresse", "port", "format", "debit_kbps", "frequence_hz", "canaux"),
-        "flux",
+        ("address", "port", "format", "bitrate_kbps", "sample_rate_hz", "channels"),
+        "stream",
     )
     return StreamSettings(
-        address=_texte(table, "adresse", "flux"),
-        port=_entier(table, "port", "flux", maximum=MAX_PORT),
-        format=_texte(table, "format", "flux"),
-        bitrate_kbps=_entier(table, "debit_kbps", "flux"),
-        sample_rate_hz=_entier(table, "frequence_hz", "flux"),
-        channels=_entier(table, "canaux", "flux", maximum=2),
+        address=_texte(table, "address", "stream"),
+        port=_entier(table, "port", "stream", maximum=MAX_PORT),
+        format=_texte(table, "format", "stream"),
+        bitrate_kbps=_entier(table, "bitrate_kbps", "stream"),
+        sample_rate_hz=_entier(table, "sample_rate_hz", "stream"),
+        channels=_entier(table, "channels", "stream", maximum=2),
     )
 
 
 def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
-    table = _table(brut, "tirage", "")
-    _verifier_cles(table, ("non_repetition_artistes", "votes"), "tirage")
-    votes = _table_optionnelle(table, "votes", "tirage")
+    table = _table(brut, "draw", "")
+    _verifier_cles(table, ("artist_gap", "votes"), "draw")
+    votes = _table_optionnelle(table, "votes", "draw")
     _verifier_cles(
         votes,
-        ("plancher", "plafond", "demi_vie_jours", "poids_croise"),
-        "tirage.votes",
+        ("floor", "ceiling", "half_life_days", "cross_weight"),
+        "draw.votes",
     )
-    floor = _reel(votes, "plancher", "tirage.votes", default=DEFAULT_VOTE_FLOOR)
-    ceiling = _reel(votes, "plafond", "tirage.votes", default=DEFAULT_VOTE_CEILING)
+    floor = _reel(votes, "floor", "draw.votes", default=DEFAULT_VOTE_FLOOR)
+    ceiling = _reel(votes, "ceiling", "draw.votes", default=DEFAULT_VOTE_CEILING)
     if floor > ceiling:
-        _refuser("tirage.votes.plancher", f"{floor} dépasse le plafond {ceiling}")
+        _refuser("draw.votes.floor", f"{floor} dépasse le plafond {ceiling}")
     return DrawSettings(
         artist_gap=_entier(
             table,
-            "non_repetition_artistes",
-            "tirage",
+            "artist_gap",
+            "draw",
             default=DEFAULT_ARTIST_GAP_KEY,
             minimum=0,
         ),
@@ -442,22 +442,22 @@ def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
             floor=floor,
             ceiling=ceiling,
             half_life_days=_entier(
-                votes, "demi_vie_jours", "tirage.votes", default=DEFAULT_VOTE_HALF_LIFE
+                votes, "half_life_days", "draw.votes", default=DEFAULT_VOTE_HALF_LIFE
             ),
-            cross_weight=_reel(votes, "poids_croise", "tirage.votes", default=DEFAULT_CROSS_WEIGHT),
+            cross_weight=_reel(votes, "cross_weight", "draw.votes", default=DEFAULT_CROSS_WEIGHT),
         ),
     )
 
 
 def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
     bands: list[Band] = []
-    for index, table in enumerate(_liste_tables(brut, "plages")):
-        prefix = f"plages[{index}]"
-        _verifier_cles(table, ("debut", "fin", "genres"), prefix)
+    for index, table in enumerate(_liste_tables(brut, "bands")):
+        prefix = f"bands[{index}]"
+        _verifier_cles(table, ("start", "end", "genres"), prefix)
         bands.append(
             Band(
-                start=_heure(table, "debut", prefix),
-                end=_heure(table, "fin", prefix),
+                start=_heure(table, "start", prefix),
+                end=_heure(table, "end", prefix),
                 genres=_liste_textes(table, "genres", prefix),
             )
         )
@@ -468,11 +468,11 @@ def _jours(table: Mapping[str, Any], prefix: str) -> tuple[str, ...]:
     """Les jours d'une déclaration : une liste, ou le raccourci « tous ».
 
     Le raccourci est dans SPECS.md §4.11 depuis l'origine, mais il n'était
-    accepté nulle part : `jours = "tous"` faisait échouer le démarrage avec
+    accepté nulle part : `jours = "all"` faisait échouer le démarrage avec
     « une liste est attendue ». C'est la spécification qui avait raison.
     """
-    path = _chemin(prefix, "jours")
-    value = table.get("jours")
+    path = _chemin(prefix, "days")
+    value = table.get("days")
     if isinstance(value, str):
         if value.lower() != EVERY_DAY:
             _refuser(
@@ -480,11 +480,11 @@ def _jours(table: Mapping[str, Any], prefix: str) -> tuple[str, ...]:
                 f"« {value} » n'est pas reconnu ; attendu « {EVERY_DAY} » ou une liste",
             )
         return DAYS
-    days = _liste_textes(table, "jours", prefix)
+    days = _liste_textes(table, "days", prefix)
     for position, jour in enumerate(days):
         if jour.lower() not in DAYS:
             _refuser(
-                f"{prefix}.jours[{position}]",
+                f"{prefix}.days[{position}]",
                 f"« {jour} » n'est pas un jour ; attendu l'un de : {', '.join(DAYS)}",
             )
     return tuple(jour.lower() for jour in days)
@@ -501,14 +501,14 @@ def _programmes(brut: Mapping[str, Any]) -> tuple[DeclaredProgramme, ...]:
     programmes: list[DeclaredProgramme] = []
     for index, table in enumerate(_liste_tables(brut, "programmes")):
         prefix = f"programmes[{index}]"
-        _verifier_cles(table, ("nom", "playlist", "jours", "debut", "fin"), prefix)
+        _verifier_cles(table, ("name", "playlist", "days", "start", "end"), prefix)
         programmes.append(
             DeclaredProgramme(
-                name=_texte(table, "nom", prefix),
+                name=_texte(table, "name", prefix),
                 playlist=_texte(table, "playlist", prefix),
                 days=_jours(table, prefix),
-                start=_heure(table, "debut", prefix),
-                end=_heure(table, "fin", prefix),
+                start=_heure(table, "start", prefix),
+                end=_heure(table, "end", prefix),
             )
         )
     return tuple(programmes)
@@ -516,15 +516,15 @@ def _programmes(brut: Mapping[str, Any]) -> tuple[DeclaredProgramme, ...]:
 
 def _emissions(brut: Mapping[str, Any]) -> tuple[Show, ...]:
     shows: list[Show] = []
-    for index, table in enumerate(_liste_tables(brut, "emissions")):
-        prefix = f"emissions[{index}]"
-        _verifier_cles(table, ("nom", "flux", "jours", "heure"), prefix)
+    for index, table in enumerate(_liste_tables(brut, "shows")):
+        prefix = f"shows[{index}]"
+        _verifier_cles(table, ("name", "feed", "days", "time"), prefix)
         shows.append(
             Show(
-                name=_texte(table, "nom", prefix),
-                feed=_texte(table, "flux", prefix),
+                name=_texte(table, "name", prefix),
+                feed=_texte(table, "feed", prefix),
                 days=_jours(table, prefix),
-                hour=_heure(table, "heure", prefix),
+                hour=_heure(table, "time", prefix),
             )
         )
     _refuser_les_collisions(shows)
@@ -545,7 +545,7 @@ def _refuser_les_collisions(shows: Sequence[Show]) -> None:
             precedente = occupes.get(creneau)
             if precedente is not None:
                 _refuser(
-                    "emissions",
+                    "shows",
                     f"« {precedente} » et « {show.name} » tombent toutes deux "
                     f"le {jour} à {show.hour.isoformat('minutes')}",
                 )
@@ -554,16 +554,14 @@ def _refuser_les_collisions(shows: Sequence[Show]) -> None:
 
 def _navidrome(brut: Mapping[str, Any]) -> NavidromeSettings:
     table = _table_optionnelle(brut, "navidrome", "")
-    _verifier_cles(
-        table, ("taille_echantillon", "resultats_artiste", "delai_secondes"), "navidrome"
-    )
+    _verifier_cles(table, ("sample_size", "artist_results", "timeout_seconds"), "navidrome")
     return NavidromeSettings(
-        sample_size=_entier(table, "taille_echantillon", "navidrome", default=DEFAULT_SAMPLE_SIZE),
+        sample_size=_entier(table, "sample_size", "navidrome", default=DEFAULT_SAMPLE_SIZE),
         artist_results=_entier(
-            table, "resultats_artiste", "navidrome", default=DEFAULT_ARTIST_RESULTS
+            table, "artist_results", "navidrome", default=DEFAULT_ARTIST_RESULTS
         ),
         timeout_seconds=_reel(
-            table, "delai_secondes", "navidrome", default=DEFAULT_TIMEOUT_SECONDS, minimum=0.1
+            table, "timeout_seconds", "navidrome", default=DEFAULT_TIMEOUT_SECONDS, minimum=0.1
         ),
     )
 
@@ -578,12 +576,12 @@ def validate(brut: Mapping[str, Any]) -> Settings:
     _verifier_cles(
         brut,
         (
-            "flux",
-            "tirage",
+            "stream",
+            "draw",
             "jingles",
-            "plages",
-            "etat",
-            "emissions",
+            "bands",
+            "state",
+            "shows",
             "navidrome",
             "web",
             "podcast",
@@ -592,31 +590,31 @@ def validate(brut: Mapping[str, Any]) -> Settings:
         "",
     )
     jingles = _table(brut, "jingles", "")
-    _verifier_cles(jingles, ("dossier",), "jingles")
-    state = _table(brut, "etat", "")
-    _verifier_cles(state, ("base", "delai_secondes"), "etat")
+    _verifier_cles(jingles, ("folder",), "jingles")
+    state = _table(brut, "state", "")
+    _verifier_cles(state, ("database", "timeout_seconds"), "state")
     web = _table_optionnelle(brut, "web", "")
-    _verifier_cles(web, ("adresse", "port", "rafraichissement_secondes"), "web")
+    _verifier_cles(web, ("address", "port", "refresh_seconds"), "web")
     podcast = _table_optionnelle(brut, "podcast", "")
-    _verifier_cles(podcast, ("delai_secondes",), "podcast")
+    _verifier_cles(podcast, ("timeout_seconds",), "podcast")
     return Settings(
         feed=_flux(brut),
         draw=_tirage(brut),
-        jingles=JingleSettings(folder=_texte(jingles, "dossier", "jingles")),
+        jingles=JingleSettings(folder=_texte(jingles, "folder", "jingles")),
         bands=_plages(brut),
         state=StateSettings(
-            database=_texte(state, "base", "etat"),
-            timeout_seconds=_reel(state, "delai_secondes", "etat", default=DEFAULT_STATE_TIMEOUT),
+            database=_texte(state, "database", "state"),
+            timeout_seconds=_reel(state, "timeout_seconds", "state", default=DEFAULT_STATE_TIMEOUT),
         ),
         shows=_emissions(brut),
         programmes=_programmes(brut),
         navidrome=_navidrome(brut),
         web=WebSettings(
-            address=_texte(web, "adresse", "web", default=DEFAULT_WEB_ADDRESS),
+            address=_texte(web, "address", "web", default=DEFAULT_WEB_ADDRESS),
             port=_entier(web, "port", "web", default=DEFAULT_WEB_PORT, maximum=MAX_PORT),
             refresh_seconds=_reel(
                 web,
-                "rafraichissement_secondes",
+                "refresh_seconds",
                 "web",
                 default=DEFAULT_REFRESH,
                 minimum=0.5,
@@ -624,7 +622,7 @@ def validate(brut: Mapping[str, Any]) -> Settings:
         ),
         podcast=PodcastSettings(
             timeout_seconds=_reel(
-                podcast, "delai_secondes", "podcast", default=DEFAULT_PODCAST_TIMEOUT
+                podcast, "timeout_seconds", "podcast", default=DEFAULT_PODCAST_TIMEOUT
             ),
         ),
     )

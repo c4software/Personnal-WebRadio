@@ -294,11 +294,11 @@ l'auteur a constituée dans Navidrome.
 
 ```toml
 [[programmes]]
-nom      = "Le vendredi de Chloé"
+name      = "Le vendredi de Chloé"
 playlist = "Chloé"
-jours    = ["vendredi"]
-debut    = "18:00"
-fin      = "20:00"
+days    = ["vendredi"]
+start    = "18:00"
+end      = "20:00"
 ```
 
 C'est la différence avec une plage thématique (§4.4) : une plage contraint le
@@ -510,17 +510,17 @@ panne.
 Déclarée au TOML, une entrée par émission :
 
 ```toml
-[[emissions]]
-nom   = "A la French"
-flux  = "https://feeds.acast.com/public/shows/a-la-french"
-jours = ["vendredi"]
-heure = "20:00"
+[[shows]]
+name   = "A la French"
+feed  = "https://feeds.acast.com/public/shows/a-la-french"
+days = ["vendredi"]
+time = "20:00"
 
-[[emissions]]
-nom   = "LEGEND"
-flux  = "https://feeds.acast.com/public/shows/legend-1"
-jours = ["mardi", "jeudi"]
-heure = "21:00"
+[[shows]]
+name   = "LEGEND"
+feed  = "https://feeds.acast.com/public/shows/legend-1"
+days = ["mardi", "jeudi"]
+time = "21:00"
 ```
 
 `jours` vaut `"tous"` ou une liste de jours de la semaine ; `heure` est un moment

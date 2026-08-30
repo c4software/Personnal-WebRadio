@@ -4,50 +4,50 @@
 # `.env` (SPECS.md §6.1). Un secret trouvé ici fait échouer le démarrage.
 
 # ── Le flux servi aux auditeurs ────────────────────────────────────────────
-[flux]
-adresse = "0.0.0.0"
+[stream]
+address = "0.0.0.0"
 port    = 8000
 # Réencodage systématique vers un format unique. Ce n'est pas un réglage de
 # confort : la bibliothèque est hétérogène — mp3 et m4a, six débits constatés —
 # et un changement de format en cours de flux fait décrocher les lecteurs.
 # Voir SPECS.md §7 n°11 et docs/navidrome.md §3.1.
 format         = "mp3"
-debit_kbps     = 128
-frequence_hz   = 44100
-canaux         = 2
+bitrate_kbps     = 128
+sample_rate_hz   = 44100
+channels         = 2
 
 # ── Le tirage ──────────────────────────────────────────────────────────────
-[tirage]
+[draw]
 # Un artiste ne revient pas avant que N autres artistes soient passés.
 # La fenêtre rétrécit plutôt que de bloquer sur une petite bibliothèque.
-non_repetition_artistes = 5
+artist_gap = 5
 
 # Pondération par les votes (SPECS.md §4.12).
 # Un morceau souvent passé revient moins souvent ; un artiste souvent redemandé
 # revient plus souvent. Rien n'est jamais supprimé : le plancher n'est pas zéro.
-[tirage.votes]
-plancher            = 0.25   # ×0,25 au plus bas — jamais 0
-plafond             = 4.0    # ×4 au plus haut
-demi_vie_jours      = 90     # un vote pèse moitié moins au bout de 3 mois
-poids_croise        = 0.25   # ce qu'un stop pèse sur l'artiste, un encore sur la piste
+[draw.votes]
+floor            = 0.25   # ×0,25 au plus bas — jamais 0
+ceiling             = 4.0    # ×4 au plus haut
+half_life_days      = 90     # un vote pèse moitié moins au bout de 3 mois
+cross_weight        = 0.25   # ce qu'un stop pèse sur l'artiste, un encore sur la piste
 
 # ── Les jingles ────────────────────────────────────────────────────────────
 [jingles]
 # Les NOMS sont fixes : 00h.mp3 … 23h.mp3 pour les heures, encore.mp3 pour le
 # vote. Seul le dossier se configure. Un jingle absent ne signale rien.
-dossier = "/chemin/vers/jingles"
+folder = "/chemin/vers/jingles"
 
 # ── Les moments thématiques ────────────────────────────────────────────────
 # En dehors de ces plages, le tirage est libre. Une plage sans musique se
 # replie sur le tirage libre plutôt que de faire taire la radio.
-[[plages]]
-debut  = "08:00"
-fin    = "10:00"
+[[bands]]
+start  = "08:00"
+end    = "10:00"
 genres = ["Chanson française"]
 
-[[plages]]
-debut  = "20:00"
-fin    = "23:00"
+[[bands]]
+start  = "20:00"
+end    = "23:00"
 genres = ["Rock", "Pop"]
 
 # ── L'état ─────────────────────────────────────────────────────────────────
@@ -55,37 +55,37 @@ genres = ["Rock", "Pop"]
 # épisode diffusé de chaque émission. Une table, trois colonnes.
 # Le perdre n'est pas une panne : la radio rediffusera une fois, puis
 # reprendra son cours. Rien à sauvegarder.
-[etat]
-base = "/var/lib/local-webradio/etat.sqlite3"
+[state]
+database = "/var/lib/local-webradio/etat.sqlite3"
 # Deux processus touchent cette base — la chaîne de diffusion et le serveur
 # web. C'est le temps qu'une écriture accepte d'attendre un verrou.
-delai_secondes = 5.0
+timeout_seconds = 5.0
 
 # ── L'interface et l'API ───────────────────────────────────────────────────
 # Toute action de l'interface passe par l'API : aucun chemin privilégié.
 [web]
-adresse = "0.0.0.0"
+address = "0.0.0.0"
 # Un port DIFFÉRENT de celui du flux : ce sont deux serveurs distincts, et ils
 # ne peuvent pas écouter le même. Le premier démarrage en conteneur l'a
 # rappelé par un « Address already in use ».
 port    = 8080
 # Intervalle auquel la page redemande ce qui passe. Trop court, elle interroge
 # pour rien ; trop long, un « encore » semble sans effet.
-rafraichissement_secondes = 5.0
+refresh_seconds = 5.0
 
 # ── Les podcasts ───────────────────────────────────────────────────────────
 # Un flux qui ne répond pas ne bloque pas la radio : l'émission est perdue et
 # la musique continue. Le délai reste donc court.
 [podcast]
-delai_secondes = 15.0
+timeout_seconds = 15.0
 
 # ── Navidrome (hors identifiants, qui sont dans .env) ──────────────────────
 [navidrome]
 # Nombre de pistes demandées au serveur. Il tronque à 500 en silence : demander
 # davantage ne rend pas davantage (docs/navidrome.md §2.1).
-taille_echantillon = 500
-resultats_artiste  = 50
-delai_secondes     = 10.0
+sample_size = 500
+artist_results  = 50
+timeout_seconds     = 10.0
 
 # ── Les programmes ──────────────────────────────────────────────────────────
 # Des jours ET des heures, et la musique vient d'une liste de lecture que vous
@@ -94,11 +94,11 @@ delai_secondes     = 10.0
 # Une liste introuvable, vidée ou renommée ne fait pas taire la radio : elle se
 # replie sur le tirage libre et le journalise.
 [[programmes]]
-nom      = "Le vendredi de Chloé"
+name      = "Le vendredi de Chloé"
 playlist = "Chloé"
-jours    = ["vendredi"]
-debut    = "18:00"
-fin      = "20:00"
+days    = ["vendredi"]
+start    = "18:00"
+end      = "20:00"
 
 # ── Les émissions ──────────────────────────────────────────────────────────
 # Autant qu'on veut, mais jamais deux à la même heure le même jour : la radio
@@ -107,14 +107,14 @@ fin      = "20:00"
 # On diffuse l'épisode `full` le plus récent qui n'a pas déjà été diffusé. Si
 # le podcast n'a rien publié de neuf, la case est sautée et la radio reste sur
 # la musique (SPECS.md §4.11).
-[[emissions]]
-nom   = "A la French"
-flux  = "https://feeds.acast.com/public/shows/a-la-french"
-jours = ["vendredi"]
-heure = "20:00"
+[[shows]]
+name   = "A la French"
+feed  = "https://feeds.acast.com/public/shows/a-la-french"
+days = ["vendredi"]
+time = "20:00"
 
-[[emissions]]
-nom   = "LEGEND"
-flux  = "https://feeds.acast.com/public/shows/legend-1"
-jours = ["mardi"]
-heure = "20:00"
+[[shows]]
+name   = "LEGEND"
+feed  = "https://feeds.acast.com/public/shows/legend-1"
+days = ["mardi"]
+time = "20:00"
