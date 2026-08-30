@@ -153,6 +153,7 @@ Goals sont découpables.
 | GOAL-031 | Le jingle d'« encore » se configure, les exemples ont leurs génériques | `[x]` |
 | GOAL-032 | Les jingles horaires rangés dans `hours/` | `[x]` |
 | GOAL-033 | Les variantes de jingles, tirées au hasard | `[-]` — reste l'écoute |
+| GOAL-034 | L'encore agit sur la chanson suivante, pas celle d'après | `[-]` — codé et vérifié, déploiement en attente d'une fenêtre |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -1075,3 +1076,17 @@ portait déjà `06h-b.mp3` et `06h-c.mp3` ; reste l'écoute réelle
 
 - [x] `GOAL-033-T01` Tout jingle — horaire, « encore », générique — accepte des variantes `nom-a.mp3`, `nom-b.mp3`… : l'une est tirée **au hasard injecté** (rejouable), et le fichier de base devient optionnel dès qu'une variante existe
 - [ ] `GOAL-033-T02` **Écoute réelle** : la rotation s'entend-elle, sur plusieurs heures ?
+
+---
+
+## GOAL-034 — L'encore agit sur la chanson suivante, pas celle d'après
+
+**État : EN COURS** — demandé par l'auteur le 2026-08-30 (« sinon le jingle est
+étrange ») ; codé et vérifié, le déploiement attend une fenêtre hors écoute
+
+Le diffuseur a toujours un morceau d'avance : l'effet d'un encore — jingle
+puis même artiste — arrivait donc après la chanson déjà demandée.
+
+- [x] `GOAL-034-T01` Un encore **accepté** ordonne `POST /requeue` au diffuseur, qui jette son avance (`set_queue([])`) : à la fin de la chanson en cours viennent le jingle puis le même artiste
+- [x] `GOAL-034-T02` Le morceau jeté avait été « demandé » : sa trace dans la fenêtre de non-répétition est le prix, minime, de l'immédiateté
+- [ ] `GOAL-034-T03` **Déployer hors fenêtre d'écoute**, puis écoute réelle — la leçon des deux essais mangés par un redémarrage

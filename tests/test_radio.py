@@ -148,3 +148,14 @@ def test_ce_qui_commence_entre_au_journal_sauf_les_jingles() -> None:
         ("musique", "Sexy Boy", "Air"),
         ("emission", "Flash franceinfo", ""),
     ]
+
+
+def test_un_encore_accepte_jette_l_avance_du_diffuseur() -> None:
+    """GOAL-034 : l'effet suit LA chanson en cours, pas celle d'après."""
+    ordres: list[str] = []
+    radio, _ = _radio(skip=lambda: ordres.append("skip"))
+    radio._vider_l_avance = lambda: ordres.append("requeue")
+    assert radio.vote(Vote.MORE).accepted
+    assert ordres == ["requeue"]
+    assert radio.vote(Vote.SKIP).accepted
+    assert ordres == ["requeue", "skip"]

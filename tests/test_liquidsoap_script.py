@@ -66,3 +66,10 @@ def test_le_saut_est_une_route_que_l_api_ordonne() -> None:
     code = _code()
     assert '"/skip"' in code
     assert "programme.skip()" in code
+
+
+def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
+    """GOAL-034 : un encore accepté vide le morceau d'avance."""
+    code = _code()
+    assert '"/requeue"' in code
+    assert "set_queue([])" in code

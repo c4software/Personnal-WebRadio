@@ -33,6 +33,7 @@ class LiveRadio(Radio):
         remember: Callable[[Command, Track], None] | None = None,
         list_votes: Callable[[], list[VoteScore]] | None = None,
         skip: Callable[[], None] | None = None,
+        requeue: Callable[[], None] | None = None,
         forget: Callable[[str, str], bool] | None = None,
         moment: Callable[[], str | None] | None = None,
         journal: Callable[[str, str, str], None] | None = None,
@@ -43,6 +44,7 @@ class LiveRadio(Radio):
         self._retenir = remember
         self._lister_votes = list_votes
         self._passer = skip
+        self._vider_l_avance = requeue
         self._oublier = forget
         self._moment = moment
         self._journaliser = journal
@@ -146,6 +148,11 @@ class LiveRadio(Radio):
             # sur cet ordre. S'il est injoignable, le vote reste enregistré :
             # le morceau finira, mais pèsera moins la prochaine fois.
             self._passer()
+        if answer.accepted and command is Command.MORE and self._vider_l_avance is not None:
+            # Le morceau d'avance déjà demandé s'intercalerait sinon : l'effet
+            # de l'encore — jingle puis même artiste — doit suivre LA chanson
+            # en cours, pas celle d'après (SPECS.md §4.6, GOAL-034).
+            self._vider_l_avance()
         if answer.accepted and self._retenir is not None:
             with self._verrou:
                 courante = self._piste

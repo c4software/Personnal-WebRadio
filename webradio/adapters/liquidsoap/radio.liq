@@ -156,6 +156,17 @@ def on_skip(request, response) =
   response.data("passé")
 end
 harbor.http.register(port=port, method="POST", "/skip", on_skip)
+
+# Un « encore » accepté vide le morceau d'avance (GOAL-034) : sans cela, la
+# chanson déjà demandée s'intercalait et l'effet — jingle puis même artiste —
+# n'arrivait qu'avec un morceau de retard, ce qui rendait le jingle étrange.
+def on_requeue(request, response) =
+  ignore(request)
+  log("avance jetée sur ordre de l'API")
+  programme.set_queue([])
+  response.data("vidé")
+end
+harbor.http.register(port=port, method="POST", "/requeue", on_requeue)
 programme = normalize(programme)
 programme = crossfade(duration=2., fade_in=1., fade_out=1., programme)
 

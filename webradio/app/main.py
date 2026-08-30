@@ -140,18 +140,24 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
     # le câblage entre services (docker-compose.yml).
     liquidsoap = os.environ.get("LIQUIDSOAP_URL", "http://127.0.0.1:8000")
 
-    def demander_le_saut() -> None:
+    def _ordonner(chemin: str, consequence: str) -> None:
         import http.client
         import urllib.error
         import urllib.request
 
         try:
             with urllib.request.urlopen(
-                urllib.request.Request(f"{liquidsoap}/skip", method="POST"), timeout=3
+                urllib.request.Request(f"{liquidsoap}{chemin}", method="POST"), timeout=3
             ):
                 pass
         except (urllib.error.URLError, http.client.HTTPException, OSError) as failure:
-            logger.warning("le diffuseur n'a pas pris le saut, le morceau finira : %s", failure)
+            logger.warning("le diffuseur n'a pas pris %s : %s — %s", chemin, failure, consequence)
+
+    def demander_le_saut() -> None:
+        _ordonner("/skip", "le morceau finira")
+
+    def vider_l_avance() -> None:
+        _ordonner("/requeue", "l'encore portera un morceau plus tard")
 
     programmation = Programming(
         [
@@ -215,6 +221,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         learning.remember,
         lister_votes,
         demander_le_saut,
+        vider_l_avance,
         oublier_le_vote,
         moment_courant,
         journaliser_le_titre,
