@@ -87,9 +87,10 @@ elle n'a rien à vérifier.
 
 **Prochaine tâche** : `GOAL-004` — le flux. Il n'est pas découpé.
 
-`GOAL-002` a laissé deux tâches bloquées (`T08` Navidrome, `T09` podcasts) qui
-attendent des accès de l'auteur, et `GOAL-002-T07` a laissé trois questions sur
-la source du flash France Info.
+**`GOAL-002` est terminé**, les cinq relevés établis. Deux questions restent à
+l'auteur : la source du flash France Info (`docs/franceinfo.md` §1.5) et
+l'ampleur de la fenêtre de rattrapage des émissions
+(`docs/podcast.md` §3.1).
 
 Sur quinze décisions, **treize sont tranchées**. La n°9 est une conséquence
 consignée, non une question ; la n°12 est délibérément différée jusqu'à la
@@ -103,7 +104,7 @@ Goals sont découpables.
 | Goal | Titre | État |
 |---|---|---|
 | GOAL-001 | Harness et initialisation | `[x]` |
-| GOAL-002 | Relever les cinq dépendances externes | `[-]` 9/10, un bloqué |
+| GOAL-002 | Relever les cinq dépendances externes | `[x]` |
 | GOAL-003 | Le noyau : horloge, hasard, file de lecture | `[x]` |
 | GOAL-004 | Le flux : ffmpeg, fan-out, démarrage à la demande | `[ ]` |
 | GOAL-005 | La grille horaire et les moments thématiques | `[ ]` |
@@ -247,7 +248,7 @@ de sortie non nul obtenu pour une autre raison.
 
 ## GOAL-002 — Relever les cinq dépendances externes
 
-**État : EN COURS**
+**État : TERMINÉ**
 
 Cinq relevés à établir **par observation**, avant toute implémentation
 (AGENTS.md §3). Les fichiers `docs/*.md` portent déjà les questions ; ce Goal y
@@ -274,7 +275,7 @@ Le découpage sépare les deux, pour que ce qui peut avancer avance.
 
 - [x] `GOAL-002-T08` Navidrome : authentification, tirage, genres, artiste, récupération du son
 
-- [!] `GOAL-002-T09` Podcast : format des flux, fiabilité de la date de publication et de la durée
+- [x] `GOAL-002-T09` Podcast : format des flux, fiabilité de la date de publication et de la durée
       > **Bloqué le 2026-08-30 — il manque les flux.** Aucune URL de podcast n'a
       > été fournie. Le relevé ne porte pas sur « les podcasts en général » mais
       > sur **ceux que la radio diffusera**, dont les écarts au format sont
@@ -300,13 +301,18 @@ Le découpage sépare les deux, pour que ce qui peut avancer avance.
 | **La bibliothèque est hétérogène** : mp3 + m4a, six débits de 96 à 320 | La voie « transmettre tel quel » **n'existait pas**. La décision n°11 était la seule possible |
 | `genre` manque sur **37 pistes sur 200** | `genre=None` était nécessaire, pas prudent : le refuser amputait 18 % de la bibliothèque |
 | `duration` **toujours présent** | La programmation des jingles peut s'y fier |
+| Podcast LEGEND : `pubDate` et `duration` fiables sur **725 épisodes** | Les décisions n°13 et n°14 sont implémentables |
+| `itunes:episodeType` distingue `full` de `trailer` | **Ne retenir que `full`** — sinon « le plus récent » peut servir une bande-annonce d'une minute |
+| Acast **insère de la publicité à la volée** (`livestitches`) | `enclosure/length` ment de 2 Mo ; `duration` est probablement optimiste de ~2 % |
+| Épisodes : médiane **77 min**, maximum **170 min** | **Remonte à l'auteur** : la fenêtre de rattrapage de la n°13 peut atteindre 2 h 50 |
 
 ### Ce que GOAL-002 n'a pas pu établir
 
 - **La matrice des vrais lecteurs** — VLC, navigateur, enceinte. Essais menés
   avec `curl` et ffmpeg seulement. C'est un angle mort (AGENTS.md §4.1) et il ne
   se comble pas depuis une session.
-- **Navidrome** (`T08`) et **les podcasts** (`T09`) : bloqués, faute d'accès.
+- **La matrice des vrais lecteurs** reste le seul manque : elle demande d'être
+  devant la machine.
 
 ### Clôture
 
