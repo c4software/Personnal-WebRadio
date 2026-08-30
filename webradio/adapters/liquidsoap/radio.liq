@@ -154,6 +154,12 @@ def announce() =
   end
 end
 
+# Et PÉRIODIQUEMENT, pas seulement aux branchements : si `radio` redémarre
+# pendant que des auditeurs écoutent, son compteur repart à zéro et l'antenne
+# s'affiche vide alors qu'elle joue — constaté le 2026-08-30. Quinze secondes
+# de battement ressoudent l'état sans que personne ne s'en aperçoive.
+thread.run(every=15., announce)
+
 def on_connect(~headers, ~uri, ~protocol, ip) =
   ignore(headers) ignore(uri) ignore(protocol)
   listeners := listeners() + 1
