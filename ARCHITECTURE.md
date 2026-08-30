@@ -137,6 +137,7 @@ vérifier que chaque jingle est tombé dans sa fenêtre. »*
 Liquidsoap  ──« morceau suivant ? »──▶  adapters/liquidsoap  ──▶  app/playout.next_entry()
             ◀──── un chemin ou une URL ──                       (noyau, grille, jingles, émissions)
             ──« un auditeur arrive / part »──▶  compteur d'auditeurs (app/radio)
+            ◀──« saute » (/skip) · « vide ton avance » (/requeue) ── un vote accepté l'ordonne
 ```
 
 | Conséquence | Détail |

@@ -153,8 +153,8 @@ Goals sont découpables.
 | GOAL-031 | Le jingle d'« encore » se configure, les exemples ont leurs génériques | `[x]` |
 | GOAL-032 | Les jingles horaires rangés dans `hours/` | `[x]` |
 | GOAL-033 | Les variantes de jingles, tirées au hasard | `[-]` — reste l'écoute |
-| GOAL-034 | L'encore agit sur la chanson suivante, l'avance est réinsérée | `[-]` — codé et vérifié, déploiement en attente d'une fenêtre |
-| GOAL-035 | « À suivre » : la file s'affiche à l'antenne | `[-]` — codé et vérifié, même attente |
+| GOAL-034 | L'encore agit sur la chanson suivante, l'avance est réinsérée | `[-]` — déployé ; reste l'écoute |
+| GOAL-035 | « À suivre » : la file s'affiche à l'antenne | `[-]` — déployé ; reste le constat à l'usage |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -1090,7 +1090,7 @@ puis même artiste — arrivait donc après la chanson déjà demandée.
 
 - [x] `GOAL-034-T01` Un encore **accepté** ordonne `POST /requeue` au diffuseur, qui jette son avance (`set_queue([])`) : à la fin de la chanson en cours viennent le jingle puis le même artiste
 - [x] `GOAL-034-T02` ~~jeté~~ **Rien n'est jeté** : la charnière met l'avance de côté et le programme la ressert **après** le jingle et le titre forcé — Yamê → encore.mp3 → Yamê-2 → Tryo, le schéma de l'auteur
-- [ ] `GOAL-034-T03` **Déployer hors fenêtre d'écoute**, puis écoute réelle — la leçon des deux essais mangés par un redémarrage
+- [x] `GOAL-034-T03` Déployé sur le feu vert de l'auteur, pile arrêtée puis relancée ; **reste l'écoute réelle** : encore → jingle → même artiste → la chanson prévue
 
 ---
 

@@ -39,7 +39,7 @@ le dernier auditeur se débranche → la chaîne s'arrête
 | **Émissions** | À heure dite : un **podcast** (l'épisode le plus récent non diffusé), une **chaîne YouTube** (la dernière vidéo, téléchargée en fond puis servie en local — zéro blanc), ou un **direct** — le flash France Info, capté et coupé à l'heure |
 | **Pilotage** | `stop` **passe le morceau** à l'instant ; `encore` force le prochain **chez le même artiste**, et s'annonce par un jingle |
 | **Apprentissage** | Les votes pèsent sur **l'artiste** (jamais deux fois) : redemandé revient plus, passé revient moins — et tout s'oublie en trois mois |
-| **Une page web** | Quatre onglets — antenne (avec le **moment** en cours), votes (effaçables), **planning de la semaine**, **historique** — l'onglet vit dans l'URL |
+| **Une page web** | Quatre onglets — antenne (le **moment** en cours et l'**« À suivre »**), votes (effaçables), **planning de la semaine**, **historique** (24 h, paginé heure par heure) — l'onglet vit dans l'URL |
 | **Une API** | Toute action y passe — l'interface web n'a aucun chemin privilégié |
 
 ## Ce qu'elle ne fait pas
@@ -47,8 +47,8 @@ le dernier auditeur se débranche → la chaîne s'arrête
 - **Plusieurs flux ou qualités.** Un seul flux, un seul débit, un seul format.
 - **Gérer la bibliothèque.** Elle *lit* Navidrome ; elle n'y écrit jamais rien.
 - **Enregistrer, rejouer, podcaster.** Une radio est un présent continu : ce qui
-  est passé est perdu, et c'est assumé. (Un **journal des titres** existe — qui
-  est passé, à quelle heure — jamais l'audio.)
+  est passé est perdu, et c'est assumé. (Un **journal des titres** existe —
+  qui est passé, à quelle heure, borné à 24 h — jamais l'audio.)
 
 Détail et raisons : [SPECS.md §2](./SPECS.md).
 
@@ -203,7 +203,7 @@ Deux gestes, depuis la page web ou directement par l'API.
 | | |
 |---|---|
 | **`stop`** | **Passe le morceau en cours**, à l'instant, avec un fondu — et l'artiste pèsera un peu moins |
-| **`encore`** | Le prochain morceau est **du même artiste** (à défaut du même genre) — et l'artiste pèsera un peu plus |
+| **`encore`** | Dès la fin de la chanson en cours : le jingle d'annonce, puis **un morceau du même artiste** — la chanson qui était prévue n'est pas perdue, elle passe juste après |
 
 **Une voix suffit** : pas de quorum, l'effet est immédiat. Un `encore`
 enregistré s'annonce par le jingle `encore.mp3` à la jonction suivante.
