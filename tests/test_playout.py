@@ -473,7 +473,8 @@ def test_le_generique_de_fin_passe_a_la_sortie_et_avant_le_jingle_horaire(
 
     assert programme.next_entry() == str(tmp_path / "matinale-fin.mp3")
     assert programme.next_entry() == str(tmp_path / "10h.mp3")
-    assert programme.next_entry() == "fake://1"
+    # fake://1 a joué à 08:01 : la fenêtre de non-répétition l'écarte encore.
+    assert programme.next_entry() == "fake://2"
 
 
 def test_un_generique_absent_ne_signale_rien(tmp_path: Path) -> None:
