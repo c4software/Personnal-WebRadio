@@ -148,6 +148,7 @@ Goals sont découpables.
 | GOAL-026 | Les votes ne portent que sur l'artiste (n°16 révisée) | `[x]` |
 | GOAL-027 | Le journal des titres, visible dans l'interface | `[x]` |
 | GOAL-028 | YouTube sans blanc : téléchargé en fond, servi en local | `[x]` |
+| GOAL-029 | Génériques d'ouverture et de fermeture des moments | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -1020,3 +1021,14 @@ de blanc, 30/60 s sans rien ça ne va pas »
 - [x] `GOAL-028-T01` `radio` télécharge la vidéo en tâche de fond (`.part` puis renommage) pendant que la musique continue ; la case ne rend l'émission que **fichier prêt** — résolution instantanée, zéro blanc
 - [x] `GOAL-028-T02` Le cache dans le volume d'état, partagé **en lecture seule** avec le diffuseur ; la vidéo lue **s'efface dès que la suite commence**, et le reste est purgé à chaque nouveau téléchargement
 - [x] `GOAL-028-T03` Un téléchargement en échec ou trop tard : musique, journalisé — la case borne tout
+
+---
+
+## GOAL-029 — Génériques d'ouverture et de fermeture des moments
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30 (« comme une radio classique »)
+
+- [x] `GOAL-029-T01` `intro`/`outro` sur les plages **et** les programmes — des noms de fichiers dans le dossier des jingles, optionnels : absents, rien ne se passe et rien ne se signale (le régime de tous les jingles, SPECS.md §4.3)
+- [x] `GOAL-029-T02` À la jonction où le moment **effectif** change (programme d'abord, comme pour la musique) : générique de fin de l'ancien, jingles horaires dus, générique d'ouverture du nouveau — dans cet ordre
+- [x] `GOAL-029-T03` Une chaîne qui démarre **au milieu** d'un moment ne rejoue pas son générique
+- [ ] `GOAL-029-T04` **Écoute réelle**, avec de vrais génériques dans `jingles/`

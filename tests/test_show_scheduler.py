@@ -174,7 +174,7 @@ def test_un_direct_du_est_une_instruction_avec_son_heure_de_fin(tmp_path: Path) 
     clock = FrozenClock(VENDREDI_20H + timedelta(minutes=2))
     due = _direct(tmp_path, clock).due()
     assert due is not None
-    show, entry = due
+    show, entry, _titre = due
     assert show is FLASH
     fin = int((VENDREDI_20H + timedelta(minutes=9)).timestamp())
     assert entry == f"live:{fin}:{FRANCEINFO}"

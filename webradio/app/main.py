@@ -101,7 +101,18 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         transport=UrllibTransport(settings.navidrome.timeout_seconds),
     )
     grille = Schedule(
-        [Band(p.start, p.end, p.genres, artists=p.artists, days=p.days) for p in settings.bands],
+        [
+            Band(
+                p.start,
+                p.end,
+                p.genres,
+                artists=p.artists,
+                days=p.days,
+                intro=p.intro,
+                outro=p.outro,
+            )
+            for p in settings.bands
+        ],
         clock,
     )
     jingles = Jingles(clock)
@@ -150,6 +161,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
                 days=p.days,
                 start=p.start,
                 end=p.end,
+                intro=p.intro,
+                outro=p.outro,
             )
             for p in settings.programmes
         ],

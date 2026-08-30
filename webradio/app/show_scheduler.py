@@ -61,8 +61,12 @@ class Shows:
         self._verrou_telechargements = threading.Lock()
         self._cases_rendues: set[tuple[str, datetime]] = set()
 
-    def due(self) -> tuple[Show, str] | None:
-        """L'émission due maintenant et l'URL de son épisode, ou rien.
+    def due(self) -> tuple[Show, str, str | None] | None:
+        """L'émission due, l'adresse de son épisode, et son **titre** s'il en a un.
+
+        Le titre — celui de la vidéo ou de l'épisode — sert à l'antenne et au
+        journal (GOAL-027) : « Hardisk · L'évasion la plus folle… » dit plus
+        que « Hardisk » (demandé par l'auteur).
 
         Rend `None` dans tous les cas où « il n'y a pas d'émission » — aucune
         case ouverte, flux injoignable, épisode déjà diffusé. Aucun n'est une
@@ -84,7 +88,7 @@ class Shows:
             return self._video_de(case.show, catalogues.get(case.show.name, []))
         return self._episode_de(case.show, catalogues.get(case.show.name, []))
 
-    def _direct_de(self, case: Slot, instant: datetime) -> tuple[Show, str] | None:
+    def _direct_de(self, case: Slot, instant: datetime) -> tuple[Show, str, str | None] | None:
         """Un direct, rendu **une fois par case**, avec l'heure absolue de sa fin.
 
         L'entrée `live:<fin en secondes Unix>:<url>` est une instruction pour
@@ -107,9 +111,11 @@ class Shows:
             case.end.astimezone().strftime("%H:%M:%S"),
             url.split("?", 1)[0],
         )
-        return case.show, f"live:{int(case.end.timestamp())}:{url}"
+        return case.show, f"live:{int(case.end.timestamp())}:{url}", None
 
-    def _video_de(self, show: Show, catalogue: list[EpisodeDuFlux]) -> tuple[Show, str] | None:
+    def _video_de(
+        self, show: Show, catalogue: list[EpisodeDuFlux]
+    ) -> tuple[Show, str, str | None] | None:
         """La dernière vidéo, servie **depuis le cache local** — jamais l'URL.
 
         Servir l'URL googlevideo faisait télécharger le diffuseur à la
@@ -130,7 +136,8 @@ class Shows:
                 self._etat.record_airing(show.name, chosen.guid)
             except StateUnavailable as failure:
                 logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
-            return show, str(fichier)
+            titre = next((e.title for e in catalogue if e.identifier == chosen.guid), None)
+            return show, str(fichier), titre
         self._telecharger_en_fond(show.name, chosen.guid)
         return None
 
@@ -223,7 +230,9 @@ class Shows:
                 )
         return catalogues
 
-    def _episode_de(self, show: Show, catalogue: list[EpisodeDuFlux]) -> tuple[Show, str] | None:
+    def _episode_de(
+        self, show: Show, catalogue: list[EpisodeDuFlux]
+    ) -> tuple[Show, str, str | None] | None:
         if not catalogue:
             return None
         try:
@@ -250,8 +259,9 @@ class Shows:
             logger.info("« %s » n'a rien de neuf : la case est sautée", show.name)
             return None
         audio = next(e.audio for e in catalogue if e.identifier == choisi.guid)
+        titre = next((e.title for e in catalogue if e.identifier == choisi.guid), None)
         try:
             self._etat.record_airing(show.name, choisi.guid)
         except StateUnavailable as failure:
             logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
-        return show, audio
+        return show, audio, titre

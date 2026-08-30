@@ -45,6 +45,11 @@ class Band:
     genres: tuple[str, ...] = ()
     # Une heure entière d'un seul artiste, ou de quelques-uns (GOAL-023).
     artists: tuple[str, ...] = ()
+    # Générique d'ouverture et de fermeture — des NOMS de fichiers dans le
+    # dossier des jingles, optionnels : absents, rien ne se passe et rien ne
+    # se signale, comme tout jingle (SPECS.md §4.3, GOAL-029).
+    intro: str | None = None
+    outro: str | None = None
     # Aucun jour déclaré = tous les jours — c'est le comportement historique,
     # et le seul qui ne surprenne pas une configuration existante.
     days: tuple[str, ...] = field(default=(EVERY_DAY,))

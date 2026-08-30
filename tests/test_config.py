@@ -561,3 +561,18 @@ def test_une_emission_youtube_ne_declare_pas_de_duree() -> None:
             + 'duration_minutes = 30\ndays = ["mercredi"]\ntime = "20:00"\n'
         )
     assert "Hardisk" in str(refus.value)
+
+
+# ── Les génériques (GOAL-029) ───────────────────────────────────────────────
+
+
+def test_une_plage_declare_ses_generiques_optionnels() -> None:
+    config = _valider(TOML_MINIMAL + UNE_PLAGE + 'intro = "debut.mp3"\noutro = "fin.mp3"\n')
+    assert config.bands[0].intro == "debut.mp3"
+    assert config.bands[0].outro == "fin.mp3"
+
+
+def test_sans_generique_rien_ne_change() -> None:
+    config = _valider(TOML_MINIMAL + UNE_PLAGE)
+    assert config.bands[0].intro is None
+    assert config.bands[0].outro is None

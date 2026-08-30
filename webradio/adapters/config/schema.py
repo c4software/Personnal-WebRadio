@@ -122,6 +122,8 @@ class Band:
     genres: tuple[str, ...] = ()
     artists: tuple[str, ...] = ()
     days: tuple[str, ...] = DAYS
+    intro: str | None = None
+    outro: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,6 +185,8 @@ class DeclaredProgramme:
     days: tuple[str, ...]
     start: time
     end: time
+    intro: str | None = None
+    outro: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -442,7 +446,9 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
     bands: list[Band] = []
     for index, table in enumerate(_liste_tables(brut, "bands")):
         prefix = f"bands[{index}]"
-        _verifier_cles(table, ("start", "end", "genres", "artists", "days"), prefix)
+        _verifier_cles(
+            table, ("start", "end", "genres", "artists", "days", "intro", "outro"), prefix
+        )
         if ("genres" in table) == ("artists" in table):
             _refuser(prefix, "une plage déclare `genres` OU `artists` — ni les deux, ni aucun")
         bands.append(
@@ -453,6 +459,8 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
                 artists=_liste_textes(table, "artists", prefix) if "artists" in table else (),
                 # Pas de `days` = tous les jours : le comportement historique.
                 days=_jours(table, prefix) if "days" in table else DAYS,
+                intro=_texte(table, "intro", prefix) if "intro" in table else None,
+                outro=_texte(table, "outro", prefix) if "outro" in table else None,
             )
         )
     return tuple(bands)
@@ -495,12 +503,16 @@ def _programmes(brut: Mapping[str, Any]) -> tuple[DeclaredProgramme, ...]:
     programmes: list[DeclaredProgramme] = []
     for index, table in enumerate(_liste_tables(brut, "programmes")):
         prefix = f"programmes[{index}]"
-        _verifier_cles(table, ("name", "playlist", "days", "start", "end"), prefix)
+        _verifier_cles(
+            table, ("name", "playlist", "days", "start", "end", "intro", "outro"), prefix
+        )
         programmes.append(
             DeclaredProgramme(
                 name=_texte(table, "name", prefix),
                 playlist=_texte(table, "playlist", prefix),
                 days=_jours(table, prefix),
+                intro=_texte(table, "intro", prefix) if "intro" in table else None,
+                outro=_texte(table, "outro", prefix) if "outro" in table else None,
                 start=_heure(table, "start", prefix),
                 end=_heure(table, "end", prefix),
             )

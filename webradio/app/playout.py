@@ -15,12 +15,12 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from webradio.core.bands import Schedule
+from webradio.core.bands import Band, Schedule
 from webradio.core.clock import Clock
 from webradio.core.control import Control, Kind
 from webradio.core.jingles import Jingles
 from webradio.core.models import Track
-from webradio.core.programmes import Programming
+from webradio.core.programmes import Programme, Programming
 from webradio.core.queue import EmptyQueue, Queue
 from webradio.core.rng import Random
 from webradio.core.rotation import Window
@@ -79,6 +79,11 @@ class RadioProgramme:
         # est exactement ce que SPECS.md §4.3 refuse quand un morceau long a
         # enjambé deux heures. On garde donc ceux qu'on n'a pas encore servis.
         self._en_attente: deque[str] = deque()
+        # Le moment effectif — programme d'abord, sinon plage — vu à la
+        # dernière jonction. `...` tant qu'aucune jonction n'a eu lieu : une
+        # chaîne qui démarre AU MILIEU d'un moment ne rejoue pas son
+        # générique (GOAL-029).
+        self._moment_vu: object = ...
 
     def next_entry(self) -> str | None:
         show = self._prochaine_emission()
@@ -120,9 +125,10 @@ class RadioProgramme:
         self._en_attente.extend(self._jingles.due_now(during_show=due is not None))
         if due is None:
             return None
-        show, audio = due
-        logger.info("émission « %s » à l'antenne", show.name)
-        self._sur_nature(Kind.SHOW, None, show.name)
+        show, audio, episode = due
+        libelle = f"{show.name} · {episode}" if episode else show.name
+        logger.info("émission « %s » à l'antenne", libelle)
+        self._sur_nature(Kind.SHOW, None, libelle)
         return audio
 
     def _prochain_jingle(self) -> Path | None:
@@ -135,12 +141,37 @@ class RadioProgramme:
         Les jingles restants sont conservés pour les jonctions suivantes : ils
         passent tous, à la suite, dans l'ordre où le noyau les a rendus.
         """
+        sortant, entrant = self._generiques_de_transition()
+        if sortant is not None:
+            self._en_attente.append(sortant)
         self._en_attente.extend(self._jingles.due_now())
+        if entrant is not None:
+            self._en_attente.append(entrant)
         while self._en_attente:
             path = self._dossier / self._en_attente.popleft()
             if path.is_file():
                 return path
         return None
+
+    def _generiques_de_transition(self) -> tuple[str | None, str | None]:
+        """Le générique de fin du moment qui s'achève, celui d'ouverture du
+        moment qui commence — comme une radio classique (GOAL-029).
+
+        Le moment effectif suit la règle de la musique : le programme
+        l'emporte sur la plage. Les génériques sont optionnels, et un fichier
+        absent sera ignoré comme tout jingle (SPECS.md §4.3).
+        """
+        courant: Programme | Band | None = None
+        if self._programmation is not None:
+            courant = self._programmation.current_programme()
+        if courant is None:
+            courant = self._grille.current_band()
+        precedent, self._moment_vu = self._moment_vu, courant
+        if precedent is ... or precedent == courant:
+            return None, None
+        sortant = precedent.outro if isinstance(precedent, Programme | Band) else None
+        entrant = courant.intro if courant is not None else None
+        return sortant, entrant
 
     def _prochaine_piste(self) -> str | None:
         """La piste suivante, en respectant l'ordre de priorité.

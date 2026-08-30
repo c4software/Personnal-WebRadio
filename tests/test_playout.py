@@ -422,3 +422,72 @@ def test_un_encore_pendant_un_programme_reste_dans_la_liste(tmp_path: Path) -> N
     # Le seul autre Bowie (2) est HORS liste : on retombe dans la liste (3),
     # on ne sort jamais.
     assert suivant == "fake://3"
+
+
+# ── Les génériques d'ouverture et de fermeture (GOAL-029) ───────────────────
+
+
+def _matinale(tmp_path: Path) -> tuple[RadioProgramme, FrozenClock]:
+    matin = Band(
+        start=time(8),
+        end=time(10),
+        genres=("électro",),
+        intro="matinale-debut.mp3",
+        outro="matinale-fin.mp3",
+    )
+    clock = FrozenClock(datetime(2026, 8, 30, 7, 58, tzinfo=UTC))
+    random = ScriptedRandom([0] * 50)
+    source = FakeSource(CATALOGUE)
+    programme = RadioProgramme(
+        queue=Queue(source, random, Window(width=1)),
+        source=source,
+        grille=Schedule([matin], clock),
+        jingles=Jingles(clock),
+        clock=clock,
+        random=random,
+        jingle_folder=tmp_path,
+        on_kind=lambda _n, _p, _e: None,
+    )
+    return programme, clock
+
+
+def test_le_generique_d_ouverture_passe_a_l_entree_du_moment(tmp_path: Path) -> None:
+    (tmp_path / "matinale-debut.mp3").write_bytes(b"generique")
+    programme, clock = _matinale(tmp_path)
+    assert programme.next_entry() == "fake://1"  # 07:58 : tirage libre
+    clock.advance(timedelta(minutes=3))  # 08:01 : la matinale est ouverte
+
+    assert programme.next_entry() == str(tmp_path / "matinale-debut.mp3")
+    assert programme.next_entry() == "fake://1"  # puis la musique du moment
+
+
+def test_le_generique_de_fin_passe_a_la_sortie_et_avant_le_jingle_horaire(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "matinale-fin.mp3").write_bytes(b"generique")
+    (tmp_path / "10h.mp3").write_bytes(b"jingle horaire")
+    programme, clock = _matinale(tmp_path)
+    clock.advance(timedelta(minutes=3))  # 08:01, dans la matinale
+    programme.next_entry()
+    clock.advance(timedelta(hours=2))  # 10:01 : la matinale est finie
+
+    assert programme.next_entry() == str(tmp_path / "matinale-fin.mp3")
+    assert programme.next_entry() == str(tmp_path / "10h.mp3")
+    assert programme.next_entry() == "fake://1"
+
+
+def test_un_generique_absent_ne_signale_rien(tmp_path: Path) -> None:
+    """Optionnel veut dire optionnel : ni fichier, ni erreur, ni silence."""
+    programme, clock = _matinale(tmp_path)
+    programme.next_entry()
+    clock.advance(timedelta(minutes=3))
+    assert programme.next_entry() == "fake://1"  # aucun fichier : la musique
+
+
+def test_demarrer_au_milieu_d_un_moment_ne_rejoue_pas_son_generique(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "matinale-debut.mp3").write_bytes(b"generique")
+    programme, clock = _matinale(tmp_path)
+    clock.advance(timedelta(minutes=32))  # première jonction à 08:30
+    assert programme.next_entry() == "fake://1"

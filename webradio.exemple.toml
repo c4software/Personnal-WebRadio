@@ -34,10 +34,15 @@ folder = "jingles"
 # ── Les moments thématiques ────────────────────────────────────────────────
 # En dehors de ces plages, le tirage est libre. Une plage sans musique se
 # replie sur le tirage libre plutôt que de faire taire la radio.
+# `intro` et `outro` : un générique d'ouverture et de fermeture, comme une
+# radio classique — des noms de fichiers dans le dossier des jingles,
+# optionnels. Absents, rien ne se passe et rien ne se signale.
 [[bands]]
 start  = "08:00"
 end    = "10:00"
 genres = ["Chanson française"]
+intro  = "matinale-debut.mp3"
+outro  = "matinale-fin.mp3"
 
 [[bands]]
 start  = "20:00"

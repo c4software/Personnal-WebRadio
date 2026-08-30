@@ -50,6 +50,9 @@ class Programme:
     days: tuple[str, ...]
     start: time
     end: time
+    # Générique d'ouverture et de fermeture, comme pour une plage (GOAL-029).
+    intro: str | None = None
+    outro: str | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
