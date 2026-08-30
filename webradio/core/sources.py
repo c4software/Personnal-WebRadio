@@ -50,3 +50,13 @@ class SourceMusicale(Protocol):
     def genres(self) -> list[str]:
         """Les genres que cette source connaît."""
         ...
+
+    def entree(self, piste: Piste) -> str:
+        """Ce qu'il faut ouvrir pour entendre cette piste.
+
+        Un chemin ou une URL — la chaîne de diffusion ne fait pas la différence
+        et ne l'interprète jamais. C'est ici que l'identifiant opaque de la
+        piste redevient quelque chose de lisible, et c'est le seul endroit du
+        projet qui sache le faire.
+        """
+        ...

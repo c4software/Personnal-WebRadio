@@ -12,6 +12,7 @@ import io
 import logging
 import urllib.error
 import urllib.parse
+from datetime import timedelta
 from email.message import Message
 from types import TracebackType
 
@@ -24,6 +25,7 @@ from webradio.adapters.sources.navidrome import (
     SourceNavidrome,
     TransportUrllib,
 )
+from webradio.core.modeles import Piste
 from webradio.core.rng import HasardScripte
 from webradio.core.sources import SourceIndisponible
 
@@ -439,3 +441,21 @@ def test_le_transport_par_defaut_existe_sans_etre_appele() -> None:
     transport = TransportUrllib(delai_secondes=1.0)
 
     assert transport is not None
+
+
+def test_entree_rend_une_url_de_flux_portant_le_jeton() -> None:
+    """La chaîne de diffusion ouvre cette URL telle quelle : c'est le seul
+    endroit du projet où l'identifiant opaque redevient lisible."""
+    source = _source()
+    piste = Piste(
+        identifiant="piste-1",
+        titre="un titre",
+        artiste="un artiste",
+        genre=None,
+        duree=timedelta(seconds=180),
+    )
+    url = source.entree(piste)
+    assert "stream.view" in url
+    assert "id=piste-1" in url
+    assert "t=" in url and "s=" in url
+    assert MOT_DE_PASSE not in url

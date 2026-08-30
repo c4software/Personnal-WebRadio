@@ -202,6 +202,19 @@ class SourceNavidrome:
         }
         return sorted(noms)
 
+    def entree(self, piste: Piste) -> str:
+        """L'URL de flux de la piste, jeton compris.
+
+        `stream` plutôt que `download` : le relevé a constaté qu'ils rendent le
+        même octet près sur cette instance, et `stream` est celui que la
+        spécification Subsonic destine à la lecture.
+
+        L'URL porte le jeton d'authentification : elle ne doit donc **jamais**
+        paraître dans un journal (AGENTS.md §2). Elle est rendue à la chaîne de
+        diffusion, qui l'ouvre et ne la consigne pas.
+        """
+        return self._url("stream.view", {"id": piste.identifiant})
+
     def _sel(self) -> str:
         return "".join(self._hasard.choisir(ALPHABET_SEL) for _ in range(LONGUEUR_SEL))
 

@@ -52,3 +52,11 @@ class FakeSource:
     def genres(self) -> list[str]:
         self._verifier()
         return sorted({p.genre for p in self._catalogue if p.genre is not None})
+
+    def entree(self, piste: Piste) -> str:
+        """Une entrée factice mais reconnaissable.
+
+        Elle ne consulte pas le catalogue : une source réelle non plus — elle
+        construit une adresse depuis l'identifiant, sans vérifier qu'il existe.
+        """
+        return f"fake://{piste.identifiant}"
