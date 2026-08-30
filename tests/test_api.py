@@ -42,6 +42,7 @@ class FakeRadio:
         self.forgotten: list[tuple[str, str]] = []
         self._moment: str | None = None
         self._history: list[PlayedEntry] = []
+        self._up_next: OnAir | None = None
 
     def on_air(self) -> bool:
         return self._antenne is not None
@@ -66,6 +67,9 @@ class FakeRadio:
     def history(self) -> list[PlayedEntry]:
         return list(self._history)
 
+    def up_next(self) -> OnAir | None:
+        return self._up_next
+
 
 def client(radio: FakeRadio) -> FlaskClient:
     app = create_app(radio, refresh=RAFRAICHISSEMENT)
@@ -82,6 +86,7 @@ def test_l_api_dit_ce_qui_passe_et_de_quelle_nature() -> None:
     assert answer.get_json() == {
         "on_air": True,
         "moment": None,
+        "up_next": None,
         "on_air_now": {"kind": "musique", "title": "Sexy Boy", "artist": "Air"},
     }
 
@@ -98,7 +103,12 @@ def test_l_api_distingue_les_quatre_natures(kind: Kind) -> None:
 def test_l_api_dit_quand_la_chaine_ne_tourne_pas() -> None:
     """La radio n'existe que lorsqu'on l'écoute (SPECS.md §1)."""
     answer = client(FakeRadio()).get("/api/on-air")
-    assert answer.get_json() == {"on_air": False, "on_air_now": None, "moment": None}
+    assert answer.get_json() == {
+        "on_air": False,
+        "on_air_now": None,
+        "moment": None,
+        "up_next": None,
+    }
 
 
 def test_un_jingle_n_a_ni_titre_ni_artiste() -> None:
@@ -291,3 +301,15 @@ def test_l_historique_se_lit_du_plus_recent_au_plus_ancien() -> None:
 
 def test_sans_historique_la_liste_est_vide_pas_une_erreur() -> None:
     assert client(FakeRadio()).get("/api/history").get_json() == {"history": []}
+
+
+def test_l_api_dit_ce_qui_suit() -> None:
+    """GOAL-035 : le morceau d'avance, déjà demandé, s'annonce."""
+    radio = FakeRadio(on_air_now=MORCEAU)
+    radio._up_next = OnAir(kind=Kind.MUSIC, title="Radiate", artist="Jack Johnson")
+    answer = client(radio).get("/api/on-air")
+    assert answer.get_json()["up_next"] == {
+        "kind": "musique",
+        "title": "Radiate",
+        "artist": "Jack Johnson",
+    }

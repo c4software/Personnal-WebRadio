@@ -147,6 +147,10 @@ class Radio(Protocol):
         """Ce qui est passé, du plus récent au plus ancien (§7 n°27)."""
         ...
 
+    def up_next(self) -> "OnAir | None":
+        """Le morceau déjà demandé qui suivra, ou rien (GOAL-035)."""
+        ...
+
     def moment(self) -> str | None:
         """Le moment déclaré qui s'applique — programme ou plage — ou rien.
 
@@ -192,6 +196,7 @@ def create_api(radio: Radio, planning: dict[str, object] | None = None) -> Bluep
                 "on_air": radio.on_air(),
                 "on_air_now": _antenne_en_donnees(radio.on_air_now()),
                 "moment": radio.moment(),
+                "up_next": _antenne_en_donnees(radio.up_next()),
             }
         )
 

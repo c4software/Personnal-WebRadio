@@ -79,6 +79,10 @@ class RadioProgramme:
         # est exactement ce que SPECS.md §4.3 refuse quand un morceau long a
         # enjambé deux heures. On garde donc ceux qu'on n'a pas encore servis.
         self._en_attente: deque[str] = deque()
+        # Ce qui avait été demandé d'avance et qu'un encore a écarté : rejoué
+        # tel quel APRÈS le jingle et le titre forcé — rien n'est jeté
+        # (GOAL-034, schéma de l'auteur : Yamê → encore.mp3 → Yamê-2 → Tryo).
+        self._a_rejouer: deque[tuple[str, Kind, Track | None, str | None]] = deque()
         # Le moment effectif — programme d'abord, sinon plage — vu à la
         # dernière jonction. `...` tant qu'aucune jonction n'a eu lieu : une
         # chaîne qui démarre AU MILIEU d'un moment ne rejoue pas son
@@ -93,7 +97,20 @@ class RadioProgramme:
         if jingle is not None:
             self._sur_nature(Kind.JINGLE, None, None)
             return str(jingle)
+        forced = self._piste_après_encore()
+        if forced is not None:
+            return forced
+        if self._a_rejouer:
+            entry, kind, track, label = self._a_rejouer.popleft()
+            self._sur_nature(kind, track, label)
+            if track is not None:
+                self._derniere_piste = track
+            return entry
         return self._prochaine_piste()
+
+    def replay_later(self, entry: str, kind: Kind, track: Track | None, label: str | None) -> None:
+        """Replace une entrée déjà demandée, à jouer après l'effet d'un encore."""
+        self._a_rejouer.append((entry, kind, track, label))
 
     def prepare(self) -> None:
         """Résout le morceau suivant pendant que le courant joue.
@@ -195,9 +212,6 @@ class RadioProgramme:
         # Un « encore » accepté force le prochain morceau chez le même artiste
         # (SPECS.md §4.6) — le noyau descend seul vers le genre puis le tirage
         # libre si l'artiste est épuisé, et chaque repli est dit.
-        forced = self._piste_après_encore()
-        if forced is not None:
-            return forced
         depuis_le_programme = self._piste_du_programme()
         if depuis_le_programme is not None:
             return depuis_le_programme

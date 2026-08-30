@@ -359,12 +359,15 @@ def _programme_pilote(
     reelle = source if source is not None else FakeSource(CATALOGUE)
     clock = FrozenClock(MIDI)
     random = ScriptedRandom([0] * 200)
-    control = Control(source=reelle, random=random, jingles=Jingles(clock))
+    # UNE seule instance de Jingles, partagée comme dans main.py : le contrôle
+    # y marque l'encore, le programme l'y lit.
+    jingles = Jingles(clock)
+    control = Control(source=reelle, random=random, jingles=jingles)
     programme = RadioProgramme(
         queue=Queue(reelle, random, Window(width=1)),
         source=reelle,
         grille=Schedule([], clock),
-        jingles=Jingles(clock),
+        jingles=jingles,
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
@@ -541,3 +544,24 @@ def test_un_generique_a_aussi_ses_variantes(tmp_path: Path) -> None:
 
     assert choisi is not None
     assert Path(choisi).name.startswith("matinale-debut-")
+
+
+def test_une_entree_replacee_passe_apres_le_force_et_avant_le_tirage(tmp_path: Path) -> None:
+    """GOAL-034, schéma de l'auteur : Yamê → encore.mp3 → Yamê-2 → Tryo."""
+    (tmp_path / "encore.mp3").write_bytes(b"annonce")
+    source = FakeSource(
+        [
+            track("1", "Bowie", genre="rock"),
+            track("2", "Air", genre="électro"),
+            track("3", "Bowie", genre="rock"),
+        ]
+    )
+    programme, control = _programme_pilote(tmp_path, source=source)
+    assert programme.next_entry() == "fake://1"  # Bowie à l'antenne
+    assert control.vote(Command.MORE).accepted
+    # L'avance (Air) est replacée par la charnière, comme après /requeue.
+    programme.replay_later("fake://2", Kind.MUSIC, source.tracks(None)[1], None)
+
+    assert programme.next_entry() == str(tmp_path / "encore.mp3")  # l'annonce
+    assert programme.next_entry() == "fake://3"  # le même artiste, forcé
+    assert programme.next_entry() == "fake://2"  # l'avance replacée — rien de jeté

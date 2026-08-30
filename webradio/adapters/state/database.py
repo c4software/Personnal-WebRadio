@@ -314,9 +314,9 @@ class SqliteState:
         """Un titre vient de commencer : une ligne, et le journal reste borné.
 
         SPECS.md §2 excluait l'archivage du FLUX ; ceci est un journal des
-        titres, décidé par l'auteur le 2026-08-30 (§7 n°27). Deux cents
-        lignes suffisent à répondre « c'était quoi, tout à l'heure ? » —
-        au-delà, c'est une archive, et ce n'en est pas une.
+        titres, décidé par l'auteur le 2026-08-30 (§7 n°27) et borné à
+        **vingt-quatre heures** : « c'était quoi, tout à l'heure ? » a une
+        réponse, « le mois dernier » n'en a pas — ce serait une archive.
         """
         now = self._horloge.now()
         with self._transaction() as connection:
@@ -325,11 +325,8 @@ class SqliteState:
                 (now.isoformat(), kind, title, artist),
             )
             connection.execute(
-                """
-                DELETE FROM historique WHERE rowid NOT IN (
-                    SELECT rowid FROM historique ORDER BY joue_le DESC, rowid DESC LIMIT 200
-                )
-                """
+                "DELETE FROM historique WHERE joue_le < ?",
+                ((now - timedelta(days=1)).isoformat(),),
             )
 
     def history(self) -> list[tuple[datetime, str, str, str]]:

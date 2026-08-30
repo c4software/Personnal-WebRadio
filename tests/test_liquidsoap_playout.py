@@ -151,3 +151,23 @@ def test_une_video_lue_s_efface_quand_la_suite_commence(tmp_path: Path) -> None:
     playout.playing(str(ailleurs), None, None)
     assert not video.exists()  # la suite a commencé : effacée
     assert ailleurs.exists()  # rien d'autre n'est touché
+
+
+def test_la_file_annonce_ce_qui_suit_et_l_encore_le_replace(tmp_path: Path) -> None:
+    """GOAL-034/035 : l'avance se voit, et un encore la replace sans la jeter."""
+    playout, _radio, _clock = _playout(tmp_path)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    deuxieme = playout.next_entry()  # l'avance du diffuseur
+    assert deuxieme is not None
+
+    a_suivre = playout.up_next()
+    assert a_suivre is not None
+    assert a_suivre[1] is not None  # la piste demandée, connue de la charnière
+
+    playout.stash_for_replay()
+    assert playout.up_next() is None  # l'avance est partie se replacer
+    # …et le programme la ressert telle quelle au prochain tirage.
+    assert playout.next_entry() == deuxieme

@@ -260,16 +260,14 @@ def test_le_journal_rend_le_plus_recent_d_abord(tmp_path: Path) -> None:
     ]
 
 
-def test_le_journal_reste_borne_a_deux_cents_lignes(tmp_path: Path) -> None:
-    """Un journal, pas une archive (SPECS.md §2 tient toujours)."""
+def test_le_journal_oublie_au_dela_d_un_jour(tmp_path: Path) -> None:
+    """Un journal, pas une archive (SPECS.md §2 tient toujours) — 24 h."""
     clock = FrozenClock(DEPART)
     e = state(tmp_path / "etat.sqlite", clock)
-    for i in range(205):
-        clock.advance(timedelta(minutes=1))
-        e.record_play("musique", f"titre {i}")
+    e.record_play("musique", "avant-hier")
+    clock.advance(timedelta(hours=25))
+    e.record_play("musique", "à l'instant")
 
     journal = e.history()
 
-    assert len(journal) == 200
-    assert journal[0][2] == "titre 204"
-    assert journal[-1][2] == "titre 5"
+    assert [titre for _, _, titre, _ in journal] == ["à l'instant"]

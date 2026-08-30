@@ -24,7 +24,8 @@ from webradio.adapters.podcast.feed import PodcastFeed, UrllibReader
 from webradio.adapters.sources.navidrome import NavidromeSource, UrllibTransport
 from webradio.adapters.state.database import Scope as StateScope
 from webradio.adapters.state.database import SqliteState, StateUnavailable
-from webradio.adapters.web.api import PlayedEntry, VoteScore
+from webradio.adapters.web.api import Kind as WebKind
+from webradio.adapters.web.api import OnAir, PlayedEntry, VoteScore
 from webradio.adapters.web.views import create_app
 from webradio.adapters.youtube.channel import YoutubeChannel
 from webradio.app.learning import Learning
@@ -157,6 +158,9 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         _ordonner("/skip", "le morceau finira")
 
     def vider_l_avance() -> None:
+        # La charnière replace ce que l'avance contenait, PUIS le diffuseur la
+        # vide : rien n'est perdu, tout se décale d'un cran (GOAL-034).
+        branche[0].stash_for_replay()
         _ordonner("/requeue", "l'encore portera un morceau plus tard")
 
     programmation = Programming(
@@ -174,6 +178,17 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         ],
         clock,
     )
+
+    def ce_qui_suit() -> "OnAir | None":
+        nature = branche[0].up_next()
+        if nature is None:
+            return None
+        kind, track, label = nature
+        return OnAir(
+            kind=WebKind(kind.value),
+            title=track.title if track is not None else label,
+            artist=track.artist if track is not None else None,
+        )
 
     def moment_courant() -> str | None:
         """Programme d'abord — il l'emporte sur la plage (SPECS.md §4.13)."""
@@ -224,6 +239,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         vider_l_avance,
         oublier_le_vote,
         moment_courant,
+        ce_qui_suit,
         journaliser_le_titre,
         lister_l_historique,
     )

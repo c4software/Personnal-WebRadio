@@ -38,6 +38,8 @@
       .titre { font-size: 1.9rem; line-height: 1.2; margin-bottom: 0.5rem; overflow-wrap: anywhere; }
       .artiste { color: var(--sourdine); font-size: 1.15rem; }
       .moment { color: var(--accent); font-size: 0.9rem; margin-top: 0.8rem; }
+      .a-suivre { color: var(--sourdine); font-size: 0.9rem; margin-top: 0.4rem;
+                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .etat {
         margin-top: 1.25rem; padding: 0.8rem 1rem; border-radius: 0.6rem;
         background: var(--carte); border: 1px solid var(--bord); color: var(--sourdine);
@@ -68,6 +70,12 @@
       .vide { color: var(--sourdine); text-align: center; padding: 2rem 0; }
       .legende { display: flex; gap: 1rem; color: var(--sourdine); font-size: 0.8rem; margin-bottom: 1rem; }
       .legende span { display: flex; align-items: center; gap: 0.35rem; }
+      .pagination { display: flex; align-items: center; justify-content: center; gap: 1rem;
+                    margin-bottom: 0.9rem; color: var(--texte); }
+      .pagination button { width: 2.4rem; height: 2.4rem; border-radius: 0.5rem;
+                           border: 1px solid var(--bord); background: var(--carte); color: var(--texte); }
+      .pagination button[disabled] { opacity: 0.35; }
+      .pagination span { font-variant-numeric: tabular-nums; min-width: 3.2rem; text-align: center; }
       .pastille { width: 0.6rem; height: 0.6rem; border-radius: 999px; display: inline-block; }
       .moment-c { background: var(--accent); }
       .programme-c { background: var(--accepte); }
@@ -121,6 +129,7 @@
         <h1 class="titre">[[ antenne ? (antenne.title || antenne.kind) : "Rien à l'antenne" ]]</h1>
         <p class="artiste">[[ antenne ? (antenne.artist || "") : "" ]]</p>
         <p v-if="antenne && moment" class="moment">[[ moment ]]</p>
+        <p v-if="antenne && aSuivre" class="a-suivre">À suivre · [[ aSuivre.title || aSuivre.kind ]]<span v-if="aSuivre.artist"> — [[ aSuivre.artist ]]</span></p>
         <p v-if="message" class="etat" :class="issue">[[ message ]]</p>
         <p v-else-if="!antenne" class="etat">Personne n'écoute : la radio ne tourne pas.</p>
       </section>
@@ -145,7 +154,12 @@
 
       <section v-else-if="onglet === 'historique'">
         <p v-if="historique.length === 0" class="vide">Rien encore : le journal commence maintenant.</p>
-        <div v-for="(e, i) in historique" :key="i" class="ligne-histoire" :class="e.kind === 'musique' ? 'moment-b' : 'emission-b'">
+        <nav v-if="heures.length > 1" class="pagination">
+          <button type="button" :disabled="pageHeure >= heures.length - 1" @click="pageHeure += 1">‹</button>
+          <span>[[ heures[pageHeure] ]] h</span>
+          <button type="button" :disabled="pageHeure <= 0" @click="pageHeure -= 1">›</button>
+        </nav>
+        <div v-for="(e, i) in pageHistorique" :key="i" class="ligne-histoire" :class="e.kind === 'musique' ? 'moment-b' : 'emission-b'">
           <span class="heure">[[ e.at ]]</span>
           <span class="corps">
             <span class="titre-histoire">[[ e.title ]]</span>
@@ -208,9 +222,11 @@
             onglet: "antenne",
             antenne: null,
             moment: null,
+            aSuivre: null,
             votes: [],
             planning: null,
             historique: [],
+            pageHeure: 0,
             urls: URLS,
             message: "",
             issue: "",
@@ -220,6 +236,16 @@
         computed: {
           voteImpossible() {
             return this.antenne !== null && this.antenne.kind !== "musique";
+          },
+          heures() {
+            // Les heures présentes au journal, de la plus récente à la plus
+            // ancienne — le journal est borné à 24 h, la page l'offre heure
+            // par heure (demandé par l'auteur).
+            return [...new Set(this.historique.map((e) => e.at.slice(0, 2)))];
+          },
+          pageHistorique() {
+            const heure = this.heures[this.pageHeure];
+            return this.historique.filter((e) => e.at.slice(0, 2) === heure);
           },
           semaine() {
             // La récurrence se lit par JOUR, pas par type : chaque jour de la
@@ -277,6 +303,7 @@
               const donnees = await reponse.json();
               this.antenne = donnees.on_air && donnees.on_air_now ? donnees.on_air_now : null;
               this.moment = donnees.moment || null;
+              this.aSuivre = donnees.up_next || null;
               if (this.issue === "") { this.message = ""; }
             } catch (erreur) {
               this.message = "L'API ne répond pas : " + erreur;

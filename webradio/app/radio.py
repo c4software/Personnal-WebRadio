@@ -36,6 +36,7 @@ class LiveRadio(Radio):
         requeue: Callable[[], None] | None = None,
         forget: Callable[[str, str], bool] | None = None,
         moment: Callable[[], str | None] | None = None,
+        up_next: Callable[[], OnAir | None] | None = None,
         journal: Callable[[str, str, str], None] | None = None,
         list_history: Callable[[], "list[PlayedEntry]"] | None = None,
     ) -> None:
@@ -48,6 +49,7 @@ class LiveRadio(Radio):
         self._oublier = forget
         self._moment = moment
         self._journaliser = journal
+        self._a_suivre = up_next
         self._lister_historique = list_history
         self._verrou = threading.Lock()
         self._nature = Kind.MUSIC
@@ -103,6 +105,11 @@ class LiveRadio(Radio):
         if self._lister_votes is None:
             return []
         return self._lister_votes()
+
+    def up_next(self) -> OnAir | None:
+        if self._a_suivre is None or not self._station.on_air:
+            return None
+        return self._a_suivre()
 
     def history(self) -> "list[PlayedEntry]":
         if self._lister_historique is None:

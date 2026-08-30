@@ -107,6 +107,38 @@ class LiquidsoapPlayout:
             chemin.unlink(missing_ok=True)
             logger.info("vidéo lue et effacée : %s", chemin.name)
 
+    def up_next(self) -> tuple[Kind, Track | None, str | None] | None:
+        """La prochaine entrée déjà demandée — la file, vue de la charnière.
+
+        C'est le morceau d'avance du diffuseur (GOAL-035) : demandé, pas
+        encore à l'antenne. `None` quand rien n'attend — au tout début, ou
+        juste après qu'un encore a vidé l'avance.
+        """
+        with self._verrou:
+            for entry, nature in self._en_attente.items():
+                if entry != self._entree_en_cours:
+                    return nature
+        return None
+
+    def stash_for_replay(self) -> None:
+        """Les entrées demandées mais pas encore à l'antenne repartent au
+        programme, pour être rejouées après l'effet d'un encore (GOAL-034).
+
+        Rien n'est jeté : le diffuseur vide son avance (`/requeue`), et ce
+        qu'elle contenait se ressert tel quel, nature comprise.
+        """
+        with self._verrou:
+            en_avance = [
+                (entry, nature)
+                for entry, nature in self._en_attente.items()
+                if entry != self._entree_en_cours
+            ]
+            for entry, _ in en_avance:
+                del self._en_attente[entry]
+        for entry, (kind, track, label) in en_avance:
+            logger.info("l'avance se replace après l'encore : %s", entry.split("?", 1)[0])
+            self._programme.replay_later(entry, kind, track, label)
+
     def declare_listeners(self, count: int) -> None:
         self._auditeurs.declare(on_air=count > 0)
         if count == 0:

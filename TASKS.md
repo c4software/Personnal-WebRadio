@@ -153,7 +153,8 @@ Goals sont découpables.
 | GOAL-031 | Le jingle d'« encore » se configure, les exemples ont leurs génériques | `[x]` |
 | GOAL-032 | Les jingles horaires rangés dans `hours/` | `[x]` |
 | GOAL-033 | Les variantes de jingles, tirées au hasard | `[-]` — reste l'écoute |
-| GOAL-034 | L'encore agit sur la chanson suivante, pas celle d'après | `[-]` — codé et vérifié, déploiement en attente d'une fenêtre |
+| GOAL-034 | L'encore agit sur la chanson suivante, l'avance est réinsérée | `[-]` — codé et vérifié, déploiement en attente d'une fenêtre |
+| GOAL-035 | « À suivre » : la file s'affiche à l'antenne | `[-]` — codé et vérifié, même attente |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -1006,7 +1007,7 @@ les surpondérations »
 
 **État : TERMINÉ** — demandé par l'auteur le 2026-08-30 (SPECS §7 n°27)
 
-- [x] `GOAL-027-T01` La table `historique`, écrite quand un titre **commence** (jamais les jingles), bornée à 200 lignes — un journal, pas une archive (§2 tient)
+- [x] `GOAL-027-T01` La table `historique`, écrite quand un titre **commence** (jamais les jingles), bornée à **24 heures** (révisé par l'auteur) — un journal, pas une archive (§2 tient) ; la page le pagine heure par heure
 - [x] `GOAL-027-T02` `GET /api/history` et l'onglet Historique, du plus récent au plus ancien
 
 > **Constaté pendant ce Goal, à la première diffusion YouTube réelle**
@@ -1088,5 +1089,15 @@ Le diffuseur a toujours un morceau d'avance : l'effet d'un encore — jingle
 puis même artiste — arrivait donc après la chanson déjà demandée.
 
 - [x] `GOAL-034-T01` Un encore **accepté** ordonne `POST /requeue` au diffuseur, qui jette son avance (`set_queue([])`) : à la fin de la chanson en cours viennent le jingle puis le même artiste
-- [x] `GOAL-034-T02` Le morceau jeté avait été « demandé » : sa trace dans la fenêtre de non-répétition est le prix, minime, de l'immédiateté
+- [x] `GOAL-034-T02` ~~jeté~~ **Rien n'est jeté** : la charnière met l'avance de côté et le programme la ressert **après** le jingle et le titre forcé — Yamê → encore.mp3 → Yamê-2 → Tryo, le schéma de l'auteur
 - [ ] `GOAL-034-T03` **Déployer hors fenêtre d'écoute**, puis écoute réelle — la leçon des deux essais mangés par un redémarrage
+
+---
+
+## GOAL-035 — « À suivre » : la file s'affiche à l'antenne
+
+**État : EN COURS** — demandé par l'auteur le 2026-08-30 (« tu as accès à la
+queue ? ») ; codé et vérifié, déploiement dans la même fenêtre que GOAL-034
+
+- [x] `GOAL-035-T01` La charnière expose le morceau **demandé, pas encore à l'antenne** ; `/api/on-air` le rend (`up_next`), la page l'affiche sous le moment
+- [ ] `GOAL-035-T02` Déployer puis regarder : l'« à suivre » colle-t-il à ce qui sort réellement, jonction après jonction ?
