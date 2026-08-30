@@ -103,7 +103,8 @@ jingles/
 │   ├── 08h.mp3      diffusé à 8 h
 │   ├── 20h.mp3      diffusé à 20 h
 │   └── 20h-b.mp3    une VARIANTE : l'une des deux est tirée au hasard
-├── encore.mp3       diffusé quand un « encore » est enregistré
+├── encore.mp3       diffusé quand un « encore » est enregistré — le nom
+│                    se change : [jingles] encore = "bravo.mp3" dans le TOML
 └── chloe-debut.mp3  un générique — nom libre, sous-dossiers permis
 ```
 
@@ -206,7 +207,8 @@ Deux gestes, depuis la page web ou directement par l'API.
 | **`encore`** | Dès la fin de la chanson en cours : le jingle d'annonce, puis **un morceau du même artiste** — la chanson qui était prévue n'est pas perdue, elle passe juste après |
 
 **Une voix suffit** : pas de quorum, l'effet est immédiat. Un `encore`
-enregistré s'annonce par le jingle `encore.mp3` à la jonction suivante.
+enregistré s'annonce par un jingle à la jonction suivante — `encore.mp3` par
+défaut, personnalisable par `[jingles] encore = "…"` dans le TOML.
 
 Ils sont disponibles en permanence, **sauf pendant un jingle ou une émission** —
 on ne passe pas une émission. Un vote reçu à ce moment-là est refusé
