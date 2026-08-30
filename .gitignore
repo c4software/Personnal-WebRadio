@@ -1,0 +1,33 @@
+# Configuration locale : contient les identifiants Navidrome (SPECS.md §6)
+webradio.toml
+*.local.toml
+
+# Réglages machine du harnais
+.claude/settings.local.json
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Outillage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Fichiers audio : jingles et flashs ne se versionnent pas
+*.mp3
+*.aac
+*.ogg
+*.flac
+*.wav
+
+# Divers
+.DS_Store
