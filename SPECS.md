@@ -338,9 +338,20 @@ Une **émission** est un épisode de podcast diffusé à heure dite. Contraireme
 un jingle ou à un flash, qui ponctuent la musique, une émission **remplace la
 programmation** pendant toute sa durée — trente minutes, une heure, davantage.
 
-**Une seule à la fois.** Deux émissions ne se chevauchent jamais. Si deux
-déclarations tombent à la même heure, c'est une erreur de configuration : la
-radio refuse de démarrer en la nommant (§6).
+**Autant d'émissions que voulu, mais jamais deux en même temps.** Le TOML en
+déclare autant qu'on veut, chacune avec son flux et sa case horaire — c'est le
+sens de « une seule à la fois » : pas *un seul podcast*, mais *pas de
+chevauchement*.
+
+Deux émissions qui tomberaient à la même heure sont une **erreur de
+configuration** : la radio refuse de démarrer en les nommant toutes les deux
+(§6). Elle ne choisit pas à votre place, et elle ne joue pas la première venue.
+
+Le chevauchement se juge sur la **case déclarée**, pas sur la durée réelle des
+épisodes : deux émissions déclarées à des heures différentes ne se chevauchent
+pas, même si la première déborde sur la seconde. Dans ce cas, **la première
+finit** — c'est la même règle que pour les plages thématiques (§4.4), et pour la
+même raison : ne rien couper.
 
 #### Ce qu'une émission a en commun avec un jingle
 
@@ -407,16 +418,16 @@ Déclarée au TOML, une entrée par émission :
 
 ```toml
 [[emissions]]
-nom   = "Le rendez-vous du soir"
-flux  = "https://exemple.org/podcast.xml"
-jours = "tous"
+nom   = "A la French"
+flux  = "https://feeds.acast.com/public/shows/a-la-french"
+jours = ["vendredi"]
 heure = "20:00"
 
 [[emissions]]
-nom   = "Mardi jazz"
-flux  = "https://exemple.org/jazz.xml"
-jours = ["mardi"]
-heure = "12:00"
+nom   = "LEGEND"
+flux  = "https://feeds.acast.com/public/shows/legend-1"
+jours = ["mardi", "jeudi"]
+heure = "21:00"
 ```
 
 `jours` vaut `"tous"` ou une liste de jours de la semaine ; `heure` est un moment
@@ -516,8 +527,9 @@ Ce que le TOML doit décrire, au minimum :
   doivent passer avant qu'un artiste puisse revenir (§4.2, défaut 5) ;
 - **Les sources** : une section par source, avec son type et ses paramètres
   (§4.10) ;
-- **Les émissions** : une entrée par émission — nom, flux de podcast, jours et
-  heure (§4.11) ;
+- **Les émissions** : une entrée `[[emissions]]` par émission — nom, flux de
+  podcast, jours et heure (§4.11). Il n'y a pas de limite au nombre
+  d'émissions ;
 - **Les seuils** : durée de fondu. **Aucun seuil de péremption** : ni les
   jingles ni les flashs ne sont abandonnés pour cause de retard (§4.3).
 

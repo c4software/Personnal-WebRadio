@@ -1,8 +1,16 @@
 # docs/podcast.md — Relevé des flux de podcast
 
-> **Relevé établi le 2026-08-30** (`GOAL-002-T09`) contre le flux réellement
-> voulu : **LEGEND**, `https://feeds.acast.com/public/shows/legend-1`, 725
-> épisodes.
+> **Relevé établi le 2026-08-30** (`GOAL-002-T09`) contre les **deux** flux
+> réellement voulus :
+>
+> | Émission | Flux | Épisodes |
+> |---|---|---|
+> | **LEGEND** | `https://feeds.acast.com/public/shows/legend-1` | 725 |
+> | **A la French** | `https://feeds.acast.com/public/shows/a-la-french` | 31 |
+>
+> Les deux sont hébergés chez **Acast**, donc les constats se recoupent. Ce que
+> deux flux du même hébergeur **ne** disent **pas** : ce que fera un troisième
+> chez quelqu'un d'autre (§5).
 > `GOAL-002` devra répondre **contre les flux réellement déclarés** par l'auteur.
 >
 > Règle applicable (AGENTS.md §3). Elle mord ici : « RSS avec des `<enclosure>` »
@@ -121,6 +129,60 @@ Appliquée à LEGEND, elle donne :
 Un épisode médian de 77 minutes fait **abandonner un à deux jingles horaires** ;
 un épisode de 2 h 50 en fait abandonner trois. La décision n°15 tient — c'est ce
 qu'elle prévoit — mais son ampleur est plus grande qu'un « de temps en temps ».
+
+## 3.3 Le second flux : A la French, et ce qu'il révèle
+
+| Mesure | LEGEND | A la French |
+|---|---|---|
+| Épisodes | 725 | **31** |
+| `pubDate`, `duration`, `enclosure/url` | 0 manquant | **0 manquant** |
+| `itunes:episodeType` | 724 `full`, 1 `trailer` | 30 `full`, **1 `bonus`** |
+| Durées (min / médiane / max) | 1 / 77 / 170 min | 45 / **72** / 110 min |
+| Écart annoncé ↔ servi | **+2 Mo** | **+350 octets** |
+
+Trois enseignements que le premier flux ne pouvait pas donner :
+
+### 3.3.1 L'insertion publicitaire varie énormément d'une émission à l'autre
+
++2 Mo chez LEGEND, +350 octets chez A la French. **Même hébergeur, même
+mécanisme, deux ordres de grandeur d'écart.** On ne peut donc rien déduire d'un
+flux pour un autre : `enclosure/length` reste inutilisable, mais la marge d'erreur
+sur `duration` n'est pas une constante qu'on pourrait corriger.
+
+### 3.3.2 `episodeType` n'a pas que `full` et `trailer`
+
+A la French expose un **`bonus`** — et c'est **l'épisode le plus récent** :
+*« Épisode BONUS : recap saison 1 et annonces »*, 45 min, 28 juillet 2026.
+
+> Ma proposition de §1.1 — *ne retenir que les `full`* — écarterait donc
+> aujourd'hui le dernier épisode publié au profit de celui du 7 juillet. Ce n'est
+> plus une garde contre une bande-annonce d'une minute trente : c'est un choix
+> éditorial. **Il remonte à l'auteur** (voir §3.4).
+
+### 3.3.3 Un podcast entre deux saisons rejoue le même épisode
+
+Le dernier épisode `full` de A la French date du **7 juillet 2026**, le bonus du
+**28 juillet**. Nous sommes le **30 août** : l'émission est en pause.
+
+Une case **chaque vendredi à 20 h** servirait donc, avec la décision n°14
+(« le plus récent »), **le même épisode toutes les semaines** jusqu'à la reprise.
+
+> **Ce n'est pas un défaut, c'est le comportement spécifié** — SPECS.md §4.11 le
+> dit déjà : *« si le podcast n'a rien publié depuis, c'est le même épisode qui
+> repasse — cela s'entend, et cela ne casse rien. »*
+>
+> Mais « cela s'entend » avait été écrit pour un podcast quotidien, où le cas est
+> rare. Sur une émission hebdomadaire en pause, c'est le cas **nominal**, et il
+> peut durer des mois. L'auteur doit le savoir avant que ça n'arrive.
+
+## 3.4 Deux questions que ce relevé fait remonter
+
+1. **Faut-il retenir les `bonus` ?** `full` seul écarte aujourd'hui le dernier
+   épisode d'A la French. `full` + `bonus` le retient, mais laisse passer les
+   `trailer`. Les trois types existent ; le choix est éditorial.
+2. **Que faire d'un podcast en pause ?** Rejouer le même épisode chaque semaine,
+   ou renoncer à la case tant que rien de neuf n'est paru — auquel cas la radio
+   reste sur la musique, comme pour un flash absent.
 
 ## 4. Quand ça se passe mal
 

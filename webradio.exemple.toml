@@ -1,0 +1,57 @@
+# Modèle de configuration — à copier en `webradio.toml`, qui n'est pas versionné.
+#
+# Ce fichier ne porte AUCUN secret : les identifiants Navidrome sont dans
+# `.env` (SPECS.md §6.1). Un secret trouvé ici fait échouer le démarrage.
+
+# ── Le flux servi aux auditeurs ────────────────────────────────────────────
+[flux]
+adresse = "0.0.0.0"
+port    = 8000
+# Réencodage systématique vers un format unique. Ce n'est pas un réglage de
+# confort : la bibliothèque est hétérogène — mp3 et m4a, six débits constatés —
+# et un changement de format en cours de flux fait décrocher les lecteurs.
+# Voir SPECS.md §7 n°11 et docs/navidrome.md §3.1.
+format         = "mp3"
+debit_kbps     = 128
+frequence_hz   = 44100
+canaux         = 2
+
+# ── Le tirage ──────────────────────────────────────────────────────────────
+[tirage]
+# Un artiste ne revient pas avant que N autres artistes soient passés.
+# La fenêtre rétrécit plutôt que de bloquer sur une petite bibliothèque.
+non_repetition_artistes = 5
+
+# ── Les jingles ────────────────────────────────────────────────────────────
+[jingles]
+# Les NOMS sont fixes : 00h.mp3 … 23h.mp3 pour les heures, encore.mp3 pour le
+# vote. Seul le dossier se configure. Un jingle absent ne signale rien.
+dossier = "/chemin/vers/jingles"
+
+# ── Les moments thématiques ────────────────────────────────────────────────
+# En dehors de ces plages, le tirage est libre. Une plage sans musique se
+# replie sur le tirage libre plutôt que de faire taire la radio.
+[[plages]]
+debut  = "08:00"
+fin    = "10:00"
+genres = ["Chanson française"]
+
+[[plages]]
+debut  = "20:00"
+fin    = "23:00"
+genres = ["Rock", "Pop"]
+
+# ── Les émissions ──────────────────────────────────────────────────────────
+# Autant qu'on veut, mais jamais deux à la même heure : la radio refuserait
+# de démarrer en les nommant.
+[[emissions]]
+nom   = "A la French"
+flux  = "https://feeds.acast.com/public/shows/a-la-french"
+jours = ["vendredi"]
+heure = "20:00"
+
+[[emissions]]
+nom   = "LEGEND"
+flux  = "https://feeds.acast.com/public/shows/legend-1"
+jours = ["mardi", "jeudi"]   # à confirmer par l'auteur
+heure = "21:00"              # à confirmer par l'auteur
