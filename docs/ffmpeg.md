@@ -158,6 +158,39 @@ vingt-quatre.
 > C'est l'optimisation que le relevé était chargé de chercher. **Elle n'existe
 > pas, et c'est une bonne nouvelle** : le chemin le plus simple est aussi le bon.
 
+## 2.ter Insérer un jingle ou un flash — **relevé**
+
+> **Constaté le 2026-08-30** (`GOAL-002-T03`), avec un jingle en **22050 mono**
+> et un `encore.mp3` en **32000 stéréo** — c'est-à-dire des fichiers déposés à la
+> main, sans rapport de format avec la bibliothèque.
+
+**Un jingle n'est rien d'autre qu'un morceau de plus dans la file.** Il traverse
+le même tuyau, il est ramené au même PCM, et l'encodeur ne fait aucune
+différence :
+
+| Séquence | Durée attendue | Obtenue | Blancs |
+|---|---|---|---|
+| musique · `14h.mp3` · musique | 7,000 s | **7,000000 s** | 0 |
+| musique · `14h.mp3` · `15h.mp3` · `encore.mp3` · musique | 8,500 s | **8,500000 s** | 0 |
+
+La seconde ligne est le cas de SPECS.md §4.3 — plusieurs jingles dus à la même
+jonction, `encore.mp3` en dernier. **Quatre jonctions, aucun blanc.**
+
+> **Il n'y a donc qu'un seul chemin d'insertion à écrire**, et il est déjà décrit
+> en §2.1. Les jingles horaires, le jingle de vote et les flashs l'empruntent
+> tous. C'est la simplification qu'ARCHITECTURE.md §6.2 espérait en remplaçant la
+> note mêlée par un jingle à la jonction : le relevé la confirme.
+
+### Ce que ce relevé **ne** dit **pas**
+
+Les niveaux mesurés sont uniformes (rms ≈ 1850 partout) — **mais les fichiers
+d'essai sont des sinus synthétiques de même amplitude.** Cela ne dit rien du cas
+réel, où un jingle enregistré trop fort écrasera la musique.
+
+La normalisation du niveau reste donc entière, et c'est un **angle mort**
+(AGENTS.md §4.1) : aucun test ne l'entendra. À traiter dans `GOAL-006`, avec de
+vrais fichiers, à l'oreille.
+
 ## 3. Le flux de sortie
 
 - [ ] Quel format et quel débit pour un flux HTTP lu indifféremment par VLC, un
