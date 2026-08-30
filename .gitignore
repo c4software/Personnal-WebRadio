@@ -28,7 +28,9 @@ dist/
 htmlcov/
 coverage.xml
 
-# Fichiers audio : jingles et flashs ne se versionnent pas
+# Fichiers audio : le dossier jingles/ est versionné vide, son contenu jamais
+jingles/*
+!jingles/.gitkeep
 *.mp3
 *.aac
 *.ogg

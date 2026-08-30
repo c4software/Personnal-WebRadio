@@ -35,7 +35,8 @@ cross_weight        = 0.25   # ce qu'un stop pèse sur l'artiste, un encore sur 
 [jingles]
 # Les NOMS sont fixes : 00h.mp3 … 23h.mp3 pour les heures, encore.mp3 pour le
 # vote. Seul le dossier se configure. Un jingle absent ne signale rien.
-folder = "/chemin/vers/jingles"
+# Par défaut, le dossier `jingles/` à la racine du dépôt (versionné vide).
+folder = "jingles"
 
 # ── Les moments thématiques ────────────────────────────────────────────────
 # En dehors de ces plages, le tirage est libre. Une plage sans musique se

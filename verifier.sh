@@ -53,5 +53,18 @@ done < <(grep -rnE '\b(TODO|FIXME)\b' webradio/ tests/ --include='*.py' 2>/dev/n
 [ "$echec" -eq 0 ] && echo "  ✓ aucun interdit enfreint"
 [ "$echec" -eq 0 ] || exit 1
 
+echo "── script Liquidsoap ─────────────────────────────────────"
+# La syntaxe change de version en version (docs/liquidsoap.md §1.7) : le
+# script se valide contre l'image épinglée, jamais contre un binaire local.
+LIQUIDSOAP_IMAGE="${LIQUIDSOAP_IMAGE:-savonet/liquidsoap:v2.3.3}"
+if command -v docker >/dev/null 2>&1; then
+  docker run --rm -v "$PWD/webradio/adapters/liquidsoap:/liq:ro" \
+    "$LIQUIDSOAP_IMAGE" liquidsoap --check /liq/radio.liq
+  echo "  ✓ radio.liq accepté par $LIQUIDSOAP_IMAGE"
+else
+  echo "  ✗ docker introuvable : radio.liq n'a pas été validé" >&2
+  exit 1
+fi
+
 echo "── tests et couverture ───────────────────────────────────"
 "$VENV/pytest" --cov --cov-fail-under=80
