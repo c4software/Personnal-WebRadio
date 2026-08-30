@@ -19,6 +19,8 @@ qu'on écoute — on se branche, et ça joue déjà.
 - **Jingles horaires** en MP3, insérés à la jonction sans couper un morceau
 - **Flashs France Info** aux heures choisies, avec repli sur la musique s'ils
   manquent
+- **Émissions** : un épisode de podcast diffusé à heure dite — tous les jours à
+  20 h, chaque mardi à midi — une seule à la fois, déclarée au TOML
 - **Pilotage** : `stop` pour passer, `encore` pour rester sur l'artiste — ou à
   défaut sur le genre. Un « encore » s'annonce par un jingle à la jonction — une
   voix suffit, il n'y a pas de quorum
@@ -58,7 +60,7 @@ projet, et le travail avance par **Goals** découpés en tâches traçables.
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Comment elle est conçue |
 | [TASKS.md](./TASKS.md) | Où en est le travail |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Comment contribuer |
-| [docs/](./docs/) | Navidrome, France Info, ffmpeg, lecteurs de webradio — relevés par observation |
+| [docs/](./docs/) | Navidrome, France Info, ffmpeg, lecteurs de webradio, podcasts — relevés par observation |
 
 Commandes de pilotage : `/status`, `/goal <objectif>`, `/task [ID]`, `/verify`.
 

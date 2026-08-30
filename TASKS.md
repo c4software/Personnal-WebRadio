@@ -30,6 +30,16 @@ Rappel (AGENTS.md §1.1) : `code écrit ≠ tâche terminée`.
 
 **Phase 0 — Harness** `[-]` en cours.
 
+> **Mise à jour du 2026-08-30 (5)** — l'auteur ajoute les **émissions** : un
+> épisode de podcast diffusé à heure dite, une seule à la fois, programmée au
+> TOML par `jours` et `heure`. Objet d'un genre nouveau — long, et qui
+> **remplace** la programmation au lieu de s'y insérer.
+> Ajoute `GOAL-010` et un cinquième relevé `docs/podcast.md`. Ouvre puis tranche
+> trois décisions le même jour : **n°13** rattrapage borné à la durée de
+> l'épisode, **n°14** l'épisode le plus récent, **n°15** les jingles dus pendant
+> une émission sont abandonnés — **seule exception** à « rien n'est jamais
+> abandonné ».
+>
 > **Mise à jour du 2026-08-30 (4)** — les trois dernières décisions bloquantes
 > tombent : **n°5** (la grille n'est lue qu'au tirage), **n°8** (tenir puis
 > couper en le disant, jamais boucler) et **n°11** (sans coupure > lisible
@@ -71,10 +81,10 @@ elle n'a rien à vérifier.
 
 **Prochaine tâche** : `GOAL-001-T01` — constater l'existant et arrêter la stack.
 
-**Aucune décision ne bloque plus un découpage.** Sur douze décisions ouvertes à
-l'initialisation, dix sont tranchées ; la n°9 est une conséquence consignée, non
-une question, et la n°12 est délibérément différée jusqu'à la deuxième source de
-musique.
+Sur quinze décisions, **treize sont tranchées**. La n°9 est une conséquence
+consignée, non une question ; la n°12 est délibérément différée jusqu'à la
+deuxième source de musique. **Aucune ne bloque plus un découpage** : les dix
+Goals sont découpables.
 
 ---
 
@@ -91,6 +101,7 @@ musique.
 | GOAL-007 | Le pilotage : `stop` et `encore` dans le noyau | `[ ]` |
 | GOAL-008 | L'API de pilotage | `[ ]` |
 | GOAL-009 | L'interface web — Flask et Jinja2 | `[ ]` |
+| GOAL-010 | Les émissions : podcasts programmés | `[ ]` |
 
 ---
 
@@ -147,6 +158,11 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 | Pannes en cours : **tenir, puis couper en le disant** | Couper tout de suite rend fragile aux micro-coupures ; boucler rend la panne invisible, contre AGENTS.md §2. Tranche SPECS.md §7 n°8 |
 | Flux : **sans coupure > lisible partout > économie** | Une radio économe qui fait décrocher les lecteurs ne remplit pas sa fonction. Tranche SPECS.md §7 n°11 : le réencodage permanent est la voie par défaut, assumée |
 | Le flash France Info est **cherché par `GOAL-002`** | Aucune adresse fournie. Point de départ : les flux publics de Radio France. Si rien de fiable, la question remonte (AGENTS.md §1.2) |
+| Émission manquée : **rattrapée dans la limite de sa durée** | La durée de l'épisode est une borne naturelle, qui ne se règle pas. Tranche SPECS.md §7 n°13. Coûte un appel au podcast **au branchement**, avant de savoir s'il servira |
+| Épisode diffusé : **le plus récent** | Seul choix qui ne rouvre pas l'absence de persistance. Tranche SPECS.md §7 n°14 |
+| Jingles dus pendant une émission : **abandonnés** | Une émission remplace la programmation, habillage compris. **Seule exception à « rien n'est jamais abandonné »** — écrite dans SPECS.md §4.3 et §4.11. Tranche SPECS.md §7 n°15 |
+| Les émissions déclarées par `jours` + `heure`, sans grammaire de récurrence | Des champs déclaratifs n'exigent aucun analyseur, se testent directement, et couvrent les deux cas demandés. Une grammaire complète n'arrivera pas avant son deuxième cas d'usage (AGENTS.md §2) |
+| Cinquième relevé : `docs/podcast.md` | « RSS avec des `enclosure` » est une convention, pas une norme respectée : un flux qui marche ne dit rien du suivant |
 | Quatrième relevé : `docs/flux-icy.md` | « Compatible avec tout lecteur de webradio » n'a aucune norme derrière : c'est une convention de fait, à constater lecteur par lecteur |
 
 ### Dettes ouvertes par ce Goal
@@ -164,10 +180,11 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
       ont été tranchées le 2026-08-30 (n°1 et n°6), deux ont été ouvertes le même
       jour (n°10 et n°11). Trois bloquent un Goal précis :
       la **n°2** (modularité des sources) avant `GOAL-002`,
-      **Aucune ne bloque plus un découpage.** Dix ont été tranchées le
-      2026-08-30 : n°1 à n°8, n°10, n°11. Restent la **n°9** — qui n'est pas une
-      question mais une conséquence consignée — et la **n°12**, délibérément
-      différée jusqu'à la deuxième source.
+      Dix ont été tranchées le 2026-08-30 : n°1 à n°8, n°10, n°11. La **n°9**
+      n'est pas une question mais une conséquence consignée ; la **n°12** est
+      délibérément différée jusqu'à la deuxième source.
+      Les **n°13, n°14 et n°15**, ouvertes par les émissions, ont été tranchées
+      le même jour. **Aucune décision ne bloque plus un découpage.**
 - [x] `GOAL-001-T15` ~~La n°10 est une ambiguïté de spécification.~~ **Levée le
       2026-08-30** : l'auteur a tranché — une voix suffit, et l'accusé de
       réception devient un jingle `encore.mp3` inséré à la jonction plutôt
@@ -331,3 +348,36 @@ gabarit.
 
 Elle ne configure rien : le TOML reste le seul point d'entrée des réglages
 (SPECS.md §6).
+
+---
+
+## GOAL-010 — Les émissions : podcasts programmés
+
+**État : TODO** — non découpé.
+
+Un épisode de podcast diffusé à heure dite, déclaré au TOML par `jours` et
+`heure` (SPECS.md §4.11). Une seule émission à la fois ; elle **remplace** la
+programmation au lieu de s'y insérer, donc elle suspend la grille thématique et
+la non-répétition pour sa durée.
+
+Ce qui se déduit déjà des règles existantes, et n'a pas à être rediscuté : elle
+ne coupe pas un morceau, elle n'est jamais abandonnée pour retard, `stop` et
+`encore` y sont refusés, un épisode indisponible fait rester sur la musique.
+
+**Débloqué le 2026-08-30** : les trois décisions sont tranchées.
+
+- **n°13** — rattrapage borné à la durée de l'épisode. **Conséquence à ne pas
+  manquer au découpage** : la durée n'étant connue qu'après lecture du flux, le
+  démarrage de la chaîne doit interroger le podcast **avant** de savoir s'il s'en
+  servira. C'est le seul endroit du projet où le démarrage dépend d'un appel
+  réseau qui peut ne servir à rien.
+- **n°14** — l'épisode le plus récent. Aucun état retenu : l'absence de
+  persistance est préservée.
+- **n°15** — les jingles dus pendant une émission sont abandonnés. Pour le noyau,
+  une émission n'est donc pas une insertion dans la file mais une **suspension**
+  de tout ce qui l'alimente.
+
+Deux constats de `GOAL-002` conditionnent ces décisions
+([docs/podcast.md](./docs/podcast.md) §4) : la **date de publication** doit être
+fiable, et la **durée** lisible sans télécharger le fichier. Si l'un manque, la
+décision correspondante est à rejouer.

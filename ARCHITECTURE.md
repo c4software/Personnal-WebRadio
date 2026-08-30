@@ -19,6 +19,7 @@ webradio/
   adapters/    le monde extérieur — ne décide de rien
     sources/     d'où vient la musique — Navidrome aujourd'hui
     news/        le flash France Info
+    podcast/     les émissions programmées
     ffmpeg/      l'encodage
     http/        le flux servi aux auditeurs
     web/         Flask, l'API et les gabarits Jinja2
@@ -82,6 +83,7 @@ fichier devrait porter.
 | Les options de ligne de commande ffmpeg, ses codes de sortie, sa sortie d'erreur | `adapters/ffmpeg/` |
 | Les en-têtes HTTP du flux, le `Content-Type`, la gestion des connexions | `adapters/http/` |
 | L'adresse et le format du flash France Info | `adapters/news/` |
+| Le format RSS d'un podcast, ses `enclosure`, ses redirections | `adapters/podcast/` |
 | La syntaxe TOML et le nom des clés | `adapters/config/` |
 | Flask, ses routes, ses requêtes et ses réponses | `adapters/web/` |
 | Jinja2 et ses gabarits | `adapters/web/templates/` |
@@ -223,7 +225,34 @@ C'est le noyau qui sait s'il est dans un jingle, un flash ou de la musique — d
 c'est lui qui refuse. L'API traduit ce refus en réponse HTTP ; elle ne le décide
 pas.
 
-### 5.2 Les sources
+### 5.2 Les émissions, et l'absence de persistance
+
+Une émission **remplace** la programmation au lieu de s'y insérer
+(SPECS.md §4.11). Pour le noyau, cela veut dire que la file n'a rien à tirer
+pendant sa durée : ni grille, ni non-répétition, ni tirage.
+
+**L'absence de persistance est préservée.** C'est l'**épisode le plus récent**
+qui est diffusé (SPECS.md §7 n°14), donc rien n'est retenu d'une fois sur
+l'autre. L'option écartée — « le suivant non encore diffusé » — aurait imposé le
+premier état durable du projet, et donc une décision d'architecture, pour un gain
+d'usage mince.
+
+**Le rattrapage se décide avant de servir.** Une émission manquée est rattrapée
+dans la limite de sa durée (SPECS.md §7 n°13) — or la durée n'est connue
+qu'**après avoir lu le flux du podcast**. Au démarrage de la chaîne, il faut donc
+interroger le podcast pour savoir s'il y a lieu de rattraper, avant même de
+savoir si l'on s'en servira.
+
+C'est le seul endroit où le démarrage de la chaîne dépend d'un appel réseau qui
+peut ne servir à rien. Si le flux est injoignable, il n'y a pas de rattrapage :
+la radio démarre sur la musique et journalise (SPECS.md §5).
+
+**Les jingles dus pendant une émission sont abandonnés** (SPECS.md §7 n°15).
+Conséquence pour le noyau : la programmation d'une émission n'est pas une
+insertion dans la file, c'est une **suspension** de tout ce qui l'alimente —
+grille, non-répétition, tirage et habillage compris.
+
+### 5.3 Les sources
 
 Le noyau ne connaît qu'un `Protocol` : **chercher, tirer sous contrainte,
 résoudre une piste en flux audio**. Rien d'autre ne le traverse — ni la grille,

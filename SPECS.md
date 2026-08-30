@@ -13,8 +13,8 @@ Un comportement audible qui n'est pas décrit ici n'existe pas : il est soit à
 
 **local-webradio** est une station de radio personnelle. Elle diffuse un **flux
 HTTP audio unique**, alimenté par un tirage dans une bibliothèque
-[Navidrome](https://www.navidrome.org/), ponctué de jingles horaires et
-d'interruptions d'information.
+[Navidrome](https://www.navidrome.org/), ponctué de jingles horaires,
+d'interruptions d'information et d'**émissions** programmées.
 
 Elle n'existe **que lorsqu'on l'écoute** : rien ne tourne tant que personne n'est
 branché ; la chaîne démarre à la première connexion et s'arrête à la dernière.
@@ -30,6 +30,7 @@ la musique joue en continu, sans blanc entre les morceaux
         ↓
 à l'heure pile : un jingle
 à certaines heures : un flash France Info
+à l'heure dite : une émission remplace la programmation
 selon l'heure : un genre plutôt qu'un autre
         ↓
 l'auditeur peut dire « stop » (passer) ou « encore »
@@ -140,11 +141,14 @@ on ajoute un jingle en déposant un fichier, on le retire en le supprimant.
   pas.
 - Le jingle **ne coupe pas** un morceau en cours : il s'insère à la jonction
   suivante. Un jingle à cheval sur un refrain est un défaut.
-- **Un jingle n'est jamais abandonné**, quel que soit son retard. `14h.mp3` peut
-  donc s'entendre à 14 h 25 si le morceau en cours est long. C'est assumé : un
-  jingle est de l'habillage, personne ne règle sa montre dessus, et renoncer
-  aurait demandé un seuil, un réglage et une famille de cas limites pour un gain
-  nul.
+- **Un jingle n'est jamais abandonné pour cause de retard**, quel qu'il soit.
+  `14h.mp3` peut donc s'entendre à 14 h 25 si le morceau en cours est long. C'est
+  assumé : un jingle est de l'habillage, personne ne règle sa montre dessus, et
+  renoncer aurait demandé un seuil, un réglage et une famille de cas limites pour
+  un gain nul.
+  → **Une seule exception, et elle n'a rien à voir avec le retard** : les jingles
+  dus **pendant une émission** sont abandonnés, parce qu'une émission remplace la
+  programmation, habillage compris (§4.11).
 - **Si plusieurs jingles sont dus** à la même jonction — un morceau très long a
   enjambé deux heures — ils sont **tous diffusés, dans l'ordre chronologique**.
   Le jingle de vote `encore.mp3` (§4.6) passe toujours **en dernier**, parce
@@ -274,26 +278,6 @@ L'interface web n'est rien de plus que la mise en page de cela : ce qui passe, e
 deux boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
 d'entrée des réglages (§6) — et ne touche pas à la bibliothèque (§2).
 
-### 4.10 D'où vient la musique
-
-La musique vient de **sources** déclarées dans le TOML. Navidrome en est une ;
-d'autres pourront être ajoutées sans rien reprendre du cœur.
-
-Une source sait faire trois choses, et seulement trois : chercher, tirer au
-hasard sous contrainte de genre ou d'artiste, et résoudre une piste en un flux
-audio lisible. Tout le reste — la grille, le tirage, la non-répétition — est
-décidé au-dessus d'elles et ne dépend d'aucune.
-
-**Une seule source est écrite aujourd'hui** : Navidrome. Le mécanisme est
-néanmoins complet — plusieurs sources peuvent être déclarées et activées. Ce
-choix est un **écart assumé** à la règle « une abstraction arrive avec son
-deuxième cas d'usage » : il est consigné comme tel dans ARCHITECTURE.md §9.1,
-pour rester visible plutôt que tacite.
-
-Ce qui se passe quand **plusieurs sources sont actives à la fois** — comment le
-tirage les combine, si elles se mélangent ou s'alternent, ce qui arrive quand
-l'une devient injoignable — n'est pas spécifié : décision ouverte §7 n°12.
-
 ### 4.9 Ce que le flux doit être
 
 Trois exigences, qui tirent en sens contraire et qu'il faut pourtant tenir
@@ -328,6 +312,125 @@ Un réencodage permanent vers un format unique est donc la voie par défaut, et
 elle est assumée. Chercher moins coûteux est une **optimisation**, jamais un
 prétexte à violer cet ordre.
 
+### 4.10 D'où vient la musique
+
+La musique vient de **sources** déclarées dans le TOML. Navidrome en est une ;
+d'autres pourront être ajoutées sans rien reprendre du cœur.
+
+Une source sait faire trois choses, et seulement trois : chercher, tirer au
+hasard sous contrainte de genre ou d'artiste, et résoudre une piste en un flux
+audio lisible. Tout le reste — la grille, le tirage, la non-répétition — est
+décidé au-dessus d'elles et ne dépend d'aucune.
+
+**Une seule source est écrite aujourd'hui** : Navidrome. Le mécanisme est
+néanmoins complet — plusieurs sources peuvent être déclarées et activées. Ce
+choix est un **écart assumé** à la règle « une abstraction arrive avec son
+deuxième cas d'usage » : il est consigné comme tel dans ARCHITECTURE.md §9.1,
+pour rester visible plutôt que tacite.
+
+Ce qui se passe quand **plusieurs sources sont actives à la fois** — comment le
+tirage les combine, si elles se mélangent ou s'alternent, ce qui arrive quand
+l'une devient injoignable — n'est pas spécifié : décision ouverte §7 n°12.
+
+### 4.11 Les émissions
+
+Une **émission** est un épisode de podcast diffusé à heure dite. Contrairement à
+un jingle ou à un flash, qui ponctuent la musique, une émission **remplace la
+programmation** pendant toute sa durée — trente minutes, une heure, davantage.
+
+**Une seule à la fois.** Deux émissions ne se chevauchent jamais. Si deux
+déclarations tombent à la même heure, c'est une erreur de configuration : la
+radio refuse de démarrer en la nommant (§6).
+
+#### Ce qu'une émission a en commun avec un jingle
+
+- Elle **ne coupe pas** un morceau en cours : elle commence à la jonction
+  suivante. Son démarrage est donc décalé au plus de la durée d'un morceau.
+- Elle **n'est jamais abandonnée pour cause de retard** (§7 n°4).
+- Un épisode **indisponible ou tronqué** n'est pas une panne : la radio reste sur
+  la musique et journalise. Elle ne diffuse jamais une émission incomplète.
+- **`stop` et `encore` n'y sont pas applicables** : ils sont refusés
+  explicitement, comme pendant un jingle ou un flash (§4.6). On ne passe pas une
+  émission.
+
+#### Ce qu'une émission a de différent
+
+- Elle **suspend la grille thématique et la règle de non-répétition** pour sa
+  durée : il n'y a rien à tirer, il y a un épisode à diffuser.
+- Elle est **longue**, donc elle enjambe presque toujours au moins une heure
+  pleine. **Les jingles horaires dus pendant une émission sont abandonnés** —
+  ils ne sont ni différés, ni mêlés au son. Une émission remplace la
+  programmation, habillage compris, et personne n'attend un jingle au milieu
+  d'une émission.
+  → C'est la **seule exception** à « rien n'est jamais abandonné » (§4.3). Elle
+  est écrite ici pour être vue, et sa raison n'est pas le retard mais la nature
+  de l'émission. Il en va de même d'un flash d'information programmé pendant une
+  émission.
+- Elle vient d'un **flux de podcast**, dont on diffuse **l'épisode le plus
+  récent**. Aucun état n'est retenu d'une fois sur l'autre : si le podcast n'a
+  rien publié depuis, c'est le même épisode qui repasse — cela s'entend, et cela
+  ne casse rien.
+
+#### Quand la radio ne tournait pas
+
+C'est la conséquence la plus contre-intuitive de ce projet, et elle est propre à
+lui : **la radio n'existe que lorsqu'on l'écoute** (§1). Une émission programmée à
+20 h alors que personne n'est branché **n'a tout simplement pas lieu** — rien ne
+tourne pour la diffuser.
+
+**Elle est rattrapée, dans la limite de sa propre durée.** Si l'on se branche
+pendant ce qui aurait été sa durée de diffusion, elle démarre — **depuis le
+début**. Passé ce délai, elle est perdue.
+
+```
+émission de 20h00, épisode d'1h
+
+20h40  branchement  → dans la fenêtre → l'émission démarre, et finit à 21h40
+21h10  branchement  → hors fenêtre    → musique, l'émission est perdue
+```
+
+Deux conséquences à assumer :
+
+- **la durée n'est connue qu'après avoir lu le flux du podcast.** Décider s'il
+  faut rattraper suppose donc d'interroger le flux au branchement, avant de
+  savoir si l'on va s'en servir ;
+- **une émission rattrapée décale sa propre fin.** Branché à 20 h 55, l'épisode
+  d'une heure se termine à 21 h 55. C'est borné par la durée, jamais davantage.
+
+Si le flux est injoignable au moment de décider, il n'y a pas de rattrapage : la
+radio démarre sur la musique et journalise. Une émission perdue n'est pas une
+panne.
+
+#### La programmation
+
+Déclarée au TOML, une entrée par émission :
+
+```toml
+[[emissions]]
+nom   = "Le rendez-vous du soir"
+flux  = "https://exemple.org/podcast.xml"
+jours = "tous"
+heure = "20:00"
+
+[[emissions]]
+nom   = "Mardi jazz"
+flux  = "https://exemple.org/jazz.xml"
+jours = ["mardi"]
+heure = "12:00"
+```
+
+`jours` vaut `"tous"` ou une liste de jours de la semaine ; `heure` est un moment
+de la journée. **Rien de plus.** Ce choix est délibéré : des champs déclaratifs
+n'exigent aucun analyseur syntaxique, se testent directement, et couvrent les
+deux cas demandés — « tous les jours à 20 h » et « chaque mardi à 12 h ».
+
+**Ce que cette forme ne sait pas exprimer**, et qui devra ouvrir une décision le
+jour où le besoin apparaîtra : « le premier lundi du mois », « une semaine sur
+deux », « du lundi au vendredi sauf jours fériés ». Une grammaire de récurrence
+complète — de type `cron`, ou un langage à écrire — serait un analyseur, ses cas
+limites et sa documentation. Elle n'arrivera pas avant son deuxième cas d'usage
+(AGENTS.md §2).
+
 ---
 
 ## 5. Comportement en cas d'erreur
@@ -341,6 +444,9 @@ contournée en continuant la musique l'est, et laisse une trace journalisée.
 | Un jingle absent (`14h.mp3` ou `encore.mp3`) | continue **sans rien signaler** — c'est nominal (§4.3, §4.6) |
 | Un jingle présent mais illisible | passe outre, journalise |
 | Un flash indisponible ou tronqué | continue sur la musique, journalise |
+| Un épisode d'émission indisponible ou tronqué | continue sur la musique, journalise (§4.11) |
+| Le flux de podcast injoignable au moment de décider d'un rattrapage | pas de rattrapage, démarre sur la musique, journalise |
+| Deux émissions déclarées à la même heure | **refuse de démarrer**, en les nommant (§6) |
 | Une plage thématique sans musique | se replie sur le tirage libre, journalise |
 | La non-répétition ne laisse aucun artiste | rétrécit la fenêtre d'un cran, journalise (§4.2) |
 | `encore` sans autre morceau de l'artiste | replie sur le genre, puis sur le tirage libre |
@@ -393,6 +499,8 @@ Ce que le TOML doit décrire, au minimum :
   doivent passer avant qu'un artiste puisse revenir (§4.2, défaut 5) ;
 - **Les sources** : une section par source, avec son type et ses paramètres
   (§4.10) ;
+- **Les émissions** : une entrée par émission — nom, flux de podcast, jours et
+  heure (§4.11) ;
 - **Les seuils** : durée de fondu. **Aucun seuil de péremption** : ni les
   jingles ni les flashs ne sont abandonnés pour cause de retard (§4.3).
 
@@ -447,8 +555,9 @@ bloquer le tirage (§4.2).
 > au triple.
 
 **n°4 — La péremption ? Aucune.** Tranchée le 2026-08-30. Ni les jingles ni les
-flashs ne sont abandonnés pour cause de retard. `14h.mp3` peut s'entendre à
-14 h 25 (§4.3).
+flashs ne sont abandonnés **pour cause de retard**. `14h.mp3` peut s'entendre à
+14 h 25 (§4.3). **Une exception a été ouverte depuis par la n°15** : ce qui est dû
+pendant une émission est abandonné — pour une raison qui n'est pas le retard.
 > *Raison* : un jingle est de l'habillage, personne ne règle sa montre dessus.
 > Renoncer aurait coûté un seuil, un réglage et une famille de cas limites pour
 > un gain nul. **Supprime aussi tout seuil de péremption du TOML.**
@@ -495,6 +604,44 @@ Un réencodage permanent vers un format unique est donc **assumé** s'il le faut
 > — transmission telle quelle quand le format correspond, format homogène servi
 > par Navidrome. S'il n'en existe pas, on réencode, et `GOAL-004` n'attend
 > personne.
+
+**n°13 — Une émission manquée ? Rattrapée, dans la limite de sa durée.**
+Tranchée le 2026-08-30. Se brancher pendant ce qui aurait été la durée de
+l'émission la fait démarrer, depuis le début ; au-delà, elle est perdue (§4.11).
+> *Raison* : ne rien faire aurait donné l'impression que la programmation ne
+> marche pas ; une fenêtre déclarée aurait ajouté une clé. La durée de l'épisode
+> est une borne naturelle, qui ne se règle pas.
+>
+> **Ce qu'elle coûte** : la durée n'étant connue qu'après lecture du flux, il
+> faut interroger le podcast au branchement **avant** de savoir si l'on
+> rattrape. Et une émission rattrapée décale sa propre fin, d'au plus sa durée.
+
+**n°14 — Quel épisode ? Le plus récent.** Tranchée le 2026-08-30. Aucun état n'est
+retenu d'une fois sur l'autre. Si le podcast n'a rien publié depuis, le même
+épisode repasse (§4.11).
+> *Raison* : c'est le comportement d'une émission d'actualité, et surtout le seul
+> qui **ne rouvre pas l'absence de persistance**. « Le suivant non encore
+> diffusé » aurait imposé le premier état durable du projet
+> (ARCHITECTURE.md §5.2) — une décision d'architecture, pour un gain d'usage
+> mince.
+>
+> **Ce qu'elle exige du relevé** : que la date de publication soit toujours
+> présente et fiable ([docs/podcast.md](./docs/podcast.md) §1). Si elle ne l'est
+> pas, « le plus récent » n'est pas implémentable et la décision devra être
+> rejouée.
+
+**n°15 — Les jingles dus pendant une émission ? Abandonnés.** Tranchée le
+2026-08-30. Ni différés, ni mêlés au son. Il en va de même d'un flash programmé
+pendant une émission (§4.11).
+> *Raison* : une émission remplace la programmation, habillage compris. Les
+> différer aurait produit un `21h.mp3` diffusé après une émission de trois
+> heures ; les mêler aurait **réintroduit le mixage de deux sources en temps
+> réel**, précisément le chemin supprimé en remplaçant la note de vote par un
+> jingle à la jonction (n°10).
+>
+> **C'est la seule exception à « rien n'est jamais abandonné » (n°4)**, et sa
+> raison n'est pas le retard mais la nature de l'émission. Elle est écrite dans
+> §4.3 **et** §4.11, pour qu'aucune des deux lectures ne la manque.
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :

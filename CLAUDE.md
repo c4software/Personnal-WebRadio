@@ -12,8 +12,8 @@ de vérification, conventions de code et de commit.
 2. [ARCHITECTURE.md](./ARCHITECTURE.md) — l'architecture technique (le **comment**)
 3. [TASKS.md](./TASKS.md) — la feuille de route et l'avancement réel (l'**ordre**)
 
-Si le travail touche à **Navidrome**, au **flash France Info**, à **ffmpeg** ou
-à **ce qu'attendent les lecteurs de webradio**, lire **aussi** le relevé
+Si le travail touche à **Navidrome**, au **flash France Info**, à **ffmpeg**, à
+**ce qu'attendent les lecteurs de webradio** ou aux **flux de podcast**, lire **aussi** le relevé
 correspondant dans [docs/](./docs/), et sa section « points incertains » en
 particulier : **ne jamais inventer le comportement d'une dépendance externe**
 (AGENTS.md §3).

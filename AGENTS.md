@@ -187,6 +187,7 @@ Trois relevés vivent dans [docs/](./docs/) :
 | [docs/franceinfo.md](./docs/franceinfo.md) | Le flash d'information : accès, format, disponibilité |
 | [docs/ffmpeg.md](./docs/ffmpeg.md) | Les options réellement acceptées par la version installée |
 | [docs/flux-icy.md](./docs/flux-icy.md) | Ce qu'attendent réellement les lecteurs de webradio |
+| [docs/podcast.md](./docs/podcast.md) | Les flux de podcast des émissions, et ce qu'ils exposent vraiment |
 
 > Le dernier est le plus mal outillé des quatre : **il n'existe aucune norme du
 > « flux de webradio »**. Ce que les lecteurs acceptent est une convention de
@@ -319,7 +320,7 @@ La documentation fait partie de la tâche, pas de son après-coup.
 | Nouvelle clé de configuration TOML | [SPECS.md](./SPECS.md) §6 |
 | Décision d'architecture, dépendance, découpage | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | Nouveau dossier, ou dossier dont le rôle change | [ARCHITECTURE.md](./ARCHITECTURE.md) §9 |
-| Une observation sur Navidrome, France Info, ffmpeg ou un lecteur de webradio | le relevé correspondant dans [docs/](./docs/) |
+| Une observation sur Navidrome, France Info, ffmpeg, un lecteur de webradio ou un flux de podcast | le relevé correspondant dans [docs/](./docs/) |
 | Une route d'API ajoutée, changée ou retirée | [SPECS.md](./SPECS.md) §4.8 — c'est une surface publique |
 | Nouvelle règle de développement | ce fichier |
 | Procédure de contribution | [CONTRIBUTING.md](./CONTRIBUTING.md) |
