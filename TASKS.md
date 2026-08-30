@@ -79,7 +79,7 @@ La documentation structurante et les commandes de pilotage sont posées.
 faire, et la commande de vérification n'a donc jamais été exécutée avec succès —
 elle n'a rien à vérifier.
 
-**Prochaine tâche** : `GOAL-001-T04` — prouver la chaîne de vérification.
+**Prochaine tâche** : `GOAL-001-T11` — vérification complète et carte du dépôt.
 
 Sur quinze décisions, **treize sont tranchées**. La n°9 est une conséquence
 consignée, non une question ; la n°12 est délibérément différée jusqu'à la
@@ -116,7 +116,7 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 - [x] `GOAL-001-T01` Constater l'existant et arrêter la stack (Python, version, gestionnaire de dépendances)
 - [x] `GOAL-001-T02` Squelette exécutable : `pyproject.toml`, `webradio/{core,adapters,app}/`, `tests/`, un point d'entrée qui démarre et s'arrête proprement
 - [x] `GOAL-001-T03` Outillage qualité : `ruff` (format + analyse), `mypy` strict, `pytest` + `pytest-cov` à 80 %
-- [ ] `GOAL-001-T04` **Prouver la chaîne de vérification** : écrire un test qui échoue, une violation de style et une erreur de type ; constater que la commande sort en erreur sur chacune ; puis les corriger et constater qu'elle passe
+- [x] `GOAL-001-T04` **Prouver la chaîne de vérification** : écrire un test qui échoue, une violation de style et une erreur de type ; constater que la commande sort en erreur sur chacune ; puis les corriger et constater qu'elle passe
 - [x] `GOAL-001-T05` Rédiger `SPECS.md`
 - [x] `GOAL-001-T06` Rédiger `ARCHITECTURE.md`
 - [x] `GOAL-001-T07` Rédiger `AGENTS.md`
@@ -166,6 +166,38 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 | Les émissions déclarées par `jours` + `heure`, sans grammaire de récurrence | Des champs déclaratifs n'exigent aucun analyseur, se testent directement, et couvrent les deux cas demandés. Une grammaire complète n'arrivera pas avant son deuxième cas d'usage (AGENTS.md §2) |
 | Cinquième relevé : `docs/podcast.md` | « RSS avec des `enclosure` » est une convention, pas une norme respectée : un flux qui marche ne dit rien du suivant |
 | Quatrième relevé : `docs/flux-icy.md` | « Compatible avec tout lecteur de webradio » n'a aucune norme derrière : c'est une convention de fait, à constater lecteur par lecteur |
+
+### Ce que `GOAL-001-T04` a prouvé
+
+Onze violations introduites une par une, chacune **refusée**, puis retirée. Le
+tableau dit surtout **quel** mécanisme a refusé — un refus obtenu par le mauvais
+mécanisme est un refus qu'on croit avoir.
+
+| Violation | Refusée par |
+|---|---|
+| Mise en forme qui s'écarte | `ruff format --check` |
+| `print()` | `ruff` T20 |
+| `except Exception: pass` | `ruff` BLE |
+| Fonction sans annotations | `mypy` strict |
+| `import httpx` dans le noyau | `mypy` (paquet absent) |
+| `datetime.now()` sans fuseau | `ruff` DTZ |
+| **`import socket` dans le noyau** | **la garde `verifier.sh`** — ruff et mypy l'acceptent |
+| **`datetime.now(tz=UTC)` hors de `clock.py`** | **la garde `verifier.sh`** — ruff et mypy l'acceptent |
+| `import random` hors de `rng.py` | la garde `verifier.sh` |
+| `flask`/`jinja2` hors de `adapters/web/` | la garde, exercée isolément |
+| `TODO` sans tâche | la garde `verifier.sh` |
+| Couverture à 64 % | `pytest --cov-fail-under=80` |
+
+**Les deux lignes en gras sont la raison d'être de cette tâche.** `import socket`
+et `datetime.now(tz=UTC)` passent sans un mot devant ruff et mypy : sans les
+gardes textuelles, le noyau aurait pu ouvrir une connexion et lire l'horloge
+système sans que rien ne le signale — et les deux interdits les plus importants
+du projet (ARCHITECTURE.md §1.1 et §3.1) n'auraient été que des phrases.
+
+Deux essais ont par ailleurs échoué **avant** d'atteindre leur garde : `httpx` et
+`flask` ne sont pas installés, donc mypy s'arrête sur l'import. Ces gardes-là ont
+donc été exercées à part, contre des fixtures, pour ne pas se contenter d'un code
+de sortie non nul obtenu pour une autre raison.
 
 ### Dettes ouvertes par ce Goal
 
