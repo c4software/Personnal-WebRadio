@@ -50,7 +50,7 @@ class RadioProgramme:
         random: Random,
         jingle_folder: Path,
         *,
-        on_kind: Callable[[Kind, Track | None], None],
+        on_kind: Callable[[Kind, Track | None, str | None], None],
         programming: Programming | None = None,
         programme_window: Window | None = None,
         shows: "Shows | None" = None,
@@ -81,7 +81,7 @@ class RadioProgramme:
             return show
         jingle = self._prochain_jingle()
         if jingle is not None:
-            self._sur_nature(Kind.JINGLE, None)
+            self._sur_nature(Kind.JINGLE, None, None)
             return str(jingle)
         return self._prochaine_piste()
 
@@ -117,7 +117,7 @@ class RadioProgramme:
             return None
         show, audio = due
         logger.info("émission « %s » à l'antenne", show.name)
-        self._sur_nature(Kind.SHOW, None)
+        self._sur_nature(Kind.SHOW, None, show.name)
         return audio
 
     def _prochain_jingle(self) -> Path | None:
@@ -161,7 +161,7 @@ class RadioProgramme:
             return None
         for fallback in pick.fallbacks:
             logger.info("repli : %s", fallback)
-        self._sur_nature(Kind.MUSIC, pick.track)
+        self._sur_nature(Kind.MUSIC, pick.track, None)
         return self._source.entry(pick.track)
 
     def _piste_du_programme(self) -> str | None:
@@ -192,5 +192,5 @@ class RadioProgramme:
             allowed = self._fenetre_programme.filter_out(tracks)
         track = self._hasard.pick(allowed)
         self._fenetre_programme.remember(track)
-        self._sur_nature(Kind.MUSIC, track)
+        self._sur_nature(Kind.MUSIC, track, None)
         return self._source.entry(track)

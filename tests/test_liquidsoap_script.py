@@ -50,3 +50,12 @@ def test_le_script_s_arrete_au_lieu_de_boucler() -> None:
 def test_rien_ne_joue_sans_auditeur() -> None:
     assert re.search(r"listeners\(\)\s*>\s*0", _code())
     assert "blank()" in _code()
+
+
+def test_un_direct_est_une_instruction_de_l_api_pas_du_script() -> None:
+    """GOAL-015 : le script capte ce qu'on lui dit, jusqu'à l'heure qu'on lui dit."""
+    code = _code()
+    assert 'prefix="live:"' in code
+    assert "input.http(" in code
+    assert "self_sync=false" in code, "sans lui la rafale initiale avale le morceau en cours"
+    assert "track_sensitive=true" in code, "un direct prend la main à la jonction, jamais au milieu"

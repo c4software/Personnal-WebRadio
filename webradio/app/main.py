@@ -122,7 +122,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         clock=clock,
         random=random,
         jingle_folder=Path(settings.jingles.folder),
-        on_kind=lambda kind, track: branche[0].on_kind(kind, track),
+        on_kind=lambda kind, track, label: branche[0].on_kind(kind, track, label),
         programming=Programming(
             [
                 Programme(
@@ -138,13 +138,28 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         ),
         programme_window=Window(settings.draw.artist_gap),
         shows=Shows(
-            ShowSchedule([Show(name=e.name, days=e.days, hour=e.hour) for e in settings.shows]),
+            ShowSchedule(
+                [
+                    Show(
+                        name=e.name,
+                        days=e.days,
+                        hour=e.hour,
+                        duration=(
+                            timedelta(minutes=e.duration_minutes)
+                            if e.duration_minutes is not None
+                            else None
+                        ),
+                    )
+                    for e in settings.shows
+                ]
+            ),
             PodcastFeed(
                 UrllibReader(lock_timeout=timedelta(seconds=settings.podcast.timeout_seconds))
             ),
             state,
             clock,
-            {e.name: e.feed for e in settings.shows},
+            {e.name: e.feed for e in settings.shows if e.feed is not None},
+            streams={e.name: e.stream for e in settings.shows if e.stream is not None},
         ),
     )
 

@@ -54,8 +54,19 @@ class Show:
     name: str
     days: tuple[str, ...]
     hour: time
+    # Un direct n'a pas d'épisode qui se termine de lui-même : sa durée est
+    # déclarée, et c'est ce qui borne sa case (SPECS.md §4.11, §7 n°22). `None`
+    # pour un podcast, dont la durée se lit dans le flux.
+    duration: timedelta | None = None
+
+    @property
+    def is_live(self) -> bool:
+        return self.duration is not None
 
     def __post_init__(self) -> None:
+        if self.duration is not None and self.duration <= timedelta(0):
+            message = f"« {self.name} » a une durée nulle : elle ne diffuserait rien"
+            raise ValueError(message)
         if not self.name:
             message = "une émission sans nom ne peut pas être désignée dans un conflit"
             raise ValueError(message)
@@ -97,6 +108,8 @@ class Slot:
 
     show: Show
     start: datetime
+    end: datetime | None = None
+    """La fin de la case, connue d'avance pour un direct seulement."""
 
 
 def episode_to_air(episodes: Sequence[Episode], already_aired: str | None = None) -> Episode | None:
@@ -177,14 +190,16 @@ class ShowSchedule:
         start = self.slot_start(show, instant)
         if start is None or instant >= start + duration:
             return None
-        return Slot(show, start)
+        return Slot(show, start, start + duration if show.is_live else None)
 
     def due(self, durations: Mapping[str, timedelta], instant: datetime) -> Slot | None:
         """La case ouverte maintenant, s'il y en a une.
 
         `durees` associe un nom d'émission à la durée de son épisode. Une
         émission absente de la table — flux injoignable au branchement — n'est
-        pas rattrapée : la radio reste sur la musique (SPECS.md §4.11).
+        pas rattrapée : la radio reste sur la musique (SPECS.md §4.11). Un
+        **direct** porte sa durée lui-même : sa case est ouverte tant qu'il en
+        reste, et il n'y a rien à rattraper (§7 n°22).
 
         Si deux cases se recouvrent par la durée de leurs épisodes, c'est **la
         première commencée** qui l'emporte : c'est la même règle que « la
@@ -192,7 +207,7 @@ class ShowSchedule:
         """
         ouvertes: list[Slot] = []
         for show in self._emissions:
-            duration = durations.get(show.name)
+            duration = show.duration if show.is_live else durations.get(show.name)
             if duration is None:
                 continue
             case = self.open_slot(show, duration, instant)

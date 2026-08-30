@@ -9,7 +9,7 @@ from webradio.app.playout import RadioProgramme
 from webradio.app.radio import ListenerCount, LiveRadio
 from webradio.core.bands import Schedule
 from webradio.core.clock import FrozenClock
-from webradio.core.control import Control
+from webradio.core.control import Control, Kind
 from webradio.core.jingles import Jingles
 from webradio.core.queue import Queue
 from webradio.core.rng import ScriptedRandom
@@ -35,7 +35,7 @@ def _playout(folder: Path) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
         clock=clock,
         random=random,
         jingle_folder=folder,
-        on_kind=lambda kind, piste: branche[0].on_kind(kind, piste),
+        on_kind=lambda kind, piste, e: branche[0].on_kind(kind, piste, e),
     )
     playout = LiquidsoapPlayout(programme, radio, counter)
     branche.append(playout)
@@ -99,6 +99,20 @@ def test_plus_rien_a_jouer_rend_none(tmp_path: Path) -> None:
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
-        on_kind=lambda _kind, _piste: None,
+        on_kind=lambda _kind, _piste, _e: None,
     )
     assert LiquidsoapPlayout(programme, radio, counter).next_entry() is None
+
+
+def test_une_emission_s_affiche_par_son_nom_declare(tmp_path: Path) -> None:
+    """GOAL-015-T06 : le flux d'un direct ne porte aucune métadonnée — ce qui
+    s'affiche est le nom déclaré au TOML, rien d'autre."""
+    playout, radio, _ = _playout(tmp_path)
+    playout.declare_listeners(1)
+    playout.on_kind(Kind.SHOW, None, "Flash franceinfo")
+    radio.declare(Kind.SHOW, None, "Flash franceinfo")
+    a_l_antenne = radio.on_air_now()
+    assert a_l_antenne is not None
+    assert a_l_antenne.kind.value == "emission"
+    assert a_l_antenne.title == "Flash franceinfo"
+    assert a_l_antenne.artist is None

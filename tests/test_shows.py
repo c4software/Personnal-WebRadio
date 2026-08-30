@@ -198,3 +198,38 @@ def test_une_semaine_entiere_se_deroule_en_une_boucle_et_se_rejoue() -> None:
     assert sum(1 for v in premiere if "Quotidienne" in v) == 7
     assert sum(1 for v in premiere if "LEGEND" in v) == 2
     assert sum(1 for v in premiere if "A la French" in v) == 1
+
+
+# ── Les directs (SPECS.md §7 n°22, GOAL-015) ────────────────────────────────
+
+FLASH = Show(name="Flash", days=("tous",), hour=time(12), duration=timedelta(minutes=9))
+
+
+def test_un_direct_porte_sa_duree_et_le_dit() -> None:
+    assert FLASH.is_live
+    assert not QUOTIDIENNE.is_live
+
+
+def test_un_direct_sans_duree_est_refuse() -> None:
+    with pytest.raises(ValueError, match="durée nulle"):
+        Show(name="Vide", days=("tous",), hour=time(12), duration=timedelta(0))
+
+
+def test_la_case_d_un_direct_est_ouverte_tant_qu_il_en_reste() -> None:
+    grille = ShowSchedule([FLASH])
+    case = grille.due({}, le_vendredi(12, 4))
+    assert case is not None
+    assert case.show is FLASH
+    assert case.end == le_vendredi(12, 9)
+
+
+def test_la_case_d_un_direct_se_ferme_a_la_seconde_declaree() -> None:
+    grille = ShowSchedule([FLASH])
+    assert grille.due({}, le_vendredi(12, 9)) is None
+
+
+def test_un_podcast_n_a_pas_de_fin_connue_d_avance() -> None:
+    grille = ShowSchedule([QUOTIDIENNE])
+    case = grille.due({"Quotidienne": timedelta(minutes=30)}, le_vendredi(12, 4))
+    assert case is not None
+    assert case.end is None

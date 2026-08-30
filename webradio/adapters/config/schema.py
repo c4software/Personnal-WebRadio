@@ -176,12 +176,19 @@ class DeclaredProgramme:
 
 @dataclass(frozen=True, slots=True)
 class Show:
-    """Un podcast diffusé à jour et heure dits."""
+    """Un podcast — ou un direct — diffusé à jour et heure dits.
+
+    Soit `feed` (un podcast, dont l'épisode se termine de lui-même), soit
+    `stream` **et** `duration_minutes` (un direct, qu'il faut couper). Jamais les
+    deux, jamais ni l'un ni l'autre (SPECS.md §4.11).
+    """
 
     name: str
-    feed: str
     days: tuple[str, ...]
     hour: time
+    feed: str | None = None
+    stream: str | None = None
+    duration_minutes: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -488,13 +495,33 @@ def _emissions(brut: Mapping[str, Any]) -> tuple[Show, ...]:
     shows: list[Show] = []
     for index, table in enumerate(_liste_tables(brut, "shows")):
         prefix = f"shows[{index}]"
-        _verifier_cles(table, ("name", "feed", "days", "time"), prefix)
+        _verifier_cles(
+            table, ("name", "feed", "stream", "duration_minutes", "days", "time"), prefix
+        )
+        name = _texte(table, "name", prefix)
+        if ("feed" in table) == ("stream" in table):
+            _refuser(
+                prefix, f"« {name} » doit avoir soit `feed` (un podcast), soit `stream` (un direct)"
+            )
+        if "stream" in table and "duration_minutes" not in table:
+            _refuser(
+                prefix,
+                f"« {name} » est un direct : `duration_minutes` est obligatoire",
+            )
+        if "feed" in table and "duration_minutes" in table:
+            _refuser(prefix, f"« {name} » est un podcast : sa durée se lit dans le flux, pas ici")
         shows.append(
             Show(
-                name=_texte(table, "name", prefix),
-                feed=_texte(table, "feed", prefix),
+                name=name,
                 days=_jours(table, prefix),
                 hour=_heure(table, "time", prefix),
+                feed=_texte(table, "feed", prefix) if "feed" in table else None,
+                stream=_texte(table, "stream", prefix) if "stream" in table else None,
+                duration_minutes=(
+                    _entier(table, "duration_minutes", prefix, maximum=24 * 60)
+                    if "duration_minutes" in table
+                    else None
+                ),
             )
         )
     _refuser_les_collisions(shows)

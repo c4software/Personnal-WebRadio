@@ -108,6 +108,20 @@ feed  = "https://feeds.acast.com/public/shows/a-la-french"
 days = ["vendredi"]
 time = "20:00"
 
+# Un DIRECT comme émission (SPECS.md §4.11, §7 n°22) : `stream` au lieu de
+# `feed`, et `duration_minutes` obligatoire — un direct ne se termine pas seul.
+# C'est ainsi que passe le flash France Info : le podcast des flashs n'existe
+# plus, le direct répond (docs/franceinfo.md §1.bis). La grille de franceinfo —
+# un journal à :00 et :30, environ neuf minutes — n'est connue que de seconde
+# main : ajustez la durée à l'oreille. Pas de rattrapage : si la jonction
+# arrive à 12:03, on capte jusqu'à 12:09, pas une minute de plus.
+[[shows]]
+name   = "Flash franceinfo"
+stream = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"
+duration_minutes = 9
+days = "all"
+time = "12:00"
+
 [[shows]]
 name   = "LEGEND"
 feed  = "https://feeds.acast.com/public/shows/legend-1"

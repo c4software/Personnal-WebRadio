@@ -38,16 +38,21 @@ class LiveRadio(Radio):
         self._verrou = threading.Lock()
         self._nature = Kind.MUSIC
         self._piste: Track | None = None
+        self._libelle: str | None = None
 
-    def declare(self, kind: Kind, track: Track | None) -> None:
+    def declare(self, kind: Kind, track: Track | None, label: str | None = None) -> None:
         """Appelée par le programme à chaque changement de ce qui passe.
 
         Deux destinataires : le noyau, qui en a besoin pour refuser un vote au
-        bon moment, et l'API, qui l'affiche.
+        bon moment, et l'API, qui l'affiche. `label` porte le nom de ce qui n'a
+        pas de piste — une émission — parce que le flux, lui, ne porte aucune
+        métadonnée (docs/franceinfo.md §1.bis) : ce qui s'affiche est ce qui a
+        été déclaré (SPECS.md §4.8, GOAL-015).
         """
         with self._verrou:
             self._nature = kind
             self._piste = track
+            self._libelle = label
         self._controle.declare(kind)
 
     def on_air(self) -> bool:
@@ -57,10 +62,10 @@ class LiveRadio(Radio):
         if not self._station.on_air:
             return None
         with self._verrou:
-            kind, track = self._nature, self._piste
+            kind, track, label = self._nature, self._piste, self._libelle
         return OnAir(
             kind=NatureWeb(kind.value),
-            title=track.title if track is not None else None,
+            title=track.title if track is not None else label,
             artist=track.artist if track is not None else None,
         )
 

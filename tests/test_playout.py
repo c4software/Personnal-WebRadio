@@ -32,11 +32,11 @@ def _programme(
     source: FakeSource | None = None,
     bands: list[Band] | None = None,
     clock: FrozenClock | None = None,
-) -> tuple[RadioProgramme, list[tuple[Kind, Track | None]]]:
+) -> tuple[RadioProgramme, list[tuple[Kind, Track | None, str | None]]]:
     reelle = source if source is not None else FakeSource(CATALOGUE)
     montre = clock if clock is not None else FrozenClock(MIDI)
     random = ScriptedRandom([0] * 200)
-    vues: list[tuple[Kind, Track | None]] = []
+    vues: list[tuple[Kind, Track | None, str | None]] = []
     return (
         RadioProgramme(
             queue=Queue(reelle, random, Window(width=1)),
@@ -46,7 +46,7 @@ def _programme(
             clock=montre,
             random=random,
             jingle_folder=folder,
-            on_kind=lambda n, p: vues.append((n, p)),
+            on_kind=lambda n, p, e: vues.append((n, p, e)),
         ),
         vues,
     )
@@ -73,7 +73,7 @@ def test_un_jingle_du_et_present_passe_avant_la_musique(tmp_path: Path) -> None:
     programme, vues = _programme(tmp_path, clock=clock)
     clock.advance(timedelta(hours=1))
     assert programme.next_entry() == str(tmp_path / "13h.mp3")
-    assert vues[-1] == (Kind.JINGLE, None)
+    assert vues[-1] == (Kind.JINGLE, None, None)
 
 
 def test_un_jingle_du_mais_absent_ne_signale_rien(
@@ -159,10 +159,10 @@ def _avec_programme(
     listes: dict[str, list[Track]],
     programmes: list[Programme],
     bands: list[Band] | None = None,
-) -> tuple[RadioProgramme, list[tuple[Kind, Track | None]]]:
+) -> tuple[RadioProgramme, list[tuple[Kind, Track | None, str | None]]]:
     source = FakeSource(CATALOGUE, listes=listes)
     random = ScriptedRandom([0] * 200)
-    vues: list[tuple[Kind, Track | None]] = []
+    vues: list[tuple[Kind, Track | None, str | None]] = []
     return (
         RadioProgramme(
             queue=Queue(source, random, Window(width=1)),
@@ -172,7 +172,7 @@ def _avec_programme(
             clock=clock,
             random=random,
             jingle_folder=folder,
-            on_kind=lambda n, p: vues.append((n, p)),
+            on_kind=lambda n, p, e: vues.append((n, p, e)),
             programming=Programming(programmes, clock),
             programme_window=Window(width=1),
         ),
@@ -245,7 +245,7 @@ def test_une_source_illisible_pendant_un_programme_replie_aussi(
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
-        on_kind=lambda _n, _p: None,
+        on_kind=lambda _n, _p, _e: None,
         programming=Programming([PROG], clock),
     )
     with caplog.at_level(logging.WARNING):
@@ -270,7 +270,7 @@ def test_une_liste_courte_ne_bloque_pas_le_programme(tmp_path: Path) -> None:
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
-        on_kind=lambda _n, _p: None,
+        on_kind=lambda _n, _p, _e: None,
         programming=Programming([PROG], clock),
         programme_window=Window(width=3),
     )
@@ -322,7 +322,7 @@ def test_un_jingle_du_passe_meme_quand_les_emissions_sont_cablees(tmp_path: Path
     )
     source = FakeSource(CATALOGUE)
     random = ScriptedRandom([0] * 200)
-    vues: list[tuple[Kind, Track | None]] = []
+    vues: list[tuple[Kind, Track | None, str | None]] = []
     programme = RadioProgramme(
         queue=Queue(source, random, Window(width=1)),
         source=source,
@@ -331,13 +331,13 @@ def test_un_jingle_du_passe_meme_quand_les_emissions_sont_cablees(tmp_path: Path
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
-        on_kind=lambda n, p: vues.append((n, p)),
+        on_kind=lambda n, p, e: vues.append((n, p, e)),
         shows=aucune_emission,
     )
     clock.advance(timedelta(hours=1))
 
     assert programme.next_entry() == str(tmp_path / "13h.mp3")
-    assert vues[-1] == (Kind.JINGLE, None)
+    assert vues[-1] == (Kind.JINGLE, None, None)
 
 
 class _FeedSansEpisode:

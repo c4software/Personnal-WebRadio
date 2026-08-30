@@ -430,3 +430,60 @@ def test_un_programme_a_clef_inconnue_est_refuse() -> None:
     )
     with pytest.raises(SettingsError, match="genre"):
         validate(brut)
+
+
+# ── Un direct comme émission (GOAL-015) ─────────────────────────────────────
+
+DIRECT = """
+[[shows]]
+name = "Flash"
+stream = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"
+duration_minutes = 9
+days = "all"
+time = "12:00"
+"""
+
+
+def test_un_direct_se_declare_avec_son_flux_et_sa_duree() -> None:
+    config = _valider(TOML_MINIMAL + DIRECT)
+    flash = next(s for s in config.shows if s.name == "Flash")
+    assert flash.stream == "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"
+    assert flash.duration_minutes == 9
+    assert flash.feed is None
+
+
+def test_un_direct_sans_duree_est_refuse_en_le_disant() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(TOML_MINIMAL + DIRECT.replace("duration_minutes = 9\n", ""))
+    assert "Flash" in str(refus.value)
+    assert "duration_minutes" in str(refus.value)
+
+
+def test_feed_et_stream_ensemble_sont_refuses() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL
+            + DIRECT.replace('name = "Flash"', 'name = "Flash"\nfeed = "https://x.test/rss"')
+        )
+    assert "Flash" in str(refus.value)
+
+
+def test_une_emission_sans_source_est_refusee() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL
+            + DIRECT.replace('stream = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"\n', "")
+        )
+    assert "Flash" in str(refus.value)
+
+
+def test_un_podcast_ne_declare_pas_de_duree() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL
+            + DIRECT.replace(
+                'stream = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"',
+                'feed = "https://x.test/rss"',
+            )
+        )
+    assert "duration_minutes" in str(refus.value) or "durée" in str(refus.value)

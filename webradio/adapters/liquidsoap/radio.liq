@@ -34,8 +34,56 @@ def stop_saying_why(why) =
   shutdown()
 end
 
+# ── Un direct, sur instruction de l'API (SPECS.md §4.11, GOAL-015) ─────────
+# L'API rend `live:<fin en secondes Unix>:<url>`. Un direct ne peut pas être
+# une requête — la résolution d'un flux infini expire (docs/liquidsoap.md §5) —
+# donc il passe par `input.http`, démarré dès l'instruction (un morceau
+# d'avance, le temps qu'il se remplisse), mis à l'antenne **à la jonction**
+# (`switch` sensible aux pistes), et coupé à l'heure dite. `self_sync=false` :
+# sans lui, la rafale initiale du serveur accélère l'horloge de toute la
+# sortie et le morceau en cours est avalé (docs/liquidsoap.md §5).
+live_url = ref("")
+live_entry = ref("")
+live_pending = ref(false)
+live = input.http(id="live", start=false, self_sync=false, max_buffer=3., {live_url()})
+
+def stop_live(why) =
+  if live_pending() then
+    live_pending := false
+    live.stop()
+    log("le direct se termine : #{why}")
+  end
+end
+
+def start_live(entry) =
+  parts = string.split(separator=":", entry)
+  ends_at = float_of_string(default=0., list.nth(default="0", parts, 1))
+  url = string.concat(separator=":", list.tl(list.tl(parts)))
+  remaining = ends_at - time()
+  if live_pending() then
+    log(level=2, "un direct est déjà en cours, instruction ignorée")
+  elsif remaining <= 0. then
+    log(level=2, "direct déjà terminé à sa demande, ignoré")
+  else
+    live_url := url
+    live_entry := entry
+    live_pending := true
+    live.start()
+    log("direct demandé pour #{int_of_float(remaining)} s")
+    thread.run(delay=remaining, {stop_live("heure de fin atteinte")})
+  end
+end
+
+# Ce qui commence, pour l'API — l'entrée telle qu'elle l'a rendue.
+live.on_track(fun (_) -> begin
+  answer = http.post(timeout=api_timeout, data=live_entry(), "#{api}/playout/playing")
+  if answer.status_code != 204 then
+    log(level=2, "l'API n'a pas pris l'annonce du direct (#{answer.status_code})")
+  end
+end)
+
 # ── Le morceau suivant : c'est l'API qui décide ─────────────────────────────
-def next_entry() =
+def ask_next() =
   answer = http.post(timeout=api_timeout, "#{api}/playout/next")
   if answer.status_code == 200 then
     failures := 0
@@ -44,15 +92,31 @@ def next_entry() =
     # (docs/navidrome.md), et un journal n'est pas un endroit pour un secret.
     shown = list.hd(default=entry, string.split(separator="\\?", entry))
     log("suivant : #{shown}")
-    request.create(entry)
+    entry
   elsif answer.status_code == 204 then
     stop_saying_why("l'API n'a plus rien à jouer")
-    null()
+    ""
   else
     failures := failures() + 1
     log(level=2, "l'API ne répond pas (#{answer.status_code} #{answer.status_message}), essai #{failures()}")
     if failures() >= 2 then stop_saying_why("l'API ne répond plus") end
+    ""
+  end
+end
+
+def next_entry() =
+  entry = ask_next()
+  if entry == "" then
     null()
+  elsif string.contains(prefix="live:", entry) then
+    # Un direct n'est pas une requête : on le lance, et on redemande tout de
+    # suite le morceau réel, pour que la file ne soit jamais vide.
+    start_live(entry)
+    following = ask_next()
+    if following == "" or string.contains(prefix="live:", following) then null()
+    else request.create(following) end
+  else
+    request.create(entry)
   end
 end
 
@@ -72,6 +136,13 @@ end
 programme.on_track(on_track)
 programme = normalize(programme)
 programme = crossfade(duration=2., fade_in=1., fade_out=1., programme)
+
+# Le direct prend la main à la jonction, jamais au milieu d'un morceau
+# (SPECS.md §4.11), et la rend dès qu'il s'arrête. APRÈS normalize et
+# crossfade : ces opérateurs refusent une source qui contrôle sa propre
+# latence, ce qu'est input.http — et `--check` ne le voit pas, seule
+# l'exécution le dit (docs/liquidsoap.md §5).
+on_air = switch(track_sensitive=true, [({live_pending() and live.is_ready()}, live), ({true}, programme)])
 
 # ── Rien n'est décodé ni demandé sans auditeur (SPECS.md §1) ────────────────
 listeners = ref(0)
@@ -96,7 +167,7 @@ def on_disconnect(ip) =
   announce()
 end
 
-on_air = switch(track_sensitive=false, [({listeners() > 0}, programme), ({true}, blank())])
+on_air = switch(track_sensitive=false, [({listeners() > 0}, on_air), ({true}, blank())])
 
 output.harbor(
   %mp3(bitrate=bitrate),

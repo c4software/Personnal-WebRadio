@@ -40,13 +40,13 @@ class LiquidsoapPlayout:
         self._verrou = (
             threading.RLock()
         )  # réentrant : next_entry tient le verrou quand le programme rappelle on_kind
-        self._derniere: tuple[Kind, Track | None] = (Kind.MUSIC, None)
-        self._en_attente: dict[str, tuple[Kind, Track | None]] = {}
+        self._derniere: tuple[Kind, Track | None, str | None] = (Kind.MUSIC, None, None)
+        self._en_attente: dict[str, tuple[Kind, Track | None, str | None]] = {}
 
-    def on_kind(self, kind: Kind, track: Track | None) -> None:
+    def on_kind(self, kind: Kind, track: Track | None, label: str | None) -> None:
         """À brancher sur `RadioProgramme(on_kind=...)` : retient, ne déclare pas."""
         with self._verrou:
-            self._derniere = (kind, track)
+            self._derniere = (kind, track, label)
 
     def next_entry(self) -> str | None:
         with self._verrou:
@@ -66,8 +66,8 @@ class LiquidsoapPlayout:
         if nature is None:
             logger.warning("Liquidsoap joue une entrée que le programme n'a pas rendue : %s", entry)
             return
-        kind, track = nature
-        self._radio.declare(kind, track)
+        kind, track, label = nature
+        self._radio.declare(kind, track, label)
 
     def declare_listeners(self, count: int) -> None:
         self._auditeurs.declare(on_air=count > 0)

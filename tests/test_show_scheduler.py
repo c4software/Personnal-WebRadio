@@ -144,3 +144,65 @@ def test_le_flux_est_lu_avant_de_savoir_s_il_servira(tmp_path: Path) -> None:
     shows, _ = _emissions(tmp_path, feed, tardif)
     assert shows.due() is None
     assert feed.lectures == 1, "le flux aurait dû être lu malgré tout"
+
+
+# ── Les directs (GOAL-015) ──────────────────────────────────────────────────
+
+FLASH = Show(name="Flash", days=("tous",), hour=time(20), duration=timedelta(minutes=9))
+FRANCEINFO = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"
+
+
+def _direct(tmp_path: Path, clock: FrozenClock) -> Shows:
+    state = SqliteState(
+        tmp_path / "etat.sqlite3",
+        clock,
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    return Shows(
+        ShowSchedule([FLASH]),
+        FakeFeed([], injoignable=True),  # type: ignore[arg-type]
+        state,
+        clock,
+        {},
+        streams={"Flash": FRANCEINFO},
+    )
+
+
+def test_un_direct_du_est_une_instruction_avec_son_heure_de_fin(tmp_path: Path) -> None:
+    clock = FrozenClock(VENDREDI_20H + timedelta(minutes=2))
+    due = _direct(tmp_path, clock).due()
+    assert due is not None
+    show, entry = due
+    assert show is FLASH
+    fin = int((VENDREDI_20H + timedelta(minutes=9)).timestamp())
+    assert entry == f"live:{fin}:{FRANCEINFO}"
+
+
+def test_un_direct_n_est_rendu_qu_une_fois_par_case(tmp_path: Path) -> None:
+    """Sinon il redémarrerait à chaque jonction jusqu'à la fin de la case."""
+    clock = FrozenClock(VENDREDI_20H)
+    shows = _direct(tmp_path, clock)
+    assert shows.due() is not None
+    clock.advance(timedelta(minutes=3))
+    assert shows.due() is None
+
+
+def test_une_case_de_direct_finie_est_sautee_sans_rattrapage(tmp_path: Path) -> None:
+    clock = FrozenClock(VENDREDI_20H + timedelta(minutes=9))
+    assert _direct(tmp_path, clock).due() is None
+
+
+def test_un_direct_ne_lit_aucun_flux_et_ne_laisse_aucune_trace(tmp_path: Path) -> None:
+    clock = FrozenClock(VENDREDI_20H)
+    shows = _direct(tmp_path, clock)
+    assert shows.due() is not None
+    # Le flux est « injoignable » : s'il avait été lu, un avertissement aurait
+    # été journalisé et la case sautée. Et la base ne connaît aucune diffusion.
+    state = SqliteState(
+        tmp_path / "etat.sqlite3",
+        clock,
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    assert state.last_airing("Flash") is None

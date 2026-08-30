@@ -153,7 +153,21 @@ secondes. La durée à réserver est donc un réglage de l'auteur, pas un consta
 - [ ] Le pont tiers `rss-rf.aerion.me` répond en 200 mais n'a pas été exploré
       plus loin : il n'est plus utile si le direct suffit.
 
-## 2. Le contenu
+## 2. Le contenu — **renseigné le 2026-08-30 par §1.bis et GOAL-015**
+
+- **Durée** : celle qu'on déclare (`duration_minutes`). La grille de
+  franceinfo — journal à :00 et :30, ~9 min — reste de seconde main : à
+  ajuster à l'oreille (`GOAL-015-T08`).
+- **Fraîcheur** : sans objet — on capte le **direct**, ce qui passe est ce qui
+  passe à l'antenne.
+- **Format** : MP3 48 kHz stéréo 128 kb/s, décodé et réencodé par le diffuseur
+  comme tout le reste.
+- **Niveau** : −16,2 LUFS mesurés, restitués à l'identique à travers la chaîne.
+  Contre la musique normalisée : à l'oreille.
+- **Métadonnées** : aucune dans le flux — l'interface affiche le **nom
+  déclaré** au TOML.
+
+### Les questions d'origine (historique)
 
 - [ ] Quelle **durée** fait un flash, et cette durée est-elle stable ? Elle
       détermine la fenêtre qu'il faut réserver dans la programmation.
@@ -167,7 +181,14 @@ secondes. La durée à réserver est donc un réglage de l'auteur, pas un consta
       fois trop fort est l'un des quatre angles morts (AGENTS.md §4.1) — et ne se
       constatera qu'à l'oreille.
 
-## 3. Quand ça se passe mal
+## 3. Quand ça se passe mal — **le mécanisme est celui des émissions**
+
+Un direct injoignable ou qui se tarit : le diffuseur reste sur la musique — la
+bascule exige que le direct soit **réellement prêt** — et la case n'est pas
+retentée (SPECS.md §7 n°22). Restent à observer : une URL morte en production,
+et une coupure du flux **en cours** de case.
+
+### Les questions d'origine (historique)
 
 SPECS.md §4.5 pose le principe : **l'indisponibilité est un cas nominal, pas une
 panne.** Reste à établir ce qu'on observe réellement.

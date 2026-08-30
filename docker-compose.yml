@@ -31,6 +31,10 @@ services:
       - ${JINGLES:-./jingles}:/var/lib/local-webradio/jingles:ro
       # L'état survit à une reconstruction de l'image (ARCHITECTURE.md §5.1).
       - etat:/var/lib/local-webradio
+      # Le FUSEAU de l'hôte : les heures du TOML sont locales (SPECS.md §6).
+      # Sans lui, l'image vit en UTC et toute la grille est décalée d'une ou
+      # deux heures selon la saison — constaté au premier flash (GOAL-015).
+      - /etc/localtime:/etc/localtime:ro
 
     # Navidrome répond à un nom résolu par le réseau de l'HÔTE. Constaté le
     # 2026-08-30 : le conteneur joint bien `http://music`. Sinon, décommenter

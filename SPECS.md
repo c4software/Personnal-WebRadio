@@ -947,6 +947,15 @@ a une durée obligatoire, pas de rattrapage, pas de trace en base.
 > **Ce qui reste à l'auteur** : la durée à réserver pour un flash — la grille
 > de franceinfo n'est connue que de seconde main — et si une coupure « en cours
 > de phrase » à la fin de la case est acceptable. Seule l'écoute le dira.
+>
+> **Mise en œuvre, constatée le 2026-08-30** (GOAL-015) : l'API rend au
+> diffuseur une instruction `live:<fin en secondes Unix>:<url>` ; la fin est
+> **absolue**, quelle que soit l'heure où la jonction arrive. Deux conséquences
+> mesurées, cohérentes avec « pas de rattrapage » : une case **plus courte que
+> deux morceaux** peut être sautée entièrement — le diffuseur a toujours un
+> morceau d'avance, et la jonction peut tomber après la case — et la coupure
+> effective traîne de quelques secondes, le temps de vider le tampon du direct
+> (docs/liquidsoap.md §5).
 
 **n°23 — ffmpeg à la main, ou Liquidsoap ? Liquidsoap.** Tranchée le 2026-08-30
 par l'auteur, sur relevé ([docs/liquidsoap.md](./docs/liquidsoap.md)). Le

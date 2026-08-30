@@ -13,13 +13,13 @@ savoir si l'on s'en servira.
 """
 
 import logging
-from datetime import timedelta
+from datetime import datetime, timedelta
 
 from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
 from webradio.adapters.podcast.feed import PodcastFeed, PodcastUnavailable
 from webradio.adapters.state.database import SqliteState, StateUnavailable
 from webradio.core.clock import Clock
-from webradio.core.shows import Episode, Show, ShowSchedule, episode_to_air
+from webradio.core.shows import Episode, Show, ShowSchedule, Slot, episode_to_air
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +34,18 @@ class Shows:
         state: SqliteState,
         clock: Clock,
         addresses: dict[str, str],
+        streams: dict[str, str] | None = None,
     ) -> None:
         self._programme = programme
         self._flux = feed
         self._etat = state
         self._horloge = clock
         self._adresses = addresses
+        # Les directs : nom → URL. Ils ne passent ni par le podcast ni par la
+        # base ; une case n'est rendue qu'une fois, et ce registre suffit
+        # (SPECS.md §7 n°22 : « elle se produit à chaque occurrence de sa case »).
+        self._directs = streams or {}
+        self._cases_rendues: set[tuple[str, datetime]] = set()
 
     def due(self) -> tuple[Show, str] | None:
         """L'émission due maintenant et l'URL de son épisode, ou rien.
@@ -58,7 +64,34 @@ class Shows:
         case = self._programme.due(durations, instant)
         if case is None:
             return None
+        if case.show.is_live:
+            return self._direct_de(case, instant)
         return self._episode_de(case.show, catalogues.get(case.show.name, []))
+
+    def _direct_de(self, case: Slot, instant: datetime) -> tuple[Show, str] | None:
+        """Un direct, rendu **une fois par case**, avec l'heure absolue de sa fin.
+
+        L'entrée `live:<fin en secondes Unix>:<url>` est une instruction pour
+        Liquidsoap (`adapters/liquidsoap/radio.liq`) : capter cette URL, et
+        couper à cette heure — quelle que soit l'heure où la jonction arrive.
+        La deuxième demande dans la même case rend la musique : sinon, le
+        direct redémarrerait à chaque jonction jusqu'à la fin de la case.
+        """
+        cle = (case.show.name, case.start)
+        if cle in self._cases_rendues:
+            return None
+        url = self._directs.get(case.show.name)
+        if url is None or case.end is None:
+            return None
+        self._cases_rendues.add(cle)
+        self._cases_rendues = {c for c in self._cases_rendues if c[1] > instant - timedelta(days=2)}
+        logger.info(
+            "direct « %s » jusqu'à %s — %s",
+            case.show.name,
+            case.end.astimezone().strftime("%H:%M:%S"),
+            url.split("?", 1)[0],
+        )
+        return case.show, f"live:{int(case.end.timestamp())}:{url}"
 
     def _catalogues(self, instant: object) -> dict[str, list[EpisodeDuFlux]]:
         """Lit les flux des émissions dont une case a pu commencer.
@@ -69,6 +102,8 @@ class Shows:
         """
         catalogues: dict[str, list[EpisodeDuFlux]] = {}
         for show in self._programme.shows:
+            if show.is_live:
+                continue
             if self._programme.slot_start(show, instant) is None:  # type: ignore[arg-type]
                 continue
             address = self._adresses.get(show.name)

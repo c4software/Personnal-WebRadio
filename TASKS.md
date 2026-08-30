@@ -135,7 +135,8 @@ Goals sont découpables.
 | GOAL-012 | Les votes pondèrent les tirages suivants | `[-]` — seule l'écoute réelle reste |
 | GOAL-013 | Les programmes : une playlist, des jours, des heures | `[x]` |
 | GOAL-014 | Correctifs de la relecture du 2026-08-30 | `[x]` — T01 corrigée ; T02–T07 supprimés avec leur code par GOAL-016 |
-| GOAL-015 | Un direct comme émission — dont le flash France Info | `[ ]` — après GOAL-016 |
+| GOAL-015 | Un direct comme émission — dont le flash France Info | `[-]` — seule l'écoute réelle reste |
+| GOAL-017 | `stop` ne passe pas le morceau en cours | `[ ]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -758,7 +759,14 @@ par le test qui l'aurait vu.
 
 ## GOAL-015 — Un direct comme émission — dont le flash France Info
 
-**État : TODO** — après `GOAL-016`, qui change la façon de couper un direct
+**État : EN COURS** — tout est fait sauf `T08`, l'écoute réelle. Constaté sur
+la pile complète : le direct franceinfo capté et affiché « émission » avec son
+nom ; en maquette : la bascule à la jonction, la coupure à l'heure absolue, le
+retour à la musique. Trois découvertes en chemin, consignées dans
+docs/liquidsoap.md §5 — dont : une case plus courte que deux morceaux peut être
+sautée (conforme au « pas de rattrapage »), et **l'heure des conteneurs était
+UTC** — `/etc/localtime` traverse désormais la frontière du Compose et
+`SystemClock` rend l'heure locale
 
 Une émission peut capter **un flux de webradio** pendant une case déclarée
 (SPECS.md §4.11 « Une émission peut être un direct », §7 n°22). C'est ce qui
@@ -774,15 +782,15 @@ tient dans *quand l'arrêter*.
 
 ### Les tâches
 
-- [ ] `GOAL-015-T01` Le TOML : une `[[shows]]` porte **soit** `feed`, **soit** `stream` + `duration` — jamais les deux, jamais ni l'un ni l'autre ; refus au démarrage, en nommant l'émission
-- [ ] `GOAL-015-T02` `core/shows.py` : une case de direct est due **tant qu'il reste du temps** dans sa case — pas de rattrapage (§7 n°22), et « le temps qui reste » se calcule à l'horloge injectée
-- [ ] `GOAL-015-T03` `adapters/ffmpeg/` : un décodeur **borné dans le temps** — c'est le seul endroit qui coupe, et il coupe à la seconde déclarée, pas à une jonction. Vérifier contre ffmpeg n9.0.1 que l'option retenue (`-t` en entrée, ou arrêt du processus) rend **exactement** la durée demandée, et le consigner dans `docs/ffmpeg.md`
-- [ ] `GOAL-015-T04` `app/show_scheduler.py` : un direct ne passe ni par le podcast ni par `record_airing` — il n'y a pas d'épisode
-- [ ] `GOAL-015-T05` Injoignable, tari ou coupé en cours de case : retour à la musique, journalisé, **sans retenter dans la même case** (SPECS.md §4.5). **Tester avec une URL morte** et avec un serveur qui ferme après 2 s
-- [ ] `GOAL-015-T06` L'API et l'interface disent ce qui passe : nature `émission`, et le **nom déclaré** — le flux ne porte aucune métadonnée (docs/franceinfo.md §1.bis)
-- [ ] `GOAL-015-T07` Le TOML d'exemple : un flash franceinfo à `HH:00`, et une station tierce le dimanche entre deux créneaux
+- [x] `GOAL-015-T01` Le TOML : une `[[shows]]` porte **soit** `feed`, **soit** `stream` + `duration` — jamais les deux, jamais ni l'un ni l'autre ; refus au démarrage, en nommant l'émission
+- [x] `GOAL-015-T02` `core/shows.py` : une case de direct est due **tant qu'il reste du temps** dans sa case — pas de rattrapage (§7 n°22), et « le temps qui reste » se calcule à l'horloge injectée
+- [x] `GOAL-015-T03` ~~un décodeur borné~~ **devenu** : `input.http` piloté par l'instruction `live:<fin absolue>:<url>` de l'API — relevé docs/liquidsoap.md §5 (un direct ne peut pas être une requête) — c'est le seul endroit qui coupe, et il coupe à la seconde déclarée, pas à une jonction. Vérifier contre ffmpeg n9.0.1 que l'option retenue (`-t` en entrée, ou arrêt du processus) rend **exactement** la durée demandée, et le consigner dans `docs/ffmpeg.md`
+- [x] `GOAL-015-T04` `app/show_scheduler.py` : un direct ne passe ni par le podcast ni par `record_airing` — il n'y a pas d'épisode
+- [x] `GOAL-015-T05` Injoignable, tari ou coupé en cours de case : retour à la musique, journalisé, **sans retenter dans la même case** (SPECS.md §4.5). **Tester avec une URL morte** et avec un serveur qui ferme après 2 s
+- [x] `GOAL-015-T06` L'API et l'interface disent ce qui passe : nature `émission`, et le **nom déclaré** — le flux ne porte aucune métadonnée (docs/franceinfo.md §1.bis)
+- [x] `GOAL-015-T07` Le TOML d'exemple : un flash franceinfo à `HH:00`, et une station tierce le dimanche entre deux créneaux
 - [ ] `GOAL-015-T08` **Écoute réelle** : le niveau de la parole (−16,2 LUFS mesurés) contre la musique, et la coupure « en cours de phrase » à la fin de la case
-- [ ] `GOAL-015-T09` Carte du dépôt, `docs/franceinfo.md` §2 et §3 renseignés d'après ce qui a été observé
+- [x] `GOAL-015-T09` Carte du dépôt, `docs/franceinfo.md` §2 et §3 renseignés d'après ce qui a été observé
 
 > **`T03` est le point dur**, et le seul qui touche ffmpeg. Un direct se coupe
 > *pendant* qu'il joue : c'est la première fois que la radio arrête quelque
@@ -829,3 +837,23 @@ annonce, il diffuse.
 > **Ce qui rend ce Goal sûr** : jusqu'à `T10`, l'ancienne chaîne existe encore
 > et tous ses tests passent. On ne supprime qu'après avoir écouté (`T12` avant
 > `T10` si l'auteur est disponible).
+
+---
+
+## GOAL-017 — `stop` ne passe pas le morceau en cours
+
+**État : TODO** — constaté le 2026-08-30, en préparant l'écoute de `GOAL-015`
+
+SPECS.md §4.6 : *« `stop` : passer le morceau en cours. Le suivant démarre à la
+jonction, sans blanc. »* Or `Control.take_skip()` n'est **consommé par
+personne** — ni dans la chaîne actuelle, ni dans l'ancienne (vérifié dans
+l'historique). Un `stop` est accepté, pèse sur les tirages suivants
+(`GOAL-012`), mais le morceau joue jusqu'au bout. L'écart ne vient pas de la
+migration : il n'a jamais été câblé, et aucun test ne le couvre.
+
+### Les tâches
+
+- [ ] `GOAL-017-T01` Le chemin du saut : Liquidsoap sait sauter (`programme.skip()`), mais c'est l'API qui reçoit le vote — relever comment le lui dire (`harbor.http.register` sur le port du flux, ou interrogation périodique de `take_skip` par le script)
+- [ ] `GOAL-017-T02` Câbler : un `stop` accepté saute à l'instant, « sans blanc » — et un test qui échoue aujourd'hui
+- [ ] `GOAL-017-T03` **Écoute réelle** : le saut s'entend-il proprement, avec le fondu ?
+- [ ] `GOAL-017-T04` Carte du dépôt
