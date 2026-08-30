@@ -155,6 +155,7 @@ Goals sont découpables.
 | GOAL-033 | Les variantes de jingles, tirées au hasard | `[-]` — reste l'écoute |
 | GOAL-034 | L'encore agit sur la chanson suivante, l'avance est réinsérée | `[-]` — déployé ; reste l'écoute |
 | GOAL-035 | « À suivre » : la file s'affiche à l'antenne | `[-]` — déployé ; reste le constat à l'usage |
+| GOAL-036 | La CI : vérification puis image publiée sur GHCR | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -1101,3 +1102,12 @@ queue ? ») ; codé et vérifié, déploiement dans la même fenêtre que GOAL-0
 
 - [x] `GOAL-035-T01` La charnière expose le morceau **demandé, pas encore à l'antenne** ; `/api/on-air` le rend (`up_next`), la page l'affiche sous le moment
 - [ ] `GOAL-035-T02` Déployer puis regarder : l'« à suivre » colle-t-il à ce qui sort réellement, jonction après jonction ?
+
+---
+
+## GOAL-036 — La CI : vérification puis image publiée sur GHCR
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30
+
+- [x] `GOAL-036-T01` GitHub Actions rejoue **la** commande de vérification du dépôt (`./verifier.sh`, `liquidsoap --check` compris — Docker est sur le runner), jamais une variante allégée
+- [x] `GOAL-036-T02` L'image `radio` se construit sur du vérifié et se publie sur `ghcr.io/c4software/personnal-webradio` (`latest` + sha) depuis `master` seulement ; une PR construit sans publier. Le service `liquidsoap` n'a rien à construire : image amont épinglée, script monté
