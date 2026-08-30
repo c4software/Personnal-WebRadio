@@ -192,8 +192,15 @@
           semaine() {
             // La récurrence se lit par JOUR, pas par type : chaque jour de la
             // semaine liste ce qui s'y passe, dans l'ordre chronologique.
-            const ordre = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
-            const ceJour = ordre[(new Date().getDay() + 6) % 7];
+            const semaine = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"];
+            const indexDuJour = (new Date().getDay() + 6) % 7;
+            const ceJour = semaine[indexDuJour];
+            // La veille d'abord, AUJOURD'HUI toujours en deuxième, puis la
+            // suite de la semaine : on lit ce qui vient, pas un calendrier.
+            const ordre = [];
+            for (let i = 0; i < 7; i += 1) {
+              ordre.push(semaine[(indexDuJour + 6 + i) % 7]);
+            }
             return ordre.map((nom) => {
               const evenements = [];
               for (const b of this.planning.bands) {
