@@ -103,6 +103,58 @@ artistes** : sur 50 résultats pour un artiste, 49 étaient de lui, 1 non.
 > filtre, `encore` servirait parfois un autre artiste — précisément ce que
 > l'auditeur n'a pas demandé.
 
+## 2.6 Les listes de lecture — **relevé**
+
+> **Constaté le 2026-08-30** (`GOAL-002-T08`, complété pour `GOAL-013`).
+
+`getPlaylists` rend les listes de l'utilisateur : identifiant, nom, `songCount`,
+`duration`. `getPlaylist&id=<id>` rend les entrées, dans le même format qu'une
+piste ordinaire — `id`, `title`, `artist`, `genre`, `duration`, `suffix`.
+
+Sur l'instance de l'auteur, trois listes : 67, 26 et 19 morceaux annoncés.
+
+### 2.6.1 `songCount` et le nombre d'entrées peuvent diverger
+
+| Liste | `songCount` annoncé | Entrées rendues |
+|---|---|---|
+| A | **67** | **32** |
+| B | 26 | 26 |
+| C | 19 | 19 |
+
+Trente-cinq morceaux manquent à l'appel sur la première, et les identifiants
+rendus sont bien tous distincts — ce n'est pas un doublon compté deux fois.
+
+**La cause n'a pas été établie.** L'hypothèse la plus probable est que
+`songCount` compte les entrées de la liste tandis que `getPlaylist` ne rend que
+celles dont le fichier existe encore ; elle n'est **pas vérifiée**, et ce relevé
+ne la présente pas comme un fait.
+
+> **La conduite à tenir ne dépend pas de la cause** : **ne jamais se fier à
+> `songCount`.** Ce qui compte est ce que `getPlaylist` rend réellement. Une
+> liste « vide » se juge sur ses entrées, pas sur son compteur.
+
+### 2.6.2 `getRandomSongs&playlistId` est **ignoré en silence**
+
+Le paramètre n'existe pas dans la spécification Subsonic. L'essayer ne provoque
+aucune erreur : `status: ok`, et vingt morceaux rendus.
+
+**Aucun des vingt n'appartenait à la liste demandée.**
+
+```
+liste demandée : 32 morceaux connus
+20 tirés avec playlistId → 0 appartiennent à la liste
+```
+
+> C'est le piège de cette API sous sa forme la plus pure : un paramètre inconnu
+> est ignoré, la réponse reste `ok`, et l'on croit avoir filtré. **Le tirage
+> dans une liste se fait donc chez nous**, sur les entrées récupérées — ce qui
+> est de toute façon ce que le noyau sait faire (`core/rng.py`).
+
+### 2.6.3 Une liste inexistante
+
+`HTTP 200`, `status: failed`, code **70**, « playlist not found » — même régime
+que pour une piste inexistante (§5).
+
 ## 3. Récupérer le son — **relevé**
 
 `stream`, `stream&format=raw` et `download` rendent **tous les trois** le même
