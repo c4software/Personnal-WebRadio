@@ -358,6 +358,49 @@ temps réel ([docs/ffmpeg.md](./docs/ffmpeg.md) §2.2).
 
 ---
 
+## Incident 2026-08-30 — `git add -A` pendant un travail parallèle
+
+**Ce qui s'est passé.** Quatre agents écrivaient en parallèle dans des
+répertoires disjoints, avec pour consigne de ne jamais committer. L'agent
+principal, lui, a committé son propre travail (Docker, README) avec
+`git add -A` — qui a **emporté au passage** les fichiers que les agents étaient
+en train d'écrire.
+
+| Commit | A emporté, sans le dire |
+|---|---|
+| `72bf772` *build(docker)* | `adapters/config/{__init__,schema}.py`, `adapters/etat/*`, `adapters/podcast/__init__.py`, `core/{controle,grille,jingles}.py` |
+| `d2cbfef` *docs(readme)* | `adapters/config/chargement.py`, `adapters/ffmpeg/__init__.py`, `adapters/podcast/flux.py`, `adapters/sources/__init__.py`, `adapters/web/__init__.py`, `core/emissions.py` |
+
+**Deux règles enfreintes**, et ce sont les deux qui comptent :
+
+1. **Un commit dont le message ment sur son contenu.** « Conteneuriser » a
+   embarqué 1 300 lignes de noyau et d'adaptateurs. L'historique cesse d'être
+   relisible — exactement ce que « un commit = une tâche cohérente »
+   (AGENTS.md §7) protège.
+2. **Du code committé sans vérification.** `./verifier.sh` n'a pas tourné sur ces
+   fichiers avant leur entrée dans l'historique : `code écrit ≠ tâche terminée`
+   (AGENTS.md §1.1) a été violé à l'endroit précis où il coûte le plus.
+
+**Ce que je n'ai pas fait, et pourquoi.** Pas de `rebase`, pas d'`amend` : la
+réécriture d'historique est un cas d'arrêt (AGENTS.md §1.2), et masquer une
+erreur en la faisant disparaître est le contraire de ce que §8 demande —
+*repérer, ne pas masquer, corriger, rapporter*.
+
+**Ce qui est fait à la place** : l'incident est écrit ici, et l'intégration
+vérifie **l'ensemble** du dépôt avant de déclarer quoi que ce soit terminé. Les
+fichiers emportés sont de toute façon du travail voulu ; c'est leur *entrée dans
+l'historique* qui était prématurée, pas leur existence.
+
+**La règle qui en sort**, à appliquer désormais :
+
+> **Jamais `git add -A` quand un autre agent écrit.** On nomme les fichiers, ou
+> l'on attend. Un dépôt partagé n'a pas d'index par agent : `-A` prend tout ce
+> qui traîne, y compris ce que quelqu'un est en train d'écrire.
+
+Ajoutée à AGENTS.md §7.
+
+---
+
 ## GOAL-004 — Le flux : ffmpeg, fan-out, démarrage à la demande
 
 **État : TODO**

@@ -382,6 +382,12 @@ docs(ffmpeg): relever le comportement en fin de fichier
 Référencer l'identifiant de la tâche en pied de message : c'est ce qui relie
 l'historique Git à TASKS.md.
 
+**Jamais `git add -A` quand un autre agent écrit dans le dépôt.** On nomme les
+fichiers, ou l'on attend. Un dépôt partagé n'a pas d'index par agent : `-A` prend
+tout ce qui traîne, y compris ce que quelqu'un est en train d'écrire — et produit
+un commit dont le message ment sur son contenu, avec du code que rien n'a
+vérifié. C'est arrivé le 2026-08-30 ; l'incident est consigné dans TASKS.md.
+
 Ne jamais committer : `.env`, un mot de passe, un jeton, le TOML local,
 `.claude/settings.local.json`, un fichier audio, un artefact de build.
 
