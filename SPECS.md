@@ -406,7 +406,9 @@ Ce que cela implique, et qui est assumé :
   l'épisode le plus récent, puis reprendra son comportement normal. Il n'y a
   donc rien à sauvegarder.
 - **Le fichier n'est pas de la configuration** : il est écrit par la radio, pas
-  par l'auteur. Il ne va ni dans le TOML ni dans `.env`.
+  par l'auteur. Il ne va ni dans le TOML ni dans `.env` — seul **son chemin** y
+  est déclaré.
+- Le stockage est une base **SQLite** (ARCHITECTURE.md §5.1), d'une seule table.
 - **Un épisode retiré du flux** ne pose pas de problème : l'identifiant retenu
   ne correspond plus à rien, donc le plus récent est forcément différent, donc
   il est diffusé.
@@ -559,6 +561,8 @@ Ce que le TOML doit décrire, au minimum :
 - **Les émissions** : une entrée `[[emissions]]` par émission — nom, flux de
   podcast, jours et heure (§4.11). Il n'y a pas de limite au nombre
   d'émissions ;
+- **L'état** : le chemin de la base SQLite qui retient le dernier épisode
+  diffusé de chaque émission (§4.11.1) ;
 - **Les seuils** : durée de fondu. **Aucun seuil de péremption** : ni les
   jingles ni les flashs ne sont abandonnés pour cause de retard (§4.3).
 

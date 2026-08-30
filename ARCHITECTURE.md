@@ -208,8 +208,35 @@ est une exception, pas une porte ouverte.
 - Il est **écrit par la radio**, jamais par l'auteur : il ne va ni dans le TOML
   ni dans `.env`, et il n'est pas versionné.
 
-Un format simple suffit — un fichier JSON écrit de façon atomique. Une base de
-données serait une réponse démesurée à une question de deux lignes.
+### 5.1 SQLite, et pourquoi ce n'est pas démesuré
+
+**Décidé le 2026-08-30** : le stockage est **SQLite**, via `sqlite3` de la
+bibliothèque standard. Pas d'ORM, pas de migrations, pas de dépendance.
+
+L'objection évidente — *une base de données pour un identifiant par émission ?* —
+tombe devant un fait d'architecture : **il y aura deux processus vivants**. La
+chaîne de diffusion écrit l'identifiant quand une émission démarre ; le serveur
+Flask (`GOAL-008`, `GOAL-009`) lit l'état pour dire ce qui passe. Un fichier JSON
+demanderait alors d'écrire soi-même ce que SQLite fait déjà correctement :
+écriture atomique, lecture concurrente cohérente, et pas de fichier tronqué si
+la machine s'éteint pendant l'écriture.
+
+Le schéma tient en une table :
+
+```sql
+CREATE TABLE IF NOT EXISTS emissions_diffusees (
+    emission   TEXT PRIMARY KEY,   -- le `nom` déclaré au TOML
+    episode    TEXT NOT NULL,      -- le guid de l'épisode diffusé
+    diffuse_le TEXT NOT NULL       -- ISO 8601, pour le journal et le diagnostic
+);
+```
+
+**Une table, trois colonnes, et la garde de §5.0 tient toujours** : rien d'autre
+n'a le droit d'entrer, et surtout pas « puisqu'on a une base ». Une seconde table
+n'arrive qu'avec une décision écrite, comme celle-ci.
+
+Le fichier vit à un chemin déclaré au TOML, hors du dépôt. Il n'est pas
+versionné, il n'a pas de sauvegarde, et le perdre n'est pas une panne (§5.0).
 
 ### 5.1 Les secrets
 

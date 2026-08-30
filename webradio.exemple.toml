@@ -41,6 +41,14 @@ debut  = "20:00"
 fin    = "23:00"
 genres = ["Rock", "Pop"]
 
+# ── L'état ─────────────────────────────────────────────────────────────────
+# La SEULE chose que la radio retient entre deux démarrages : le dernier
+# épisode diffusé de chaque émission. Une table, trois colonnes.
+# Le perdre n'est pas une panne : la radio rediffusera une fois, puis
+# reprendra son cours. Rien à sauvegarder.
+[etat]
+base = "/var/lib/local-webradio/etat.sqlite3"
+
 # ── Les émissions ──────────────────────────────────────────────────────────
 # Autant qu'on veut, mais jamais deux à la même heure le même jour : la radio
 # refuserait de démarrer en les nommant.
