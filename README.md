@@ -33,12 +33,13 @@ le dernier auditeur se débranche → la chaîne s'arrête
 | | |
 |---|---|
 | **Tirage aléatoire** | Dans toute la bibliothèque, avec une règle de non-répétition des artistes |
-| **Grille horaire** | Tirage libre par défaut, genres imposés sur des plages déclarées |
-| **Jingles horaires** | `00h.mp3` … `23h.mp3`, insérés à la jonction sans couper un morceau |
-| **Émissions** | Un épisode de podcast à heure dite — le vendredi à 20 h, le mardi à 20 h… |
-| **Pilotage** | `stop` pour passer, `encore` pour rester sur l'artiste. Un `encore` s'annonce par un jingle |
-| **Apprentissage** | Ce qu'on passe revient moins souvent, ce qu'on redemande revient plus souvent |
-| **Une page web** | Ce qui passe, et deux boutons. Faite pour un téléphone posé à côté de l'enceinte |
+| **Grille horaire** | Tirage libre par défaut ; des plages par **genres** ou par **artiste** (« une heure d'un seul artiste »), restreignables à des **jours**, avec **générique d'ouverture et de fermeture** optionnels |
+| **Programmes** | Une liste de lecture Navidrome sur un créneau — « le vendredi de Chloé, 18 h–20 h » |
+| **Jingles horaires** | `00h.mp3` … `23h.mp3`, insérés à la jonction sans couper un morceau, fondu court |
+| **Émissions** | À heure dite : un **podcast** (l'épisode le plus récent non diffusé), une **chaîne YouTube** (la dernière vidéo, téléchargée en fond puis servie en local — zéro blanc), ou un **direct** — le flash France Info, capté et coupé à l'heure |
+| **Pilotage** | `stop` **passe le morceau** à l'instant ; `encore` force le prochain **chez le même artiste**, et s'annonce par un jingle |
+| **Apprentissage** | Les votes pèsent sur **l'artiste** (jamais deux fois) : redemandé revient plus, passé revient moins — et tout s'oublie en trois mois |
+| **Une page web** | Quatre onglets — antenne (avec le **moment** en cours), votes (effaçables), **planning de la semaine**, **historique** — l'onglet vit dans l'URL |
 | **Une API** | Toute action y passe — l'interface web n'a aucun chemin privilégié |
 
 ## Ce qu'elle ne fait pas
@@ -46,7 +47,8 @@ le dernier auditeur se débranche → la chaîne s'arrête
 - **Plusieurs flux ou qualités.** Un seul flux, un seul débit, un seul format.
 - **Gérer la bibliothèque.** Elle *lit* Navidrome ; elle n'y écrit jamais rien.
 - **Enregistrer, rejouer, podcaster.** Une radio est un présent continu : ce qui
-  est passé est perdu, et c'est assumé.
+  est passé est perdu, et c'est assumé. (Un **journal des titres** existe — qui
+  est passé, à quelle heure — jamais l'audio.)
 
 Détail et raisons : [SPECS.md §2](./SPECS.md).
 
@@ -143,18 +145,34 @@ http://<la-machine>:8080/
 Une émission est un épisode de podcast diffusé à heure dite. Elle **remplace** la
 programmation pendant sa durée : ni grille, ni tirage, ni jingles.
 
+Trois sources possibles — exactement une par émission :
+
 ```toml
+# Un podcast : l'épisode « full » le plus récent non encore diffusé.
 [[shows]]
-name   = "A la French"
-feed  = "https://feeds.acast.com/public/shows/a-la-french"
+name = "A la French"
+feed = "https://feeds.acast.com/public/shows/a-la-french"
 days = ["vendredi"]
 time = "20:00"
 
+# Une chaîne YouTube : la dernière vidéo non diffusée, téléchargée en tâche
+# de fond (yt-dlp) pendant que la musique joue, servie en fichier local —
+# jamais de blanc. Le cache s'écrase et s'efface tout seul.
 [[shows]]
-name   = "LEGEND"
-feed  = "https://feeds.acast.com/public/shows/legend-1"
-days = ["mardi"]
+name    = "Hardisk"
+youtube = "https://www.youtube.com/@hardisk"
+days = ["mercredi"]
 time = "20:00"
+
+# Un DIRECT : capté pendant la case, coupé à l'heure de fin — c'est ainsi que
+# passe le flash France Info. `duration_minutes` est obligatoire : un direct
+# ne se termine pas seul, et il n'y a pas de rattrapage.
+[[shows]]
+name   = "Flash franceinfo"
+stream = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"
+duration_minutes = 9
+days = "all"
+time = "12:00"
 ```
 
 Autant d'émissions que voulu, **mais jamais deux à la même heure le même jour** :
@@ -181,8 +199,8 @@ Deux gestes, depuis la page web ou directement par l'API.
 
 | | |
 |---|---|
-| **`stop`** | Passer le morceau en cours |
-| **`encore`** | Rester sur cet artiste — à défaut, sur le genre |
+| **`stop`** | **Passe le morceau en cours**, à l'instant, avec un fondu — et l'artiste pèsera un peu moins |
+| **`encore`** | Le prochain morceau est **du même artiste** (à défaut du même genre) — et l'artiste pèsera un peu plus |
 
 **Une voix suffit** : pas de quorum, l'effet est immédiat. Un `encore`
 enregistré s'annonce par le jingle `encore.mp3` à la jonction suivante.
@@ -193,11 +211,13 @@ explicitement, avec son motif : un refus muet ressemblerait à une panne.
 
 ### Ce que la radio retient
 
-`stop` et `encore` sont enregistrés, et **pondèrent les tirages suivants** : un
-morceau souvent passé revient moins souvent, un artiste souvent redemandé revient
-plus souvent.
+`stop` et `encore` sont enregistrés, et **pondèrent les tirages suivants** — sur
+**l'artiste seul**, pour ne jamais compter double : un artiste souvent passé
+revient moins souvent, un artiste souvent redemandé revient plus souvent. La
+page Votes montre ce qui a été retenu, et un vote donné par erreur s'y efface
+d'un ✕.
 
-**Rien n'est jamais supprimé.** Un morceau passé cent fois reste dans la
+**Rien n'est jamais supprimé.** Un artiste passé cent fois reste dans la
 bibliothèque et peut toujours sortir : sa chance descend à un quart, elle ne
 s'annule pas. C'est la différence entre une radio qui apprend et une radio qui se
 rétrécit.
@@ -279,4 +299,4 @@ automatique. Voir [AGENTS.md §4.1](./AGENTS.md).
 
 ## Licence
 
-Non déterminée. Projet personnel, non destiné à la publication en l'état.
+Non déterminée — tous droits réservés par défaut. Projet personnel.
