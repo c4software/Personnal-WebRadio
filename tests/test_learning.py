@@ -138,3 +138,19 @@ def test_un_vote_non_retenu_ne_fait_pas_taire_la_radio(
         assert "non retenu" in caplog.text
     finally:
         (folder / "etat.sqlite3").chmod(0o600)
+
+
+def test_le_vote_retient_le_libelle_de_la_piste(tmp_path: Path) -> None:
+    """GOAL-020 : « titre — artiste » sur la page, jamais l'identifiant opaque."""
+    learning = _apprentissage(tmp_path)
+    piste = track("1", "Air")
+    learning.remember(Command.SKIP, piste)
+
+    base = SqliteState(
+        tmp_path / "etat.sqlite3",
+        clock=FrozenClock(MIDI),
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    libelles = {libelle for _, libelle, _ in base.all_scores()}
+    assert f"{piste.title} — {piste.artist}" in libelles

@@ -194,3 +194,37 @@ def test_all_scores_rend_tout_decroissance_comprise(tmp_path: Path) -> None:
 
 def test_all_scores_sans_vote_rend_une_liste_vide(tmp_path: Path) -> None:
     assert state(tmp_path / "etat.sqlite", FrozenClock(DEPART)).all_scores() == []
+
+
+def test_le_libelle_est_retenu_au_vote_et_rendu_a_la_lecture(tmp_path: Path) -> None:
+    e = state(tmp_path / "etat.sqlite", FrozenClock(DEPART))
+    e.record_vote(Scope.TRACK, "id-opaque", stop=1.0, label="Sexy Boy — Air")
+
+    tout = e.all_scores()
+
+    assert tout[0][1] == "Sexy Boy — Air"
+
+
+def test_un_vote_d_avant_la_migration_garde_sa_cible_brute(tmp_path: Path) -> None:
+    """La colonne arrive par migration : sans libellé, la cible reste lisible."""
+    e = state(tmp_path / "etat.sqlite", FrozenClock(DEPART))
+    e.record_vote(Scope.TRACK, "id-opaque", stop=1.0)
+    assert e.all_scores()[0][1] == "id-opaque"
+
+
+def test_la_migration_ajoute_la_colonne_a_une_base_d_avant(tmp_path: Path) -> None:
+    import sqlite3
+
+    path = tmp_path / "etat.sqlite"
+    with sqlite3.connect(path) as brut:
+        brut.executescript(
+            """
+            CREATE TABLE votes (
+                portee TEXT NOT NULL, cible TEXT NOT NULL,
+                score_stop REAL NOT NULL DEFAULT 0, score_encore REAL NOT NULL DEFAULT 0,
+                vu_le TEXT NOT NULL, PRIMARY KEY (portee, cible));
+            INSERT INTO votes VALUES ('artiste', 'Air', 0, 2.0, '2026-08-30T20:00:00+00:00');
+            """
+        )
+    e = state(path, FrozenClock(DEPART))
+    assert e.all_scores()[0][1] == "Air"

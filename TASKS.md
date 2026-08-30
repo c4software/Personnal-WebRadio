@@ -139,6 +139,7 @@ Goals sont découpables.
 | GOAL-017 | `stop` ne passe pas le morceau en cours | `[ ]` |
 | GOAL-018 | L'interface en Vue, et la page des votes | `[x]` |
 | GOAL-019 | Les plages thématiques par jour | `[x]` |
+| GOAL-020 | Les votes portent un libellé lisible | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -882,3 +883,21 @@ migration : il n'a jamais été câblé, et aucun test ne le couvre.
 - [x] `GOAL-019-T01` `core/bands.py` : une plage porte des jours ; **aucun jour déclaré = tous les jours** — le comportement historique, aucune configuration existante ne change de sens
 - [x] `GOAL-019-T02` Une plage qui enjambe minuit appartient au jour où elle **commence** : « samedi 22 h → 02 h » couvre dimanche 01 h, pas dimanche 23 h — même règle que les cases d'émission
 - [x] `GOAL-019-T03` La clé `days` au schéma (optionnelle, mêmes jours que partout), un jour inconnu refusé en le nommant, le TOML d'exemple
+
+---
+
+## GOAL-020 — Les votes portent un libellé lisible
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30, page des votes sous les yeux
+
+- [x] `GOAL-020-T01` La colonne `libelle`, retenue **au moment du vote** (« titre — artiste ») — l'identifiant Subsonic est opaque et le reste
+- [x] `GOAL-020-T02` **La seule migration du projet** : `ALTER TABLE` au démarrage, idempotente ; un vote d'avant garde sa cible brute plutôt que de disparaître
+- [x] `GOAL-020-T03` La page groupe Morceaux / Artistes, et affiche le libellé
+
+> **Points restés incertains, constatés en maquette** : `output.harbor` avec
+> `metaint` (8192 par défaut, « Interval used to send ICY metadata ») n'émet
+> **ni** `icy-metaint` **ni** `StreamTitle`, même quand le client envoie
+> `Icy-MetaData: 1`. Le titre dans le flux attend donc un relevé plus profond ;
+> la pochette n'a de toute façon **aucune place dans un flux ICY/MP3** — les
+> lecteurs qui en montrent une la tirent d'ailleurs. Consigné dans
+> docs/liquidsoap.md §6.

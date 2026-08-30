@@ -61,6 +61,10 @@
       .jauge .encore { background: var(--encore); }
       .scores { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--sourdine); margin-top: 0.35rem; }
       .vide { color: var(--sourdine); text-align: center; padding: 2rem 0; }
+      .groupe {
+        font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.2em;
+        color: var(--sourdine); margin: 1.25rem 0 0.6rem;
+      }
     </style>
   </head>
   <body>
@@ -80,17 +84,19 @@
 
       <section v-else>
         <p v-if="votes.length === 0" class="vide">Aucun vote retenu — la radio tire sans préférence.</p>
-        <article v-for="vote in votes" :key="vote.scope + vote.target" class="vote">
-          <div class="cible">
-            <span class="qui">[[ vote.target ]]</span>
-            <span class="quoi">[[ vote.scope ]]</span>
-          </div>
-          <div class="jauge">
-            <span class="stop" :style="{ width: largeur(vote.stop) }"></span>
-            <span class="encore" :style="{ width: largeur(vote.encore) }"></span>
-          </div>
-          <div class="scores"><span>stop [[ vote.stop ]]</span><span>encore [[ vote.encore ]]</span></div>
-        </article>
+        <template v-for="groupe in groupes" :key="groupe.scope">
+          <h2 v-if="groupe.votes.length" class="groupe">[[ groupe.titre ]]</h2>
+          <article v-for="vote in groupe.votes" :key="vote.scope + vote.target" class="vote">
+            <div class="cible">
+              <span class="qui">[[ vote.target ]]</span>
+            </div>
+            <div class="jauge">
+              <span class="stop" :style="{ width: largeur(vote.stop) }"></span>
+              <span class="encore" :style="{ width: largeur(vote.encore) }"></span>
+            </div>
+            <div class="scores"><span>stop [[ vote.stop ]]</span><span>encore [[ vote.encore ]]</span></div>
+          </article>
+        </template>
       </section>
 
       <div class="boutons" v-if="onglet === 'antenne'">
@@ -115,6 +121,14 @@
         delimiters: ["[[", "]]"],
         data() {
           return { onglet: "antenne", antenne: null, votes: [], message: "", issue: "", occupe: false };
+        },
+        computed: {
+          groupes() {
+            return [
+              { scope: "piste", titre: "Morceaux", votes: this.votes.filter((v) => v.scope === "piste") },
+              { scope: "artiste", titre: "Artistes", votes: this.votes.filter((v) => v.scope === "artiste") },
+            ];
+          },
         },
         methods: {
           largeur(score) {

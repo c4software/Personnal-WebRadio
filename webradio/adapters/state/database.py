@@ -43,9 +43,14 @@ CREATE TABLE IF NOT EXISTS votes (
     score_stop   REAL NOT NULL DEFAULT 0,
     score_encore REAL NOT NULL DEFAULT 0,
     vu_le        TEXT NOT NULL,
+    libelle      TEXT NOT NULL DEFAULT '',
     PRIMARY KEY (portee, cible)
 );
 """
+
+# Une base d'avant GOAL-020 n'a pas la colonne `libelle` : on l'ajoute au
+# démarrage, une seule fois — la seule migration du projet.
+_MIGRATION_LIBELLE = "ALTER TABLE votes ADD COLUMN libelle TEXT NOT NULL DEFAULT ''"
 
 
 class StateUnavailable(Exception):
@@ -146,13 +151,17 @@ class SqliteState:
     def _preparer(self) -> None:
         """Crée le fichier, son dossier et le schéma s'ils manquent.
 
-        Il n'y a pas de migration : le schéma se crée ou existe déjà. Le perdre
-        n'étant pas une panne, il n'y a rien à faire évoluer.
+        Une seule migration : la colonne `libelle` des votes (GOAL-020),
+        ajoutée à une base d'avant. Idempotente — la colonne présente, il n'y
+        a rien à faire.
         """
         self._chemin.parent.mkdir(parents=True, exist_ok=True)
         with self._connexion() as connection:
             connection.execute("PRAGMA journal_mode = WAL")
             connection.executescript(SCHEMA)
+            colonnes = [row[1] for row in connection.execute("PRAGMA table_info(votes)")]
+            if "libelle" not in colonnes:
+                connection.execute(_MIGRATION_LIBELLE)
 
     @contextmanager
     def _connexion(self) -> Iterator[sqlite3.Connection]:
@@ -265,17 +274,19 @@ class SqliteState:
 
         C'est la matière de la page des votes : elle montre ce que la radio a
         retenu **aujourd'hui**, pas ce qui a été écrit un jour — d'où la
-        décroissance ici aussi (ARCHITECTURE.md §5.2).
+        décroissance ici aussi (ARCHITECTURE.md §5.2). Le deuxième élément est
+        le **libellé** retenu au moment du vote (GOAL-020), ou la cible brute
+        pour les votes d'avant la migration.
         """
         now = self._horloge.now()
         with self._connexion() as connection:
             rows = connection.execute(
-                "SELECT portee, cible, score_stop, score_encore, vu_le FROM votes"
+                "SELECT portee, cible, score_stop, score_encore, vu_le, libelle FROM votes"
             ).fetchall()
         entries = [
             (
                 Scope(str(row[0])),
-                str(row[1]),
+                str(row[5]) or str(row[1]),
                 Scores(
                     stop=_decroitre(
                         float(row[2]), now - datetime.fromisoformat(str(row[4])), self._demi_vie
@@ -297,6 +308,7 @@ class SqliteState:
         *,
         stop: float = 0.0,
         encore: float = 0.0,
+        label: str = "",
     ) -> Scores:
         """Applique la décroissance, ajoute l'incrément, et rend le résultat.
 
@@ -321,12 +333,14 @@ class SqliteState:
             nouveaux = Scores(stop=courant.stop + stop, encore=courant.encore + encore)
             connection.execute(
                 """
-                INSERT INTO votes (portee, cible, score_stop, score_encore, vu_le)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO votes (portee, cible, score_stop, score_encore, vu_le, libelle)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(portee, cible) DO UPDATE
                 SET score_stop = excluded.score_stop,
                     score_encore = excluded.score_encore,
-                    vu_le = excluded.vu_le
+                    vu_le = excluded.vu_le,
+                    libelle = CASE WHEN excluded.libelle != '' THEN excluded.libelle
+                                   ELSE votes.libelle END
                 """,
                 (
                     str(scope),
@@ -334,6 +348,7 @@ class SqliteState:
                     nouveaux.stop,
                     nouveaux.encore,
                     now.isoformat(),
+                    label,
                 ),
             )
         return nouveaux

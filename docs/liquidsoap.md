@@ -170,3 +170,18 @@ Liquidsoap demande la piste suivante et annonce ses auditeurs.
 | Jonction | `switch(track_sensitive=true)` **après** avoir gardé la file pleine : sur l'instruction `live:`, le script redemande aussitôt l'entrée réelle. Rendre `null()` à `request.dynamic` fait basculer au milieu du morceau — la source se déclare « pas prête » |
 | Case courte | Une case **plus courte que deux morceaux** peut être sautée entièrement : le diffuseur a un morceau d'avance, et la jonction peut tomber après la fin de case. Conforme à « pas de rattrapage » (SPECS.md §7 n°22), et constaté avec une case de 2 min |
 | Fuseau | `SystemClock` rend l'heure **locale** — mais un conteneur vit en UTC : sans `/etc/localtime` monté depuis l'hôte, un flash de 12:00 part à 14:00 en été. Constaté au premier essai, corrigé dans le Compose |
+
+---
+
+## 6. Points incertains — les métadonnées dans le flux (GOAL-020)
+
+- [ ] `output.harbor(metaint=8192)` (la valeur par défaut) n'a émis **ni**
+      l'en-tête `icy-metaint` **ni** de bloc `StreamTitle`, y compris avec
+      `Icy-MetaData: 1` côté client et des métadonnées `annotate:` sur la
+      source. Constaté le 2026-08-30, en maquette. Le mécanisme qui l'active
+      réellement en 2.3.3 reste à trouver — sans l'inventer.
+- [ ] La **pochette** : le protocole ICY ne transporte que `StreamTitle` et
+      `StreamUrl`. Aucun flux MP3 n'embarque d'image ; les lecteurs qui en
+      affichent une la récupèrent par un autre canal. Si l'envie reste, la
+      piste sérieuse est `StreamUrl` pointant vers notre API — à relever
+      contre de vrais lecteurs.

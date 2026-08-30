@@ -75,13 +75,29 @@ class Learning:
         sur_la_piste = vote_weight(command, Scope.TRACK)
         sur_l_artiste = vote_weight(command, Scope.ARTIST)
         try:
-            self._ecrire(PorteeBase.TRACK, track.identifier, command, sur_la_piste)
+            # Le libellé humain est retenu AU MOMENT du vote : l'identifiant
+            # Subsonic est opaque, et personne ne veut lire « CpW34RBmv… »
+            # sur la page des votes (GOAL-020).
+            self._ecrire(
+                PorteeBase.TRACK,
+                track.identifier,
+                command,
+                sur_la_piste,
+                label=f"{track.title} — {track.artist}",
+            )
             self._ecrire(PorteeBase.ARTIST, track.artist, command, sur_l_artiste)
         except StateUnavailable as failure:
             logger.warning("vote non retenu, la radio continue : %s", failure)
 
-    def _ecrire(self, scope: PorteeBase, target: str, command: Command, weight: float) -> None:
+    def _ecrire(
+        self,
+        scope: PorteeBase,
+        target: str,
+        command: Command,
+        weight: float,
+        label: str = "",
+    ) -> None:
         if command is Command.SKIP:
-            self._base.record_vote(scope, target, stop=weight)
+            self._base.record_vote(scope, target, stop=weight, label=label)
         else:
-            self._base.record_vote(scope, target, encore=weight)
+            self._base.record_vote(scope, target, encore=weight, label=label)
