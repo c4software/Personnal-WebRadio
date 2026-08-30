@@ -118,10 +118,11 @@ Puis, dans n'importe quel lecteur — VLC, un navigateur, une enceinte :
 http://<la-machine>:8000/flux
 ```
 
-Et l'interface, sur un téléphone du même réseau :
+Et l'interface, sur un téléphone du même réseau — **un autre port**, parce que
+ce sont deux serveurs distincts :
 
 ```
-http://<la-machine>:8000/
+http://<la-machine>:8080/
 ```
 
 > **Si le conteneur ne joint pas Navidrome** : `http://music` est un nom résolu

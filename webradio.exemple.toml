@@ -65,7 +65,10 @@ delai_secondes = 5.0
 # Toute action de l'interface passe par l'API : aucun chemin privilégié.
 [web]
 adresse = "0.0.0.0"
-port    = 8000
+# Un port DIFFÉRENT de celui du flux : ce sont deux serveurs distincts, et ils
+# ne peuvent pas écouter le même. Le premier démarrage en conteneur l'a
+# rappelé par un « Address already in use ».
+port    = 8080
 # Intervalle auquel la page redemande ce qui passe. Trop court, elle interroge
 # pour rien ; trop long, un « encore » semble sans effet.
 rafraichissement_secondes = 5.0

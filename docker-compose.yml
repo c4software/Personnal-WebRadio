@@ -18,7 +18,8 @@ services:
     env_file: .env
 
     ports:
-      - "8000:8000"
+      - "8000:8000"   # le flux
+      - "8080:8080"   # l'interface et l'API
 
     volumes:
       # Configuration et jingles en LECTURE SEULE : ce sont les fichiers de
@@ -32,7 +33,9 @@ services:
     # le résout pas forcément : c'est le premier cas de test au démarrage
     # (ARCHITECTURE.md §8.5.3, GOAL-011-T04).
     #
-    # Décommenter si `http://music` n'est pas joignable depuis le conteneur :
+    # Constaté le 2026-08-30 : le conteneur joint bien `http://music` — le nom
+    # est résolu par le réseau de l'hôte, et cela suffit sur cette machine.
+    # Si ce n'était pas le cas ailleurs, décommenter :
     # extra_hosts:
     #   - "music:100.64.0.3"
 
@@ -45,7 +48,7 @@ services:
       # La radio ne tourne que si quelqu'un écoute : on ne peut donc pas sonder
       # le flux. On sonde l'API, qui répond toujours.
       test: ["CMD", "python", "-c",
-             "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/etat', timeout=5)"]
+             "import urllib.request; urllib.request.urlopen('http://localhost:8080/api/on-air', timeout=5)"]
       interval: 30s
       timeout: 10s
       retries: 3

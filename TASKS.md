@@ -275,7 +275,7 @@ Le découpage sépare les deux, pour que ce qui peut avancer avance.
 
 - [x] `GOAL-002-T01` ffmpeg : copie sans réencodage, et comportement exact en fin de fichier
 - [x] `GOAL-002-T02` ffmpeg : alimenter un encodage continu depuis une file inconnue d'avance
-- [ ] `GOAL-002-T03` ffmpeg : insérer un fichier d'une autre origine (jingle) sans interrompre
+- [x] `GOAL-002-T03` ffmpeg : insérer un fichier d'une autre origine (jingle) sans interrompre
 - [x] `GOAL-002-T04` ffmpeg : chiffrer le coût d'un réencodage permanent, pour un auditeur et pour cinq
 - [x] `GOAL-002-T05` Flux : ce qu'un lecteur reçoit en se branchant **en cours** de diffusion
 - [x] `GOAL-002-T06` Flux : ce qui fait décrocher — changement de débit, de fréquence, de canaux, de codec
@@ -432,6 +432,32 @@ contient des accents graves. Ajoutée à AGENTS.md §7.
 
 ---
 
+## Constaté en conteneur, le 2026-08-30 (`GOAL-011`)
+
+| Question | Réponse |
+|---|---|
+| Le conteneur joint-il Navidrome ? | **Oui.** `http://music` répond HTTP 200 depuis le conteneur — le nom est résolu par le réseau de l'hôte. `extra_hosts` reste en commentaire, pour une autre machine |
+| `SIGTERM` arrête-t-il proprement ? | **Oui.** `docker stop` rend la main en **5 s** — bien avant les 10 s de grâce — et le code de sortie est **0** |
+| ffmpeg orphelin dans le conteneur ? | **Non vérifié** : `ps` n'est pas dans l'image `slim`. Le code de sortie 0 et l'arrêt en 5 s prouvent que l'application a traité le signal, pas qu'aucun processus n'a survécu |
+
+### Le défaut que le conteneur a révélé
+
+Premier démarrage : **`Address already in use`**.
+
+Le flux et l'interface sont **deux serveurs distincts**, et le commentaire de
+`schema.py` affirmait pourtant qu'ils *« partagent le port du flux : une seule
+chose à ouvrir »*. C'était faux, et rien hors du conteneur ne l'avait montré —
+en développement, on ne lance jamais les deux ensemble.
+
+Corrigé : le web prend **8080** par défaut, le flux garde **8000**. Le
+`Dockerfile`, le Compose, le TOML d'exemple et le README suivent.
+
+> **Ce n'est pas le conteneur qui a créé le défaut, c'est lui qui l'a rendu
+> visible.** Le même bogue attendait quiconque aurait lancé la radio pour de
+> bon.
+
+---
+
 ## GOAL-004 — Le flux : ffmpeg, fan-out, démarrage à la demande
 
 **État : TODO**
@@ -474,10 +500,10 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 - [x] `GOAL-011-T01` `Dockerfile` : image Python fine, **ffmpeg épinglé à la version relevée**
 - [x] `GOAL-011-T02` `docker-compose.yml` : un service, `env_file`, ports
 - [x] `GOAL-011-T03` Volumes : configuration et jingles en **lecture seule**, état SQLite en écriture
-- [ ] `GOAL-011-T04` **Le conteneur joint-il Navidrome ?** `http://music` est résolu par l'hôte, pas forcément par le conteneur
-- [ ] `GOAL-011-T05` Arrêt propre : `SIGTERM` doit arrêter tout l'arbre, pas seulement le processus 1
+- [x] `GOAL-011-T04` **Le conteneur joint-il Navidrome ?** `http://music` est résolu par l'hôte, pas forcément par le conteneur
+- [x] `GOAL-011-T05` Arrêt propre : `SIGTERM` doit arrêter tout l'arbre, pas seulement le processus 1
 - [x] `GOAL-011-T06` Le conteneur ne tourne pas en `root`, et n'écrit que dans le volume d'état
-- [ ] `GOAL-011-T07` `CONTRIBUTING.md` et `README.md` : lancer en conteneur, et vérifier **hors** conteneur
+- [x] `GOAL-011-T07` `CONTRIBUTING.md` et `README.md` : lancer en conteneur, et vérifier **hors** conteneur
 
 > **`T05` est le piège classique** : un processus 1 qui ignore `SIGTERM` laisse
 > Docker tuer brutalement au bout de dix secondes — et l'on retrouve les
@@ -583,8 +609,8 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 - [x] `GOAL-010-T05` `core/emissions.py` : quelle émission est due, d'après la grille déclarée
 - [x] `GOAL-010-T06` **Deux émissions à la même heure refusent le démarrage**, en les nommant
 - [x] `GOAL-010-T07` L'épisode le plus récent **non encore diffusé** ; sinon la case est sautée
-- [ ] `GOAL-010-T08` Le rattrapage borné à la durée de l'épisode — la durée se lit **avant** de décider
-- [ ] `GOAL-010-T09` Une émission **suspend** la grille, la non-répétition et les jingles
+- [x] `GOAL-010-T08` Le rattrapage borné à la durée de l'épisode — la durée se lit **avant** de décider
+- [x] `GOAL-010-T09` Une émission **suspend** la grille, la non-répétition et les jingles
 - [x] `GOAL-010-T10` Un épisode indisponible ou tronqué : rester sur la musique, journaliser
 - [ ] `GOAL-010-T11` **Écoute réelle** : le niveau d'un épisode contre la musique, et la jonction
 - [x] `GOAL-010-T12` Carte du dépôt
@@ -622,9 +648,9 @@ dans un commit d'implémentation. Elle reste en vigueur pour la troisième table
 - [x] `GOAL-012-T04` La portée croisée : `stop` = 1 sur la piste, 0,25 sur l'artiste ; `encore` l'inverse
 - [x] `GOAL-012-T05` `core/rng.py` gagne `choisir_pondere()` — une capacité **nouvelle**, pas un réglage
 - [x] `GOAL-012-T06` **Le tirage pondéré reste rejouable** à graine et poids fixés
-- [ ] `GOAL-012-T07` La file reçoit les poids, elle ne va pas les chercher — la frontière du noyau tient
-- [ ] `GOAL-012-T08` Enregistrer le vote au moment où il est **accepté**, jamais quand il est refusé
-- [ ] `GOAL-012-T09` Les clés de configuration : plancher, plafond, demi-vie, poids croisé
+- [x] `GOAL-012-T07` La file reçoit les poids, elle ne va pas les chercher — la frontière du noyau tient
+- [x] `GOAL-012-T08` Enregistrer le vote au moment où il est **accepté**, jamais quand il est refusé
+- [x] `GOAL-012-T09` Les clés de configuration : plancher, plafond, demi-vie, poids croisé
 - [x] `GOAL-012-T10` Une base absente ou vide se comporte comme des poids neutres
 - [ ] `GOAL-012-T11` **Écoute sur plusieurs semaines** — le seul moyen de savoir si la radio s'est resserrée
 - [x] `GOAL-012-T12` Carte du dépôt
@@ -659,17 +685,17 @@ au hasard dans une liste de lecture Navidrome (SPECS.md §4.13).
 
 ### Les tâches
 
-- [ ] `GOAL-013-T01` `adapters/sources/` : `getPlaylists` et `getPlaylist`, au format `Piste`
-- [ ] `GOAL-013-T02` **Ne jamais se fier à `songCount`** : une liste se juge sur ce qu'elle rend
-- [ ] `GOAL-013-T03` Résoudre une liste **par son nom** — c'est ce que le TOML déclare, pas un identifiant opaque
-- [ ] `GOAL-013-T04` `core/programmes.py` : quel programme est ouvert, d'après l'horloge injectée
-- [ ] `GOAL-013-T05` Le tirage **dans la liste**, avec la non-répétition et sa fenêtre qui rétrécit
-- [ ] `GOAL-013-T06` `encore` cherche **dans la liste**, et y retombe — jamais au-dehors
-- [ ] `GOAL-013-T07` Une liste introuvable, vidée ou renommée : repli sur le tirage libre, journalisé
-- [ ] `GOAL-013-T08` Le programme l'emporte sur une plage thématique qui le recouvre
-- [ ] `GOAL-013-T09` Une **émission** l'emporte sur un programme — elle remplace toute la programmation
-- [ ] `GOAL-013-T10` Les clés `[[programmes]]` au schéma, et le TOML d'exemple
-- [ ] `GOAL-013-T11` Carte du dépôt
+- [x] `GOAL-013-T01` `adapters/sources/` : `getPlaylists` et `getPlaylist`, au format `Piste`
+- [x] `GOAL-013-T02` **Ne jamais se fier à `songCount`** : une liste se juge sur ce qu'elle rend
+- [x] `GOAL-013-T03` Résoudre une liste **par son nom** — c'est ce que le TOML déclare, pas un identifiant opaque
+- [x] `GOAL-013-T04` `core/programmes.py` : quel programme est ouvert, d'après l'horloge injectée
+- [x] `GOAL-013-T05` Le tirage **dans la liste**, avec la non-répétition et sa fenêtre qui rétrécit
+- [x] `GOAL-013-T06` `encore` cherche **dans la liste**, et y retombe — jamais au-dehors
+- [x] `GOAL-013-T07` Une liste introuvable, vidée ou renommée : repli sur le tirage libre, journalisé
+- [x] `GOAL-013-T08` Le programme l'emporte sur une plage thématique qui le recouvre
+- [x] `GOAL-013-T09` Une **émission** l'emporte sur un programme — elle remplace toute la programmation
+- [x] `GOAL-013-T10` Les clés `[[programmes]]` au schéma, et le TOML d'exemple
+- [x] `GOAL-013-T11` Carte du dépôt
 
 ### Ce que le relevé impose
 

@@ -37,9 +37,10 @@ RUN mkdir -p /var/lib/local-webradio && chown radio:radio /var/lib/local-webradi
 
 USER radio
 
-# 8000 : le flux et l'interface web. Le port réellement écouté vient du TOML —
-# celui-ci est une déclaration, pas une configuration (SPECS.md §6).
-EXPOSE 8000
+# 8000 : le flux. 8080 : l'interface et l'API. Ce sont DEUX serveurs, et ils ne
+# peuvent pas écouter le même port. Les ports réellement écoutés viennent du
+# TOML — ceux-ci sont une déclaration, pas une configuration (SPECS.md §6).
+EXPOSE 8000 8080
 
 # exec form, donc PID 1 est Python et reçoit SIGTERM directement. Sans cela,
 # un shell intermédiaire l'avalerait, Docker tuerait brutalement au bout de dix

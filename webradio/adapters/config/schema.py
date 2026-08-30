@@ -65,11 +65,14 @@ DEFAULT_STATE_TIMEOUT = 5.0
 # Un flux de podcast qui ne répond pas ne bloque pas la radio : l'émission est
 # perdue et la musique continue (SPECS.md §4.11). Le délai reste donc court.
 DEFAULT_PODCAST_TIMEOUT = 15.0
-# L'interface et l'API partagent le port du flux : une seule chose à ouvrir.
+# L'interface et l'API sont servies par un serveur DISTINCT de celui du flux :
+# ce sont deux serveurs, et ils ne peuvent pas écouter le même port. Le
+# commentaire précédent affirmait le contraire ; le premier démarrage en
+# conteneur l'a démenti par un « Address already in use » (GOAL-011-T04).
 # Écoute sur toutes les interfaces : la radio est faite pour être jointe depuis
 # le réseau local, et elle n'est jamais exposée sur Internet (SPECS.md §3).
 DEFAULT_WEB_ADDRESS = "0.0.0.0"
-DEFAULT_WEB_PORT = 8000
+DEFAULT_WEB_PORT = 8080
 # L'intervalle auquel la page redemande ce qui passe. Trop court, elle
 # interroge pour rien ; trop long, un « encore » semble sans effet.
 DEFAULT_REFRESH = 5.0
