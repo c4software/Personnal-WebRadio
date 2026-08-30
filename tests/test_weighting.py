@@ -27,13 +27,13 @@ def test_la_demi_vie_par_defaut_est_de_trois_mois() -> None:
 
 def test_un_stop_compte_plein_sur_la_piste_et_un_quart_sur_l_artiste() -> None:
     """On passe un morceau, on redemande un artiste (SPECS.md §7 n°16)."""
-    assert vote_weight(Command.SKIP, Scope.TRACK) == 1.0
-    assert vote_weight(Command.SKIP, Scope.ARTIST) == 0.25
+    assert vote_weight(Command.SKIP, Scope.ARTIST) == 1.0
+    assert vote_weight(Command.SKIP, Scope.TRACK) == 0.0
 
 
 def test_un_encore_compte_plein_sur_l_artiste_et_un_quart_sur_la_piste() -> None:
     assert vote_weight(Command.MORE, Scope.ARTIST) == 1.0
-    assert vote_weight(Command.MORE, Scope.TRACK) == 0.25
+    assert vote_weight(Command.MORE, Scope.TRACK) == 0.0
 
 
 def test_un_vote_d_hier_compte_encore_plein() -> None:

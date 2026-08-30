@@ -571,8 +571,12 @@ limites et sa documentation. Elle n'arrivera pas avant son deuxième cas d'usage
 `stop` et `encore` ne valent pas que pour le morceau en cours : ils sont
 **enregistrés**, et ils **pondèrent les tirages suivants**.
 
-- Un morceau souvent passé revient **moins souvent**.
+- Un artiste souvent passé revient **moins souvent**.
 - Un artiste souvent redemandé revient **plus souvent**.
+
+**Le vote porte sur l'artiste, et sur lui seul** (§7 n°16, révisée) : la
+double portée piste + artiste surpondérait — chaque geste comptait deux fois,
+et un artiste très présent finissait par écraser le tirage.
 
 **Rien n'est jamais supprimé.** Un morceau passé cent fois reste dans la
 bibliothèque et peut toujours sortir : sa chance diminue, elle ne s'annule pas.
@@ -901,13 +905,13 @@ pendant une émission (§4.11).
 > raison n'est pas le retard mais la nature de l'émission. Elle est écrite dans
 > §4.3 **et** §4.11, pour qu'aucune des deux lectures ne la manque.
 
-**n°16 — Le poids porte sur quoi ? Sur les deux, inégalement.** Tranchée le
-2026-08-30. Un `stop` compte **1** sur la piste et **0,25** sur l'artiste ; un
-`encore`, l'inverse (§4.12).
-> *Raison* : chaque geste garde le sens qu'il a — on passe un morceau, on
-> redemande un artiste — et un signal répété finit tout de même par porter. La
-> piste seule aurait mis des mois à s'entendre ; l'artiste seul aurait fait
-> reculer tout un catalogue pour un titre détesté.
+**n°16 — Le poids porte sur quoi ? Sur l'artiste seul.** Tranchée le
+2026-08-30, puis **révisée le même jour par l'auteur, à l'écoute** : `stop`
+comme `encore` comptent **1 sur l'artiste**, rien sur la piste (§4.12).
+> *Raison de la révision* : la première mouture — 1 sur ce que le geste
+> désigne, 0,25 sur l'autre — surpondérait : chaque vote comptait deux fois,
+> et un artiste déjà très présent dans la bibliothèque finissait par écraser
+> le tirage. La clé `cross_weight` disparaît du TOML avec elle.
 
 **n°17 — De combien ? De ×0,25 à ×4.** Tranchée le 2026-08-30. Plancher **non
 nul** — rien n'est jamais supprimé — et plafond, pour qu'un artiste redemandé dix

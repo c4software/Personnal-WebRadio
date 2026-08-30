@@ -145,6 +145,7 @@ Goals sont découpables.
 | GOAL-023 | Une plage peut imposer un artiste | `[x]` |
 | GOAL-024 | `encore` force réellement le même artiste | `[x]` |
 | GOAL-025 | Une chaîne YouTube comme émission | `[-]` — seule l'écoute réelle reste |
+| GOAL-026 | Les votes ne portent que sur l'artiste (n°16 révisée) | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -979,3 +980,14 @@ on résout **au moment de diffuser**, et seulement la candidate.
 - [x] `GOAL-025-T03` `youtube = "https://…/@chaine"` au TOML, exclusif de `feed` et `stream` ; `[youtube] timeout_seconds` ; chaîne injoignable ou `yt-dlp` en échec = musique, journalisé
 - [x] `GOAL-025-T04` `yt-dlp` épinglé (2026.8.19) dans l'image `radio` ; **résolution réelle constatée depuis le conteneur**
 - [ ] `GOAL-025-T05` **Écoute réelle** : mercredi 20 h — la jonction, le niveau d'une vidéo contre la musique, et le ffmpeg de Liquidsoap sur googlevideo (constaté seulement avec celui de l'hôte)
+
+---
+
+## GOAL-026 — Les votes ne portent que sur l'artiste (n°16 révisée)
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30, à l'écoute : « éviter
+les surpondérations »
+
+- [x] `GOAL-026-T01` `vote_weight` : 1 sur l'artiste, 0 sur la piste, `stop` comme `encore` — et un poids nul ne s'écrit pas en base (plus de lignes à zéro)
+- [x] `GOAL-026-T02` La clé `cross_weight` disparaît du schéma et des TOML — une clé sans effet serait un mensonge
+- [x] `GOAL-026-T03` SPECS §4.12 et n°16 révisés ; les anciennes lignes « piste » en base s'éteignent par la demi-vie, ou d'un ✕ sur la page

@@ -27,7 +27,6 @@ DEFAULT_HALF_LIFE = timedelta(days=90)
 DEFAULT_FLOOR = 0.25
 DEFAULT_CEILING = 4.0
 POIDS_DIRECT = 1.0
-POIDS_CROISE = 0.25
 
 # Choisie pour retrouver les ordres de grandeur annoncés par SPECS.md §4.12 :
 # un vote donne 1,5 ou 0,67 fois la chance normale, trois donnent 2,5 ou 0,4.
@@ -62,14 +61,16 @@ class Scores:
 
 
 def vote_weight(command: Command, scope: Scope) -> float:
-    """1 sur ce que le geste désigne, 0,25 sur l'autre.
+    """1 sur l'artiste, 0 sur la piste — `stop` comme `encore`.
 
-    On passe un *morceau*, on redemande un *artiste* : la piste seule aurait mis
-    des mois à s'entendre, l'artiste seul aurait fait reculer tout un catalogue
-    pour un titre détesté.
+    Révisé par l'auteur le 2026-08-30, à l'écoute (SPECS.md §7 n°16) : la
+    double portée surpondérait — un vote comptait une fois sur la piste ET une
+    fois sur son artiste, et un artiste très présent finissait par écraser le
+    tirage. Le geste ne porte plus que sur l'artiste ; un poids nul ne
+    s'enregistre pas.
     """
-    designe = Scope.TRACK if command is Command.SKIP else Scope.ARTIST
-    return POIDS_DIRECT if scope is designe else POIDS_CROISE
+    del command  # le barème est le même pour les deux gestes
+    return POIDS_DIRECT if scope is Scope.ARTIST else 0.0
 
 
 def decay(

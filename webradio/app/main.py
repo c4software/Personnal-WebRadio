@@ -92,7 +92,6 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         floor=settings.draw.votes.floor,
         ceiling=settings.draw.votes.ceiling,
         slope=SLOPE_PER_VOTE,
-        cross_weight=settings.draw.votes.cross_weight,
     )
 
     source = NavidromeSource(

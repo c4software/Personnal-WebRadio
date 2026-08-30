@@ -52,7 +52,6 @@ DEFAULT_ARTIST_GAP_KEY = 5
 DEFAULT_VOTE_FLOOR = 0.25
 DEFAULT_VOTE_CEILING = 4.0
 DEFAULT_VOTE_HALF_LIFE = 90
-DEFAULT_CROSS_WEIGHT = 0.25
 DEFAULT_SAMPLE_SIZE = 500
 DEFAULT_ARTIST_RESULTS = 50
 DEFAULT_TIMEOUT_SECONDS = 10.0
@@ -93,7 +92,6 @@ class VoteSettings:
     floor: float
     ceiling: float
     half_life_days: int
-    cross_weight: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -415,7 +413,7 @@ def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
     votes = _table_optionnelle(table, "votes", "draw")
     _verifier_cles(
         votes,
-        ("floor", "ceiling", "half_life_days", "cross_weight"),
+        ("floor", "ceiling", "half_life_days"),
         "draw.votes",
     )
     floor = _reel(votes, "floor", "draw.votes", default=DEFAULT_VOTE_FLOOR)
@@ -436,7 +434,6 @@ def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
             half_life_days=_entier(
                 votes, "half_life_days", "draw.votes", default=DEFAULT_VOTE_HALF_LIFE
             ),
-            cross_weight=_reel(votes, "cross_weight", "draw.votes", default=DEFAULT_CROSS_WEIGHT),
         ),
     )
 

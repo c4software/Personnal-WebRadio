@@ -62,7 +62,6 @@ def test_une_configuration_complete_est_lue(tmp_path: Path) -> None:
 floor = 0.5
 ceiling = 3.0
 half_life_days = 30
-cross_weight = 0.1
 
 [[bands]]
 start = "08:00"

@@ -24,7 +24,7 @@ def _apprentissage(tmp_path: Path, clock: FrozenClock | None = None) -> Learning
         lock_timeout=timedelta(seconds=5),
         vote_half_life=timedelta(days=90),
     )
-    return Learning(database, floor=0.25, ceiling=4.0, slope=0.5, cross_weight=0.25)
+    return Learning(database, floor=0.25, ceiling=4.0, slope=0.5)
 
 
 def test_les_deux_vocabulaires_de_portee_coincident() -> None:
@@ -52,14 +52,16 @@ def test_un_encore_fait_avancer_l_artiste(tmp_path: Path) -> None:
     assert a.weigh(track("2", "Bowie")) > 1.0
 
 
-def test_le_vote_porte_sur_les_deux_mais_pas_egalement(tmp_path: Path) -> None:
-    """Un `stop` compte 1 sur la piste et 0,25 sur l'artiste (SPECS.md §4.12) :
-    la piste visée doit donc reculer plus qu'un autre titre du même artiste."""
+def test_le_vote_porte_sur_l_artiste_seul_et_egalement(tmp_path: Path) -> None:
+    """Révision n°16 : la double portée surpondérait. Un `stop` pèse pareil
+    sur tous les titres de l'artiste — la piste visée n'écope pas double."""
     a = _apprentissage(tmp_path)
     visee = track("1", "Bowie")
     voisine = track("2", "Bowie")
+    autre_artiste = track("3", "Air")
     a.remember(Command.SKIP, visee)
-    assert a.weigh(visee) < a.weigh(voisine) < 1.0
+    assert a.weigh(visee) == a.weigh(voisine) < 1.0
+    assert a.weigh(autre_artiste) == 1.0
 
 
 def test_le_poids_ne_descend_jamais_a_zero(tmp_path: Path) -> None:
@@ -140,11 +142,11 @@ def test_un_vote_non_retenu_ne_fait_pas_taire_la_radio(
         (folder / "etat.sqlite3").chmod(0o600)
 
 
-def test_le_vote_retient_le_libelle_de_la_piste(tmp_path: Path) -> None:
-    """GOAL-020 : « titre — artiste » sur la page, jamais l'identifiant opaque."""
+def test_le_vote_s_affiche_par_le_nom_de_l_artiste(tmp_path: Path) -> None:
+    """GOAL-020, révisé avec n°16 : seule l'entrée artiste existe, et elle se
+    lit par son nom — jamais d'identifiant opaque, jamais de ligne à zéro."""
     learning = _apprentissage(tmp_path)
-    piste = track("1", "Air")
-    learning.remember(Command.SKIP, piste)
+    learning.remember(Command.SKIP, track("1", "Air"))
 
     base = SqliteState(
         tmp_path / "etat.sqlite3",
@@ -152,5 +154,5 @@ def test_le_vote_retient_le_libelle_de_la_piste(tmp_path: Path) -> None:
         lock_timeout=timedelta(seconds=5),
         vote_half_life=timedelta(days=90),
     )
-    libelles = {libelle for _, _, libelle, _ in base.all_scores()}
-    assert f"{piste.title} — {piste.artist}" in libelles
+    tout = base.all_scores()
+    assert [(scope, libelle) for scope, _, libelle, _ in tout] == [(PorteeBase.ARTIST, "Air")]

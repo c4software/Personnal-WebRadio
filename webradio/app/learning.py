@@ -35,13 +35,11 @@ class Learning:
         floor: float,
         ceiling: float,
         slope: float,
-        cross_weight: float,
     ) -> None:
         self._base = database
         self._plancher = floor
         self._plafond = ceiling
         self._pente = slope
-        self._croise = cross_weight
 
     def weigh(self, track: Track) -> float:
         """Le multiplicateur de chance d'une piste, borné.
@@ -97,6 +95,8 @@ class Learning:
         weight: float,
         label: str = "",
     ) -> None:
+        if weight == 0.0:
+            return
         if command is Command.SKIP:
             self._base.record_vote(scope, target, stop=weight, label=label)
         else:

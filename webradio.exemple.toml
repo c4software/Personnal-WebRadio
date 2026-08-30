@@ -17,13 +17,12 @@
 artist_gap = 5
 
 # Pondération par les votes (SPECS.md §4.12).
-# Un morceau souvent passé revient moins souvent ; un artiste souvent redemandé
-# revient plus souvent. Rien n'est jamais supprimé : le plancher n'est pas zéro.
+# Les votes portent sur l'ARTISTE (révision du 2026-08-30, SPECS.md §7 n°16) :
+# un artiste souvent passé revient moins souvent, un artiste redemandé plus. Rien n'est jamais supprimé : le plancher n'est pas zéro.
 [draw.votes]
 floor            = 0.25   # ×0,25 au plus bas — jamais 0
 ceiling             = 4.0    # ×4 au plus haut
 half_life_days      = 90     # un vote pèse moitié moins au bout de 3 mois
-cross_weight        = 0.25   # ce qu'un stop pèse sur l'artiste, un encore sur la piste
 
 # ── Les jingles ────────────────────────────────────────────────────────────
 [jingles]
