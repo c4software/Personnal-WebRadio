@@ -136,10 +136,11 @@ Goals sont découpables.
 | GOAL-013 | Les programmes : une playlist, des jours, des heures | `[x]` |
 | GOAL-014 | Correctifs de la relecture du 2026-08-30 | `[x]` — T01 corrigée ; T02–T07 supprimés avec leur code par GOAL-016 |
 | GOAL-015 | Un direct comme émission — dont le flash France Info | `[-]` — seule l'écoute réelle reste |
-| GOAL-017 | `stop` ne passe pas le morceau en cours | `[-]` — câblé et constaté ; reste l'écoute du fondu |
+| GOAL-017 | `stop` ne passe pas le morceau en cours | `[x]` — fondu validé à l'oreille |
 | GOAL-018 | L'interface en Vue, et la page des votes | `[x]` |
 | GOAL-019 | Les plages thématiques par jour | `[x]` |
 | GOAL-020 | Les votes portent un libellé lisible | `[x]` |
+| GOAL-021 | Effacer un vote, l'onglet Planning, et le bouton qui ne cliquait pas | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -845,7 +846,7 @@ annonce, il diffuse.
 
 ## GOAL-017 — `stop` ne passe pas le morceau en cours
 
-**État : EN COURS** — câblé et constaté le 2026-08-30 ; reste `T03`, l'écoute du fondu
+**État : TERMINÉ** — câblé, constaté, et le fondu validé à l'oreille par l'auteur
 
 SPECS.md §4.6 : *« `stop` : passer le morceau en cours. Le suivant démarre à la
 jonction, sans blanc. »* Or `Control.take_skip()` n'est **consommé par
@@ -858,7 +859,7 @@ migration : il n'a jamais été câblé, et aucun test ne le couvre.
 
 - [x] `GOAL-017-T01` Le chemin du saut : `harbor.http.register` (le `.simple` répond en HTTP/0.9 — `BadStatusLine` côté Python, constaté) expose `POST /skip` sur le port du flux ; `radio` l'appelle via `LIQUIDSOAP_URL`
 - [x] `GOAL-017-T02` Câblé : un `stop` **accepté** ordonne le saut (jamais un `encore`, jamais un refus — testé) ; un diffuseur injoignable ne casse pas le vote, le morceau finit et pèse moins. **Constaté en réel** : saut en ~6 s, jonction propre
-- [ ] `GOAL-017-T03` **Écoute réelle** : le saut s'entend-il proprement, avec le fondu ?
+- [x] `GOAL-017-T03` **Écoute réelle** : fondu validé par l'auteur le 2026-08-30
 - [x] `GOAL-017-T04` Carte du dépôt — rien de structurel : une route de plus dans radio.liq, un ordre de plus dans main.py
 
 ---
@@ -901,3 +902,15 @@ migration : il n'a jamais été câblé, et aucun test ne le couvre.
 > la pochette n'a de toute façon **aucune place dans un flux ICY/MP3** — les
 > lecteurs qui en montrent une la tirent d'ailleurs. Consigné dans
 > docs/liquidsoap.md §6.
+
+---
+
+## GOAL-021 — Effacer un vote, l'onglet Planning, et le bouton qui ne cliquait pas
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30, l'interface sous les yeux
+
+- [x] `GOAL-021-T01` `DELETE /api/votes/<portée>/<cible>` : un vote donné par erreur s'efface (404 s'il n'existe pas, 400 pour une portée inconnue) ; la cible **brute** voyage dans `key`, le libellé reste pour les yeux
+- [x] `GOAL-021-T02` `GET /api/planning` : la grille déclarée au TOML — plages, programmes, émissions — **figée à l'assemblage** ; rien ne se configure depuis le web (SPECS.md §6)
+- [x] `GOAL-021-T03` L'onglet Planning, et le ✕ sur chaque vote
+- [x] `GOAL-021-T04` **Le bouton Passer ne faisait rien depuis la page** : `@click="voter(URLS.stop)"` visait une constante de module, invisible d'une expression de gabarit Vue — l'erreur restait dans la console du téléphone. Les adresses vivent désormais dans `data`. Trouvé parce que l'auteur a cliqué et que le journal ne montrait **aucun** POST — mon essai `curl` court-circuitait la page
+- [x] `GOAL-021-T05` Le fondu du saut : **validé à l'oreille par l'auteur** (clôt aussi GOAL-017-T03)

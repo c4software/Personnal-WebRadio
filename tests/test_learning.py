@@ -152,5 +152,5 @@ def test_le_vote_retient_le_libelle_de_la_piste(tmp_path: Path) -> None:
         lock_timeout=timedelta(seconds=5),
         vote_half_life=timedelta(days=90),
     )
-    libelles = {libelle for _, libelle, _ in base.all_scores()}
+    libelles = {libelle for _, _, libelle, _ in base.all_scores()}
     assert f"{piste.title} — {piste.artist}" in libelles

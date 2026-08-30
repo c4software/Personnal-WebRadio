@@ -113,11 +113,12 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             return [
                 VoteScore(
                     scope="piste" if scope is StateScope.TRACK else "artiste",
-                    target=target,
+                    target=label,
+                    key=key,
                     stop=scores.stop,
                     encore=scores.encore,
                 )
-                for scope, target, scores in state.all_scores()
+                for scope, key, label, scores in state.all_scores()
             ]
         except StateUnavailable as failure:
             logger.warning("votes illisibles, page vide : %s", failure)
@@ -141,7 +142,18 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         except (urllib.error.URLError, http.client.HTTPException, OSError) as failure:
             logger.warning("le diffuseur n'a pas pris le saut, le morceau finira : %s", failure)
 
-    radio = LiveRadio(control, counter, learning.remember, lister_votes, demander_le_saut)
+    def oublier_le_vote(scope: str, target: str) -> bool:
+        try:
+            return state.delete_vote(
+                StateScope.TRACK if scope == "piste" else StateScope.ARTIST, target
+            )
+        except StateUnavailable as failure:
+            logger.warning("vote non effacé : %s", failure)
+            return False
+
+    radio = LiveRadio(
+        control, counter, learning.remember, lister_votes, demander_le_saut, oublier_le_vote
+    )
     # Le programme déclare la nature de ce qu'il choisit ; la charnière ne la
     # transmet à la façade que lorsque Liquidsoap commence réellement le morceau.
     branche: list[LiquidsoapPlayout] = []
@@ -218,10 +230,43 @@ def main(argv: list[str] | None = None) -> int:
     config = load(options.config, options.env)
     playout, radio = build(config)
     web = config.settings.web
+    s = config.settings
+    planning: dict[str, object] = {
+        "bands": [
+            {
+                "start": f"{b.start:%H:%M}",
+                "end": f"{b.end:%H:%M}",
+                "genres": list(b.genres),
+                "days": list(b.days),
+            }
+            for b in s.bands
+        ],
+        "programmes": [
+            {
+                "name": p.name,
+                "playlist": p.playlist,
+                "days": list(p.days),
+                "start": f"{p.start:%H:%M}",
+                "end": f"{p.end:%H:%M}",
+            }
+            for p in s.programmes
+        ],
+        "shows": [
+            {
+                "name": e.name,
+                "days": list(e.days),
+                "time": f"{e.hour:%H:%M}",
+                "live": e.stream is not None,
+                "duration_minutes": e.duration_minutes,
+            }
+            for e in s.shows
+        ],
+    }
     app = create_app(
         radio,
         refresh=timedelta(seconds=web.refresh_seconds),
         playout=playout,
+        planning=planning,
     )
 
     shutdown = threading.Event()

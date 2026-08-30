@@ -45,6 +45,7 @@ def create_view(*, refresh: timedelta) -> Blueprint:
             "index.html",
             url_antenne=url_for("api.on_air_now"),
             url_votes=url_for("api.votes_list"),
+            url_planning=url_for("api.planning_view"),
             url_stop=url_for("api.vote", name=str(Vote.SKIP)),
             url_encore=url_for("api.vote", name=str(Vote.MORE)),
             rafraichissement_ms=int(refresh.total_seconds() * MILLISECONDES),
@@ -53,14 +54,20 @@ def create_view(*, refresh: timedelta) -> Blueprint:
     return vue
 
 
-def create_app(radio: Radio, *, refresh: timedelta, playout: Playout | None = None) -> Flask:
+def create_app(
+    radio: Radio,
+    *,
+    refresh: timedelta,
+    playout: Playout | None = None,
+    planning: dict[str, object] | None = None,
+) -> Flask:
     """L'application complète : l'API, puis la page qui s'en sert.
 
     Les deux sont montées ensemble parce que la page ne sait rien faire sans
     l'API — c'est exactement ce qu'on veut vérifier.
     """
     app = Flask(__name__)
-    app.register_blueprint(create_api(radio))
+    app.register_blueprint(create_api(radio, planning=planning))
     app.register_blueprint(create_view(refresh=refresh))
     if playout is not None:
         app.register_blueprint(create_playout_api(playout))

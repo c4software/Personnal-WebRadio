@@ -184,12 +184,12 @@ def test_all_scores_rend_tout_decroissance_comprise(tmp_path: Path) -> None:
 
     tout = e.all_scores()
 
-    assert [(scope, target) for scope, target, _ in tout] == [
+    assert [(scope, key) for scope, key, _, _ in tout] == [
         (Scope.ARTIST, "Air"),
         (Scope.TRACK, "t1"),
     ]
-    assert tout[0][2].encore == pytest.approx(1.0)
-    assert tout[1][2].stop == pytest.approx(0.5)
+    assert tout[0][3].encore == pytest.approx(1.0)
+    assert tout[1][3].stop == pytest.approx(0.5)
 
 
 def test_all_scores_sans_vote_rend_une_liste_vide(tmp_path: Path) -> None:
@@ -202,14 +202,15 @@ def test_le_libelle_est_retenu_au_vote_et_rendu_a_la_lecture(tmp_path: Path) -> 
 
     tout = e.all_scores()
 
-    assert tout[0][1] == "Sexy Boy — Air"
+    assert tout[0][1] == "id-opaque"  # la clé brute, pour l'effacement
+    assert tout[0][2] == "Sexy Boy — Air"
 
 
 def test_un_vote_d_avant_la_migration_garde_sa_cible_brute(tmp_path: Path) -> None:
     """La colonne arrive par migration : sans libellé, la cible reste lisible."""
     e = state(tmp_path / "etat.sqlite", FrozenClock(DEPART))
     e.record_vote(Scope.TRACK, "id-opaque", stop=1.0)
-    assert e.all_scores()[0][1] == "id-opaque"
+    assert e.all_scores()[0][2] == "id-opaque"
 
 
 def test_la_migration_ajoute_la_colonne_a_une_base_d_avant(tmp_path: Path) -> None:
@@ -229,4 +230,13 @@ def test_la_migration_ajoute_la_colonne_a_une_base_d_avant(tmp_path: Path) -> No
         )
     brut.close()
     e = state(path, FrozenClock(DEPART))
-    assert e.all_scores()[0][1] == "Air"
+    assert e.all_scores()[0][2] == "Air"
+
+
+def test_un_vote_efface_disparait_et_le_dit(tmp_path: Path) -> None:
+    """GOAL-021 : un vote donné par erreur s'efface — et une cible inconnue le dit."""
+    e = state(tmp_path / "etat.sqlite", FrozenClock(DEPART))
+    e.record_vote(Scope.TRACK, "t1", stop=1.0)
+    assert e.delete_vote(Scope.TRACK, "t1") is True
+    assert e.all_scores() == []
+    assert e.delete_vote(Scope.TRACK, "t1") is False

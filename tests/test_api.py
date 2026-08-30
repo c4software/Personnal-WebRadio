@@ -38,6 +38,8 @@ class FakeRadio:
         self._verdict = verdict if verdict is not None else Verdict(accepted=True)
         self.votes: list[Vote] = []
         self._scores: list[VoteScore] = []
+        self._erasable: list[tuple[str, str]] = []
+        self.forgotten: list[tuple[str, str]] = []
 
     def on_air(self) -> bool:
         return self._antenne is not None
@@ -51,6 +53,10 @@ class FakeRadio:
 
     def vote_scores(self) -> list[VoteScore]:
         return list(self._scores)
+
+    def forget_vote(self, scope: str, target: str) -> bool:
+        self.forgotten.append((scope, target))
+        return (scope, target) in self._erasable
 
 
 def client(radio: FakeRadio) -> FlaskClient:
@@ -194,7 +200,7 @@ def test_l_api_liste_ce_que_les_votes_ont_laisse() -> None:
     answer = client(radio).get("/api/votes")
     assert answer.status_code == 200
     assert answer.get_json() == {
-        "votes": [{"scope": "artiste", "target": "Air", "stop": 0.0, "encore": 2.5}]
+        "votes": [{"scope": "artiste", "target": "Air", "key": "Air", "stop": 0.0, "encore": 2.5}]
     }
 
 
@@ -213,3 +219,36 @@ def test_la_page_embarque_vue_plutot_qu_un_cdn() -> None:
     answer = client(FakeRadio()).get("/")
     assert b"vue.global.prod.js" in answer.data
     assert b"cdn." not in answer.data and b"unpkg" not in answer.data
+
+
+def test_un_vote_donne_par_erreur_s_efface() -> None:
+    radio = FakeRadio()
+    radio._erasable = [("piste", "id-1")]
+    answer = client(radio).delete("/api/votes/piste/id-1")
+    assert answer.status_code == 200
+    assert answer.get_json() == {"deleted": True}
+    assert radio.forgotten == [("piste", "id-1")]
+
+
+def test_effacer_un_vote_inconnu_rend_404() -> None:
+    answer = client(FakeRadio()).delete("/api/votes/piste/fantome")
+    assert answer.status_code == 404
+
+
+def test_effacer_une_portee_inconnue_rend_400_sans_toucher_la_base() -> None:
+    radio = FakeRadio()
+    answer = client(radio).delete("/api/votes/album/x")
+    assert answer.status_code == 400
+    assert radio.forgotten == []
+
+
+def test_le_planning_est_celui_du_demarrage() -> None:
+    grille: dict[str, object] = {"bands": [{"start": "08:00"}], "programmes": [], "shows": []}
+    app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT, planning=grille)
+    app.config.update(TESTING=True)
+    assert app.test_client().get("/api/planning").get_json() == grille
+
+
+def test_sans_planning_la_route_rend_une_grille_vide() -> None:
+    answer = client(FakeRadio()).get("/api/planning")
+    assert answer.get_json() == {"bands": [], "programmes": [], "shows": []}

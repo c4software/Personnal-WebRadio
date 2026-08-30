@@ -61,6 +61,10 @@
       .jauge .encore { background: var(--encore); }
       .scores { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--sourdine); margin-top: 0.35rem; }
       .vide { color: var(--sourdine); text-align: center; padding: 2rem 0; }
+      .oubli {
+        border: 1px solid var(--bord); background: transparent; color: var(--sourdine);
+        border-radius: 0.4rem; width: 1.8rem; height: 1.8rem; flex: none;
+      }
       .groupe {
         font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.2em;
         color: var(--sourdine); margin: 1.25rem 0 0.6rem;
@@ -72,6 +76,7 @@
       <nav class="onglets">
         <button type="button" :class="{ actif: onglet === 'antenne' }" @click="onglet = 'antenne'">À l'antenne</button>
         <button type="button" :class="{ actif: onglet === 'votes' }" @click="ouvrirVotes()">Votes</button>
+        <button type="button" :class="{ actif: onglet === 'planning' }" @click="ouvrirPlanning()">Planning</button>
       </nav>
 
       <section v-if="onglet === 'antenne'">
@@ -82,13 +87,14 @@
         <p v-else-if="!antenne" class="etat">Personne n'écoute : la radio ne tourne pas.</p>
       </section>
 
-      <section v-else>
+      <section v-else-if="onglet === 'votes'">
         <p v-if="votes.length === 0" class="vide">Aucun vote retenu — la radio tire sans préférence.</p>
         <template v-for="groupe in groupes" :key="groupe.scope">
           <h2 v-if="groupe.votes.length" class="groupe">[[ groupe.titre ]]</h2>
           <article v-for="vote in groupe.votes" :key="vote.scope + vote.target" class="vote">
             <div class="cible">
               <span class="qui">[[ vote.target ]]</span>
+              <button type="button" class="oubli" title="Effacer ce vote" @click="oublier(vote)">✕</button>
             </div>
             <div class="jauge">
               <span class="stop" :style="{ width: largeur(vote.stop) }"></span>
@@ -99,9 +105,36 @@
         </template>
       </section>
 
+      <section v-else>
+        <p v-if="!planning" class="vide">Chargement…</p>
+        <template v-else>
+          <h2 class="groupe">Moments thématiques</h2>
+          <p v-if="planning.bands.length === 0" class="vide">Aucun — tirage libre toute la journée.</p>
+          <article v-for="b in planning.bands" class="vote">
+            <div class="cible"><span class="qui">[[ b.genres.join(", ") ]]</span>
+              <span class="quoi">[[ b.start ]]–[[ b.end ]]</span></div>
+            <div class="scores"><span>[[ jours(b.days) ]]</span></div>
+          </article>
+          <h2 class="groupe">Programmes</h2>
+          <p v-if="planning.programmes.length === 0" class="vide">Aucun.</p>
+          <article v-for="p in planning.programmes" class="vote">
+            <div class="cible"><span class="qui">[[ p.name ]]</span>
+              <span class="quoi">[[ p.start ]]–[[ p.end ]]</span></div>
+            <div class="scores"><span>[[ jours(p.days) ]]</span><span>liste « [[ p.playlist ]] »</span></div>
+          </article>
+          <h2 class="groupe">Émissions</h2>
+          <p v-if="planning.shows.length === 0" class="vide">Aucune.</p>
+          <article v-for="e in planning.shows" class="vote">
+            <div class="cible"><span class="qui">[[ e.name ]]</span>
+              <span class="quoi">[[ e.time ]][[ e.live ? " · direct " + e.duration_minutes + " min" : " · podcast" ]]</span></div>
+            <div class="scores"><span>[[ jours(e.days) ]]</span></div>
+          </article>
+        </template>
+      </section>
+
       <div class="boutons" v-if="onglet === 'antenne'">
-        <button type="button" :disabled="occupe" @click="voter(URLS.stop)">Passer</button>
-        <button type="button" :disabled="occupe" @click="voter(URLS.encore)">Encore</button>
+        <button type="button" :disabled="occupe" @click="voter(urls.stop)">Passer</button>
+        <button type="button" :disabled="occupe" @click="voter(urls.encore)">Encore</button>
       </div>
     </main>
 
@@ -109,9 +142,14 @@
       // La page ne décide de rien : elle demande à l'API et affiche ce qu'elle
       // répond — y compris le motif d'un refus (AGENTS.md §2). Les délimiteurs
       // sont [[ ]] : {{ '{{ }}' }} appartient à Jinja2.
+      // Dans `data` et non en constante de module : une expression de gabarit
+      // Vue n'accède qu'à l'instance — `@click="voter(URLS.stop)"` sur une
+      // constante globale échouait en silence, et le bouton ne faisait rien
+      // (constaté par l'auteur, GOAL-021).
       const URLS = {
         antenne: {{ url_antenne | tojson }},
         votes: {{ url_votes | tojson }},
+        planning: {{ url_planning | tojson }},
         stop: {{ url_stop | tojson }},
         encore: {{ url_encore | tojson }},
       };
@@ -120,7 +158,16 @@
       Vue.createApp({
         delimiters: ["[[", "]]"],
         data() {
-          return { onglet: "antenne", antenne: null, votes: [], message: "", issue: "", occupe: false };
+          return {
+            onglet: "antenne",
+            antenne: null,
+            votes: [],
+            planning: null,
+            urls: URLS,
+            message: "",
+            issue: "",
+            occupe: false,
+          };
         },
         computed: {
           groupes() {
@@ -155,6 +202,21 @@
             }
           },
           ouvrirVotes() { this.onglet = "votes"; this.chargerVotes(); },
+          async ouvrirPlanning() {
+            this.onglet = "planning";
+            try {
+              const reponse = await fetch(this.urls.planning, { headers: { Accept: "application/json" } });
+              this.planning = await reponse.json();
+            } catch (erreur) { this.planning = null; }
+          },
+          jours(days) {
+            return days.length >= 7 ? "tous les jours" : days.join(", ");
+          },
+          async oublier(vote) {
+            try {
+              await fetch(this.urls.votes + "/" + vote.scope + "/" + encodeURIComponent(vote.key), { method: "DELETE" });
+            } finally { this.chargerVotes(); }
+          },
           async voter(url) {
             this.occupe = true;
             try {

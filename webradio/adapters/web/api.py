@@ -73,13 +73,15 @@ class VoteScore:
     """Ce qu'une cible a accumulé, décroissance déjà appliquée.
 
     `scope` vaut `piste` ou `artiste` — les mots de SPECS.md §4.12, pas ceux
-    de la base : l'API ne connaît pas SQLite.
+    de la base : l'API ne connaît pas SQLite. `key` est la cible brute — ce
+    qu'il faut rendre pour l'effacer — quand `target` est le libellé lisible.
     """
 
     scope: str
     target: str
     stop: float
     encore: float
+    key: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -127,6 +129,10 @@ class Radio(Protocol):
         """Ce que la radio a retenu des votes, plus forts d'abord."""
         ...
 
+    def forget_vote(self, scope: str, target: str) -> bool:
+        """Efface une cible votée par erreur. Faux si elle n'existait pas."""
+        ...
+
 
 def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | None] | None:
     if on_air_now is None:
@@ -138,7 +144,7 @@ def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | None] | Non
     }
 
 
-def create_api(radio: Radio) -> Blueprint:
+def create_api(radio: Radio, planning: dict[str, object] | None = None) -> Blueprint:
     """L'API, montée sous `/api`.
 
     Rendue par une fabrique plutôt que par un module global : c'est ce qui
@@ -146,6 +152,15 @@ def create_api(radio: Radio) -> Blueprint:
     tester contre un Fake sans variable de module à remettre à zéro.
     """
     api = Blueprint("api", __name__, url_prefix=API_PATH)
+
+    @api.get("/planning")
+    def planning_view() -> ResponseReturnValue:
+        """La grille déclarée au TOML, telle que le démarrage l'a lue.
+
+        Des données figées à l'assemblage : rien ne se configure depuis le
+        web (SPECS.md §6), on ne fait que montrer ce qui a été déclaré.
+        """
+        return jsonify(planning or {"bands": [], "programmes": [], "shows": []})
 
     @api.get(ON_AIR_PATH)
     def on_air_now() -> ResponseReturnValue:
@@ -166,6 +181,7 @@ def create_api(radio: Radio) -> Blueprint:
                     {
                         "scope": v.scope,
                         "target": v.target,
+                        "key": v.key or v.target,
                         "stop": round(v.stop, 2),
                         "encore": round(v.encore, 2),
                     }
@@ -173,6 +189,16 @@ def create_api(radio: Radio) -> Blueprint:
                 ]
             }
         )
+
+    @api.delete("/votes/<scope>/<path:target>")
+    def forget(scope: str, target: str) -> ResponseReturnValue:
+        """Effacer un vote donné par erreur (GOAL-021). 404 s'il n'existe pas."""
+        if scope not in ("piste", "artiste"):
+            return jsonify({"deleted": False, "reason": f"portée inconnue : « {scope} »"}), 400
+        if radio.forget_vote(scope, target):
+            logger.info("vote effacé : %s « %s »", scope, target)
+            return jsonify({"deleted": True})
+        return jsonify({"deleted": False, "reason": "aucun vote pour cette cible"}), 404
 
     @api.post(VOTE_PATH)
     def vote(name: str) -> ResponseReturnValue:

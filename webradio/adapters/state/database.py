@@ -269,13 +269,14 @@ class SqliteState:
             encore=_decroitre(float(row[1]), ecoule, self._demi_vie),
         )
 
-    def all_scores(self) -> list[tuple[Scope, str, Scores]]:
+    def all_scores(self) -> list[tuple[Scope, str, str, Scores]]:
         """Toutes les cibles votées, décroissance appliquée, plus fortes d'abord.
 
         C'est la matière de la page des votes : elle montre ce que la radio a
         retenu **aujourd'hui**, pas ce qui a été écrit un jour — d'où la
         décroissance ici aussi (ARCHITECTURE.md §5.2). Le deuxième élément est
-        le **libellé** retenu au moment du vote (GOAL-020), ou la cible brute
+        la **cible brute** (la clé, pour l'effacement), le troisième le
+        **libellé** retenu au moment du vote (GOAL-020) — ou la cible brute
         pour les votes d'avant la migration.
         """
         now = self._horloge.now()
@@ -286,6 +287,7 @@ class SqliteState:
         entries = [
             (
                 Scope(str(row[0])),
+                str(row[1]),
                 str(row[5]) or str(row[1]),
                 Scores(
                     stop=_decroitre(
@@ -298,8 +300,20 @@ class SqliteState:
             )
             for row in rows
         ]
-        entries.sort(key=lambda e: e[2].stop + e[2].encore, reverse=True)
+        entries.sort(key=lambda e: e[3].stop + e[3].encore, reverse=True)
         return entries
+
+    def delete_vote(self, scope: Scope, target: str) -> bool:
+        """Efface une cible votée par erreur. Vrai si quelque chose a disparu.
+
+        C'est un geste de l'auteur, pas de la radio : rien ici n'est appelé
+        par le tirage (GOAL-021).
+        """
+        with self._transaction() as connection:
+            cursor = connection.execute(
+                "DELETE FROM votes WHERE portee = ? AND cible = ?", (str(scope), target)
+            )
+        return cursor.rowcount > 0
 
     def record_vote(
         self,

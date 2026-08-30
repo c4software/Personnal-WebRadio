@@ -33,12 +33,14 @@ class LiveRadio(Radio):
         remember: Callable[[Command, Track], None] | None = None,
         list_votes: Callable[[], list[VoteScore]] | None = None,
         skip: Callable[[], None] | None = None,
+        forget: Callable[[str, str], bool] | None = None,
     ) -> None:
         self._controle = control
         self._station = on_air
         self._retenir = remember
         self._lister_votes = list_votes
         self._passer = skip
+        self._oublier = forget
         self._verrou = threading.Lock()
         self._nature = Kind.MUSIC
         self._piste: Track | None = None
@@ -87,6 +89,11 @@ class LiveRadio(Radio):
         if self._lister_votes is None:
             return []
         return self._lister_votes()
+
+    def forget_vote(self, scope: str, target: str) -> bool:
+        if self._oublier is None:
+            return False
+        return self._oublier(scope, target)
 
     def vote(self, vote: Vote) -> Verdict:
         """Le vote passe au noyau, et n'est retenu que s'il a produit un effet.
