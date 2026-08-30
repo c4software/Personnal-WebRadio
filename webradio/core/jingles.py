@@ -24,12 +24,15 @@ UNE_HEURE = timedelta(hours=1)
 
 
 def jingle_name(instant: datetime) -> str:
-    """`14h.mp3` pour 14 h. Le nom du fichier *est* la programmation.
+    """`hours/14h.mp3` pour 14 h. Le nom du fichier *est* la programmation.
 
     Seule exception à « rien en dur » (AGENTS.md §2) : il n'y a pas de table de
     correspondance à tenir à jour, on ajoute un jingle en déposant un fichier.
+    Les horaires vivent dans `hours/` (GOAL-032) : vingt-quatre fichiers
+    potentiels méritaient leur tiroir — l'« encore » et les génériques restent
+    à la racine, ou où leur nom le dit.
     """
-    return f"{instant.hour:02d}h.mp3"
+    return f"hours/{instant.hour:02d}h.mp3"
 
 
 def _heures_pleines(depuis: datetime, jusqu_a: datetime) -> list[datetime]:

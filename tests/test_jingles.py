@@ -12,9 +12,9 @@ def clock(hour: int, minute: int = 0) -> FrozenClock:
 
 def test_le_nom_du_jingle_se_deduit_de_l_heure() -> None:
     """Le nom du fichier *est* la programmation : aucune table à tenir à jour."""
-    assert jingle_name(datetime(2026, 8, 30, 14, 37, tzinfo=UTC)) == "14h.mp3"
-    assert jingle_name(datetime(2026, 8, 30, 0, 0, tzinfo=UTC)) == "00h.mp3"
-    assert jingle_name(datetime(2026, 8, 30, 23, 59, tzinfo=UTC)) == "23h.mp3"
+    assert jingle_name(datetime(2026, 8, 30, 14, 37, tzinfo=UTC)) == "hours/14h.mp3"
+    assert jingle_name(datetime(2026, 8, 30, 0, 0, tzinfo=UTC)) == "hours/00h.mp3"
+    assert jingle_name(datetime(2026, 8, 30, 23, 59, tzinfo=UTC)) == "hours/23h.mp3"
 
 
 def test_aucun_jingle_n_est_du_tant_qu_aucune_heure_n_est_franchie() -> None:
@@ -28,7 +28,7 @@ def test_l_heure_pile_franchie_rend_le_jingle_de_cette_heure() -> None:
     h = clock(13, 55)
     jingles = Jingles(h)
     h.advance(timedelta(minutes=10))
-    assert jingles.due_now() == ("14h.mp3",)
+    assert jingles.due_now() == ("hours/14h.mp3",)
 
 
 def test_un_jingle_en_retard_passe_quand_meme() -> None:
@@ -37,21 +37,21 @@ def test_un_jingle_en_retard_passe_quand_meme() -> None:
     h = clock(13, 50)
     jingles = Jingles(h)
     h.advance(timedelta(minutes=35))
-    assert jingles.due_now() == ("14h.mp3",)
+    assert jingles.due_now() == ("hours/14h.mp3",)
 
 
 def test_un_morceau_qui_enjambe_deux_heures_les_diffuse_toutes_dans_l_ordre() -> None:
     h = clock(13, 50)
     jingles = Jingles(h)
     h.advance(timedelta(minutes=80))
-    assert jingles.due_now() == ("14h.mp3", "15h.mp3")
+    assert jingles.due_now() == ("hours/14h.mp3", "hours/15h.mp3")
 
 
 def test_un_jingle_rendu_ne_l_est_pas_une_seconde_fois() -> None:
     h = clock(13, 55)
     jingles = Jingles(h)
     h.advance(timedelta(minutes=10))
-    assert jingles.due_now() == ("14h.mp3",)
+    assert jingles.due_now() == ("hours/14h.mp3",)
     assert jingles.due_now() == ()
 
 
@@ -62,7 +62,7 @@ def test_le_jingle_de_vote_passe_en_dernier() -> None:
     jingles = Jingles(h)
     jingles.mark_more()
     h.advance(timedelta(minutes=80))
-    assert jingles.due_now() == ("14h.mp3", "15h.mp3", JINGLE_ENCORE)
+    assert jingles.due_now() == ("hours/14h.mp3", "hours/15h.mp3", JINGLE_ENCORE)
 
 
 def test_deux_votes_avant_la_meme_jonction_ne_font_qu_un_jingle() -> None:
@@ -107,7 +107,7 @@ def test_le_passage_de_minuit_rend_le_jingle_de_minuit() -> None:
     h = FrozenClock(datetime(2026, 8, 30, 23, 55, tzinfo=UTC))
     jingles = Jingles(h)
     h.advance(timedelta(minutes=10))
-    assert jingles.due_now() == ("00h.mp3",)
+    assert jingles.due_now() == ("hours/00h.mp3",)
 
 
 def test_une_journee_entiere_fait_tomber_les_vingt_quatre_jingles() -> None:

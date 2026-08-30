@@ -151,6 +151,7 @@ Goals sont découpables.
 | GOAL-029 | Génériques d'ouverture et de fermeture des moments | `[x]` |
 | GOAL-030 | Les jours de la configuration passent à l'anglais | `[x]` |
 | GOAL-031 | Le jingle d'« encore » se configure, les exemples ont leurs génériques | `[x]` |
+| GOAL-032 | Les jingles horaires rangés dans `hours/` | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -1054,3 +1055,12 @@ seuls les noms de jours restaient en français.
 
 - [x] `GOAL-031-T01` `[jingles] encore = "…"` — `encore.mp3` n'est plus qu'un défaut ; les jingles horaires restent nommés par leur heure, c'est leur programmation
 - [x] `GOAL-031-T02` Chaque plage et programme de `webradio.exemple.toml` montre ses `intro`/`outro`
+
+---
+
+## GOAL-032 — Les jingles horaires rangés dans `hours/`
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30 : « trop de fichiers »
+
+- [x] `GOAL-032-T01` `jingle_name` rend `hours/14h.mp3` — l'« encore » et les génériques restent à la racine, et leurs noms libres acceptent des sous-chemins
+- [x] `GOAL-032-T02` Le dossier local de l'auteur migré (46 fichiers, variantes `-b`/`-c` comprises — inutilisées par l'app, rangées avec), structure versionnée

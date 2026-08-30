@@ -726,7 +726,7 @@ Ce que le TOML doit décrire, au minimum :
 
 - **Le flux** : adresse d'écoute, port, format et débit ;
 - **Les jingles** : le dossier seul — les noms sont fixes et ne se configurent
-  pas : `00h.mp3` … `23h.mp3` pour les heures (§4.3), `encore.mp3` pour le vote
+  pas : `hours/00h.mp3` … `hours/23h.mp3` pour les heures (§4.3), `encore.mp3` pour le vote
   (§4.6) ;
 
 - **Le web** : adresse d'écoute et port de l'interface et de l'API ;

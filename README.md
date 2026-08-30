@@ -95,13 +95,15 @@ fait échouer le démarrage, délibérément.
 ### Les jingles
 
 Le **nom du fichier est la programmation**. Le jingle de 14 h s'appelle
-`14h.mp3`, et il n'y a aucune table de correspondance à tenir à jour :
+`hours/14h.mp3`, et il n'y a aucune table de correspondance à tenir à jour :
 
 ```
 jingles/
-├── 08h.mp3      diffusé à 8 h
-├── 20h.mp3      diffusé à 20 h
-└── encore.mp3   diffusé quand un « encore » est enregistré
+├── hours/           les jingles horaires, dans leur tiroir
+│   ├── 08h.mp3      diffusé à 8 h
+│   └── 20h.mp3      diffusé à 20 h
+├── encore.mp3       diffusé quand un « encore » est enregistré
+└── chloe-debut.mp3  un générique — nom libre, sous-dossiers permis
 ```
 
 **Un jingle absent n'est pas une erreur.** Le dossier peut n'en contenir que

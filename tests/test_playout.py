@@ -68,11 +68,12 @@ def test_la_nature_est_declaree_a_chaque_morceau(tmp_path: Path) -> None:
 
 
 def test_un_jingle_du_et_present_passe_avant_la_musique(tmp_path: Path) -> None:
-    (tmp_path / "13h.mp3").write_bytes(b"faux jingle")
+    (tmp_path / "hours").mkdir(exist_ok=True)
+    (tmp_path / "hours" / "13h.mp3").write_bytes(b"faux jingle")
     clock = FrozenClock(MIDI)
     programme, vues = _programme(tmp_path, clock=clock)
     clock.advance(timedelta(hours=1))
-    assert programme.next_entry() == str(tmp_path / "13h.mp3")
+    assert programme.next_entry() == str(tmp_path / "hours" / "13h.mp3")
     assert vues[-1] == (Kind.JINGLE, None, None)
 
 
@@ -142,13 +143,15 @@ def test_preparer_avale_une_panne_plutot_que_de_la_propager(tmp_path: Path) -> N
 def test_plusieurs_jingles_dus_passent_a_la_suite(tmp_path: Path) -> None:
     """Un morceau long a enjambé deux heures : tous passent, le plus ancien
     d'abord (SPECS.md §4.3)."""
-    (tmp_path / "13h.mp3").write_bytes(b"a")
-    (tmp_path / "14h.mp3").write_bytes(b"b")
+    (tmp_path / "hours").mkdir(exist_ok=True)
+    (tmp_path / "hours" / "13h.mp3").write_bytes(b"a")
+    (tmp_path / "hours").mkdir(exist_ok=True)
+    (tmp_path / "hours" / "14h.mp3").write_bytes(b"b")
     clock = FrozenClock(MIDI)
     programme, _ = _programme(tmp_path, clock=clock)
     clock.advance(timedelta(hours=2))
-    assert programme.next_entry() == str(tmp_path / "13h.mp3")
-    assert programme.next_entry() == str(tmp_path / "14h.mp3")
+    assert programme.next_entry() == str(tmp_path / "hours" / "13h.mp3")
+    assert programme.next_entry() == str(tmp_path / "hours" / "14h.mp3")
     assert programme.next_entry() == "fake://1"
 
 
@@ -305,7 +308,9 @@ def test_un_jingle_du_passe_meme_quand_les_emissions_sont_cablees(tmp_path: Path
     from webradio.app.show_scheduler import Shows
     from webradio.core.shows import ShowSchedule
 
-    (tmp_path / "13h.mp3").write_bytes(b"faux jingle")
+    (tmp_path / "hours").mkdir(exist_ok=True)
+
+    (tmp_path / "hours" / "13h.mp3").write_bytes(b"faux jingle")
     clock = FrozenClock(MIDI)
     state = SqliteState(
         tmp_path / "etat.sqlite3",
@@ -336,7 +341,7 @@ def test_un_jingle_du_passe_meme_quand_les_emissions_sont_cablees(tmp_path: Path
     )
     clock.advance(timedelta(hours=1))
 
-    assert programme.next_entry() == str(tmp_path / "13h.mp3")
+    assert programme.next_entry() == str(tmp_path / "hours" / "13h.mp3")
     assert vues[-1] == (Kind.JINGLE, None, None)
 
 
@@ -465,14 +470,15 @@ def test_le_generique_de_fin_passe_a_la_sortie_et_avant_le_jingle_horaire(
     tmp_path: Path,
 ) -> None:
     (tmp_path / "matinale-fin.mp3").write_bytes(b"generique")
-    (tmp_path / "10h.mp3").write_bytes(b"jingle horaire")
+    (tmp_path / "hours").mkdir(exist_ok=True)
+    (tmp_path / "hours" / "10h.mp3").write_bytes(b"jingle horaire")
     programme, clock = _matinale(tmp_path)
     clock.advance(timedelta(minutes=3))  # 08:01, dans la matinale
     programme.next_entry()
     clock.advance(timedelta(hours=2))  # 10:01 : la matinale est finie
 
     assert programme.next_entry() == str(tmp_path / "matinale-fin.mp3")
-    assert programme.next_entry() == str(tmp_path / "10h.mp3")
+    assert programme.next_entry() == str(tmp_path / "hours" / "10h.mp3")
     # fake://1 a joué à 08:01 : la fenêtre de non-répétition l'écarte encore.
     assert programme.next_entry() == "fake://2"
 

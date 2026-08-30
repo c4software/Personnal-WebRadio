@@ -26,8 +26,10 @@ half_life_days      = 90     # un vote pèse moitié moins au bout de 3 mois
 
 # ── Les jingles ────────────────────────────────────────────────────────────
 [jingles]
-# Les NOMS sont fixes : 00h.mp3 … 23h.mp3 pour les heures, encore.mp3 pour le
-# vote. Seul le dossier se configure. Un jingle absent ne signale rien.
+# Les horaires vivent dans leur tiroir : hours/00h.mp3 … hours/23h.mp3.
+# encore.mp3 (personnalisable ci-dessous) et les génériques restent à la
+# racine — ou où leur nom le dit, sous-dossiers permis. Un jingle absent ne
+# signale rien.
 # Par défaut, le dossier `jingles/` à la racine du dépôt (versionné vide).
 folder = "jingles"
 # Le jingle qui annonce un « encore » accepté — personnalisable (GOAL-031).

@@ -31,6 +31,9 @@ coverage.xml
 # Fichiers audio : le dossier jingles/ est versionné vide, son contenu jamais
 jingles/*
 !jingles/.gitkeep
+!jingles/hours/
+jingles/hours/*
+!jingles/hours/.gitkeep
 *.mp3
 *.aac
 *.ogg
