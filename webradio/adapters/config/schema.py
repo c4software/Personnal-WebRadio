@@ -113,11 +113,16 @@ class JingleSettings:
 
 @dataclass(frozen=True, slots=True)
 class Band:
-    """Un moment thématique : des genres, entre deux heures."""
+    """Un moment thématique : des genres, entre deux heures.
+
+    `days` restreint la plage à certains jours ; sans elle, tous les jours —
+    le comportement historique (GOAL-019).
+    """
 
     start: time
     end: time
     genres: tuple[str, ...]
+    days: tuple[str, ...] = DAYS
 
 
 @dataclass(frozen=True, slots=True)
@@ -430,12 +435,14 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
     bands: list[Band] = []
     for index, table in enumerate(_liste_tables(brut, "bands")):
         prefix = f"bands[{index}]"
-        _verifier_cles(table, ("start", "end", "genres"), prefix)
+        _verifier_cles(table, ("start", "end", "genres", "days"), prefix)
         bands.append(
             Band(
                 start=_heure(table, "start", prefix),
                 end=_heure(table, "end", prefix),
                 genres=_liste_textes(table, "genres", prefix),
+                # Pas de `days` = tous les jours : le comportement historique.
+                days=_jours(table, prefix) if "days" in table else DAYS,
             )
         )
     return tuple(bands)

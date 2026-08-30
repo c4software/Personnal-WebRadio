@@ -110,3 +110,30 @@ def test_une_journee_entiere_se_deroule_en_une_boucle_et_se_rejoue() -> None:
     assert premiere[9] == "jazz"
     assert premiere[21] == "electro"
     assert premiere[15] is None
+
+
+# ── Les plages par jour (GOAL-019) ──────────────────────────────────────────
+
+
+def test_sans_jour_declare_une_plage_vaut_tous_les_jours() -> None:
+    # Le 2026-08-30 est un dimanche.
+    assert Schedule([MATIN], a(9)).current_band() is MATIN
+
+
+def test_une_plage_restreinte_a_un_jour_ne_vaut_que_ce_jour() -> None:
+    dimanche = Band(start=time(8), end=time(10), genres=("gospel",), days=("dimanche",))
+    lundi = Band(start=time(8), end=time(10), genres=("jazz",), days=("lundi",))
+    assert Schedule([lundi, dimanche], a(9)).current_band() is dimanche
+
+
+def test_une_plage_de_nuit_appartient_au_jour_ou_elle_commence() -> None:
+    """« samedi 22 h → 02 h » couvre dimanche 01 h, pas dimanche 23 h."""
+    nuit = Band(start=time(22), end=time(2), genres=("électro",), days=("samedi",))
+    grille = Schedule([nuit], a(1))  # dimanche 01 h — la soirée de samedi
+    assert grille.current_band() is nuit
+    assert Schedule([nuit], a(23)).current_band() is None  # dimanche 23 h
+
+
+def test_un_jour_inconnu_est_refuse_en_le_nommant() -> None:
+    with pytest.raises(ValueError, match="caturday"):
+        Band(start=time(8), end=time(10), genres=("jazz",), days=("caturday",))

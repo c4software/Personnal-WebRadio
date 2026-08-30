@@ -45,6 +45,15 @@ start  = "20:00"
 end    = "23:00"
 genres = ["Rock", "Pop"]
 
+# `days` restreint une plage à certains jours ; sans lui, elle vaut tous les
+# jours. Une plage qui enjambe minuit appartient au jour où elle commence :
+# celle-ci couvre aussi dimanche 01 h.
+[[bands]]
+start  = "22:00"
+end    = "02:00"
+genres = ["Électro"]
+days   = ["samedi"]
+
 # ── L'état ─────────────────────────────────────────────────────────────────
 # La SEULE chose que la radio retient entre deux démarrages : le dernier
 # épisode diffusé de chaque émission. Une table, trois colonnes.

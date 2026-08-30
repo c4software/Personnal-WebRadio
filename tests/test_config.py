@@ -487,3 +487,29 @@ def test_un_podcast_ne_declare_pas_de_duree() -> None:
             )
         )
     assert "duration_minutes" in str(refus.value) or "durée" in str(refus.value)
+
+
+# ── Les plages par jour (GOAL-019) ──────────────────────────────────────────
+
+UNE_PLAGE = """
+[[bands]]
+start  = "08:00"
+end    = "10:00"
+genres = ["Chanson française"]
+"""
+
+
+def test_une_plage_sans_jours_vaut_tous_les_jours() -> None:
+    config = _valider(TOML_MINIMAL + UNE_PLAGE)
+    assert config.bands[0].days == DAYS
+
+
+def test_une_plage_se_restreint_a_des_jours() -> None:
+    config = _valider(TOML_MINIMAL + UNE_PLAGE + 'days = ["samedi"]\n')
+    assert config.bands[0].days == ("samedi",)
+
+
+def test_un_jour_de_plage_inconnu_est_refuse() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(TOML_MINIMAL + UNE_PLAGE + 'days = ["caturday"]\n')
+    assert "bands[0]" in str(refus.value)

@@ -138,6 +138,7 @@ Goals sont découpables.
 | GOAL-015 | Un direct comme émission — dont le flash France Info | `[-]` — seule l'écoute réelle reste |
 | GOAL-017 | `stop` ne passe pas le morceau en cours | `[ ]` |
 | GOAL-018 | L'interface en Vue, et la page des votes | `[x]` |
+| GOAL-019 | Les plages thématiques par jour | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -871,3 +872,13 @@ migration : il n'a jamais été câblé, et aucun test ne le couvre.
 - [x] `GOAL-018-T04` Deux onglets : l'antenne (nature, titre, boutons), et les votes (jauges stop/encore par cible)
 - [x] `GOAL-018-T05` Les interdits tiennent : aucune donnée d'antenne dans le HTML servi, tout passe par l'API, délimiteurs `[[ ]]` pour laisser `{{ }}` à Jinja2
 - [ ] `GOAL-018-T06` **Regarder sur le vrai téléphone** — la seule chose qu'aucun test ne fera
+
+---
+
+## GOAL-019 — Les plages thématiques par jour
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30
+
+- [x] `GOAL-019-T01` `core/bands.py` : une plage porte des jours ; **aucun jour déclaré = tous les jours** — le comportement historique, aucune configuration existante ne change de sens
+- [x] `GOAL-019-T02` Une plage qui enjambe minuit appartient au jour où elle **commence** : « samedi 22 h → 02 h » couvre dimanche 01 h, pas dimanche 23 h — même règle que les cases d'émission
+- [x] `GOAL-019-T03` La clé `days` au schéma (optionnelle, mêmes jours que partout), un jour inconnu refusé en le nommant, le TOML d'exemple

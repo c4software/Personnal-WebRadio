@@ -12,11 +12,12 @@ se décide là où l'on sait ce que la source a répondu, c'est-à-dire dans
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
-from datetime import time
+from dataclasses import dataclass, field
+from datetime import date, datetime, time, timedelta
 
 from webradio.core.clock import Clock
 from webradio.core.rng import Random
+from webradio.core.shows import EVERY_DAY, WEEKDAYS
 
 
 @dataclass(frozen=True, slots=True)
@@ -30,8 +31,18 @@ class Band:
     start: time
     end: time
     genres: tuple[str, ...]
+    # Aucun jour déclaré = tous les jours — c'est le comportement historique,
+    # et le seul qui ne surprenne pas une configuration existante.
+    days: tuple[str, ...] = field(default=(EVERY_DAY,))
 
     def __post_init__(self) -> None:
+        for jour in self.days:
+            if jour != EVERY_DAY and jour not in WEEKDAYS:
+                message = f"jour inconnu pour la plage {self.start:%H:%M} : {jour}"
+                raise ValueError(message)
+        if not self.days:
+            message = f"la plage {self.start:%H:%M} n'a aucun jour : elle n'aurait jamais lieu"
+            raise ValueError(message)
         if not self.genres:
             message = "une plage sans genre ne restreint rien : ne pas la déclarer"
             raise ValueError(message)
@@ -39,10 +50,26 @@ class Band:
             message = f"plage vide : {self.start} → {self.end}"
             raise ValueError(message)
 
-    def covers(self, moment: time) -> bool:
+    def _a_lieu_le(self, jour: date) -> bool:
+        if EVERY_DAY in self.days:
+            return True
+        return any(WEEKDAYS[j] == jour.weekday() for j in self.days if j != EVERY_DAY)
+
+    def covers(self, instant: datetime) -> bool:
+        """L'instant tombe-t-il dans la plage, jour compris ?
+
+        Une plage qui enjambe minuit appartient au jour où elle **commence** :
+        « samedi 22 h → 02 h » couvre dimanche 01 h. C'est la même règle que
+        les cases d'émission de fin de soirée (`core/shows.py`).
+        """
+        moment = instant.time()
         if self.start < self.end:
-            return self.start <= moment < self.end
-        return moment >= self.start or moment < self.end
+            return self.start <= moment < self.end and self._a_lieu_le(instant.date())
+        if moment >= self.start:
+            return self._a_lieu_le(instant.date())
+        if moment < self.end:
+            return self._a_lieu_le((instant - timedelta(days=1)).date())
+        return False
 
 
 class Schedule:
@@ -66,9 +93,9 @@ class Schedule:
         return self._plages
 
     def current_band(self) -> Band | None:
-        moment = self._horloge.now().time()
+        instant = self._horloge.now()
         for band in self._plages:
-            if band.covers(moment):
+            if band.covers(instant):
                 return band
         return None
 
