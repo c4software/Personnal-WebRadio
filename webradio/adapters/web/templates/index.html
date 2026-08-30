@@ -13,6 +13,10 @@
         --texte: #e6edf3; --sourdine: #8b949e; --accent: #4493f8;
         --refus: #f85149; --accepte: #3fb950; --encore: #3fb950; --stop: #f85149;
       }
+      /* Vue pose v-cloak jusqu'au montage : cette règle cache la page tant
+         que les gabarits ne sont pas compilés — sans elle, les [[ ]] bruts
+         flashent au chargement (constaté par l'auteur). */
+      [v-cloak] { display: none; }
       * { box-sizing: border-box; margin: 0; }
       body {
         background: var(--fond); color: var(--texte); min-height: 100dvh;
