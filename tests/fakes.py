@@ -28,8 +28,15 @@ def piste(
 class FakeSource:
     """Une bibliothèque en mémoire, qui peut aussi tomber en panne sur commande."""
 
-    def __init__(self, catalogue: list[Piste], *, injoignable: bool = False) -> None:
+    def __init__(
+        self,
+        catalogue: list[Piste],
+        *,
+        injoignable: bool = False,
+        listes: dict[str, list[Piste]] | None = None,
+    ) -> None:
         self._catalogue = list(catalogue)
+        self._listes = dict(listes or {})
         self.injoignable = injoignable
         self.appels = 0
 
@@ -52,6 +59,12 @@ class FakeSource:
     def genres(self) -> list[str]:
         self._verifier()
         return sorted({p.genre for p in self._catalogue if p.genre is not None})
+
+    def pistes_de_la_liste_de_lecture(self, nom: str) -> list[Piste]:
+        """Une liste inconnue rend une liste vide, comme une vraie source : le
+        repli se décide au-dessus, avec le contexte."""
+        self._verifier()
+        return list(self._listes.get(nom, []))
 
     def entree(self, piste: Piste) -> str:
         """Une entrée factice mais reconnaissable.

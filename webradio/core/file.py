@@ -11,12 +11,19 @@ pas un blanc dans l'audio, il fait un trou dans le temps réel, donc un tampon
 qui se vide chez l'auditeur, donc une déconnexion.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import cast
 
 from webradio.core.modeles import Piste
 from webradio.core.repetition import Fenetre
-from webradio.core.rng import Hasard
+from webradio.core.rng import Hasard, HasardPondere
 from webradio.core.sources import SourceMusicale
+
+# Le poids d'une piste, fourni du dehors. La file ne va JAMAIS le chercher :
+# les scores vivent dans une base, et le noyau ne parle à personne
+# (ARCHITECTURE.md §1.1, §5.3).
+Peser = Callable[[Piste], float]
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,11 +53,20 @@ class File:
         source: SourceMusicale,
         hasard: Hasard,
         fenetre: Fenetre | None = None,
+        peser: Peser | None = None,
     ) -> None:
         self._source = source
         self._hasard = hasard
         self._fenetre = fenetre if fenetre is not None else Fenetre()
+        self._peser = peser
         self._avance: Choix | None = None
+        if peser is not None and not hasattr(hasard, "choisir_pondere"):
+            # Refuser ici plutôt qu'au premier tirage : une file construite avec
+            # des poids et un hasard qui ne sait pas les honorer tirerait
+            # uniformément sans que rien ne le signale, et la pondération
+            # semblerait « ne pas marcher » des semaines durant.
+            message = "des poids sont fournis, mais ce hasard ne sait pas les honorer"
+            raise TypeError(message)
 
     def preparer(self, genre: str | None = None) -> None:
         """Résout le morceau suivant à l'avance, sans le consommer.
@@ -94,4 +110,17 @@ class File:
             replis.append("fenêtre de non-répétition rétrécie")
             autorisees = self._fenetre.filtrer(candidates)
 
-        return Choix(self._hasard.choisir(autorisees), tuple(replis))
+        return Choix(self._tirer(autorisees), tuple(replis))
+
+    def _tirer(self, parmi: list[Piste]) -> Piste:
+        """Un tirage pondéré si les poids sont fournis, uniforme sinon.
+
+        La pondération est une **capacité en plus**, jamais un réglage de la
+        première (ARCHITECTURE.md §5.3) : sans `peser`, la file se comporte
+        exactement comme avant, et rien de ce qui existait ne change de
+        comportement.
+        """
+        if self._peser is None:
+            return self._hasard.choisir(parmi)
+        pondere = cast(HasardPondere, self._hasard)
+        return pondere.choisir_pondere(parmi, [self._peser(p) for p in parmi])

@@ -1,5 +1,7 @@
 """La file : ce qui passe ensuite, ce qu'elle relâche, et ce qu'elle refuse."""
 
+from typing import TypeVar
+
 import pytest
 
 from tests.fakes import FakeSource, piste
@@ -7,6 +9,8 @@ from webradio.core.file import File, FileVide
 from webradio.core.repetition import Fenetre
 from webradio.core.rng import HasardReel, HasardScripte
 from webradio.core.sources import SourceIndisponible
+
+T = TypeVar("T")
 
 CATALOGUE = [
     piste("1", "Air", genre="électro"),
@@ -111,3 +115,39 @@ def test_apres_avoir_servi_l_avance_la_file_recalcule() -> None:
     f.preparer()
     f.suivant()
     assert f.suivant().piste in CATALOGUE
+
+
+def test_sans_poids_la_file_tire_uniformement() -> None:
+    """La pondération est une capacité en plus, jamais un réglage de la
+    première : sans `peser`, rien de ce qui existait ne change."""
+    f = File(FakeSource(CATALOGUE), HasardScripte([0]))
+    assert f.suivant().piste in CATALOGUE
+
+
+def test_avec_des_poids_la_file_les_honore() -> None:
+    """Un poids nul sur tout sauf un morceau : c'est celui-là qui doit sortir,
+    quel que soit le tirage."""
+    vise = CATALOGUE[2]
+    f = File(
+        FakeSource(CATALOGUE),
+        HasardReel(graine=1),
+        Fenetre(largeur=0),
+        peser=lambda p: 1000.0 if p.identifiant == vise.identifiant else 0.001,
+    )
+    sorties = [f.suivant().piste.identifiant for _ in range(30)]
+    assert sorties.count(vise.identifiant) > 25, sorties
+
+
+def test_des_poids_sans_hasard_pondere_sont_refuses_a_la_construction() -> None:
+    """Refuser ici plutôt qu'au premier tirage : sinon la file tirerait
+    uniformément sans rien signaler, et la pondération semblerait « ne pas
+    marcher » des semaines durant."""
+
+    class HasardSimple:
+        """Un hasard qui sait tirer, mais pas pondérer. C'est le cas à refuser."""
+
+        def choisir(self, parmi: list[T]) -> T:
+            return parmi[0]
+
+    with pytest.raises(TypeError, match="ne sait pas les honorer"):
+        File(FakeSource(CATALOGUE), HasardSimple(), peser=lambda _: 1.0)

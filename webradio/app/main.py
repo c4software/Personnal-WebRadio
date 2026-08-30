@@ -20,11 +20,13 @@ from pathlib import Path
 
 from webradio.adapters.config.chargement import charger
 from webradio.adapters.config.schema import Reglages
+from webradio.adapters.etat.base import EtatSQLite
 from webradio.adapters.ffmpeg.encodeur import Chaine, FormatFlux
 from webradio.adapters.http.diffusion import Diffusion
 from webradio.adapters.http.serveur import ServeurFlux, Station
 from webradio.adapters.sources.navidrome import SourceNavidrome, TransportUrllib
 from webradio.adapters.web.vues import creer_application
+from webradio.app.apprentissage import Apprentissage
 from webradio.app.programme import ProgrammeRadio
 from webradio.app.radio import CompteurAuditeurs, RadioEnDirect
 from webradio.core.clock import HorlogeSysteme
@@ -32,6 +34,7 @@ from webradio.core.controle import Controle
 from webradio.core.file import File
 from webradio.core.grille import Grille, Plage
 from webradio.core.jingles import Jingles
+from webradio.core.ponderation import PENTE_PAR_VOTE
 from webradio.core.repetition import Fenetre
 from webradio.core.rng import HasardReel
 
@@ -66,6 +69,24 @@ def construire(reglages: Reglages) -> tuple[ServeurFlux, RadioEnDirect, Station]
     horloge = HorlogeSysteme()
     hasard = HasardReel()
 
+    # L'état est ouvert au démarrage : une base inaccessible **à ce moment-là**
+    # est une erreur de configuration et doit se dire (SPECS.md §5). Devenue
+    # inaccessible en cours, elle ne fait que rendre des poids neutres
+    # (`app/apprentissage.py`).
+    etat = EtatSQLite(
+        Path(config.etat.base),
+        horloge,
+        delai_attente=timedelta(seconds=config.etat.delai_secondes),
+        demi_vie_votes=timedelta(days=config.tirage.votes.demi_vie_jours),
+    )
+    apprentissage = Apprentissage(
+        etat,
+        plancher=config.tirage.votes.plancher,
+        plafond=config.tirage.votes.plafond,
+        pente=PENTE_PAR_VOTE,
+        poids_croise=config.tirage.votes.poids_croise,
+    )
+
     source = SourceNavidrome(
         identifiants=reglages.identifiants,
         reglages=config.navidrome,
@@ -79,10 +100,15 @@ def construire(reglages: Reglages) -> tuple[ServeurFlux, RadioEnDirect, Station]
     jingles = Jingles(horloge)
     controle = Controle(source=source, hasard=hasard, jingles=jingles)
     compteur = CompteurAuditeurs()
-    radio = RadioEnDirect(controle, compteur)
+    radio = RadioEnDirect(controle, compteur, apprentissage.retenir)
 
     programme = ProgrammeRadio(
-        file=File(source, hasard, Fenetre(config.tirage.non_repetition_artistes)),
+        file=File(
+            source,
+            hasard,
+            Fenetre(config.tirage.non_repetition_artistes),
+            peser=apprentissage.peser,
+        ),
         source=source,
         grille=grille,
         jingles=jingles,

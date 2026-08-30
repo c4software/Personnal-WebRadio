@@ -72,3 +72,39 @@ def test_un_vote_pendant_un_jingle_est_refuse_avec_un_motif() -> None:
     verdict = radio.voter(Vote.STOP)
     assert not verdict.accepte
     assert verdict.motif
+
+
+def test_un_vote_accepte_est_retenu() -> None:
+    radio, compteur = _radio()
+    retenus: list[tuple[Commande, str]] = []
+    radio._retenir = lambda c, p: retenus.append((c, p.identifiant))
+    compteur.declarer(en_antenne=True)
+    radio.declarer(
+        Nature.MUSIQUE,
+        Piste("id", "Heroes", "Bowie", "rock", timedelta(seconds=200)),
+    )
+    assert radio.voter(Vote.STOP).accepte
+    assert retenus == [(Commande.STOP, "id")]
+
+
+def test_un_vote_refuse_n_enregistre_rien() -> None:
+    """Sinon la radio apprendrait de gestes qui n'ont rien changé, et
+    l'auditeur pondérerait sa bibliothèque sans le savoir (SPECS.md §4.6)."""
+    radio, compteur = _radio()
+    retenus: list[tuple[Commande, str]] = []
+    radio._retenir = lambda c, p: retenus.append((c, p.identifiant))
+    compteur.declarer(en_antenne=True)
+    radio.declarer(Nature.JINGLE, None)
+    assert not radio.voter(Vote.STOP).accepte
+    assert retenus == []
+
+
+def test_un_vote_sans_piste_courante_agit_sans_s_apprendre() -> None:
+    """Entre deux morceaux, il n'y a rien sur quoi le vote puisse porter."""
+    radio, compteur = _radio()
+    retenus: list[tuple[Commande, str]] = []
+    radio._retenir = lambda c, p: retenus.append((c, p.identifiant))
+    compteur.declarer(en_antenne=True)
+    radio.declarer(Nature.MUSIQUE, None)
+    assert radio.voter(Vote.ENCORE).accepte
+    assert retenus == []

@@ -11,6 +11,7 @@ vérifie : le jour où ils divergeront, il cassera ici plutôt qu'à l'exécutio
 """
 
 import threading
+from collections.abc import Callable
 
 from webradio.adapters.web.api import Antenne, Radio, Verdict, Vote
 from webradio.adapters.web.api import Nature as NatureWeb
@@ -25,9 +26,15 @@ class RadioEnDirect(Radio):
     la chaîne tourne. Elle observe et elle traduit.
     """
 
-    def __init__(self, controle: Controle, en_diffusion: "CompteurAuditeurs") -> None:
+    def __init__(
+        self,
+        controle: Controle,
+        en_diffusion: "CompteurAuditeurs",
+        retenir: Callable[[Commande, Piste], None] | None = None,
+    ) -> None:
         self._controle = controle
         self._station = en_diffusion
+        self._retenir = retenir
         self._verrou = threading.Lock()
         self._nature = Nature.MUSIQUE
         self._piste: Piste | None = None
@@ -58,7 +65,23 @@ class RadioEnDirect(Radio):
         )
 
     def voter(self, vote: Vote) -> Verdict:
-        reponse = self._controle.voter(Commande(vote.value))
+        """Le vote passe au noyau, et n'est retenu que s'il a produit un effet.
+
+        **Un vote refusé n'enregistre rien** (SPECS.md §4.6) : sinon la radio
+        apprendrait de gestes qui n'ont rien changé, et l'auditeur pondérerait
+        sa bibliothèque sans le savoir.
+
+        Un vote accepté alors qu'aucune piste ne passe — c'est possible entre
+        deux morceaux — n'a rien sur quoi porter : il agit, mais il ne
+        s'apprend pas.
+        """
+        commande = Commande(vote.value)
+        reponse = self._controle.voter(commande)
+        if reponse.accepte and self._retenir is not None:
+            with self._verrou:
+                courante = self._piste
+            if courante is not None:
+                self._retenir(commande, courante)
         return Verdict(accepte=reponse.accepte, motif=reponse.motif or None)
 
 
