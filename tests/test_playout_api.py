@@ -12,7 +12,7 @@ class FakePlayout:
     def __init__(self, entries: list[str | None]) -> None:
         self._entries = entries
         self.listeners: list[int] = []
-        self.played: list[str] = []
+        self.played: list[tuple[str, str | None, str | None]] = []
 
     def next_entry(self) -> str | None:
         return self._entries.pop(0)
@@ -20,8 +20,8 @@ class FakePlayout:
     def declare_listeners(self, count: int) -> None:
         self.listeners.append(count)
 
-    def playing(self, entry: str) -> None:
-        self.played.append(entry)
+    def playing(self, entry: str, artist: str | None, title: str | None) -> None:
+        self.played.append((entry, artist, title))
 
 
 def _client(playout: FakePlayout | None) -> FlaskClient:
@@ -72,7 +72,14 @@ def test_sans_playout_les_routes_n_existent_pas() -> None:
 def test_ce_qui_commence_est_transmis_tel_quel() -> None:
     playout = FakePlayout([])
     assert _client(playout).post("/playout/playing", data="/jingles/20h.mp3\n").status_code == 204
-    assert playout.played == ["/jingles/20h.mp3"]
+    assert playout.played == [("/jingles/20h.mp3", None, None)]
+
+
+def test_les_etiquettes_du_decodeur_accompagnent_l_annonce() -> None:
+    playout = FakePlayout([])
+    reponse = _client(playout).post("/playout/playing", data="fake://1\nAir\nSexy Boy\n")
+    assert reponse.status_code == 204
+    assert playout.played == [("fake://1", "Air", "Sexy Boy")]
 
 
 def test_une_entree_vide_est_refusee() -> None:

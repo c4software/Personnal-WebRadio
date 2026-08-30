@@ -39,8 +39,15 @@ class LiveRadio(Radio):
         self._nature = Kind.MUSIC
         self._piste: Track | None = None
         self._libelle: str | None = None
+        self._artiste_libelle: str | None = None
 
-    def declare(self, kind: Kind, track: Track | None, label: str | None = None) -> None:
+    def declare(
+        self,
+        kind: Kind,
+        track: Track | None,
+        label: str | None = None,
+        artist_label: str | None = None,
+    ) -> None:
         """Appelée par le programme à chaque changement de ce qui passe.
 
         Deux destinataires : le noyau, qui en a besoin pour refuser un vote au
@@ -53,6 +60,7 @@ class LiveRadio(Radio):
             self._nature = kind
             self._piste = track
             self._libelle = label
+            self._artiste_libelle = artist_label
         self._controle.declare(kind)
 
     def on_air(self) -> bool:
@@ -63,10 +71,11 @@ class LiveRadio(Radio):
             return None
         with self._verrou:
             kind, track, label = self._nature, self._piste, self._libelle
+            artist_label = self._artiste_libelle
         return OnAir(
             kind=NatureWeb(kind.value),
             title=track.title if track is not None else label,
-            artist=track.artist if track is not None else None,
+            artist=track.artist if track is not None else artist_label,
         )
 
     def vote(self, vote: Vote) -> Verdict:

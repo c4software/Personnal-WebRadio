@@ -60,11 +60,19 @@ class LiquidsoapPlayout:
             self._programme.prepare()
             return entry
 
-    def playing(self, entry: str) -> None:
+    def playing(self, entry: str, artist: str | None = None, title: str | None = None) -> None:
         with self._verrou:
             nature = self._en_attente.pop(entry, None)
         if nature is None:
-            logger.warning("Liquidsoap joue une entrée que le programme n'a pas rendue : %s", entry)
+            # Après un redémarrage de `radio`, Liquidsoap joue encore un ou
+            # deux morceaux demandés à l'ancien processus. Plutôt que rien,
+            # on affiche les étiquettes que le décodeur a lues du fichier.
+            logger.info(
+                "entrée demandée avant ce démarrage, affichée d'après ses étiquettes : %s — %s",
+                artist,
+                title,
+            )
+            self._radio.declare(Kind.MUSIC, None, title, artist_label=artist)
             return
         kind, track, label = nature
         self._radio.declare(kind, track, label)

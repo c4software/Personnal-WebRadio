@@ -42,11 +42,13 @@ class Playout(Protocol):
         """Combien écoutent, d'après celui qui tient les connexions."""
         ...
 
-    def playing(self, entry: str) -> None:
+    def playing(self, entry: str, artist: str | None, title: str | None) -> None:
         """Ce que Liquidsoap vient de **commencer** — pas ce qu'il a demandé.
 
         Un morceau est toujours demandé d'avance (docs/liquidsoap.md §3) :
         « à l'antenne » ne se déduit pas de `next_entry`, il se constate ici.
+        `artist` et `title` sont les étiquettes lues par le décodeur — le filet
+        quand l'entrée n'est pas reconnue, après un redémarrage.
         """
         ...
 
@@ -77,11 +79,15 @@ def create_playout_api(playout: Playout) -> Blueprint:
 
     @api.post(PLAYING_PATH)
     def playing() -> ResponseReturnValue:
-        """Le morceau que Liquidsoap commence, tel qu'il l'a reçu de `/next`."""
-        entry = request.get_data(as_text=True).strip()
+        """Le morceau que Liquidsoap commence : l'entrée reçue de `/next`,
+        puis, sur les lignes suivantes, l'artiste et le titre lus du fichier."""
+        lines = request.get_data(as_text=True).splitlines()
+        entry = lines[0].strip() if lines else ""
         if not entry:
             return "entrée vide", BAD_REQUEST
-        playout.playing(entry)
+        artist = lines[1].strip() if len(lines) > 1 else ""
+        title = lines[2].strip() if len(lines) > 2 else ""
+        playout.playing(entry, artist or None, title or None)
         return "", NOTHING_MORE
 
     return api

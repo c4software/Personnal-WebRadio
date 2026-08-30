@@ -77,7 +77,19 @@ def test_sans_auditeur_la_radio_ne_tourne_pas(tmp_path: Path) -> None:
     assert not radio.on_air()
 
 
-def test_une_entree_inconnue_est_journalisee_sans_rien_declarer(tmp_path: Path) -> None:
+def test_une_entree_inconnue_s_affiche_par_ses_etiquettes(tmp_path: Path) -> None:
+    """Après un redémarrage, Liquidsoap joue encore un morceau demandé à
+    l'ancien processus : plutôt que rien, les étiquettes du décodeur."""
+    playout, radio, _ = _playout(tmp_path)
+    playout.declare_listeners(1)
+    playout.playing("/nulle/part.mp3", "Air", "Sexy Boy")
+    a_l_antenne = radio.on_air_now()
+    assert a_l_antenne is not None
+    assert a_l_antenne.title == "Sexy Boy"
+    assert a_l_antenne.artist == "Air"
+
+
+def test_une_entree_inconnue_sans_etiquettes_n_affiche_rien(tmp_path: Path) -> None:
     playout, radio, _ = _playout(tmp_path)
     playout.declare_listeners(1)
     playout.playing("/nulle/part.mp3")

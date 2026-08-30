@@ -126,9 +126,12 @@ programme = request.dynamic(id="programme", retry_delay=5., prefetch=1, next_ent
 
 # Ce qui COMMENCE, par opposition à ce qui a été demandé : c'est de là que
 # l'API sait ce qui passe (GOAL-016-T08).
+# L'annonce porte l'entrée, puis les étiquettes lues dans le fichier même :
+# si `radio` a redémarré et ne reconnaît pas l'entrée, il affichera au moins
+# ce que le décodeur sait — au lieu de rien pendant deux jonctions.
 def on_track(metadata) =
-  entry = metadata["initial_uri"]
-  answer = http.post(timeout=api_timeout, data=entry, "#{api}/playout/playing")
+  body = metadata["initial_uri"] ^ "\n" ^ metadata["artist"] ^ "\n" ^ metadata["title"]
+  answer = http.post(timeout=api_timeout, data=body, "#{api}/playout/playing")
   if answer.status_code != 204 then
     log(level=2, "l'API n'a pas pris l'annonce du morceau (#{answer.status_code})")
   end
