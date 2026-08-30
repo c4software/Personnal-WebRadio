@@ -109,10 +109,17 @@ jonction est soit enchaînée, soit fondue — le choix relève de
 La sélection est un **tirage** dans la bibliothèque, contraint par :
 
 - **la grille horaire** (§4.4) : à certaines heures, un genre plutôt qu'un autre ;
-- **une règle de non-répétition** : un artiste ne revient pas immédiatement.
-  La forme exacte de la règle est une décision ouverte (§7 n°3), mais l'exigence
-  audible est ferme : un artiste qui réapparaît toutes les deux pistes s'entend
-  comme un défaut.
+- **une règle de non-répétition** : un artiste ne peut pas revenir avant que
+  **N autres artistes** soient passés. `N` est configurable (§6), et vaut **5**
+  par défaut. La règle compte des *artistes distincts*, pas des morceaux : trois
+  titres d'affilée du même artiste ne comptent que pour un.
+
+**Quand la règle bloque le tirage.** Sur une petite bibliothèque, ou dans une
+plage thématique étroite, il peut ne pas rester d'artiste autorisé. La radio ne
+se tait pas pour autant : la fenêtre **se rétrécit d'un cran à la fois** jusqu'à
+ce qu'un tirage soit possible, et le rétrécissement est journalisé. Une
+bibliothèque de trois artistes joue donc en alternant trois artistes, elle ne
+s'arrête pas.
 
 ### 4.3 Les jingles horaires
 
@@ -133,10 +140,15 @@ on ajoute un jingle en déposant un fichier, on le retire en le supprimant.
   pas.
 - Le jingle **ne coupe pas** un morceau en cours : il s'insère à la jonction
   suivante. Un jingle à cheval sur un refrain est un défaut.
-- Le décalage entre l'heure pile et la diffusion effective est donc borné par la
-  durée du morceau en cours. **Le seuil acceptable est une décision ouverte**
-  (§7 n°4) : au-delà, mieux vaut renoncer au jingle de cette heure-là que de le
-  diffuser à et quart.
+- **Un jingle n'est jamais abandonné**, quel que soit son retard. `14h.mp3` peut
+  donc s'entendre à 14 h 25 si le morceau en cours est long. C'est assumé : un
+  jingle est de l'habillage, personne ne règle sa montre dessus, et renoncer
+  aurait demandé un seuil, un réglage et une famille de cas limites pour un gain
+  nul.
+- **Si plusieurs jingles sont dus** à la même jonction — un morceau très long a
+  enjambé deux heures — ils sont **tous diffusés, dans l'ordre chronologique**.
+  Le jingle de vote `encore.mp3` (§4.6) passe toujours **en dernier**, parce
+  qu'il annonce le morceau qui suit immédiatement.
 - Pendant un jingle, `stop` et `encore` ne s'appliquent pas (§4.6).
 
 ### 4.4 Les moments thématiques
@@ -160,9 +172,9 @@ par défaut          → tirage libre dans toute la bibliothèque
 À certaines heures déclarées dans le TOML, un **flash France Info** est diffusé.
 
 - Comme le jingle, il **ne coupe pas** un morceau en cours.
-- Il est plus long qu'un jingle et porte de l'information datée : un flash
-  diffusé trop tard n'a plus de valeur. Le seuil de péremption est la même
-  décision ouverte que §4.3 (§7 n°4).
+- Comme un jingle, **il n'est jamais abandonné pour cause de retard** (§4.3). Un
+  flash peut donc s'entendre avec un décalage, borné par la durée du morceau en
+  cours.
 - **L'indisponibilité du flash est un cas nominal, pas une panne** : si le flux
   France Info ne répond pas, ou renvoie un contenu tronqué, la radio **se replie
   sur la musique** et journalise. Elle ne diffuse jamais un flash incomplet.
@@ -206,8 +218,17 @@ s'applique sans s'annoncer.
 > simplicité : une seule mécanique d'insertion pour tous les jingles.
 
 `encore` s'applique au morceau **suivant**, pas à toute la suite : il n'installe
-pas un mode. Combien de fois il peut être enchaîné, et si l'effet s'épuise, est
-une décision ouverte (§7 n°7).
+pas un mode. Il peut en revanche être **enchaîné sans limite** — aucun compteur,
+aucun plafond. Ce qui le borne est la bibliothèque elle-même : quand il ne reste
+plus de morceau non joué de l'artiste, la radio se replie sur le genre, puis sur
+le tirage libre.
+
+**`encore` outrepasse la règle de non-répétition (§4.2).** Les deux se
+contrediraient sinon : l'une réclame le même artiste, l'autre le lui interdit.
+C'est `encore` qui gagne, puisque c'est une demande explicite de l'auditeur — et
+les morceaux servis par `encore` **n'entrent pas** dans la fenêtre de
+non-répétition, sans quoi un long enchaînement condamnerait l'artiste pour
+longtemps après.
 
 ### 4.7 Se débrancher
 
@@ -250,6 +271,26 @@ L'interface web n'est rien de plus que la mise en page de cela : ce qui passe, e
 deux boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
 d'entrée des réglages (§6) — et ne touche pas à la bibliothèque (§2).
 
+### 4.10 D'où vient la musique
+
+La musique vient de **sources** déclarées dans le TOML. Navidrome en est une ;
+d'autres pourront être ajoutées sans rien reprendre du cœur.
+
+Une source sait faire trois choses, et seulement trois : chercher, tirer au
+hasard sous contrainte de genre ou d'artiste, et résoudre une piste en un flux
+audio lisible. Tout le reste — la grille, le tirage, la non-répétition — est
+décidé au-dessus d'elles et ne dépend d'aucune.
+
+**Une seule source est écrite aujourd'hui** : Navidrome. Le mécanisme est
+néanmoins complet — plusieurs sources peuvent être déclarées et activées. Ce
+choix est un **écart assumé** à la règle « une abstraction arrive avec son
+deuxième cas d'usage » : il est consigné comme tel dans ARCHITECTURE.md §9.1,
+pour rester visible plutôt que tacite.
+
+Ce qui se passe quand **plusieurs sources sont actives à la fois** — comment le
+tirage les combine, si elles se mélangent ou s'alternent, ce qui arrive quand
+l'une devient injoignable — n'est pas spécifié : décision ouverte §7 n°12.
+
 ### 4.9 Ce que le flux doit être
 
 Trois exigences, qui tirent en sens contraire et qu'il faut pourtant tenir
@@ -287,6 +328,7 @@ contournée en continuant la musique l'est, et laisse une trace journalisée.
 | Un jingle présent mais illisible | passe outre, journalise |
 | Un flash indisponible ou tronqué | continue sur la musique, journalise |
 | Une plage thématique sans musique | se replie sur le tirage libre, journalise |
+| La non-répétition ne laisse aucun artiste | rétrécit la fenêtre d'un cran, journalise (§4.2) |
 | `encore` sans autre morceau de l'artiste | replie sur le genre, puis sur le tirage libre |
 | Navidrome injoignable **en cours de diffusion** | comportement à définir — décision ouverte §7 n°8 |
 | Navidrome injoignable **au démarrage** | refuse de démarrer, erreur HTTP explicite (§4.1) |
@@ -314,8 +356,12 @@ Ce que le TOML doit décrire, au minimum :
 - **Le web** : adresse d'écoute et port de l'interface et de l'API ;
 - **Les informations** : à quelles heures un flash est diffusé ;
 - **Les moments thématiques** : plages horaires et genres associés ;
-- **Le tirage** : la règle de non-répétition, une fois §7 n°3 tranchée ;
-- **Les seuils** : durée de fondu, péremption d'un jingle ou d'un flash.
+- **Le tirage** : `non_repetition_artistes`, le nombre d'artistes distincts qui
+  doivent passer avant qu'un artiste puisse revenir (§4.2, défaut 5) ;
+- **Les sources** : une section par source, avec son type et ses paramètres
+  (§4.10) ;
+- **Les seuils** : durée de fondu. **Aucun seuil de péremption** : ni les
+  jingles ni les flashs ne sont abandonnés pour cause de retard (§4.3).
 
 Le schéma exact se construit avec les Goals. Toute clé ajoutée est documentée
 ici dans le même incrément (AGENTS.md §6).
@@ -352,6 +398,35 @@ jingles horaires (§4.6).
 > prix, un accusé de réception différé jusqu'à la fin du morceau en cours, est
 > assumé.
 
+**n°2 — La modularité des sources ? Abstraction complète.** Tranchée le
+2026-08-30. Le mécanisme est complet dès maintenant : sources déclarées au TOML,
+plusieurs activables (§4.10). Une seule est écrite — Navidrome.
+> *Raison* : choix de l'auteur, contre l'interdit d'anticipation d'AGENTS.md §2.
+> **C'est un écart, pas une exception tacite** : il est consigné dans
+> ARCHITECTURE.md §9.1 pour rester visible. Il ouvre la décision n°12.
+
+**n°3 — La non-répétition ? N artistes distincts.** Tranchée le 2026-08-30. Un
+artiste ne revient pas avant que `non_repetition_artistes` autres artistes soient
+passés — 5 par défaut, configurable. La fenêtre **se rétrécit** plutôt que de
+bloquer le tirage (§4.2).
+> *Raison* : indépendant de la durée des morceaux, donc prévisible et trivial à
+> tester. Une fenêtre en minutes aurait fait varier le nombre de titres du simple
+> au triple.
+
+**n°4 — La péremption ? Aucune.** Tranchée le 2026-08-30. Ni les jingles ni les
+flashs ne sont abandonnés pour cause de retard. `14h.mp3` peut s'entendre à
+14 h 25 (§4.3).
+> *Raison* : un jingle est de l'habillage, personne ne règle sa montre dessus.
+> Renoncer aurait coûté un seuil, un réglage et une famille de cas limites pour
+> un gain nul. **Supprime aussi tout seuil de péremption du TOML.**
+
+**n°7 — L'épuisement de `encore` ? Aucun compteur.** Tranchée le 2026-08-30.
+`encore` s'enchaîne sans limite ; ce qui le borne est la bibliothèque, quand
+l'artiste n'a plus de morceau non joué. Il **outrepasse** la règle n°3, et les
+morceaux qu'il sert n'entrent pas dans la fenêtre de non-répétition (§4.6).
+> *Raison* : la borne vient des données, pas d'un réglage. Et sans cette
+> priorité, `encore` et la non-répétition se contrediraient frontalement.
+
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :
 elle appelle la même API que tout autre client (§4.8).
@@ -362,40 +437,9 @@ elle appelle la même API que tout autre client (§4.8).
 
 ### Encore ouvert
 
-**n°2 — Jusqu'où pousser la modularité des sources ?**
-L'intention initiale demande une abstraction permettant d'ajouter d'autres
-sources que Navidrome plus tard. Cela **contredit frontalement** l'interdit
-d'AGENTS.md §2 : *une abstraction arrive avec son deuxième cas d'usage*.
-
-Trois issues, à trancher avant le Goal qui écrit le client Navidrome :
-
-- une frontière **nommée mais non abstraite** — le noyau ne parle jamais
-  directement à Navidrome, mais il n'existe qu'une implémentation et aucun point
-  d'extension ;
-- une **abstraction complète** dès maintenant, en acceptant l'écart à la règle et
-  en le consignant dans ARCHITECTURE.md §9.1 ;
-- **rien du tout**, et on paiera l'extraction le jour de la deuxième source.
-
-La première est la seule qui respecte les deux exigences ; elle n'est pas
-retenue pour autant, elle est proposée.
-
-**n°3 — La règle de non-répétition.**
-« Un artiste ne revient pas immédiatement » doit devenir une règle exacte :
-un nombre de pistes, une durée, une fenêtre glissante. Elle est audible, donc
-elle est de la spécification, pas de l'implémentation.
-
-**n°4 — La péremption d'un jingle ou d'un flash.**
-Un jingle ne coupe pas un morceau, donc il glisse. Au-delà de quel décalage
-vaut-il mieux **renoncer** que diffuser à contretemps ? La réponse peut différer
-entre un jingle (habillage) et un flash (information datée).
-
 **n°5 — Un morceau qui chevauche la fin d'une plage thématique.**
 Le laisser finir, ou couper à l'heure ? Le laisser finir est plus musical ; il
 décale l'entrée dans la plage suivante.
-
-**n°7 — L'épuisement de `encore`.**
-Combien de fois d'affilée peut-on demander « encore » avant que la radio reprenne
-un tirage libre ? Sans limite, un `encore` répété transforme la radio en album.
 
 **n°8 — Les pannes en cours de diffusion.**
 Que fait la radio si Navidrome devient injoignable, ou si ffmpeg meurt, alors que
@@ -409,6 +453,22 @@ couvre** : les tâches qui touchent au son seront cochées sur la foi de tests q
 n'entendent rien. C'est un choix d'autonomie maximale, pris à l'initialisation et
 assumé. Il est consigné ici pour être visible, et pour pouvoir être révisé à la
 première fois où un défaut sonore traversera plusieurs Goals.
+
+**n°12 — Plusieurs sources actives : comment le tirage les combine-t-il ?**
+Ouverte par la décision n°2. Le mécanisme permet de déclarer plusieurs sources ;
+rien ne dit ce qui se passe alors :
+
+- se **mélangent-elles** en un seul réservoir, ou **s'alternent-elles** ?
+- si elles se mélangent, avec quelle pondération — au prorata de leur taille, à
+  parts égales, selon un poids déclaré ?
+- la règle de non-répétition (§4.2) s'applique-t-elle **par source** ou sur
+  l'ensemble ? Le même artiste peut exister dans deux sources.
+- qu'advient-il quand **une seule** des sources actives devient injoignable ?
+  Continuer avec les autres, ou traiter comme une panne (§7 n°8) ?
+
+Sans réponse, la question ne se pose pas : une seule source est écrite. Elle se
+posera **le jour de la deuxième** — c'est-à-dire exactement au moment où
+l'abstraction anticipée cesse d'être gratuite.
 
 **n°11 — Transcoder le moins possible, sans jamais couper.**
 C'est la décision la plus structurante restée ouverte, et elle oppose trois

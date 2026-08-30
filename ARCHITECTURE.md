@@ -17,6 +17,12 @@ Deux zones, et une frontière qui ne se franchit que dans un sens :
 webradio/
   core/        les décisions — ne parle à personne
   adapters/    le monde extérieur — ne décide de rien
+    sources/     d'où vient la musique — Navidrome aujourd'hui
+    news/        le flash France Info
+    ffmpeg/      l'encodage
+    http/        le flux servi aux auditeurs
+    web/         Flask, l'API et les gabarits Jinja2
+    config/      la lecture du TOML
   app/         l'assemblage — câble les deux, une seule fois
 ```
 
@@ -50,7 +56,7 @@ core/queue   « il me faut une piste » → interroge la grille et le tirage
 core/schedule  quelle heure ? jingle dû ? flash dû ? plage thématique ?
 core/rng       tirage contraint par le genre et la non-répétition
         ↓
-adapters/navidrome   résout la piste choisie → une URL de flux audio
+adapters/sources     résout la piste choisie → une URL de flux audio
         ↓
 adapters/ffmpeg      décode, normalise, encode en un flux unique
         ↓
@@ -72,7 +78,7 @@ fichier devrait porter.
 
 | Détail | Confiné dans |
 |---|---|
-| L'API Subsonic : `salt`, `token`, `u`, `p`, `v`, `c`, la forme des réponses | `adapters/navidrome/` |
+| L'API Subsonic : `salt`, `token`, `u`, `p`, `v`, `c`, la forme des réponses | `adapters/sources/navidrome/` |
 | Les options de ligne de commande ffmpeg, ses codes de sortie, sa sortie d'erreur | `adapters/ffmpeg/` |
 | Les en-têtes HTTP du flux, le `Content-Type`, la gestion des connexions | `adapters/http/` |
 | L'adresse et le format du flash France Info | `adapters/news/` |
@@ -205,6 +211,23 @@ C'est le noyau qui sait s'il est dans un jingle, un flash ou de la musique — d
 c'est lui qui refuse. L'API traduit ce refus en réponse HTTP ; elle ne le décide
 pas.
 
+### 5.2 Les sources
+
+Le noyau ne connaît qu'un `Protocol` : **chercher, tirer sous contrainte,
+résoudre une piste en flux audio**. Rien d'autre ne le traverse — ni la grille,
+ni la non-répétition, ni le tirage, qui sont décidés au-dessus et ne dépendent
+d'aucune source.
+
+Le mécanisme est **complet** : les sources sont déclarées au TOML et plusieurs
+peuvent être activées (SPECS.md §4.10). **Une seule est écrite** — Navidrome.
+
+C'est un **écart assumé** à l'interdit d'anticipation, consigné en §9.1. Ce qui
+suit en découle et doit rester vrai : le registre ne contient qu'une entrée, et
+tant qu'il n'en contient qu'une, **aucun code ne doit supposer qu'il y en a
+plusieurs**. La façon de combiner plusieurs sources actives est explicitement non
+spécifiée (SPECS.md §7 n°12) : la première tentative de la deviner serait la
+seconde anticipation, celle-là non consignée.
+
 ### 6.2 Le jingle de vote
 
 Un vote « encore » enregistré fait diffuser `encore.mp3` **à la jonction**, entre
@@ -224,10 +247,16 @@ l'**horloge**.
 > délibéré (SPECS.md §7 n°10).
 
 Conséquence pour le noyau : la file doit savoir qu'**un jingle de vote est dû**
-au même titre qu'un jingle horaire, et les deux peuvent tomber sur la même
-jonction. Ce qui se passe alors — les deux, un seul, dans quel ordre — n'est pas
-spécifié : c'est une question à poser avant `GOAL-007`, pas à trancher en
-implémentant.
+au même titre qu'un jingle horaire.
+
+**Quand plusieurs jingles sont dus à la même jonction, ils passent tous, à la
+suite** : les jingles horaires d'abord, dans l'ordre chronologique, puis
+`encore.mp3` en dernier — il annonce le morceau qui suit immédiatement et perdrait
+son sens s'il en était séparé (SPECS.md §4.3).
+
+Puisque aucun jingle n'est jamais abandonné pour retard (SPECS.md §7 n°4), un
+morceau très long peut faire s'accumuler deux jingles horaires. C'est un cas
+nominal, pas une anomalie.
 
 ## 7. Erreurs
 
@@ -298,6 +327,26 @@ dernière tâche de chaque Goal (AGENTS.md §5.3).
 Ce que le projet fait sciemment autrement que ce qu'on attendrait, et pourquoi.
 Un écart écrit ici est visible ; un écart tu est une dette.
 
-_(vide au démarrage — la décision ouverte SPECS.md §7 n°2, sur la modularité des
-sources, atterrira ici si elle est tranchée en faveur d'une abstraction
-anticipée.)_
+### L'abstraction des sources est anticipée
+
+**Ce que la règle dit** : *une abstraction arrive avec son deuxième cas d'usage,
+pas avant* (AGENTS.md §2).
+
+**Ce que le projet fait** : le mécanisme de sources est complet — `Protocol`,
+déclaration au TOML, plusieurs sources activables — alors qu'**une seule est
+écrite**, Navidrome.
+
+**Pourquoi** : décision de l'auteur, prise à l'initialisation (SPECS.md §7 n°2).
+L'intention est de pouvoir brancher une autre source sans reprendre le cœur.
+
+**Ce que cela coûte, et qu'il faut surveiller** : un mécanisme construit sans son
+deuxième cas d'usage est construit contre des suppositions. Trois d'entre elles
+ne sont **pas** spécifiées, et la décision ouverte SPECS.md §7 n°12 les recense :
+comment le tirage combine plusieurs sources, si la non-répétition s'applique par
+source ou globalement, ce qu'on fait d'une source injoignable parmi plusieurs.
+
+**La conduite à tenir jusqu'à la deuxième source** : ne pas répondre à ces
+questions en implémentant. Le registre ne contient qu'une entrée ; aucun code ne
+doit supposer qu'il en contient plusieurs. La première réponse devinée serait une
+seconde anticipation, celle-là non consignée — et c'est ainsi que les écarts
+assumés deviennent des dettes tacites.

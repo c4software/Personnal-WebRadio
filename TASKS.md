@@ -30,6 +30,15 @@ Rappel (AGENTS.md §1.1) : `code écrit ≠ tâche terminée`.
 
 **Phase 0 — Harness** `[-]` en cours.
 
+> **Mise à jour du 2026-08-30 (3)** — quatre décisions tranchées d'un coup :
+> **n°3** (non-répétition : 5 artistes distincts, fenêtre qui rétrécit),
+> **n°4** (aucune péremption, rien n'est abandonné pour retard),
+> **n°7** (`encore` illimité, outrepasse la n°3),
+> **n°2** (abstraction complète des sources — **écart assumé** à l'interdit
+> d'anticipation, consigné dans ARCHITECTURE.md §9.1).
+> `GOAL-002`, `GOAL-003`, `GOAL-006` et `GOAL-007` sont débloqués. Ouvre la
+> **n°12** : comment le tirage combine plusieurs sources actives.
+>
 > **Mise à jour du 2026-08-30 (2)** — l'auteur tranche la n°10 : **une voix
 > suffit**, et l'accusé de réception d'un « encore » n'est plus une note mêlée à
 > la musique mais un **jingle `encore.mp3` posé à la jonction**, par le même
@@ -116,6 +125,11 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 | **Une voix suffit** pour `encore` : ni quorum, ni fenêtre | SPECS.md §3 ne prévoit qu'un auditeur : un quorum n'aurait rien à compter. Tranche SPECS.md §7 n°10 |
 | L'accusé de réception est un **jingle `encore.mp3` à la jonction**, pas une note mêlée | Une seule mécanique d'insertion pour tous les jingles vaut mieux que deux. Le prix — un accusé différé jusqu'à la fin du morceau — est assumé (ARCHITECTURE.md §6.2) |
 | `encore.mp3` absent ne signale rien, comme un jingle horaire | Même règle pour tous les jingles : on en ajoute un en déposant un fichier (SPECS.md §4.3, §4.6) |
+| Non-répétition : **N artistes distincts**, 5 par défaut, fenêtre qui rétrécit plutôt que de bloquer | Indépendant de la durée des morceaux, donc prévisible et trivial à tester. Tranche SPECS.md §7 n°3 |
+| **Aucune péremption** : ni jingle ni flash n'est abandonné pour retard | Un jingle est de l'habillage. Renoncer aurait coûté un seuil, un réglage et des cas limites pour un gain nul. Tranche SPECS.md §7 n°4 |
+| Plusieurs jingles dus à la même jonction : **tous, à la suite** — horaires d'abord, `encore.mp3` en dernier | `encore.mp3` annonce le morceau qui suit immédiatement. Lève `GOAL-001-T16` |
+| `encore` **illimité**, borné par la bibliothèque, et **outrepasse** la non-répétition | La borne vient des données, pas d'un réglage. Sans cette priorité, les deux règles se contrediraient. Tranche SPECS.md §7 n°7 |
+| Sources : **abstraction complète** dès maintenant, une seule écrite | Choix de l'auteur. **Écart assumé** à l'interdit d'anticipation, consigné dans ARCHITECTURE.md §9.1. Tranche SPECS.md §7 n°2, ouvre la n°12 |
 | Quatrième relevé : `docs/flux-icy.md` | « Compatible avec tout lecteur de webradio » n'a aucune norme derrière : c'est une convention de fait, à constater lecteur par lecteur |
 
 ### Dettes ouvertes par ce Goal
@@ -133,18 +147,23 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
       ont été tranchées le 2026-08-30 (n°1 et n°6), deux ont été ouvertes le même
       jour (n°10 et n°11). Trois bloquent un Goal précis :
       la **n°2** (modularité des sources) avant `GOAL-002`,
-      la **n°3** (règle de non-répétition) avant `GOAL-003`,
       la **n°11** (transcodage minimal contre flux sans coupure) avant
       `GOAL-004` — et celle-là ne se tranche pas avant les relevés.
-      La **n°10** a été tranchée le 2026-08-30.
+      Six ont été tranchées le 2026-08-30 : n°1, n°2, n°3, n°4, n°6, n°7, n°10.
+      Restent ouvertes : n°5, n°8, n°9, n°11, n°12.
 - [x] `GOAL-001-T15` ~~La n°10 est une ambiguïté de spécification.~~ **Levée le
       2026-08-30** : l'auteur a tranché — une voix suffit, et l'accusé de
       réception devient un jingle `encore.mp3` inséré à la jonction plutôt
       qu'une note mêlée à la musique. `GOAL-007` n'est plus bloqué.
-- [ ] `GOAL-001-T16` **Deux jingles dus à la même jonction.** Un jingle horaire
-      et un jingle de vote peuvent tomber au même moment. Les diffuser tous les
-      deux, n'en garder qu'un, dans quel ordre ? Rien ne le dit. À poser avant
-      `GOAL-007`, pas à trancher en implémentant (ARCHITECTURE.md §6.2).
+- [x] `GOAL-001-T16` ~~Deux jingles dus à la même jonction.~~ **Levée le
+      2026-08-30** : tous diffusés à la suite, jingles horaires dans l'ordre
+      chronologique puis `encore.mp3` en dernier (SPECS.md §4.3).
+- [ ] `GOAL-001-T17` **L'écart d'anticipation sur les sources doit rester
+      surveillé.** L'abstraction est écrite sans son deuxième cas d'usage
+      (ARCHITECTURE.md §9.1). Trois questions restent délibérément sans réponse
+      (SPECS.md §7 n°12) ; **la première réponse devinée en implémentant serait
+      une seconde anticipation, celle-là non consignée.** À vérifier à chaque
+      Goal touchant `adapters/sources/`.
 
 ---
 
@@ -152,12 +171,13 @@ fonctionnalité de la radio — hormis le squelette exécutable de `T02`, sans l
 
 **État : TODO** — non découpé.
 
-Trois relevés à établir **par observation**, avant toute implémentation
+Quatre relevés à établir **par observation**, avant toute implémentation
 (AGENTS.md §3). Les fichiers `docs/*.md` existent déjà et portent les questions ;
 ce Goal y répond.
 
-Il ouvre sur la décision **SPECS.md §7 n°2** — jusqu'où pousser la modularité des
-sources — qui doit être tranchée avant d'écrire le client Navidrome.
+**Débloqué** : SPECS.md §7 n°2 est tranchée — abstraction complète des sources,
+une seule écrite. Le relevé Navidrome porte donc aussi sur ce que le `Protocol`
+de source doit pouvoir exprimer.
 
 ---
 
@@ -169,7 +189,9 @@ sources — qui doit être tranchée avant d'écrire le client Navidrome.
 non-répétition. Aucune E/S : c'est ici que se vérifie l'interdit central
 d'AGENTS.md §2.
 
-Exige que **SPECS.md §7 n°3** (la règle de non-répétition exacte) soit tranchée.
+**Débloqué** : SPECS.md §7 n°3 est tranchée — `non_repetition_artistes` artistes
+distincts, 5 par défaut, et une fenêtre qui **rétrécit** plutôt que de bloquer le
+tirage. Ce rétrécissement est un comportement à part entière, avec ses tests.
 
 ---
 
@@ -203,10 +225,13 @@ le tirage libre quand une plage n'a rien à offrir (SPECS.md §4.4).
 
 **État : TODO** — non découpé.
 
-L'insertion à la jonction sans couper un morceau, la péremption
-(SPECS.md §7 n°4), la résolution du nom `HHh.mp3` depuis l'heure, et le silence
-délibéré quand un jingle est absent — distinct de l'incident qu'est un fichier
-corrompu (SPECS.md §4.3).
+L'insertion à la jonction sans couper un morceau, la résolution du nom `HHh.mp3`
+depuis l'heure, l'empilement de plusieurs jingles dus à la même jonction, et le
+silence délibéré quand un jingle est absent — distinct de l'incident qu'est un
+fichier corrompu (SPECS.md §4.3).
+
+**Aucun seuil de péremption** : SPECS.md §7 n°4 est tranchée, rien n'est jamais
+abandonné pour retard. Cela retire de ce Goal toute une famille de cas limites.
 
 C'est ici qu'est écrite **l'unique mécanique d'insertion de jingle**, celle dont
 `GOAL-007` se sert pour `encore.mp3` (ARCHITECTURE.md §6.2). Elle est donc
@@ -224,7 +249,12 @@ d'accusé de réception.
 
 Sans Flask, sans HTTP, sans navigateur : c'est du noyau, et cela se teste seul.
 
-**Débloqué le 2026-08-30** : SPECS.md §7 n°10 est tranchée — une voix suffit, et
+**Débloqué le 2026-08-30** : SPECS.md §7 n°7 et n°10 sont tranchées. `encore`
+s'enchaîne sans limite, **outrepasse la règle de non-répétition**, et les morceaux
+qu'il sert n'entrent pas dans la fenêtre — sans quoi un long enchaînement
+condamnerait l'artiste pour longtemps après.
+
+SPECS.md §7 n°10 est tranchée — une voix suffit, et
 l'accusé de réception est un jingle `encore.mp3` posé à la jonction, par le même
 chemin que les jingles horaires. Le noyau n'a donc qu'à **marquer un jingle de
 vote comme dû** ; toute la mécanique d'insertion appartient à `GOAL-006`.

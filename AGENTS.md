@@ -160,9 +160,12 @@ alors ni rejouer une soirée, ni vérifier qu'un jingle tombe à l'heure.
   commit.
 - ❌ Anticiper : ne pas créer de structure « pour plus tard ». Une abstraction
   arrive avec son **deuxième** cas d'usage, pas avant.
-  → Cet interdit est en tension déclarée avec la modularité des sources voulue à
-  l'initialisation : voir SPECS.md §7, décision ouverte n°2. **Ne pas le
-  contourner en silence.**
+  → **Une dérogation est en vigueur, et une seule** : l'abstraction des sources
+  de musique, décidée le 2026-08-30 (SPECS.md §7 n°2) et consignée dans
+  ARCHITECTURE.md §9.1. Elle couvre le mécanisme déjà écrit, **pas ce qu'on
+  pourrait en déduire** : les questions que soulève une deuxième source
+  (SPECS.md §7 n°12) ne se répondent pas en implémentant. Une dérogation ne
+  s'étend pas d'elle-même.
 
 Face à plusieurs solutions, l'ordre de préférence est :
 **simplicité → lisibilité → testabilité → maintenabilité → bibliothèque
