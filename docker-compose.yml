@@ -17,6 +17,9 @@ services:
 
     # Les secrets ne sont ni dans l'image, ni dans ce fichier (SPECS.md §6.1).
     env_file: .env
+    environment:
+      # Où ordonner un saut (GOAL-017) : la route /skip du diffuseur.
+      LIQUIDSOAP_URL: http://liquidsoap:8000
 
     ports:
       - "8080:8080"   # l'interface et l'API

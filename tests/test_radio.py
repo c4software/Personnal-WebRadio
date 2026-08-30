@@ -1,5 +1,6 @@
 """La façade traduit fidèlement, et les deux vocabulaires ne divergent pas."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 
 from tests.fakes import FakeSource, track
@@ -13,7 +14,7 @@ from webradio.core.models import Track
 from webradio.core.rng import ScriptedRandom
 
 
-def _radio() -> tuple[LiveRadio, ListenerCount]:
+def _radio(skip: Callable[[], None] | None = None) -> tuple[LiveRadio, ListenerCount]:
     clock = FrozenClock(datetime(2026, 8, 30, 12, 0, tzinfo=UTC))
     control = Control(
         source=FakeSource([track("1", "Bowie", genre="rock")]),
@@ -21,7 +22,7 @@ def _radio() -> tuple[LiveRadio, ListenerCount]:
         jingles=Jingles(clock),
     )
     counter = ListenerCount()
-    return LiveRadio(control, counter), counter
+    return LiveRadio(control, counter, skip=skip), counter
 
 
 def test_les_deux_vocabulaires_de_nature_coincident() -> None:
@@ -108,3 +109,27 @@ def test_un_vote_sans_piste_courante_agit_sans_s_apprendre() -> None:
     radio.declare(Kind.MUSIC, None)
     assert radio.vote(Vote.MORE).accepted
     assert retenus == []
+
+
+def test_un_stop_accepte_ordonne_le_saut() -> None:
+    """SPECS.md §4.6 : « passer le morceau en cours » — GOAL-017."""
+    sauts: list[bool] = []
+    radio, _ = _radio(skip=lambda: sauts.append(True))
+    verdict = radio.vote(Vote.SKIP)
+    assert verdict.accepted
+    assert sauts == [True]
+
+
+def test_un_encore_accepte_n_ordonne_aucun_saut() -> None:
+    sauts: list[bool] = []
+    radio, _ = _radio(skip=lambda: sauts.append(True))
+    assert radio.vote(Vote.MORE).accepted
+    assert sauts == []
+
+
+def test_un_stop_refuse_n_ordonne_aucun_saut() -> None:
+    sauts: list[bool] = []
+    radio, _ = _radio(skip=lambda: sauts.append(True))
+    radio.declare(Kind.JINGLE, None)
+    assert not radio.vote(Vote.SKIP).accepted
+    assert sauts == []

@@ -137,6 +137,18 @@ def on_track(metadata) =
   end
 end
 programme.on_track(on_track)
+
+# ── Passer le morceau en cours (SPECS.md §4.6, GOAL-017) ───────────────────
+# C'est `radio` qui décide d'un saut — un vote `stop` accepté — et qui nous
+# l'ordonne par cette route. Le saut porte sur la file des morceaux : pendant
+# un direct ou un jingle, le noyau refuse le vote et l'ordre n'arrive jamais.
+def on_skip(request, response) =
+  ignore(request)
+  log("saut demandé par l'API")
+  programme.skip()
+  response.data("passé")
+end
+harbor.http.register(port=port, method="POST", "/skip", on_skip)
 programme = normalize(programme)
 programme = crossfade(duration=2., fade_in=1., fade_out=1., programme)
 

@@ -9,6 +9,7 @@ Rien de ce fichier ne décide : il construit, il branche, et il attend.
 
 import argparse
 import logging
+import os
 import signal
 import sys
 import threading
@@ -122,7 +123,25 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             logger.warning("votes illisibles, page vide : %s", failure)
             return []
 
-    radio = LiveRadio(control, counter, learning.remember, lister_votes)
+    # Le saut s'ordonne au diffuseur, par la route qu'il enregistre chez lui
+    # (`radio.liq`, GOAL-017). L'adresse vient de l'environnement, comme tout
+    # le câblage entre services (docker-compose.yml).
+    liquidsoap = os.environ.get("LIQUIDSOAP_URL", "http://127.0.0.1:8000")
+
+    def demander_le_saut() -> None:
+        import http.client
+        import urllib.error
+        import urllib.request
+
+        try:
+            with urllib.request.urlopen(
+                urllib.request.Request(f"{liquidsoap}/skip", method="POST"), timeout=3
+            ):
+                pass
+        except (urllib.error.URLError, http.client.HTTPException, OSError) as failure:
+            logger.warning("le diffuseur n'a pas pris le saut, le morceau finira : %s", failure)
+
+    radio = LiveRadio(control, counter, learning.remember, lister_votes, demander_le_saut)
     # Le programme déclare la nature de ce qu'il choisit ; la charnière ne la
     # transmet à la façade que lorsque Liquidsoap commence réellement le morceau.
     branche: list[LiquidsoapPlayout] = []

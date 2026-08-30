@@ -59,3 +59,10 @@ def test_un_direct_est_une_instruction_de_l_api_pas_du_script() -> None:
     assert "input.http(" in code
     assert "self_sync=false" in code, "sans lui la rafale initiale avale le morceau en cours"
     assert "track_sensitive=true" in code, "un direct prend la main à la jonction, jamais au milieu"
+
+
+def test_le_saut_est_une_route_que_l_api_ordonne() -> None:
+    """GOAL-017 : le script saute sur ordre, il ne décide jamais de sauter."""
+    code = _code()
+    assert '"/skip"' in code
+    assert "programme.skip()" in code

@@ -136,7 +136,7 @@ Goals sont découpables.
 | GOAL-013 | Les programmes : une playlist, des jours, des heures | `[x]` |
 | GOAL-014 | Correctifs de la relecture du 2026-08-30 | `[x]` — T01 corrigée ; T02–T07 supprimés avec leur code par GOAL-016 |
 | GOAL-015 | Un direct comme émission — dont le flash France Info | `[-]` — seule l'écoute réelle reste |
-| GOAL-017 | `stop` ne passe pas le morceau en cours | `[ ]` |
+| GOAL-017 | `stop` ne passe pas le morceau en cours | `[-]` — câblé et constaté ; reste l'écoute du fondu |
 | GOAL-018 | L'interface en Vue, et la page des votes | `[x]` |
 | GOAL-019 | Les plages thématiques par jour | `[x]` |
 | GOAL-020 | Les votes portent un libellé lisible | `[x]` |
@@ -845,7 +845,7 @@ annonce, il diffuse.
 
 ## GOAL-017 — `stop` ne passe pas le morceau en cours
 
-**État : TODO** — constaté le 2026-08-30, en préparant l'écoute de `GOAL-015`
+**État : EN COURS** — câblé et constaté le 2026-08-30 ; reste `T03`, l'écoute du fondu
 
 SPECS.md §4.6 : *« `stop` : passer le morceau en cours. Le suivant démarre à la
 jonction, sans blanc. »* Or `Control.take_skip()` n'est **consommé par
@@ -856,10 +856,10 @@ migration : il n'a jamais été câblé, et aucun test ne le couvre.
 
 ### Les tâches
 
-- [ ] `GOAL-017-T01` Le chemin du saut : Liquidsoap sait sauter (`programme.skip()`), mais c'est l'API qui reçoit le vote — relever comment le lui dire (`harbor.http.register` sur le port du flux, ou interrogation périodique de `take_skip` par le script)
-- [ ] `GOAL-017-T02` Câbler : un `stop` accepté saute à l'instant, « sans blanc » — et un test qui échoue aujourd'hui
+- [x] `GOAL-017-T01` Le chemin du saut : `harbor.http.register` (le `.simple` répond en HTTP/0.9 — `BadStatusLine` côté Python, constaté) expose `POST /skip` sur le port du flux ; `radio` l'appelle via `LIQUIDSOAP_URL`
+- [x] `GOAL-017-T02` Câblé : un `stop` **accepté** ordonne le saut (jamais un `encore`, jamais un refus — testé) ; un diffuseur injoignable ne casse pas le vote, le morceau finit et pèse moins. **Constaté en réel** : saut en ~6 s, jonction propre
 - [ ] `GOAL-017-T03` **Écoute réelle** : le saut s'entend-il proprement, avec le fondu ?
-- [ ] `GOAL-017-T04` Carte du dépôt
+- [x] `GOAL-017-T04` Carte du dépôt — rien de structurel : une route de plus dans radio.liq, un ordre de plus dans main.py
 
 ---
 

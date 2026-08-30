@@ -32,11 +32,13 @@ class LiveRadio(Radio):
         on_air: "ListenerCount",
         remember: Callable[[Command, Track], None] | None = None,
         list_votes: Callable[[], list[VoteScore]] | None = None,
+        skip: Callable[[], None] | None = None,
     ) -> None:
         self._controle = control
         self._station = on_air
         self._retenir = remember
         self._lister_votes = list_votes
+        self._passer = skip
         self._verrou = threading.Lock()
         self._nature = Kind.MUSIC
         self._piste: Track | None = None
@@ -99,6 +101,12 @@ class LiveRadio(Radio):
         """
         command = Command(vote.value)
         answer = self._controle.vote(command)
+        if answer.accepted and command is Command.SKIP and self._passer is not None:
+            # « Passer le morceau en cours. Le suivant démarre à la jonction,
+            # sans blanc. » (SPECS.md §4.6) — c'est le diffuseur qui coupe,
+            # sur cet ordre. S'il est injoignable, le vote reste enregistré :
+            # le morceau finira, mais pèsera moins la prochaine fois.
+            self._passer()
         if answer.accepted and self._retenir is not None:
             with self._verrou:
                 courante = self._piste
