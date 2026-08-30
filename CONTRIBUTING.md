@@ -9,7 +9,7 @@ Puis, selon ce que vous touchez : [SPECS.md](./SPECS.md) pour un comportement
 audible, [ARCHITECTURE.md](./ARCHITECTURE.md) pour une décision technique,
 [TASKS.md](./TASKS.md) pour savoir où en est le travail, et le relevé
 correspondant dans [docs/](./docs/) si vous touchez à Navidrome, au flash
-France Info, à ffmpeg ou à ce qu'attendent les lecteurs de webradio.
+France Info, à Liquidsoap, à ffmpeg ou à ce qu'attendent les lecteurs de webradio.
 
 ## Mettre en place l'environnement
 
@@ -20,7 +20,8 @@ python3 -m venv .venv && source .venv/bin/activate
 pip install -e '.[dev]'
 ```
 
-Il faut par ailleurs **ffmpeg** sur la machine, et un serveur **Navidrome**
+Il faut par ailleurs **Docker** sur la machine (pour valider le script
+Liquidsoap contre la version épinglée), et un serveur **Navidrome**
 joignable.
 
 ```bash

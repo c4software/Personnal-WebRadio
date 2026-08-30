@@ -186,7 +186,8 @@ Trois relevés vivent dans [docs/](./docs/) :
 |---|---|
 | [docs/navidrome.md](./docs/navidrome.md) | L'API Subsonic telle que Navidrome l'implémente réellement |
 | [docs/franceinfo.md](./docs/franceinfo.md) | Le flash d'information : accès, format, disponibilité |
-| [docs/ffmpeg.md](./docs/ffmpeg.md) | Les options réellement acceptées par la version installée |
+| [docs/liquidsoap.md](./docs/liquidsoap.md) | Ce que Liquidsoap 2.3.3 fait réellement, et ce qui a décidé la migration |
+| [docs/ffmpeg.md](./docs/ffmpeg.md) | Relevé historique — vaut pour ce que Liquidsoap fait avec ffmpeg en dessous |
 | [docs/flux-icy.md](./docs/flux-icy.md) | Ce qu'attendent réellement les lecteurs de webradio |
 | [docs/podcast.md](./docs/podcast.md) | Les flux de podcast des émissions, et ce qu'ils exposent vraiment |
 
@@ -219,7 +220,7 @@ dans TASKS.md.
   `test_un_jingle_tombe_a_l_heure_pile`, pas `test_jingle_2`.
   Le préfixe `test_` est imposé par la collecte de pytest ; ce qui le suit décrit
   le comportement, jamais un numéro ni le nom de la fonction testée.
-- Le noyau se teste **sans infrastructure** : ni réseau, ni ffmpeg, ni fichier.
+- Le noyau se teste **sans infrastructure** : ni réseau, ni Liquidsoap, ni fichier.
   C'est ce que garantissent les interdits du §2.
 - Les doubles sont des **Fakes versionnés**, pas des mocks générés à la volée.
 - Le temps et le hasard sont injectés : un test fixe l'heure et la graine, et
@@ -340,7 +341,7 @@ La documentation fait partie de la tâche, pas de son après-coup.
 | Nouvelle clé de configuration TOML | [SPECS.md](./SPECS.md) §6 |
 | Décision d'architecture, dépendance, découpage | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | Nouveau dossier, ou dossier dont le rôle change | [ARCHITECTURE.md](./ARCHITECTURE.md) §9 |
-| Une observation sur Navidrome, France Info, ffmpeg, un lecteur de webradio ou un flux de podcast | le relevé correspondant dans [docs/](./docs/) |
+| Une observation sur Navidrome, France Info, Liquidsoap, ffmpeg, un lecteur de webradio ou un flux de podcast | le relevé correspondant dans [docs/](./docs/) |
 | Une route d'API ajoutée, changée ou retirée | [SPECS.md](./SPECS.md) §4.8 — c'est une surface publique |
 | Nouvelle règle de développement | ce fichier |
 | Procédure de contribution | [CONTRIBUTING.md](./CONTRIBUTING.md) |

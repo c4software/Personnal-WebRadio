@@ -47,9 +47,11 @@ enchevêtrées avec des appels réseau, on ne peut plus les rejouer — et une
 De la connexion d'un auditeur jusqu'au son :
 
 ```
-un auditeur se branche sur GET /flux
+un auditeur se branche sur GET /flux — chez Liquidsoap
         ↓
-app/         personne n'écoutait ? → démarre la chaîne
+Liquidsoap   POST /playout/listeners → « quelqu'un écoute » ; POST /playout/next → « quoi jouer ? »
+        ↓
+app/         traduit : app/liquidsoap_playout → app/playout.next_entry()
         ↓
 core/queue   « il me faut une piste » → interroge la grille et le tirage
         ↓
@@ -58,18 +60,19 @@ core/rng       tirage contraint par le genre et la non-répétition
         ↓
 adapters/sources     résout la piste choisie → une URL de flux audio
         ↓
-adapters/ffmpeg      décode, normalise, encode en un flux unique
+adapters/web/playout_api   rend le chemin ou l'URL, en texte brut
         ↓
-adapters/http        fan-out : le même flux vers N connexions
+Liquidsoap   décode, normalise, enchaîne en fondu, encode, sert à N connexions
+             POST /playout/playing → « je commence celui-ci » → l'API l'affiche
         ↓
     tous les auditeurs entendent la même chose au même instant
         ↓
-dernière déconnexion → la chaîne s'arrête
+dernière déconnexion → POST /playout/listeners « 0 » → plus rien n'est demandé
 ```
 
-Le point important : **la file ne pousse pas, elle est tirée**. C'est l'encodeur
-qui réclame la piste suivante quand il en a besoin ; le noyau ne connaît ni le
-temps réel, ni les tampons.
+Le point important : **la file ne pousse pas, elle est tirée**. C'est Liquidsoap
+qui réclame la piste suivante quand il en a besoin — toujours une d'avance
+(docs/liquidsoap.md §3) ; le noyau ne connaît ni le temps réel, ni les tampons.
 
 ### 2.1 Ce qui doit rester confiné
 
@@ -79,8 +82,8 @@ fichier devrait porter.
 | Détail | Confiné dans |
 |---|---|
 | L'API Subsonic : `salt`, `token`, `u`, `p`, `v`, `c`, la forme des réponses | `adapters/sources/navidrome/` |
-| Les options de ligne de commande ffmpeg, ses codes de sortie, sa sortie d'erreur | `adapters/ffmpeg/` |
-| Les en-têtes HTTP du flux, le `Content-Type`, la gestion des connexions | `adapters/http/` |
+| Le langage de Liquidsoap, l'encodage, les fondus, les en-têtes du flux, les connexions | `adapters/liquidsoap/radio.liq` |
+| Les deux routes que Liquidsoap appelle, et leur contrat en texte brut | `adapters/web/playout_api.py` |
 | L'adresse du direct France Info | Le TOML (`adapters/config/`) — et c'est tout : un direct est une entrée ffmpeg comme une autre (`docs/franceinfo.md` §1.bis, `GOAL-015`) |
 | Le format RSS d'un podcast, ses `enclosure`, ses redirections | `adapters/podcast/` |
 | La syntaxe TOML et le nom des clés | `adapters/config/` |
@@ -123,9 +126,9 @@ vérifier que chaque jingle est tombé dans sa fenêtre. »*
 > HTTP et ffmpeg en sous-processus — a été construit (`GOAL-004`) puis relu :
 > six de ses sept défauts étaient dans le cycle de vie des processus et des
 > connexions. Ce sont précisément les choses qu'un outil de diffusion fait à
-> notre place. La migration est `GOAL-016` ; tant qu'elle n'est pas terminée,
-> `adapters/ffmpeg/` et `adapters/http/` existent encore et §4.0 à §4.1
-> décrivent ce qu'ils font.
+> notre place. La migration (`GOAL-016`) a supprimé `adapters/ffmpeg/` et
+> `adapters/http/` ; [docs/ffmpeg.md](./docs/ffmpeg.md) reste un relevé
+> historique, et vaut encore pour ce que Liquidsoap fait avec ffmpeg en dessous.
 
 **Le partage est net** : le noyau décide de *quoi* jouer, Liquidsoap fait
 *tout le reste*.
@@ -146,49 +149,32 @@ Liquidsoap  ──« morceau suivant ? »──▶  adapters/liquidsoap  ──�
 morceau suivant à l'API, il annonce ses auditeurs à l'API. Il ne lit ni le TOML,
 ni la base, ni Navidrome.
 
-### 4.0 La contrainte qui commande tout le reste
+### 4.0 Un format unique, réencodé en permanence
 
-SPECS.md §4.9 pose trois exigences qui ne sont pas spontanément compatibles :
-**lisible par tout lecteur de webradio**, **sans coupure**, et **transcodant le
-moins possible**.
+SPECS.md §4.9 exige **lisible par tout lecteur** et **sans coupure**, et §7 n°11
+place l'économie de la machine en troisième. Liquidsoap réencode tout vers un
+seul format (`%mp3(bitrate=…)` dans `radio.liq`) : un lecteur ne voit jamais le
+format changer, quelle que soit l'hétérogénéité de la bibliothèque
+(docs/navidrome.md §3.1). Le coût mesuré est de l'ordre d'un pour cent d'un
+cœur (docs/ffmpeg.md §2.bis, docs/liquidsoap.md §1.3) : il n'y a rien à
+optimiser.
 
-Elles se heurtent sur un point précis : transmettre un fichier tel quel économise
-la machine, mais un changement de codec, de fréquence d'échantillonnage ou de
-nombre de canaux **en cours de flux** est exactement ce qui fait décrocher un
-lecteur de webradio — lequel a lu les en-têtes une fois, au branchement, et ne
-les relit pas.
+### 4.1 Un flux, N auditeurs, un morceau d'avance
 
-S'y ajoute que jingles — horaires comme de vote — et flashs viennent
-d'**origines différentes** de la musique : les insérer suppose de les ramener au
-format du flux, ou de tout ramener à un format commun.
+Un seul encodage alimente toutes les connexions ; l'auditeur lent, la
+déconnexion brutale et le fan-out sont l'affaire de `output.harbor`, pas la
+nôtre. Ce qui reste à nous, et que `app/liquidsoap_playout.py` tient :
+Liquidsoap **demande toujours un morceau d'avance** (`prefetch=1` est le
+minimum, docs/liquidsoap.md §3). *Demandé* n'est donc pas *à l'antenne* — l'API
+n'affiche un morceau que lorsque Liquidsoap dit l'avoir commencé.
 
-**L'arbitrage est tranché** (SPECS.md §7 n°11), et il ne dépend d'aucun relevé :
+### 4.2 Couper en le disant
 
-```
-1. sans coupure
-2. lisible par tout lecteur
-3. économie de la machine
-```
-
-Un **réencodage permanent** vers un format unique est donc la voie par défaut, et
-elle est assumée : elle satisfait les deux premières priorités sans condition.
-
-Ce que les relevés [docs/ffmpeg.md](./docs/ffmpeg.md),
-[docs/flux-icy.md](./docs/flux-icy.md) et
-[docs/navidrome.md](./docs/navidrome.md) apportent n'est donc **plus une
-décision, mais une optimisation** : existe-t-il un chemin moins coûteux — copie
-sans réencodage quand le format correspond, format homogène servi par Navidrome —
-qui ne viole pas cet ordre ? S'il n'en existe pas, on réencode, et rien n'attend.
-
-C'est une distinction qui compte pour le découpage : `GOAL-004` n'est plus bloqué
-par une question ouverte, seulement susceptible d'être amélioré par un constat.
-
-### 4.1 Un flux, N auditeurs
-
-Un seul encodage alimente toutes les connexions : chaque auditeur reçoit une
-copie du **même** flux, au même instant (SPECS.md §4.1). Un auditeur lent ne doit
-ralentir ni l'encodage, ni les autres — sa connexion est abandonnée avant de
-devenir un frein.
+Laissé à lui-même, Liquidsoap réessaie sans fin et sert du silence
+(docs/liquidsoap.md §3). Le script s'arrête donc de lui-même — `shutdown()` —
+quand l'API répond « fini » (204) ou ne répond pas deux fois de suite ; le
+superviseur (Compose, `restart`) relance un processus neuf, et un auditeur qui
+se rebranche entend une radio neuve (SPECS.md §4.7).
 
 ## 5. Persistance
 
@@ -485,26 +471,24 @@ AGENTS.md §4.1, aucun n'est couvert automatiquement.
 
 ### 8.5.1 Ce que le conteneur résout ici
 
-Ce projet a une dépendance système lourde et versionnée : **ffmpeg**.
-[docs/ffmpeg.md](./docs/ffmpeg.md) commence par *« tout ce qui suit doit être
-vérifié contre cette version »* — n9.0.1. Un conteneur fige cette version avec le
-code qui l'a relevée, au lieu de dépendre de ce que la machine hôte a installé.
+Ce projet a une dépendance lourde et versionnée : **Liquidsoap**, dont la
+syntaxe change de version en version (docs/liquidsoap.md §1.7). Le Compose
+épingle l'image contre laquelle le relevé a été établi — `v2.3.3` — et
+`verifier.sh` valide le script **dans cette image**. La même chose valait pour
+ffmpeg avant la migration, et pour la même raison.
 
-C'est le seul argument qui compte vraiment. Les autres — reproductibilité,
-démarrage au boot — suivent.
-
-### 8.5.2 Un seul service
+### 8.5.2 Deux services
 
 ```
 services:
-  radio:      le tout : chaîne de diffusion + Flask + API
+  radio:       Python — le noyau, l'API, l'interface, les routes de Liquidsoap
+  liquidsoap:  l'image épinglée, le script monté en lecture seule, le port du flux
 ```
 
-**Pas de découpage en plusieurs conteneurs**, et c'est délibéré. La chaîne et le
-serveur web partagent la file en mémoire (§6) : les séparer imposerait un
-protocole entre eux, donc une architecture distribuée pour un auditeur sur un
-réseau local. Ce serait la même faute que celle contre laquelle AGENTS.md §2 met
-en garde — bâtir avant le second cas d'usage.
+**Deux, pas un**, parce que le second est un binaire tiers qui n'a rien à faire
+dans l'image Python ; et **pas davantage**, parce que le protocole entre eux
+tient en trois routes de texte brut. Les jingles sont montés **au même chemin**
+dans les deux : `radio` rend des chemins, `liquidsoap` les ouvre.
 
 Navidrome n'est **pas** dans le Compose : il existe déjà, il appartient à
 l'auteur, et le projet n'a pas à le déployer (SPECS.md §2 — gérer la
@@ -518,7 +502,8 @@ bibliothèque est hors périmètre).
 | La **configuration** | volume, en lecture seule | Elle change sans reconstruire l'image |
 | Les **jingles** | volume, en lecture seule | Ce sont les fichiers de l'auteur ; le conteneur ne doit pas pouvoir les modifier |
 | L'**état SQLite** | volume, en écriture | Il survit à une reconstruction (§5.1) |
-| Le **port du flux et du web** | `ports:` | C'est par là qu'on écoute |
+| Le **port du flux** (`liquidsoap`) et **du web** (`radio`) | `ports:` | C'est par là qu'on écoute |
+| Le **script** `radio.liq` | volume, en lecture seule | Il est versionné avec le code qui le pilote |
 
 > **Le réseau est le point à ne pas manquer.** Navidrome répond à `http://music`
 > — un nom résolu par le réseau **de l'hôte**. Un conteneur ne le résout pas
@@ -552,6 +537,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 ├── pyproject.toml ....... paquet, ruff, mypy, pytest, couverture
 ├── verifier.sh .......... LA commande de vérification (AGENTS.md §5.2)
 ├── Dockerfile, docker-compose.yml, .dockerignore
+├── jingles/ ............. les jingles de l'auteur — versionné vide, contenu ignoré
 ├── webradio.exemple.toml  toutes les clés, commentées — webradio.toml n'est pas versionné
 ├── .env.exemple ......... les noms des secrets — .env n'est pas versionné
 │
@@ -573,16 +559,16 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   │   ├── config/ ...... schema.py (les clés du TOML) · loading.py (fichier et .env)
 │   │   ├── sources/ ..... navidrome.py — l'API Subsonic, et rien d'autre ne la connaît
 │   │   ├── podcast/ ..... feed.py — RSS, enclosure, redirections
-│   │   ├── ffmpeg/ ...... decoder.py (un par entrée, vers PCM) · encoder.py (l'unique, cadencé)
-│   │   ├── http/ ........ server.py (le flux, en-têtes icy-*) · broadcast.py (fan-out)
+│   │   ├── liquidsoap/ .. radio.liq — demande, annonce, sert ; ne décide de rien
 │   │   ├── state/ ....... database.py — SQLite : diffusions et votes
-│   │   └── web/ ......... api.py (la surface publique) · views.py · templates/index.html
+│   │   └── web/ ......... api.py (la surface publique) · playout_api.py (les routes de Liquidsoap) · views.py · templates/
 │   └── app/ ............. l'assemblage, une fois au démarrage
 │       ├── main.py ...... le point d'entrée : construit, branche, attend
 │       ├── playout.py ... noyau → ffmpeg : la piste suivante, et les jingles à la jonction
 │       ├── radio.py ..... noyau → API : la façade que l'interface interroge
 │       ├── learning.py .. votes → poids : la base vue par le noyau
-│       └── show_scheduler.py  émission due → épisode à diffuser
+│       ├── show_scheduler.py  émission due → épisode à diffuser
+│       └── liquidsoap_playout.py  demandé ≠ à l'antenne, et le compteur d'auditeurs
 │
 ├── tests/ ............... un test_<module>.py par module, pytest
 │   └── fakes.py ......... doubles versionnés — FakeSource, track()
@@ -591,7 +577,8 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   ├── navidrome.md ..... relevé de l'API Subsonic telle que Navidrome l'implémente
 │   ├── franceinfo.md .... relevé du flash d'information — source non confirmée
 │   ├── podcast.md ....... relevé des flux de podcast des émissions
-│   ├── ffmpeg.md ........ relevé des options réellement acceptées
+│   ├── liquidsoap.md .... relevé de Liquidsoap 2.3.3, et ce qui a décidé la migration
+│   ├── ffmpeg.md ........ relevé historique — vaut pour ce que Liquidsoap fait en dessous
 │   └── flux-icy.md ...... relevé de ce qu'attendent les lecteurs de webradio
 │
 └── .claude/
@@ -601,14 +588,19 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 
 **Les trois zones existent et sont peuplées.** Le noyau ne dépend de rien — ni
 réseau, ni fichier, ni processus — et se teste sans infrastructure. Chaque
-adaptateur confine une dépendance (§2.1). `app/` contient les quatre charnières
+adaptateur confine une dépendance (§2.1). `app/` contient les cinq charnières
 qui traduisent entre noyau et adaptateurs sans que l'un importe l'autre.
+
+**Le flux n'est pas dans `webradio/`** : Liquidsoap le sert, depuis son propre
+conteneur, en exécutant `adapters/liquidsoap/radio.liq`. Un test lit ce script
+et refuse qu'il décide quoi que ce soit.
 
 **Il n'y a pas d'`adapters/news/`, et il n'y en aura pas.** Le flash France
 Info est un extrait du **direct** de franceinfo, diffusé comme une émission
-(SPECS.md §4.11, `GOAL-015`) : une URL dans le TOML, décodée par
-`adapters/ffmpeg/decoder.py` comme n'importe quelle entrée, et bornée dans le
-temps. Le podcast des flashs n'existe plus (`docs/franceinfo.md` §1.bis).
+(SPECS.md §4.11, `GOAL-015`) : une URL dans le TOML, rendue par
+`/playout/next` comme n'importe quelle entrée, et bornée dans le temps par
+Liquidsoap (`input.http`, docs/liquidsoap.md §3). Le podcast des flashs
+n'existe plus (`docs/franceinfo.md` §1.bis).
 
 **Les identifiants sont en anglais, la prose en français** — modules, classes
 et fonctions d'un côté, docstrings, commentaires, journaux et documents de

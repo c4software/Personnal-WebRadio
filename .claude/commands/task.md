@@ -43,7 +43,7 @@ Annoncer la tâche retenue et pourquoi, avant de commencer.
 - la section de `SPECS.md` que la tâche couvre
 - la section de `ARCHITECTURE.md` concernée, **et sa carte du dépôt**
 - le relevé de `docs/` si la tâche touche à Navidrome, au flash France Info
-  ou à ffmpeg — sa section « points incertains » en particulier
+  à Liquidsoap ou à ffmpeg — sa section « points incertains » en particulier
 - les fichiers de code que la tâche modifie, et leurs tests
 
 Puis **constater l'état réel du code**. Ne jamais supposer qu'une tâche `[-]`

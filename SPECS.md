@@ -16,8 +16,12 @@ HTTP audio unique**, alimenté par un tirage dans une bibliothèque
 [Navidrome](https://www.navidrome.org/), ponctué de jingles horaires,
 d'interruptions d'information et d'**émissions** programmées.
 
-Elle n'existe **que lorsqu'on l'écoute** : rien ne tourne tant que personne n'est
-branché ; la chaîne démarre à la première connexion et s'arrête à la dernière.
+Elle n'existe **que lorsqu'on l'écoute** : rien n'est décodé ni demandé tant que
+personne n'est branché ; la musique démarre à la première connexion et s'arrête
+à la dernière. Depuis le 2026-08-30 (§7 n°23), un processus de diffusion reste
+debout entre deux écoutes — il encode du silence à moins d'un pour cent d'un
+cœur — mais il ne tire aucun morceau, n'interroge pas Navidrome et ne fait
+avancer ni la file ni la non-répétition.
 
 L'expérience recherchée :
 
@@ -107,7 +111,7 @@ connectée).
 |---|---|
 | Navidrome injoignable | La chaîne ne démarre pas silencieusement. L'erreur est journalisée, et l'auditeur reçoit une réponse HTTP explicite plutôt qu'un flux vide. |
 | Navidrome joignable, bibliothèque vide | Même traitement : une radio sans musique est une erreur, pas un silence. |
-| ffmpeg absent ou en échec | Erreur au démarrage, journalisée. Ne jamais servir un flux qui ne contient rien. |
+| Liquidsoap ne joint pas l'API | Il s'arrête en le journalisant, et le superviseur le relance ; il ne sert jamais un flux qui ne contient rien (§7 n°23). |
 
 ### 4.2 Écouter
 
@@ -251,12 +255,14 @@ longtemps après.
 
 ### 4.7 Se débrancher
 
-Quand le **dernier** auditeur se débranche, la chaîne s'arrête : ffmpeg est
-arrêté, Navidrome n'est plus interrogé, plus rien ne tourne.
+Quand le **dernier** auditeur se débranche, la musique s'arrête : plus rien
+n'est décodé, Navidrome n'est plus interrogé, la file n'avance plus. Le
+diffuseur reste debout et encode du silence (§1, §7 n°23).
 
-Un auditeur qui se rebranche redémarre une chaîne **neuve**. La radio ne
-reprend pas où elle s'était arrêtée — c'est cohérent avec « ce qui est passé est
-perdu » (§2).
+Un auditeur qui se rebranche entend la radio repartir **au morceau suivant** —
+celui que le diffuseur avait demandé d'avance, jamais le milieu de celui qui
+passait. La radio ne reprend pas où elle s'était arrêtée — c'est cohérent avec
+« ce qui est passé est perdu » (§2).
 
 Une déconnexion brutale (câble arraché, lecteur tué) doit être détectée comme une
 déconnexion normale : sans quoi la chaîne tournerait indéfiniment pour un
@@ -663,7 +669,7 @@ contournée en continuant la musique l'est, et laisse une trace journalisée.
 | Navidrome injoignable **au démarrage** | refuse de démarrer, erreur HTTP explicite (§4.1) |
 | Navidrome injoignable **en cours** | continue avec ce qui est en file, réessaie en arrière-plan (§5.1) |
 | La file s'épuise, Navidrome toujours injoignable | **coupe proprement** plutôt que de servir du silence (§5.1) |
-| ffmpeg qui meurt en cours | relance la chaîne **une fois** ; si elle retombe, coupe proprement (§5.1) |
+| Liquidsoap qui meurt en cours | le superviseur le relance ; les auditeurs se rebranchent sur une radio neuve (§4.7) |
 
 La distinction est nette : **au démarrage**, une erreur est fatale et se dit ;
 **en cours de diffusion**, elle se contourne et se journalise.
@@ -678,8 +684,8 @@ change.
 |---|---|
 | Navidrome injoignable | continue avec ce qui est en file, réessaie en arrière-plan |
 | … et la file s'épuise sans retour | **coupe**, en journalisant pourquoi |
-| ffmpeg meurt | relance la chaîne **une fois** |
-| … et elle retombe | **coupe**, en journalisant pourquoi |
+| l'API ne répond plus à Liquidsoap | il réessaie **une fois**, puis **coupe** en journalisant pourquoi |
+| Liquidsoap meurt | le superviseur le relance, neuf |
 
 Une coupure n'est pas un échec du principe, c'en est l'application : une radio
 qui boucle sur trois morceaux en répétant qu'elle va bien rend la panne
@@ -822,8 +828,8 @@ tiré dans une plage y termine, quitte à déborder (§4.4).
 
 **n°8 — Les pannes en cours ? Tenir, puis couper en le disant.** Tranchée le
 2026-08-30. Navidrome injoignable : continuer sur la file, réessayer en
-arrière-plan, couper si la file s'épuise. ffmpeg mort : relancer une fois, couper
-si cela retombe (§5.1).
+arrière-plan, couper si la file s'épuise. API muette pour le diffuseur :
+réessayer une fois, couper en le disant (§5.1, n°23).
 > *Raison* : couper tout de suite rendrait la radio fragile à une micro-coupure ;
 > boucler indéfiniment rendrait la panne **invisible**, ce qui contredit
 > frontalement « les erreurs se voient » (AGENTS.md §2). Tenir puis couper garde

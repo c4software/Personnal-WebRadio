@@ -134,9 +134,9 @@ Goals sont découpables.
 | GOAL-011 | Conteneurisation : Docker et Compose | `[x]` |
 | GOAL-012 | Les votes pondèrent les tirages suivants | `[-]` — seule l'écoute réelle reste |
 | GOAL-013 | Les programmes : une playlist, des jours, des heures | `[x]` |
-| GOAL-014 | Correctifs de la relecture du 2026-08-30 | `[-]` — T01 faite ; le reste disparaît avec GOAL-016 |
+| GOAL-014 | Correctifs de la relecture du 2026-08-30 | `[x]` — T01 corrigée ; T02–T07 supprimés avec leur code par GOAL-016 |
 | GOAL-015 | Un direct comme émission — dont le flash France Info | `[ ]` — après GOAL-016 |
-| GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — T01 faite |
+| GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
 
@@ -729,7 +729,7 @@ devra être rejouée si l'auteur tranche autrement.
 
 ## GOAL-014 — Correctifs de la relecture du 2026-08-30
 
-**État : EN COURS** — `T01` corrigée et vérifiée (377 tests) ; `T02` à `T07` consignées, non corrigées : leur code est supprimé par `GOAL-016`
+**État : TERMINÉ** — `T01` corrigée et vérifiée ; `T02` à `T07` ont disparu avec leur code (`GOAL-016-T10`), et `T08` est sans objet
 
 Une relecture de `adapters/ffmpeg/`, `adapters/http/` et `app/` a trouvé sept
 défauts, dont quatre confirmés à la lecture du code. **376 tests passaient** :
@@ -739,13 +739,13 @@ par le test qui l'aurait vu.
 ### Les tâches
 
 - [x] `GOAL-014-T01` **Les jingles ne passent jamais.** `app/playout.py` : `_prochaine_emission()` appelle `jingles.due_now()` — qui **consomme** — et jette le résultat ; `_prochain_jingle()` rappelle et obtient `()`. Dès que `shows` est câblé (toujours, `main.py`), ni `20h.mp3` ni `encore.mp3` ne sortent. Un seul appel par jonction, et un test avec émissions câblées **et** un jingle dû
-- [ ] `GOAL-014-T02` **Une chaîne qui coupe d'elle-même laisse les auditeurs pendus.** `app/main.py` : `end()` ne fait que baisser le compteur ; `Station` garde `_diffusion`, `Broadcast.close()` n'est jamais appelé, les lecteurs attendent sans EOF et tout nouvel auditeur s'abonne à une diffusion morte. Contredit SPECS.md §5.1 « couper en le disant ». Le test : file épuisée → les abonnés reçoivent la fin, le suivant redémarre une chaîne
-- [ ] `GOAL-014-T03` **`on_air` ne redescend jamais à l'arrêt normal.** `Station.stop_all()` ne passe pas par `end()` : après le dernier auditeur, l'API affiche « à l'antenne » pour personne. Une seule source de vérité pour « la chaîne tourne »
-- [ ] `GOAL-014-T04` **`next_entry()` appelé après l'arrêt.** `adapters/ffmpeg/encoder.py` : la pompe sort de `read()` sur `b""` quand le groupe est tué et entre dans `_enchainer` sans vérifier `_fini` — appel réseau, `declare(MUSIC)`, non-répétition et `record_airing` d'une chose jamais diffusée. Le test compte les appels à `next_entry` après `stop_all()` : zéro
-- [ ] `GOAL-014-T05` Relance concurrente d'un arrêt (`encoder.py`, `_relancer` teste `_fini` hors verrou) : orphelins possibles — le défaut de `docs/flux-icy.md` §3.bis, par une autre porte. **Le test compte les processus**
-- [ ] `GOAL-014-T06` Auditeur vivant qui ne lit plus (`server.py`, aucun `timeout` de socket) : `wfile.write` bloque sans borne, le compteur ne redescend pas, la chaîne tourne pour personne (SPECS.md §4.7). Un délai d'écriture, déclaré au TOML
-- [ ] `GOAL-014-T07` La pompe n'a aucun garde-fou : `termine.wait()` peut lever `TimeoutExpired`, et toute exception de `next_entry` laisse une chaîne zombie muette. Attraper, journaliser, et **appeler `end()`** — jamais mourir en silence
-- [ ] `GOAL-014-T08` Carte du dépôt, et les constats de ce Goal dans `docs/flux-icy.md` §3.bis
+- [x] ~~`GOAL-014-T02`~~ **sans objet** — **Une chaîne qui coupe d'elle-même laisse les auditeurs pendus.** `app/main.py` : `end()` ne fait que baisser le compteur ; `Station` garde `_diffusion`, `Broadcast.close()` n'est jamais appelé, les lecteurs attendent sans EOF et tout nouvel auditeur s'abonne à une diffusion morte. Contredit SPECS.md §5.1 « couper en le disant ». Le test : file épuisée → les abonnés reçoivent la fin, le suivant redémarre une chaîne
+- [x] ~~`GOAL-014-T03`~~ **sans objet** — **`on_air` ne redescend jamais à l'arrêt normal.** `Station.stop_all()` ne passe pas par `end()` : après le dernier auditeur, l'API affiche « à l'antenne » pour personne. Une seule source de vérité pour « la chaîne tourne »
+- [x] ~~`GOAL-014-T04`~~ **sans objet** — **`next_entry()` appelé après l'arrêt.** `adapters/ffmpeg/encoder.py` : la pompe sort de `read()` sur `b""` quand le groupe est tué et entre dans `_enchainer` sans vérifier `_fini` — appel réseau, `declare(MUSIC)`, non-répétition et `record_airing` d'une chose jamais diffusée. Le test compte les appels à `next_entry` après `stop_all()` : zéro
+- [x] ~~`GOAL-014-T05`~~ **sans objet** — Relance concurrente d'un arrêt (`encoder.py`, `_relancer` teste `_fini` hors verrou) : orphelins possibles — le défaut de `docs/flux-icy.md` §3.bis, par une autre porte. **Le test compte les processus**
+- [x] ~~`GOAL-014-T06`~~ **sans objet** — Auditeur vivant qui ne lit plus (`server.py`, aucun `timeout` de socket) : `wfile.write` bloque sans borne, le compteur ne redescend pas, la chaîne tourne pour personne (SPECS.md §4.7). Un délai d'écriture, déclaré au TOML
+- [x] ~~`GOAL-014-T07`~~ **sans objet** — La pompe n'a aucun garde-fou : `termine.wait()` peut lever `TimeoutExpired`, et toute exception de `next_entry` laisse une chaîne zombie muette. Attraper, journaliser, et **appeler `end()`** — jamais mourir en silence
+- [x] ~~`GOAL-014-T08`~~ **sans objet** — Carte du dépôt, et les constats de ce Goal dans `docs/flux-icy.md` §3.bis
 
 > **Recadré le 2026-08-30 par la décision n°23** : `T02` à `T07` vivent dans
 > `adapters/ffmpeg/`, `adapters/http/` et le câblage de `main.py` — du code que
@@ -799,7 +799,7 @@ tient dans *quand l'arrêter*.
 
 ## GOAL-016 — Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse
 
-**État : EN COURS** — `T01` à `T10` faites ; `T11` et `T13` (documents) en cours ; `T12` attend l'auteur
+**État : EN COURS** — tout est fait et constaté de bout en bout contre le vrai Navidrome, **sauf `T12`**, l'écoute réelle, qui attend l'auteur
 
 Décision SPECS.md §7 n°23, relevé [docs/liquidsoap.md](./docs/liquidsoap.md),
 architecture ARCHITECTURE.md §4. Le noyau, les sources, les émissions, les
@@ -822,9 +822,9 @@ annonce, il diffuse.
 - [x] `GOAL-016-T08` **Un morceau est toujours demandé d'avance** (`prefetch=1` est le minimum, docs/liquidsoap.md §3) : distinguer *demandé* et *à l'antenne*, et l'API dit ce qui passe d'après le second
 - [x] `GOAL-016-T09` Les pannes (SPECS.md §5.1) : **Liquidsoap boucle par défaut** (cinq tentatives en 8 s, silence servi). Quand `next_entry()` n'a plus rien, l'API répond « fini » et le script arrête de servir — `fallible`/`shutdown()` à relever. Test avec l'API arrêtée
 - [x] `GOAL-016-T10` **Supprimer** `adapters/ffmpeg/`, `adapters/http/`, leurs tests, et le câblage de `main.py` ; `docs/ffmpeg.md` reste comme relevé historique et pour le décodage des podcasts
-- [ ] `GOAL-016-T11` `SPECS.md §1` et §4.7 reformulés : « rien n'est décodé ni demandé » ; `docs/flux-icy.md` rejoué contre `harbor`
+- [x] `GOAL-016-T11` `SPECS.md §1` et §4.7 reformulés : « rien n'est décodé ni demandé » ; `docs/flux-icy.md` rejoué contre `harbor`
 - [ ] `GOAL-016-T12` **Écoute réelle** : fondus, niveau, VLC / navigateur / enceinte — la matrice de `docs/flux-icy.md` §6
-- [ ] `GOAL-016-T13` Carte du dépôt
+- [x] `GOAL-016-T13` Carte du dépôt
 
 > **Ce qui rend ce Goal sûr** : jusqu'à `T10`, l'ancienne chaîne existe encore
 > et tous ses tests passent. On ne supprime qu'après avoir écouté (`T12` avant

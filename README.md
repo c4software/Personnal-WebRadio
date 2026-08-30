@@ -60,7 +60,8 @@ Détail et raisons : [SPECS.md §2](./SPECS.md).
 - Un serveur **Navidrome** joignable, et ses identifiants
 - Un dossier de **jingles** MP3 — facultatif, et même vide
 
-Pour développer, en plus : **Python 3.11+** et **ffmpeg**.
+Pour développer, en plus : **Python 3.11+** — et Docker sert aussi à valider le
+script Liquidsoap contre la version épinglée (`./verifier.sh`).
 
 ### Configuration
 
@@ -118,16 +119,22 @@ Puis, dans n'importe quel lecteur — VLC, un navigateur, une enceinte :
 http://<la-machine>:8000/flux
 ```
 
-Et l'interface, sur un téléphone du même réseau — **un autre port**, parce que
-ce sont deux serveurs distincts :
+Le flux est servi par **Liquidsoap** (second service du Compose) ; le noyau lui
+dit quoi jouer, morceau par morceau. L'interface, elle, est sur un téléphone du
+même réseau — **un autre port**, parce que c'est l'autre service :
 
 ```
 http://<la-machine>:8080/
 ```
 
-> **Si le conteneur ne joint pas Navidrome** : `http://music` est un nom résolu
+> **Si les conteneurs ne joignent pas Navidrome** : `http://music` est un nom résolu
 > par le réseau de *l'hôte*, qu'un conteneur ne résout pas forcément. Décommentez
-> `extra_hosts` dans `docker-compose.yml`.
+> `extra_hosts` dans `docker-compose.yml` — pour les **deux** services, `liquidsoap`
+> ouvre les mêmes URL que `radio`.
+>
+> **`webradio.toml` doit être lisible par le conteneur** (`chmod 644`) : il tourne
+> sans privilège. Et `folder` des jingles y vaut `/var/lib/local-webradio/jingles`,
+> le chemin où le Compose les monte dans les deux services.
 
 ---
 
@@ -217,7 +224,7 @@ projet, et le travail avance par **Goals** découpés en tâches traçables.
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Comment elle est conçue, et ce qui existe vraiment |
 | [TASKS.md](./TASKS.md) | Où en est le travail |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Comment contribuer |
-| [docs/](./docs/) | Navidrome, ffmpeg, podcasts, lecteurs — **relevés par observation** |
+| [docs/](./docs/) | Navidrome, Liquidsoap, ffmpeg, podcasts, lecteurs — **relevés par observation** |
 
 Commandes de pilotage : `/status`, `/goal <objectif>`, `/task [ID]`, `/verify`.
 

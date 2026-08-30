@@ -152,3 +152,34 @@ construction de la question des changements de format (§1 à 3).
 > **Ce que le relevé ne peut pas faire tout seul.** Brancher une enceinte
 > connectée et un téléphone demande d'être devant la machine. C'est un des quatre
 > angles morts (AGENTS.md §4.1), et il ne se comblera pas depuis une session.
+
+---
+
+## 7. Rejoué contre `output.harbor` — **relevé du 2026-08-30** (`GOAL-016`)
+
+La chaîne de §1 à §5 n'existe plus : Liquidsoap 2.3.3 sert le flux
+(docs/liquidsoap.md). Ce qui a été constaté avec `curl` sur la pile Compose
+complète, contre le vrai Navidrome :
+
+```
+HTTP/1.1 200 OK
+Content-type: audio/mpeg
+icy-name: local-webradio
+icy-br: 128
+```
+
+- Les en-têtes de §1 sont **reproduits** par `headers=` dans `radio.liq` ;
+  ni `Content-Length` ni `Transfer-Encoding`, comme avant.
+- Sans auditeur : aucune requête à l'API, rien de décodé (§1 « rien ne tourne »
+  devient « rien n'est décodé ni demandé », SPECS.md §1).
+- Premier auditeur : `POST /playout/listeners 1`, puis deux `POST /playout/next`
+  d'affilée — celui qui joue et celui d'avance.
+- Dernier auditeur parti (`curl` coupé) : `POST /playout/listeners 0` dans la
+  seconde, et l'API repasse à `on_air: false`. La **déconnexion brutale** (§5)
+  n'a toujours pas été essayée.
+- Entrer en cours de route (§2) et les changements de format (§3) restent sans
+  objet : un seul encodeur, un seul format.
+- Les métadonnées de titre (§4) ne sont pas envoyées dans le flux ; l'API les
+  porte. Toujours ouvert : est-ce attendu par un lecteur ?
+
+**La matrice des vrais lecteurs (§6) reste entière** : `GOAL-016-T12`.
