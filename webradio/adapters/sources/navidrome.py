@@ -202,6 +202,78 @@ class SourceNavidrome:
         }
         return sorted(noms)
 
+    def pistes_de_la_liste_de_lecture(self, nom: str) -> list[Piste]:
+        """Les pistes d'une liste de lecture désignée par son nom.
+
+        Deux appels, et c'est irréductible : le TOML déclare un **nom**
+        (`playlist = "Chloé"`) tandis que `getPlaylist` réclame un identifiant.
+        `getPlaylists` fait la traduction, et elle est refaite à chaque fois —
+        une liste renommée entre deux programmes ne doit pas rester résolue sur
+        un identifiant périmé.
+
+        Un nom inconnu rend une liste vide plutôt que de lever : c'est la
+        convention de `pistes()` pour un genre inconnu, et le repli sur le
+        tirage libre se décide au-dessus (SPECS.md §7 n°21).
+
+        **`songCount` n'est jamais lu** : il a été constaté à 67 sur une liste
+        qui n'a rendu que 32 entrées, toutes distinctes, sans que la cause soit
+        établie (docs/navidrome.md §2.6.1). Une liste se juge sur ce que
+        `getPlaylist` rend.
+        """
+        identifiant = self._identifiant_de_liste(nom)
+        if identifiant is None:
+            journal.info(
+                "aucune liste de lecture ne s'appelle « %s » : le repli se décide plus haut", nom
+            )
+            return []
+        enveloppe = self._appeler("getPlaylist", {"id": identifiant})
+        pistes = self._entrees_de_liste(enveloppe)
+        if not pistes:
+            journal.info("la liste « %s » ne rend aucune piste : le repli se décide plus haut", nom)
+        return pistes
+
+    def _identifiant_de_liste(self, nom: str) -> str | None:
+        """Traduit un nom de liste en identifiant Subsonic, par égalité exacte.
+
+        L'égalité exacte plutôt qu'une comparaison indulgente : deux listes
+        peuvent différer par une seule majuscule, et servir l'une pour l'autre
+        se remarquerait à l'antenne bien plus tard que le repli journalisé.
+        """
+        enveloppe = self._appeler("getPlaylists", {})
+        contenu = enveloppe.get("playlists")
+        brutes = contenu.get("playlist") if isinstance(contenu, Mapping) else None
+        if not isinstance(brutes, Sequence) or isinstance(brutes, str):
+            return None
+        trouves: list[str] = []
+        for brute in brutes:
+            if not isinstance(brute, Mapping):
+                continue
+            identifiant = brute.get("id")
+            if brute.get("name") == nom and isinstance(identifiant, str) and identifiant:
+                trouves.append(identifiant)
+        if not trouves:
+            return None
+        if len(trouves) > 1:
+            journal.warning(
+                "%d listes de lecture s'appellent « %s » : la première est retenue",
+                len(trouves),
+                nom,
+            )
+        return trouves[0]
+
+    def _entrees_de_liste(self, enveloppe: Mapping[str, Any]) -> list[Piste]:
+        """Les entrées d'une liste, sous la clé `entry` et non `song`.
+
+        C'est la seule différence de forme avec les autres réponses : les
+        entrées sont des chansons ordinaires, converties comme partout ailleurs,
+        et les incomplètes sont écartées de la même façon.
+        """
+        contenu = enveloppe.get("playlist")
+        brutes = contenu.get("entry") if isinstance(contenu, Mapping) else None
+        if not isinstance(brutes, Sequence) or isinstance(brutes, str):
+            return []
+        return [piste for brute in brutes if (piste := _en_piste(brute)) is not None]
+
     def entree(self, piste: Piste) -> str:
         """L'URL de flux de la piste, jeton compris.
 

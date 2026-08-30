@@ -459,3 +459,206 @@ def test_entree_rend_une_url_de_flux_portant_le_jeton() -> None:
     assert "id=piste-1" in url
     assert "t=" in url and "s=" in url
     assert MOT_DE_PASSE not in url
+
+
+# ── Les listes de lecture (docs/navidrome.md §2.6) ─────────────────────────
+
+LISTES = """
+{"subsonic-response": {"status": "ok", "version": "1.16.1", "playlists": {"playlist": [
+  {"id": "pl-1", "name": "Chloé", "songCount": 67, "duration": 14000},
+  {"id": "pl-2", "name": "Soirée", "songCount": 26, "duration": 6100},
+  {"name": "Sans identifiant", "songCount": 3}
+]}}}
+"""
+
+LISTES_HOMONYMES = """
+{"subsonic-response": {"status": "ok", "version": "1.16.1", "playlists": {"playlist": [
+  {"id": "pl-1", "name": "Chloé", "songCount": 67},
+  {"id": "pl-9", "name": "Chloé", "songCount": 4},
+  "une chaîne au lieu d'une liste"
+]}}}
+"""
+
+AUCUNE_LISTE = """
+{"subsonic-response": {"status": "ok", "version": "1.16.1", "playlists": {}}}
+"""
+
+# `songCount` annonce 67 là où deux entrées seulement sont rendues : c'est le
+# constat du relevé §2.6.1, recopié tel quel.
+LISTE_CHLOE = """
+{"subsonic-response": {"status": "ok", "version": "1.16.1", "playlist": {
+ "id": "pl-1", "name": "Chloé", "songCount": 67, "entry": [
+  {"id": "0f2a", "title": "La première", "artist": "Une artiste",
+   "genre": "Chanson française", "duration": 205, "suffix": "mp3"},
+  {"id": "0f2b", "title": "Sans étiquette", "artist": "Un autre artiste",
+   "duration": 178, "suffix": "mp3"}
+]}}}
+"""
+
+LISTE_VIDE = """
+{"subsonic-response": {"status": "ok", "version": "1.16.1", "playlist": {
+ "id": "pl-1", "name": "Chloé", "songCount": 67}}}
+"""
+
+LISTE_ABIMEE = """
+{"subsonic-response": {"status": "ok", "version": "1.16.1", "playlist": {
+ "id": "pl-1", "name": "Chloé", "entry": [
+  {"title": "Sans identifiant", "artist": "Une artiste", "duration": 200},
+  {"id": "0f2c", "title": "Durée nulle", "artist": "Une artiste", "duration": 0},
+  42,
+  {"id": "0f2d", "title": "Valable", "artist": "Une artiste", "duration": 130}
+]}}}
+"""
+
+LISTE_INTROUVABLE = """
+{"subsonic-response": {"status": "failed", "version": "1.16.1",
+ "error": {"code": 70, "message": "playlist not found"}}}
+"""
+
+
+def test_une_liste_de_lecture_est_resolue_par_son_nom() -> None:
+    """Le TOML déclare un nom ; l'identifiant Subsonic ne remonte jamais au noyau."""
+    transport = TransportScripte(
+        [ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_CHLOE)],
+    )
+    source = _source(transport=transport)
+
+    pistes = source.pistes_de_la_liste_de_lecture("Chloé")
+
+    assert [piste.titre for piste in pistes] == ["La première", "Sans étiquette"]
+    assert _parametres(transport.urls[0])["u"] == UTILISATEUR
+    assert _parametres(transport.urls[1])["id"] == "pl-1"
+
+
+def test_le_song_count_annonce_n_est_pas_ce_qui_est_rendu() -> None:
+    """67 annoncés, deux entrées rendues : une liste se juge sur ses entrées
+    (docs/navidrome.md §2.6.1)."""
+    source = _source(
+        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_CHLOE)])
+    )
+
+    assert len(source.pistes_de_la_liste_de_lecture("Chloé")) == 2
+
+
+def test_une_piste_de_liste_sans_genre_reste_retenue() -> None:
+    source = _source(
+        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_CHLOE)])
+    )
+
+    pistes = source.pistes_de_la_liste_de_lecture("Chloé")
+
+    assert pistes[0].genre == "Chanson française"
+    assert pistes[1].genre is None
+
+
+def test_un_nom_de_liste_inconnu_rend_une_liste_vide_sans_lever(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Le repli sur le tirage libre se décide au-dessus (SPECS.md §7 n°21)."""
+    transport = TransportScripte([ReponseHttp(200, LISTES)])
+    source = _source(transport=transport)
+
+    with caplog.at_level(logging.INFO):
+        pistes = source.pistes_de_la_liste_de_lecture("Inconnue")
+
+    assert pistes == []
+    assert len(transport.urls) == 1
+    assert "Inconnue" in caplog.text
+
+
+def test_aucune_liste_declaree_rend_une_liste_vide() -> None:
+    source = _source(transport=TransportScripte([ReponseHttp(200, AUCUNE_LISTE)]))
+
+    assert source.pistes_de_la_liste_de_lecture("Chloé") == []
+
+
+def test_deux_listes_homonymes_retiennent_la_premiere_en_le_disant(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    transport = TransportScripte(
+        [ReponseHttp(200, LISTES_HOMONYMES), ReponseHttp(200, LISTE_CHLOE)]
+    )
+    source = _source(transport=transport)
+
+    with caplog.at_level(logging.WARNING):
+        source.pistes_de_la_liste_de_lecture("Chloé")
+
+    assert _parametres(transport.urls[1])["id"] == "pl-1"
+    assert "Chloé" in caplog.text
+
+
+def test_une_liste_sans_entree_rend_une_liste_vide(caplog: pytest.LogCaptureFixture) -> None:
+    source = _source(
+        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_VIDE)])
+    )
+
+    with caplog.at_level(logging.INFO):
+        pistes = source.pistes_de_la_liste_de_lecture("Chloé")
+
+    assert pistes == []
+    assert "Chloé" in caplog.text
+
+
+def test_les_entrees_abimees_d_une_liste_sont_ecartees_et_les_autres_gardees() -> None:
+    source = _source(
+        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_ABIMEE)])
+    )
+
+    pistes = source.pistes_de_la_liste_de_lecture("Chloé")
+
+    assert [piste.identifiant for piste in pistes] == ["0f2d"]
+
+
+def test_une_liste_disparue_entre_les_deux_appels_leve_une_source_indisponible() -> None:
+    """La liste existait à l'instant de `getPlaylists` et plus à celui de
+    `getPlaylist` : HTTP 200, code 70. C'est une panne de source, et le repli
+    est celui que la charnière applique déjà à toutes les pannes."""
+    source = _source(
+        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, LISTE_INTROUVABLE)])
+    )
+
+    with pytest.raises(SourceIndisponible) as panne:
+        source.pistes_de_la_liste_de_lecture("Chloé")
+
+    assert "70" in str(panne.value)
+    assert "playlist not found" in str(panne.value)
+
+
+def test_une_page_html_en_200_a_la_place_des_listes_leve_une_source_indisponible() -> None:
+    source = _source(PAGE_HTML_EN_200)
+
+    with pytest.raises(SourceIndisponible) as panne:
+        source.pistes_de_la_liste_de_lecture("Chloé")
+
+    assert "getPlaylists" in str(panne.value)
+
+
+def test_des_listes_sans_enveloppe_attendue_rendent_une_liste_vide() -> None:
+    """Un contenant absent ou d'un type inattendu n'est pas une panne : c'est
+    une bibliothèque sans liste de lecture."""
+    sans_contenant = '{"subsonic-response": {"status": "ok", "playlists": {"playlist": "rien"}}}'
+    source = _source(transport=TransportScripte([ReponseHttp(200, sans_contenant)]))
+
+    assert source.pistes_de_la_liste_de_lecture("Chloé") == []
+
+
+def test_une_liste_dont_les_entrees_ont_un_type_inattendu_rend_une_liste_vide() -> None:
+    entrees_folles = '{"subsonic-response": {"status": "ok", "playlist": {"entry": "rien"}}}'
+    source = _source(
+        transport=TransportScripte([ReponseHttp(200, LISTES), ReponseHttp(200, entrees_folles)])
+    )
+
+    assert source.pistes_de_la_liste_de_lecture("Chloé") == []
+
+
+def test_aucun_secret_ne_parait_dans_les_journaux_d_une_liste_de_lecture(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Les URL portent le jeton : elles n'ont leur place dans aucun journal."""
+    source = _source(transport=TransportScripte([ReponseHttp(200, LISTES)]))
+
+    with caplog.at_level(logging.DEBUG):
+        source.pistes_de_la_liste_de_lecture("Inconnue")
+
+    assert MOT_DE_PASSE not in caplog.text
+    assert "/rest/" not in caplog.text

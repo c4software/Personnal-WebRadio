@@ -47,6 +47,20 @@ class SourceMusicale(Protocol):
         """Les autres pistes d'un artiste. C'est ce dont `encore` dépend."""
         ...
 
+    def pistes_de_la_liste_de_lecture(self, nom: str) -> list[Piste]:
+        """Les pistes d'une liste de lecture, désignée par son **nom**.
+
+        Le noyau ne connaît que des noms : c'est ce que le TOML déclare
+        (`playlist = "Chloé"`), et l'identifiant qu'une source donne à ses
+        listes est un détail qui ne doit jamais remonter jusqu'à lui
+        (SPECS.md §4.13).
+
+        Une liste introuvable, renommée ou vide rend une liste vide plutôt que
+        de lever — comme un genre inconnu ci-dessus : le repli sur le tirage
+        libre se décide au-dessus, avec le contexte (SPECS.md §7 n°21).
+        """
+        ...
+
     def genres(self) -> list[str]:
         """Les genres que cette source connaît."""
         ...
