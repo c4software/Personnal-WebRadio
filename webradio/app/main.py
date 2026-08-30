@@ -21,7 +21,9 @@ from webradio.adapters.config.loading import load
 from webradio.adapters.config.schema import Config
 from webradio.adapters.podcast.feed import PodcastFeed, UrllibReader
 from webradio.adapters.sources.navidrome import NavidromeSource, UrllibTransport
-from webradio.adapters.state.database import SqliteState
+from webradio.adapters.state.database import Scope as StateScope
+from webradio.adapters.state.database import SqliteState, StateUnavailable
+from webradio.adapters.web.api import VoteScore
 from webradio.adapters.web.views import create_app
 from webradio.app.learning import Learning
 from webradio.app.liquidsoap_playout import LiquidsoapPlayout
@@ -104,7 +106,23 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
     jingles = Jingles(clock)
     control = Control(source=source, random=random, jingles=jingles)
     counter = ListenerCount()
-    radio = LiveRadio(control, counter, learning.remember)
+
+    def lister_votes() -> "list[VoteScore]":
+        try:
+            return [
+                VoteScore(
+                    scope="piste" if scope is StateScope.TRACK else "artiste",
+                    target=target,
+                    stop=scores.stop,
+                    encore=scores.encore,
+                )
+                for scope, target, scores in state.all_scores()
+            ]
+        except StateUnavailable as failure:
+            logger.warning("votes illisibles, page vide : %s", failure)
+            return []
+
+    radio = LiveRadio(control, counter, learning.remember, lister_votes)
     # Le programme déclare la nature de ce qu'il choisit ; la charnière ne la
     # transmet à la façade que lorsque Liquidsoap commence réellement le morceau.
     branche: list[LiquidsoapPlayout] = []

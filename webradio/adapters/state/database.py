@@ -260,6 +260,36 @@ class SqliteState:
             encore=_decroitre(float(row[1]), ecoule, self._demi_vie),
         )
 
+    def all_scores(self) -> list[tuple[Scope, str, Scores]]:
+        """Toutes les cibles votées, décroissance appliquée, plus fortes d'abord.
+
+        C'est la matière de la page des votes : elle montre ce que la radio a
+        retenu **aujourd'hui**, pas ce qui a été écrit un jour — d'où la
+        décroissance ici aussi (ARCHITECTURE.md §5.2).
+        """
+        now = self._horloge.now()
+        with self._connexion() as connection:
+            rows = connection.execute(
+                "SELECT portee, cible, score_stop, score_encore, vu_le FROM votes"
+            ).fetchall()
+        entries = [
+            (
+                Scope(str(row[0])),
+                str(row[1]),
+                Scores(
+                    stop=_decroitre(
+                        float(row[2]), now - datetime.fromisoformat(str(row[4])), self._demi_vie
+                    ),
+                    encore=_decroitre(
+                        float(row[3]), now - datetime.fromisoformat(str(row[4])), self._demi_vie
+                    ),
+                ),
+            )
+            for row in rows
+        ]
+        entries.sort(key=lambda e: e[2].stop + e[2].encore, reverse=True)
+        return entries
+
     def record_vote(
         self,
         scope: Scope,

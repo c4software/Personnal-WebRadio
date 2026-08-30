@@ -14,7 +14,7 @@ import threading
 from collections.abc import Callable
 
 from webradio.adapters.web.api import Kind as NatureWeb
-from webradio.adapters.web.api import OnAir, Radio, Verdict, Vote
+from webradio.adapters.web.api import OnAir, Radio, Verdict, Vote, VoteScore
 from webradio.core.control import Command, Control, Kind
 from webradio.core.models import Track
 
@@ -31,10 +31,12 @@ class LiveRadio(Radio):
         control: Control,
         on_air: "ListenerCount",
         remember: Callable[[Command, Track], None] | None = None,
+        list_votes: Callable[[], list[VoteScore]] | None = None,
     ) -> None:
         self._controle = control
         self._station = on_air
         self._retenir = remember
+        self._lister_votes = list_votes
         self._verrou = threading.Lock()
         self._nature = Kind.MUSIC
         self._piste: Track | None = None
@@ -77,6 +79,12 @@ class LiveRadio(Radio):
             title=track.title if track is not None else label,
             artist=track.artist if track is not None else artist_label,
         )
+
+    def vote_scores(self) -> list[VoteScore]:
+        """La base absente se comporte comme aucune mémoire (SPECS.md §4.12)."""
+        if self._lister_votes is None:
+            return []
+        return self._lister_votes()
 
     def vote(self, vote: Vote) -> Verdict:
         """Le vote passe au noyau, et n'est retenu que s'il a produit un effet.

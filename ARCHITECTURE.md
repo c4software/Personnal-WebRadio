@@ -561,7 +561,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   │   ├── podcast/ ..... feed.py — RSS, enclosure, redirections
 │   │   ├── liquidsoap/ .. radio.liq — demande, annonce, sert ; ne décide de rien
 │   │   ├── state/ ....... database.py — SQLite : diffusions et votes
-│   │   └── web/ ......... api.py (la surface publique) · playout_api.py (les routes de Liquidsoap) · views.py · templates/
+│   │   └── web/ ......... api.py (la surface publique, votes compris) · playout_api.py (les routes de Liquidsoap) · views.py · templates/ · static/ (Vue, vendu)
 │   └── app/ ............. l'assemblage, une fois au démarrage
 │       ├── main.py ...... le point d'entrée : construit, branche, attend
 │       ├── playout.py ... noyau → ffmpeg : la piste suivante, et les jingles à la jonction

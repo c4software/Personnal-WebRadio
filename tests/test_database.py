@@ -170,3 +170,27 @@ def test_un_chemin_impossible_a_ouvrir_est_signale(tmp_path: Path) -> None:
     folder.mkdir()
     with pytest.raises(StateUnavailable, match="inaccessible"):
         state(folder, FrozenClock(DEPART))
+
+
+# ── Tout lire pour la page des votes (GOAL-018) ─────────────────────────────
+
+
+def test_all_scores_rend_tout_decroissance_comprise(tmp_path: Path) -> None:
+    clock = FrozenClock(DEPART)
+    e = state(tmp_path / "etat.sqlite", clock)
+    e.record_vote(Scope.ARTIST, "Air", encore=2.0)
+    e.record_vote(Scope.TRACK, "t1", stop=1.0)
+    clock.advance(timedelta(days=90))  # une demi-vie
+
+    tout = e.all_scores()
+
+    assert [(scope, target) for scope, target, _ in tout] == [
+        (Scope.ARTIST, "Air"),
+        (Scope.TRACK, "t1"),
+    ]
+    assert tout[0][2].encore == pytest.approx(1.0)
+    assert tout[1][2].stop == pytest.approx(0.5)
+
+
+def test_all_scores_sans_vote_rend_une_liste_vide(tmp_path: Path) -> None:
+    assert state(tmp_path / "etat.sqlite", FrozenClock(DEPART)).all_scores() == []

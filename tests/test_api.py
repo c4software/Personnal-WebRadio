@@ -16,6 +16,7 @@ from webradio.adapters.web import (
     create_app,
     create_view,
 )
+from webradio.adapters.web.api import VoteScore
 
 RAFRAICHISSEMENT = timedelta(seconds=5)
 
@@ -36,6 +37,7 @@ class FakeRadio:
         self._antenne = on_air_now
         self._verdict = verdict if verdict is not None else Verdict(accepted=True)
         self.votes: list[Vote] = []
+        self._scores: list[VoteScore] = []
 
     def on_air(self) -> bool:
         return self._antenne is not None
@@ -46,6 +48,9 @@ class FakeRadio:
     def vote(self, vote: Vote) -> Verdict:
         self.votes.append(vote)
         return self._verdict
+
+    def vote_scores(self) -> list[VoteScore]:
+        return list(self._scores)
 
 
 def client(radio: FakeRadio) -> FlaskClient:
@@ -178,3 +183,33 @@ def test_le_rafraichissement_de_la_page_vient_de_la_configuration() -> None:
 def test_un_rafraichissement_nul_est_refuse() -> None:
     with pytest.raises(ValueError, match="rafraîchissement"):
         create_view(refresh=timedelta(0))
+
+
+# ── La page des votes (GOAL-018) ────────────────────────────────────────────
+
+
+def test_l_api_liste_ce_que_les_votes_ont_laisse() -> None:
+    radio = FakeRadio()
+    radio._scores = [VoteScore(scope="artiste", target="Air", stop=0.0, encore=2.5)]
+    answer = client(radio).get("/api/votes")
+    assert answer.status_code == 200
+    assert answer.get_json() == {
+        "votes": [{"scope": "artiste", "target": "Air", "stop": 0.0, "encore": 2.5}]
+    }
+
+
+def test_sans_aucun_vote_la_liste_est_vide_pas_une_erreur() -> None:
+    answer = client(FakeRadio()).get("/api/votes")
+    assert answer.get_json() == {"votes": []}
+
+
+def test_la_page_pointe_vers_la_route_des_votes() -> None:
+    answer = client(FakeRadio()).get("/")
+    assert b"/api/votes" in answer.data
+
+
+def test_la_page_embarque_vue_plutot_qu_un_cdn() -> None:
+    """La radio est un objet local : la page doit s'afficher sans internet."""
+    answer = client(FakeRadio()).get("/")
+    assert b"vue.global.prod.js" in answer.data
+    assert b"cdn." not in answer.data and b"unpkg" not in answer.data

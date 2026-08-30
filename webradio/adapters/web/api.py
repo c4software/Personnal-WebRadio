@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 API_PATH = "/api"
 ON_AIR_PATH = "/on-air"
 VOTE_PATH = "/votes/<name>"
+VOTES_PATH = "/votes"
 
 REFUS = 409
 DEMANDE_INVALIDE = 400
@@ -65,6 +66,20 @@ class OnAir:
     kind: Kind
     title: str | None = None
     artist: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class VoteScore:
+    """Ce qu'une cible a accumulé, décroissance déjà appliquée.
+
+    `scope` vaut `piste` ou `artiste` — les mots de SPECS.md §4.12, pas ceux
+    de la base : l'API ne connaît pas SQLite.
+    """
+
+    scope: str
+    target: str
+    stop: float
+    encore: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +123,10 @@ class Radio(Protocol):
         """
         ...
 
+    def vote_scores(self) -> list[VoteScore]:
+        """Ce que la radio a retenu des votes, plus forts d'abord."""
+        ...
+
 
 def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | None] | None:
     if on_air_now is None:
@@ -135,6 +154,23 @@ def create_api(radio: Radio) -> Blueprint:
             {
                 "on_air": radio.on_air(),
                 "on_air_now": _antenne_en_donnees(radio.on_air_now()),
+            }
+        )
+
+    @api.get(VOTES_PATH)
+    def votes_list() -> ResponseReturnValue:
+        """Ce que les votes ont laissé : par cible, décroissance comprise."""
+        return jsonify(
+            {
+                "votes": [
+                    {
+                        "scope": v.scope,
+                        "target": v.target,
+                        "stop": round(v.stop, 2),
+                        "encore": round(v.encore, 2),
+                    }
+                    for v in radio.vote_scores()
+                ]
             }
         )
 

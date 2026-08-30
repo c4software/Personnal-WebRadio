@@ -2,160 +2,169 @@
 <html lang="fr">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="color-scheme" content="dark" />
-    <title>Radio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>local-webradio</title>
+    <!-- Vue est VENDU avec le paquet, pas tiré d'un CDN : la radio est un
+         objet local, elle doit s'afficher sans internet. -->
+    <script src="{{ url_for('static', filename='vue.global.prod.js') }}"></script>
     <style>
-      /* Un téléphone posé à côté de l'enceinte, tenu à une main : les deux
-         boutons occupent le bas de l'écran, là où le pouce arrive. */
       :root {
-        --fond: #101215;
-        --carte: #191d22;
-        --texte: #f2f4f7;
-        --discret: #97a0ad;
-        --trait: #262c34;
-        --refus: #b4552f;
-        --accepte: #2f7d5b;
+        --fond: #0d1117; --carte: #161b22; --bord: #21262d;
+        --texte: #e6edf3; --sourdine: #8b949e; --accent: #4493f8;
+        --refus: #f85149; --accepte: #3fb950; --encore: #3fb950; --stop: #f85149;
       }
-      * { box-sizing: border-box; }
+      * { box-sizing: border-box; margin: 0; }
       body {
-        margin: 0;
-        min-height: 100dvh;
-        display: flex;
-        flex-direction: column;
-        background: var(--fond);
-        color: var(--texte);
-        font: 16px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
-        padding: env(safe-area-inset-top) 1rem calc(env(safe-area-inset-bottom) + 1rem);
+        background: var(--fond); color: var(--texte); min-height: 100dvh;
+        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+        display: flex; justify-content: center;
       }
-      main {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        gap: 0.5rem;
-        padding: 2rem 0;
+      main { width: min(40rem, 100%); padding: 1.25rem 1.25rem 7.5rem; }
+      .onglets { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+      .onglets button {
+        flex: 1; padding: 0.6rem; border-radius: 0.6rem; border: 1px solid var(--bord);
+        background: transparent; color: var(--sourdine); font-size: 1rem;
       }
+      .onglets button.actif { background: var(--carte); color: var(--texte); border-color: var(--accent); }
       .nature {
-        font-size: 0.8rem;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: var(--discret);
+        display: inline-block; text-transform: uppercase; letter-spacing: 0.2em;
+        font-size: 0.7rem; color: var(--accent); border: 1px solid var(--bord);
+        border-radius: 999px; padding: 0.3rem 0.8rem; margin-bottom: 1rem;
       }
-      .titre { font-size: 2rem; font-weight: 650; margin: 0; overflow-wrap: anywhere; }
-      .artiste { font-size: 1.25rem; color: var(--discret); margin: 0; overflow-wrap: anywhere; }
+      .titre { font-size: 1.9rem; line-height: 1.2; margin-bottom: 0.5rem; overflow-wrap: anywhere; }
+      .artiste { color: var(--sourdine); font-size: 1.15rem; }
       .etat {
-        margin-top: 1rem;
-        padding: 0.75rem 1rem;
-        border: 1px solid var(--trait);
-        border-radius: 0.75rem;
-        background: var(--carte);
-        color: var(--discret);
+        margin-top: 1.25rem; padding: 0.8rem 1rem; border-radius: 0.6rem;
+        background: var(--carte); border: 1px solid var(--bord); color: var(--sourdine);
       }
-      .etat[data-issue="refus"] { border-color: var(--refus); color: var(--texte); }
-      .etat[data-issue="accepte"] { border-color: var(--accepte); color: var(--texte); }
-      .boutons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-      button {
-        min-height: 5.5rem;
-        border: 1px solid var(--trait);
-        border-radius: 1rem;
-        background: var(--carte);
-        color: var(--texte);
-        font: inherit;
-        font-size: 1.35rem;
-        font-weight: 650;
-        cursor: pointer;
-        touch-action: manipulation;
+      .etat.refus { border-color: var(--refus); color: var(--texte); }
+      .etat.accepte { border-color: var(--accepte); color: var(--texte); }
+      .boutons {
+        position: fixed; inset: auto 0 0 0; display: flex; gap: 0.75rem;
+        padding: 1rem max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-bottom));
+        background: linear-gradient(transparent, var(--fond) 35%);
+        justify-content: center;
       }
-      button:active { background: #222831; }
-      button[disabled] { opacity: 0.5; }
+      .boutons button {
+        flex: 1; max-width: 18rem; padding: 1.1rem; font-size: 1.15rem; font-weight: 600;
+        border-radius: 0.8rem; border: 1px solid var(--bord); background: var(--carte); color: var(--texte);
+      }
+      .boutons button:active { background: #222831; }
+      .boutons button[disabled] { opacity: 0.5; }
+      .vote { background: var(--carte); border: 1px solid var(--bord); border-radius: 0.6rem;
+              padding: 0.7rem 0.9rem; margin-bottom: 0.6rem; }
+      .vote .cible { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.45rem; }
+      .vote .qui { overflow-wrap: anywhere; }
+      .vote .quoi { color: var(--sourdine); font-size: 0.8rem; white-space: nowrap; align-self: center; }
+      .jauge { display: flex; height: 0.4rem; border-radius: 999px; overflow: hidden; background: var(--bord); }
+      .jauge .stop { background: var(--stop); }
+      .jauge .encore { background: var(--encore); }
+      .scores { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--sourdine); margin-top: 0.35rem; }
+      .vide { color: var(--sourdine); text-align: center; padding: 2rem 0; }
     </style>
   </head>
   <body>
-    <main>
-      <p class="nature" id="nature">—</p>
-      <h1 class="titre" id="titre">Rien à l'antenne</h1>
-      <p class="artiste" id="artiste"></p>
-      <p class="etat" id="etat" data-issue="">Personne n'écoute : la radio ne tourne pas.</p>
+    <main id="app" v-cloak>
+      <nav class="onglets">
+        <button type="button" :class="{ actif: onglet === 'antenne' }" @click="onglet = 'antenne'">À l'antenne</button>
+        <button type="button" :class="{ actif: onglet === 'votes' }" @click="ouvrirVotes()">Votes</button>
+      </nav>
+
+      <section v-if="onglet === 'antenne'">
+        <p class="nature">[[ antenne ? antenne.kind : "—" ]]</p>
+        <h1 class="titre">[[ antenne ? (antenne.title || antenne.kind) : "Rien à l'antenne" ]]</h1>
+        <p class="artiste">[[ antenne ? (antenne.artist || "") : "" ]]</p>
+        <p v-if="message" class="etat" :class="issue">[[ message ]]</p>
+        <p v-else-if="!antenne" class="etat">Personne n'écoute : la radio ne tourne pas.</p>
+      </section>
+
+      <section v-else>
+        <p v-if="votes.length === 0" class="vide">Aucun vote retenu — la radio tire sans préférence.</p>
+        <article v-for="vote in votes" :key="vote.scope + vote.target" class="vote">
+          <div class="cible">
+            <span class="qui">[[ vote.target ]]</span>
+            <span class="quoi">[[ vote.scope ]]</span>
+          </div>
+          <div class="jauge">
+            <span class="stop" :style="{ width: largeur(vote.stop) }"></span>
+            <span class="encore" :style="{ width: largeur(vote.encore) }"></span>
+          </div>
+          <div class="scores"><span>stop [[ vote.stop ]]</span><span>encore [[ vote.encore ]]</span></div>
+        </article>
+      </section>
+
+      <div class="boutons" v-if="onglet === 'antenne'">
+        <button type="button" :disabled="occupe" @click="voter(URLS.stop)">Passer</button>
+        <button type="button" :disabled="occupe" @click="voter(URLS.encore)">Encore</button>
+      </div>
     </main>
 
-    <div class="boutons">
-      <button type="button" id="stop">Passer</button>
-      <button type="button" id="encore">Encore</button>
-    </div>
-
     <script>
-      // La page ne décide de rien : elle demande à l'API, et affiche ce qu'elle
-      // répond — y compris le motif d'un refus.
-      const URL_ANTENNE = {{ url_antenne | tojson }};
-      const URL_STOP = {{ url_stop | tojson }};
-      const URL_ENCORE = {{ url_encore | tojson }};
+      // La page ne décide de rien : elle demande à l'API et affiche ce qu'elle
+      // répond — y compris le motif d'un refus (AGENTS.md §2). Les délimiteurs
+      // sont [[ ]] : {{ '{{ }}' }} appartient à Jinja2.
+      const URLS = {
+        antenne: {{ url_antenne | tojson }},
+        votes: {{ url_votes | tojson }},
+        stop: {{ url_stop | tojson }},
+        encore: {{ url_encore | tojson }},
+      };
       const RAFRAICHISSEMENT_MS = {{ rafraichissement_ms | tojson }};
 
-      const nature = document.getElementById("nature");
-      const titre = document.getElementById("titre");
-      const artiste = document.getElementById("artiste");
-      const etat = document.getElementById("etat");
-      const boutons = [document.getElementById("stop"), document.getElementById("encore")];
-
-      function afficher(message, issue) {
-        etat.textContent = message;
-        etat.dataset.issue = issue || "";
-        // Une boîte sans message ne se dessine pas : sinon un encart vide
-        // reste sous le titre (constaté à l'écoute réelle, GOAL-009-T06).
-        etat.hidden = message === "";
-      }
-
-      async function rafraichir() {
-        try {
-          const reponse = await fetch(URL_ANTENNE, { headers: { Accept: "application/json" } });
-          const donnees = await reponse.json();
-          if (!donnees.on_air || donnees.on_air_now === null) {
-            nature.textContent = "—";
-            titre.textContent = "Rien à l'antenne";
-            artiste.textContent = "";
-            afficher("Personne n'écoute : la radio ne tourne pas.", "");
-            return;
-          }
-          nature.textContent = donnees.on_air_now.kind;
-          titre.textContent = donnees.on_air_now.title || donnees.on_air_now.kind;
-          artiste.textContent = donnees.on_air_now.artist || "";
-          // Le message « personne n'écoute » ne survit pas à l'antenne. Le
-          // retour d'un vote (accepté ou refusé), lui, reste lisible.
-          if (etat.dataset.issue === "") {
-            afficher("", "");
-          }
-        } catch (erreur) {
-          afficher("L'API ne répond pas : " + erreur, "refus");
-        }
-      }
-
-      async function voter(url) {
-        boutons.forEach((b) => (b.disabled = true));
-        try {
-          const reponse = await fetch(url, {
-            method: "POST",
-            headers: { Accept: "application/json" },
-          });
-          const donnees = await reponse.json();
-          if (donnees.accepted) {
-            afficher("C'est noté.", "accepte");
-          } else {
-            afficher(donnees.reason, "refus");
-          }
-        } catch (erreur) {
-          afficher("L'API ne répond pas : " + erreur, "refus");
-        } finally {
-          boutons.forEach((b) => (b.disabled = false));
-          rafraichir();
-        }
-      }
-
-      document.getElementById("stop").addEventListener("click", () => voter(URL_STOP));
-      document.getElementById("encore").addEventListener("click", () => voter(URL_ENCORE));
-
-      rafraichir();
-      setInterval(rafraichir, RAFRAICHISSEMENT_MS);
+      Vue.createApp({
+        delimiters: ["[[", "]]"],
+        data() {
+          return { onglet: "antenne", antenne: null, votes: [], message: "", issue: "", occupe: false };
+        },
+        methods: {
+          largeur(score) {
+            const total = Math.max(this.votes.reduce((m, v) => Math.max(m, v.stop + v.encore), 0), 1);
+            return Math.round((score / total) * 100) + "%";
+          },
+          async rafraichir() {
+            try {
+              const reponse = await fetch(URLS.antenne, { headers: { Accept: "application/json" } });
+              const donnees = await reponse.json();
+              this.antenne = donnees.on_air && donnees.on_air_now ? donnees.on_air_now : null;
+              if (this.issue === "") { this.message = ""; }
+            } catch (erreur) {
+              this.message = "L'API ne répond pas : " + erreur;
+              this.issue = "refus";
+            }
+          },
+          async chargerVotes() {
+            try {
+              const reponse = await fetch(URLS.votes, { headers: { Accept: "application/json" } });
+              this.votes = (await reponse.json()).votes;
+            } catch (erreur) {
+              this.votes = [];
+            }
+          },
+          ouvrirVotes() { this.onglet = "votes"; this.chargerVotes(); },
+          async voter(url) {
+            this.occupe = true;
+            try {
+              const reponse = await fetch(url, { method: "POST", headers: { Accept: "application/json" } });
+              const donnees = await reponse.json();
+              this.message = donnees.accepted ? "C'est noté." : donnees.reason;
+              this.issue = donnees.accepted ? "accepte" : "refus";
+            } catch (erreur) {
+              this.message = "L'API ne répond pas : " + erreur;
+              this.issue = "refus";
+            } finally {
+              this.occupe = false;
+              setTimeout(() => { this.message = ""; this.issue = ""; }, 4000);
+            }
+          },
+        },
+        mounted() {
+          this.rafraichir();
+          setInterval(() => {
+            this.rafraichir();
+            if (this.onglet === "votes") { this.chargerVotes(); }
+          }, RAFRAICHISSEMENT_MS);
+        },
+      }).mount("#app");
     </script>
   </body>
 </html>

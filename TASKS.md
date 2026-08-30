@@ -137,6 +137,7 @@ Goals sont découpables.
 | GOAL-014 | Correctifs de la relecture du 2026-08-30 | `[x]` — T01 corrigée ; T02–T07 supprimés avec leur code par GOAL-016 |
 | GOAL-015 | Un direct comme émission — dont le flash France Info | `[-]` — seule l'écoute réelle reste |
 | GOAL-017 | `stop` ne passe pas le morceau en cours | `[ ]` |
+| GOAL-018 | L'interface en Vue, et la page des votes | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -857,3 +858,16 @@ migration : il n'a jamais été câblé, et aucun test ne le couvre.
 - [ ] `GOAL-017-T02` Câbler : un `stop` accepté saute à l'instant, « sans blanc » — et un test qui échoue aujourd'hui
 - [ ] `GOAL-017-T03` **Écoute réelle** : le saut s'entend-il proprement, avec le fondu ?
 - [ ] `GOAL-017-T04` Carte du dépôt
+
+---
+
+## GOAL-018 — L'interface en Vue, et la page des votes
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30, pendant son écoute
+
+- [x] `GOAL-018-T01` `GET /api/votes` : ce que les votes ont laissé, par cible, **décroissance appliquée à la lecture** (`SqliteState.all_scores()`), plus forts d'abord
+- [x] `GOAL-018-T02` La façade traduit (`piste`/`artiste`, les mots de SPECS.md §4.12) — l'API ne connaît pas SQLite, et une base illisible rend une liste vide
+- [x] `GOAL-018-T03` La page réécrite avec **Vue 3, vendu avec le paquet** (`static/vue.global.prod.js`) : la radio est un objet local, elle s'affiche sans internet — un test refuse tout CDN
+- [x] `GOAL-018-T04` Deux onglets : l'antenne (nature, titre, boutons), et les votes (jauges stop/encore par cible)
+- [x] `GOAL-018-T05` Les interdits tiennent : aucune donnée d'antenne dans le HTML servi, tout passe par l'API, délimiteurs `[[ ]]` pour laisser `{{ }}` à Jinja2
+- [ ] `GOAL-018-T06` **Regarder sur le vrai téléphone** — la seule chose qu'aucun test ne fera
