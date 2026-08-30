@@ -106,10 +106,10 @@
   <body>
     <main id="app" v-cloak>
       <nav class="onglets">
-        <button type="button" :class="{ actif: onglet === 'antenne' }" @click="onglet = 'antenne'">À l'antenne</button>
-        <button type="button" :class="{ actif: onglet === 'votes' }" @click="ouvrirVotes()">Votes</button>
-        <button type="button" :class="{ actif: onglet === 'planning' }" @click="ouvrirPlanning()">Planning</button>
-        <button type="button" :class="{ actif: onglet === 'historique' }" @click="ouvrirHistorique()">Historique</button>
+        <button type="button" :class="{ actif: onglet === 'antenne' }" @click="ouvrir('antenne')">À l'antenne</button>
+        <button type="button" :class="{ actif: onglet === 'votes' }" @click="ouvrir('votes')">Votes</button>
+        <button type="button" :class="{ actif: onglet === 'planning' }" @click="ouvrir('planning')">Planning</button>
+        <button type="button" :class="{ actif: onglet === 'historique' }" @click="ouvrir('historique')">Historique</button>
       </nav>
 
       <section v-if="onglet === 'antenne'">
@@ -280,16 +280,24 @@
               this.votes = [];
             }
           },
+          ouvrir(nom) {
+            // L'onglet vit dans le #hash : un rechargement — ou un lien
+            // partagé — revient au même endroit (demandé par l'auteur).
+            if (!["antenne", "votes", "planning", "historique"].includes(nom)) { nom = "antenne"; }
+            this.onglet = nom;
+            if (location.hash !== "#" + nom) { location.hash = nom; }
+            if (nom === "votes") { this.chargerVotes(); }
+            if (nom === "planning") { this.chargerPlanning(); }
+            if (nom === "historique") { this.ouvrirHistorique(); }
+          },
           ouvrirVotes() { this.onglet = "votes"; this.chargerVotes(); },
           async ouvrirHistorique() {
-            this.onglet = "historique";
             try {
               const reponse = await fetch(this.urls.history, { headers: { Accept: "application/json" } });
               this.historique = (await reponse.json()).history;
             } catch (erreur) { this.historique = []; }
           },
-          async ouvrirPlanning() {
-            this.onglet = "planning";
+          async chargerPlanning() {
             try {
               const reponse = await fetch(this.urls.planning, { headers: { Accept: "application/json" } });
               this.planning = await reponse.json();
@@ -320,6 +328,11 @@
           },
         },
         mounted() {
+          this.ouvrir(location.hash.replace("#", "") || "antenne");
+          window.addEventListener("hashchange", () => {
+            const nom = location.hash.replace("#", "");
+            if (nom !== this.onglet) { this.ouvrir(nom); }
+          });
           this.rafraichir();
           setInterval(() => {
             this.rafraichir();
