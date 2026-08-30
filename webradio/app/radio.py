@@ -34,6 +34,7 @@ class LiveRadio(Radio):
         list_votes: Callable[[], list[VoteScore]] | None = None,
         skip: Callable[[], None] | None = None,
         forget: Callable[[str, str], bool] | None = None,
+        moment: Callable[[], str | None] | None = None,
     ) -> None:
         self._controle = control
         self._station = on_air
@@ -41,6 +42,7 @@ class LiveRadio(Radio):
         self._lister_votes = list_votes
         self._passer = skip
         self._oublier = forget
+        self._moment = moment
         self._verrou = threading.Lock()
         self._nature = Kind.MUSIC
         self._piste: Track | None = None
@@ -89,6 +91,11 @@ class LiveRadio(Radio):
         if self._lister_votes is None:
             return []
         return self._lister_votes()
+
+    def moment(self) -> str | None:
+        if self._moment is None:
+            return None
+        return self._moment()
 
     def forget_vote(self, scope: str, target: str) -> bool:
         if self._oublier is None:

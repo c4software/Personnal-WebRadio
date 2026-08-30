@@ -24,6 +24,12 @@ logger = logging.getLogger(__name__)
 # n'en a qu'une d'avance ; en garder quelques-unes tolère un redémarrage.
 PENDING_MAX = 8
 
+# Un jingle de dix secondes n'a pas à être mangé par le fondu de deux secondes
+# des morceaux : il porte ses propres durées, par les métadonnées que
+# `crossfade` honore (`liq_fade_*`, relevé docs/liquidsoap.md §7). Demandé par
+# l'auteur à l'écoute (GOAL-022).
+JINGLE_FADES = "annotate:liq_fade_in=0.2,liq_fade_out=0.2,liq_cross_duration=0.5:"
+
 
 class LiquidsoapPlayout:
     """Le `Playout` de `adapters/web/playout_api.py`, câblé au programme."""
@@ -53,6 +59,8 @@ class LiquidsoapPlayout:
             entry = self._programme.next_entry()
             if entry is None:
                 return None
+            if self._derniere[0] is Kind.JINGLE:
+                entry = JINGLE_FADES + entry
             self._en_attente[entry] = self._derniere
             while len(self._en_attente) > PENDING_MAX:
                 oublie = next(iter(self._en_attente))

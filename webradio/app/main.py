@@ -142,6 +142,30 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         except (urllib.error.URLError, http.client.HTTPException, OSError) as failure:
             logger.warning("le diffuseur n'a pas pris le saut, le morceau finira : %s", failure)
 
+    programmation = Programming(
+        [
+            Programme(
+                name=p.name,
+                playlist=p.playlist,
+                days=p.days,
+                start=p.start,
+                end=p.end,
+            )
+            for p in settings.programmes
+        ],
+        clock,
+    )
+
+    def moment_courant() -> str | None:
+        """Programme d'abord — il l'emporte sur la plage (SPECS.md §4.13)."""
+        programme = programmation.current_programme()
+        if programme is not None:
+            return f"Programme · {programme.name}"
+        band = grille.current_band()
+        if band is not None:
+            return f"Moment · {', '.join(band.genres)}"
+        return None
+
     def oublier_le_vote(scope: str, target: str) -> bool:
         try:
             return state.delete_vote(
@@ -152,7 +176,13 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             return False
 
     radio = LiveRadio(
-        control, counter, learning.remember, lister_votes, demander_le_saut, oublier_le_vote
+        control,
+        counter,
+        learning.remember,
+        lister_votes,
+        demander_le_saut,
+        oublier_le_vote,
+        moment_courant,
     )
     # Le programme déclare la nature de ce qu'il choisit ; la charnière ne la
     # transmet à la façade que lorsque Liquidsoap commence réellement le morceau.
@@ -172,19 +202,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         random=random,
         jingle_folder=Path(settings.jingles.folder),
         on_kind=lambda kind, track, label: branche[0].on_kind(kind, track, label),
-        programming=Programming(
-            [
-                Programme(
-                    name=p.name,
-                    playlist=p.playlist,
-                    days=p.days,
-                    start=p.start,
-                    end=p.end,
-                )
-                for p in settings.programmes
-            ],
-            clock,
-        ),
+        programming=programmation,
         programme_window=Window(settings.draw.artist_gap),
         shows=Shows(
             ShowSchedule(

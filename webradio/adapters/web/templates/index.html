@@ -33,6 +33,7 @@
       }
       .titre { font-size: 1.9rem; line-height: 1.2; margin-bottom: 0.5rem; overflow-wrap: anywhere; }
       .artiste { color: var(--sourdine); font-size: 1.15rem; }
+      .moment { color: var(--accent); font-size: 0.9rem; margin-top: 0.8rem; }
       .etat {
         margin-top: 1.25rem; padding: 0.8rem 1rem; border-radius: 0.6rem;
         background: var(--carte); border: 1px solid var(--bord); color: var(--sourdine);
@@ -83,6 +84,7 @@
         <p class="nature">[[ antenne ? antenne.kind : "—" ]]</p>
         <h1 class="titre">[[ antenne ? (antenne.title || antenne.kind) : "Rien à l'antenne" ]]</h1>
         <p class="artiste">[[ antenne ? (antenne.artist || "") : "" ]]</p>
+        <p v-if="antenne && moment" class="moment">[[ moment ]]</p>
         <p v-if="message" class="etat" :class="issue">[[ message ]]</p>
         <p v-else-if="!antenne" class="etat">Personne n'écoute : la radio ne tourne pas.</p>
       </section>
@@ -161,6 +163,7 @@
           return {
             onglet: "antenne",
             antenne: null,
+            moment: null,
             votes: [],
             planning: null,
             urls: URLS,
@@ -187,6 +190,7 @@
               const reponse = await fetch(URLS.antenne, { headers: { Accept: "application/json" } });
               const donnees = await reponse.json();
               this.antenne = donnees.on_air && donnees.on_air_now ? donnees.on_air_now : null;
+              this.moment = donnees.moment || null;
               if (this.issue === "") { this.message = ""; }
             } catch (erreur) {
               this.message = "L'API ne répond pas : " + erreur;

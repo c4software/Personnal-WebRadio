@@ -40,6 +40,7 @@ class FakeRadio:
         self._scores: list[VoteScore] = []
         self._erasable: list[tuple[str, str]] = []
         self.forgotten: list[tuple[str, str]] = []
+        self._moment: str | None = None
 
     def on_air(self) -> bool:
         return self._antenne is not None
@@ -58,6 +59,9 @@ class FakeRadio:
         self.forgotten.append((scope, target))
         return (scope, target) in self._erasable
 
+    def moment(self) -> str | None:
+        return self._moment
+
 
 def client(radio: FakeRadio) -> FlaskClient:
     app = create_app(radio, refresh=RAFRAICHISSEMENT)
@@ -73,6 +77,7 @@ def test_l_api_dit_ce_qui_passe_et_de_quelle_nature() -> None:
     assert answer.status_code == 200
     assert answer.get_json() == {
         "on_air": True,
+        "moment": None,
         "on_air_now": {"kind": "musique", "title": "Sexy Boy", "artist": "Air"},
     }
 
@@ -89,7 +94,7 @@ def test_l_api_distingue_les_quatre_natures(kind: Kind) -> None:
 def test_l_api_dit_quand_la_chaine_ne_tourne_pas() -> None:
     """La radio n'existe que lorsqu'on l'écoute (SPECS.md §1)."""
     answer = client(FakeRadio()).get("/api/on-air")
-    assert answer.get_json() == {"on_air": False, "on_air_now": None}
+    assert answer.get_json() == {"on_air": False, "on_air_now": None, "moment": None}
 
 
 def test_un_jingle_n_a_ni_titre_ni_artiste() -> None:
@@ -252,3 +257,10 @@ def test_le_planning_est_celui_du_demarrage() -> None:
 def test_sans_planning_la_route_rend_une_grille_vide() -> None:
     answer = client(FakeRadio()).get("/api/planning")
     assert answer.get_json() == {"bands": [], "programmes": [], "shows": []}
+
+
+def test_le_moment_declare_accompagne_l_antenne() -> None:
+    radio = FakeRadio(on_air_now=MORCEAU)
+    radio._moment = "Moment · Rock, Pop"
+    answer = client(radio).get("/api/on-air")
+    assert answer.get_json()["moment"] == "Moment · Rock, Pop"

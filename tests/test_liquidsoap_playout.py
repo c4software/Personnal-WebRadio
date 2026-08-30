@@ -62,8 +62,11 @@ def test_un_jingle_est_une_entree_comme_une_autre(tmp_path: Path) -> None:
     playout.declare_listeners(1)
     clock.advance(timedelta(hours=1))
     entry = playout.next_entry()
-    assert entry == str(tmp_path / "13h.mp3")
     assert entry is not None
+    # Un jingle porte ses propres fondus, plus courts que ceux des morceaux
+    # (GOAL-022) : l'entrée est annotée, et c'est elle qui fait clé.
+    assert entry.startswith("annotate:liq_fade_in=")
+    assert entry.endswith(str(tmp_path / "13h.mp3"))
     playout.playing(entry)
     assert radio.on_air_now().kind.value == "jingle"  # type: ignore[union-attr]
 

@@ -141,6 +141,7 @@ Goals sont découpables.
 | GOAL-019 | Les plages thématiques par jour | `[x]` |
 | GOAL-020 | Les votes portent un libellé lisible | `[x]` |
 | GOAL-021 | Effacer un vote, l'onglet Planning, et le bouton qui ne cliquait pas | `[x]` |
+| GOAL-022 | Fondu court des jingles, et le moment présent à l'antenne | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -914,3 +915,13 @@ migration : il n'a jamais été câblé, et aucun test ne le couvre.
 - [x] `GOAL-021-T03` L'onglet Planning, et le ✕ sur chaque vote
 - [x] `GOAL-021-T04` **Le bouton Passer ne faisait rien depuis la page** : `@click="voter(URLS.stop)"` visait une constante de module, invisible d'une expression de gabarit Vue — l'erreur restait dans la console du téléphone. Les adresses vivent désormais dans `data`. Trouvé parce que l'auteur a cliqué et que le journal ne montrait **aucun** POST — mon essai `curl` court-circuitait la page
 - [x] `GOAL-021-T05` Le fondu du saut : **validé à l'oreille par l'auteur** (clôt aussi GOAL-017-T03)
+
+---
+
+## GOAL-022 — Fondu court des jingles, et le moment présent à l'antenne
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30, à l'écoute
+
+- [x] `GOAL-022-T01` Un jingle porte ses propres fondus (0,2 s, enchaînement 0,5 s) par les métadonnées `liq_fade_*` que `crossfade` honore — relevé : `initial_uri` conserve l'`annotate:`, le registre demandé/à l'antenne tient
+- [x] `GOAL-022-T02` `moment` sur `/api/on-air` : le programme ouvert (il l'emporte), sinon la plage thématique, sinon rien — affiché sous l'artiste
+- [ ] `GOAL-022-T03` **Écoute réelle** du fondu court, avec un vrai jingle dans `jingles/`

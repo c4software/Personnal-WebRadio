@@ -133,6 +133,14 @@ class Radio(Protocol):
         """Efface une cible votée par erreur. Faux si elle n'existait pas."""
         ...
 
+    def moment(self) -> str | None:
+        """Le moment déclaré qui s'applique — programme ou plage — ou rien.
+
+        C'est du contexte, pas de l'antenne : une émission se voit déjà par
+        sa nature. `None` en tirage libre.
+        """
+        ...
+
 
 def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | None] | None:
     if on_air_now is None:
@@ -169,6 +177,7 @@ def create_api(radio: Radio, planning: dict[str, object] | None = None) -> Bluep
             {
                 "on_air": radio.on_air(),
                 "on_air_now": _antenne_en_donnees(radio.on_air_now()),
+                "moment": radio.moment(),
             }
         )
 
