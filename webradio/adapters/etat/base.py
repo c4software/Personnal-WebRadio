@@ -96,14 +96,14 @@ class Scores:
 
 
 def _decroitre(score: float, ecoule: timedelta, demi_vie: timedelta) -> float:
-    """`score × 2^(−Δt / demi_vie)` — l'oubli de SPECS.md §4.12.
+    """`score * 2 ** (-Δt / demi_vie)` — l'oubli de SPECS.md §4.12.
 
     Un `Δt` négatif — horloge reculée, fichier recopié d'une autre machine —
     ne fait pas grossir un score : on rend la valeur telle quelle.
     """
     if ecoule <= timedelta(0):
         return score
-    return score * 2.0 ** (-(ecoule / demi_vie))
+    return float(score * 2.0 ** (-(ecoule / demi_vie)))
 
 
 class EtatSQLite:
@@ -185,14 +185,14 @@ class EtatSQLite:
         `BEGIN IMMEDIATE` prend le verrou d'écriture dès l'entrée : sans lui,
         deux votes simultanés liraient le même score et le dernier écraserait
         le premier — un vote perdu en silence.
+
+        Aucun `ROLLBACK` explicite : une transaction non validée est annulée à
+        la fermeture de la connexion, que `_connexion` garantit. L'écrire
+        quand même serait du code qu'aucun test ne peut atteindre.
         """
         with self._connexion() as connexion:
             connexion.execute("BEGIN IMMEDIATE")
-            try:
-                yield connexion
-            except BaseException:
-                connexion.execute("ROLLBACK")
-                raise
+            yield connexion
             connexion.execute("COMMIT")
 
     # ------------------------------------------------------------------

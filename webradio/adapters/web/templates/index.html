@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <title>Radio</title>
+    <style>
+      /* Un téléphone posé à côté de l'enceinte, tenu à une main : les deux
+         boutons occupent le bas de l'écran, là où le pouce arrive. */
+      :root {
+        --fond: #101215;
+        --carte: #191d22;
+        --texte: #f2f4f7;
+        --discret: #97a0ad;
+        --trait: #262c34;
+        --refus: #b4552f;
+        --accepte: #2f7d5b;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100dvh;
+        display: flex;
+        flex-direction: column;
+        background: var(--fond);
+        color: var(--texte);
+        font: 16px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+        padding: env(safe-area-inset-top) 1rem calc(env(safe-area-inset-bottom) + 1rem);
+      }
+      main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 2rem 0;
+      }
+      .nature {
+        font-size: 0.8rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--discret);
+      }
+      .titre { font-size: 2rem; font-weight: 650; margin: 0; overflow-wrap: anywhere; }
+      .artiste { font-size: 1.25rem; color: var(--discret); margin: 0; overflow-wrap: anywhere; }
+      .etat {
+        margin-top: 1rem;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--trait);
+        border-radius: 0.75rem;
+        background: var(--carte);
+        color: var(--discret);
+      }
+      .etat[data-issue="refus"] { border-color: var(--refus); color: var(--texte); }
+      .etat[data-issue="accepte"] { border-color: var(--accepte); color: var(--texte); }
+      .boutons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+      button {
+        min-height: 5.5rem;
+        border: 1px solid var(--trait);
+        border-radius: 1rem;
+        background: var(--carte);
+        color: var(--texte);
+        font: inherit;
+        font-size: 1.35rem;
+        font-weight: 650;
+        cursor: pointer;
+        touch-action: manipulation;
+      }
+      button:active { background: #222831; }
+      button[disabled] { opacity: 0.5; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p class="nature" id="nature">—</p>
+      <h1 class="titre" id="titre">Rien à l'antenne</h1>
+      <p class="artiste" id="artiste"></p>
+      <p class="etat" id="etat" data-issue="">Personne n'écoute : la radio ne tourne pas.</p>
+    </main>
+
+    <div class="boutons">
+      <button type="button" id="stop">Passer</button>
+      <button type="button" id="encore">Encore</button>
+    </div>
+
+    <script>
+      // La page ne décide de rien : elle demande à l'API, et affiche ce qu'elle
+      // répond — y compris le motif d'un refus.
+      const URL_ANTENNE = {{ url_antenne | tojson }};
+      const URL_STOP = {{ url_stop | tojson }};
+      const URL_ENCORE = {{ url_encore | tojson }};
+      const RAFRAICHISSEMENT_MS = {{ rafraichissement_ms | tojson }};
+
+      const nature = document.getElementById("nature");
+      const titre = document.getElementById("titre");
+      const artiste = document.getElementById("artiste");
+      const etat = document.getElementById("etat");
+      const boutons = [document.getElementById("stop"), document.getElementById("encore")];
+
+      function afficher(message, issue) {
+        etat.textContent = message;
+        etat.dataset.issue = issue || "";
+      }
+
+      async function rafraichir() {
+        try {
+          const reponse = await fetch(URL_ANTENNE, { headers: { Accept: "application/json" } });
+          const donnees = await reponse.json();
+          if (!donnees.en_diffusion || donnees.antenne === null) {
+            nature.textContent = "—";
+            titre.textContent = "Rien à l'antenne";
+            artiste.textContent = "";
+            afficher("Personne n'écoute : la radio ne tourne pas.", "");
+            return;
+          }
+          nature.textContent = donnees.antenne.nature;
+          titre.textContent = donnees.antenne.titre || donnees.antenne.nature;
+          artiste.textContent = donnees.antenne.artiste || "";
+        } catch (erreur) {
+          afficher("L'API ne répond pas : " + erreur, "refus");
+        }
+      }
+
+      async function voter(url) {
+        boutons.forEach((b) => (b.disabled = true));
+        try {
+          const reponse = await fetch(url, {
+            method: "POST",
+            headers: { Accept: "application/json" },
+          });
+          const donnees = await reponse.json();
+          if (donnees.accepte) {
+            afficher("C'est noté.", "accepte");
+          } else {
+            afficher(donnees.motif, "refus");
+          }
+        } catch (erreur) {
+          afficher("L'API ne répond pas : " + erreur, "refus");
+        } finally {
+          boutons.forEach((b) => (b.disabled = false));
+          rafraichir();
+        }
+      }
+
+      document.getElementById("stop").addEventListener("click", () => voter(URL_STOP));
+      document.getElementById("encore").addEventListener("click", () => voter(URL_ENCORE));
+
+      rafraichir();
+      setInterval(rafraichir, RAFRAICHISSEMENT_MS);
+    </script>
+  </body>
+</html>
