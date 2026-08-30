@@ -42,7 +42,9 @@ def lire_env(chemin: Path) -> dict[str, str]:
     le fichier, ce qu'on évite justement de faire avec un fichier de secrets.
     """
     if not chemin.is_file():
-        journal.debug("aucun fichier d'environnement à %s : les variables du processus feront foi", chemin)
+        journal.debug(
+            "aucun fichier d'environnement à %s : les variables du processus feront foi", chemin
+        )
         return {}
     valeurs: dict[str, str] = {}
     contenu = chemin.read_text(encoding="utf-8")
