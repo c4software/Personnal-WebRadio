@@ -116,19 +116,35 @@ Un exemple de ce que cela permet et qui serait autrement impossible : *« faire
 tourner une journée entière de programmation en quelques millisecondes, et
 vérifier que chaque jingle est tombé dans sa fenêtre. »*
 
-## 4. Le flux, et pourquoi il n'y a ni Icecast ni Liquidsoap
+## 4. Le flux : Liquidsoap, piloté morceau par morceau par le noyau
 
-SPECS.md §1 exige que **rien ne tourne tant que personne n'écoute**. Le modèle
-radio classique — une source qui alimente Icecast en permanence — contredit cette
-exigence par construction : la station diffuse dans le vide, auditeurs ou non.
+> **Décision du 2026-08-30** (SPECS.md §7 n°23, relevé
+> [docs/liquidsoap.md](./docs/liquidsoap.md)). Le premier choix — notre serveur
+> HTTP et ffmpeg en sous-processus — a été construit (`GOAL-004`) puis relu :
+> six de ses sept défauts étaient dans le cycle de vie des processus et des
+> connexions. Ce sont précisément les choses qu'un outil de diffusion fait à
+> notre place. La migration est `GOAL-016` ; tant qu'elle n'est pas terminée,
+> `adapters/ffmpeg/` et `adapters/http/` existent encore et §4.0 à §4.1
+> décrivent ce qu'ils font.
 
-D'où le choix : **notre propre serveur HTTP, et ffmpeg en sous-processus**.
+**Le partage est net** : le noyau décide de *quoi* jouer, Liquidsoap fait
+*tout le reste*.
+
+```
+Liquidsoap  ──« morceau suivant ? »──▶  adapters/liquidsoap  ──▶  app/playout.next_entry()
+            ◀──── un chemin ou une URL ──                       (noyau, grille, jingles, émissions)
+            ──« un auditeur arrive / part »──▶  compteur d'auditeurs (app/radio)
+```
 
 | Conséquence | Détail |
 |---|---|
-| Ce qu'on gagne | Le démarrage à la demande, littéralement ; une seule dépendance externe ; tout le reste est à nous, et testable |
-| Ce qu'on paie | Les transitions, les fondus et l'insertion des jingles sont à écrire — Liquidsoap les offrait |
-| Ce qu'il faut surveiller | Le cycle de vie du sous-processus. Un ffmpeg orphelin qui survit à la dernière déconnexion annule tout le bénéfice du démarrage à la demande |
+| Ce qu'on gagne | Enchaînement, fondus, niveau, fan-out, auditeur lent, déconnexion brutale, direct borné dans le temps — éprouvés ailleurs, pas écrits ici |
+| Ce qu'on paie | Un processus debout en permanence (rien de décodé sans auditeur, ~0,8 % d'un cœur) ; une image de 967 Mo ; un script `.liq` dont la syntaxe dépend de la version |
+| Ce qu'il faut surveiller | **Que Liquidsoap ne décide jamais.** Une `playlist()` dans le script, un `random` de Liquidsoap, un jingle inséré par le script : c'est le noyau contourné, et ce qu'aucun test ne verra |
+
+**Le script n'a pas de raccourci**, comme l'interface web (§6) : il demande le
+morceau suivant à l'API, il annonce ses auditeurs à l'API. Il ne lit ni le TOML,
+ni la base, ni Navidrome.
 
 ### 4.0 La contrainte qui commande tout le reste
 

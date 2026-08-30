@@ -109,7 +109,10 @@ class RadioProgramme:
         if self._emissions is None:
             return None
         due = self._emissions.due()
-        self._jingles.due_now(during_show=due is not None)
+        # `due_now()` consomme : ce qu'il rend ici doit être gardé, sinon les
+        # jingles dus sont avalés à chaque jonction et ne sortent jamais
+        # (GOAL-014-T01). Pendant une émission, il rend () et c'est voulu.
+        self._en_attente.extend(self._jingles.due_now(during_show=due is not None))
         if due is None:
             return None
         show, audio = due

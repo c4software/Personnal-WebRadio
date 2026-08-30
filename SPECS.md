@@ -942,6 +942,24 @@ a une durée obligatoire, pas de rattrapage, pas de trace en base.
 > de franceinfo n'est connue que de seconde main — et si une coupure « en cours
 > de phrase » à la fin de la case est acceptable. Seule l'écoute le dira.
 
+**n°23 — ffmpeg à la main, ou Liquidsoap ? Liquidsoap.** Tranchée le 2026-08-30
+par l'auteur, sur relevé ([docs/liquidsoap.md](./docs/liquidsoap.md)). Le
+noyau continue de décider de chaque morceau ; Liquidsoap encode, enchaîne,
+fond, sert, et gère les auditeurs.
+> *Raison* : six des sept défauts trouvés à la relecture du 2026-08-30 sont dans
+> le cycle de vie des processus et des connexions — ce que Liquidsoap fait
+> depuis quinze ans. Les fondus et le niveau viennent avec ; le direct de la
+> n°22 aussi. Et le point décisif : le tirage, la grille, les jingles et les
+> émissions **ne bougent pas** — `request.dynamic` demande à notre code quoi
+> jouer, morceau par morceau.
+>
+> **Ce que cela coûte, et qui est assumé** : « rien ne tourne tant que personne
+> n'écoute » (§1) se lit désormais **« rien n'est décodé ni demandé »** — un
+> processus reste debout et encode du silence, à moins d'un pour cent d'un
+> cœur. Une image de 967 Mo, et un langage de script dont la syntaxe change
+> d'une version à l'autre : le script est validé par `liquidsoap --check` dans
+> la vérification, contre la version épinglée.
+
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :
 elle appelle la même API que tout autre client (§4.8).

@@ -291,3 +291,55 @@ def test_la_fenetre_du_programme_est_distincte_de_celle_du_tirage_libre(
         programme.next_entry()
     clock.advance(timedelta(hours=4))  # le programme se ferme
     assert programme.next_entry() == "fake://1"
+
+
+def test_un_jingle_du_passe_meme_quand_les_emissions_sont_cablees(tmp_path: Path) -> None:
+    """GOAL-014-T01 — le défaut que 376 tests n'ont pas vu.
+
+    `Jingles.due_now()` **consomme**. Demander aux émissions si l'une est due,
+    puis demander les jingles, ne doit pas avaler les jingles au passage : sans
+    émission due, ils passent — sinon aucun `20h.mp3` ni `encore.mp3` ne sort
+    jamais dès que des émissions sont déclarées, c'est-à-dire toujours.
+    """
+    from webradio.adapters.state.database import SqliteState
+    from webradio.app.show_scheduler import Shows
+    from webradio.core.shows import ShowSchedule
+
+    (tmp_path / "13h.mp3").write_bytes(b"faux jingle")
+    clock = FrozenClock(MIDI)
+    state = SqliteState(
+        tmp_path / "etat.sqlite3",
+        clock,
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    aucune_emission = Shows(
+        ShowSchedule([]),
+        _FeedSansEpisode(),  # type: ignore[arg-type]
+        state,
+        clock,
+        {},
+    )
+    source = FakeSource(CATALOGUE)
+    random = ScriptedRandom([0] * 200)
+    vues: list[tuple[Kind, Track | None]] = []
+    programme = RadioProgramme(
+        queue=Queue(source, random, Window(width=1)),
+        source=source,
+        grille=Schedule([], clock),
+        jingles=Jingles(clock),
+        clock=clock,
+        random=random,
+        jingle_folder=tmp_path,
+        on_kind=lambda n, p: vues.append((n, p)),
+        shows=aucune_emission,
+    )
+    clock.advance(timedelta(hours=1))
+
+    assert programme.next_entry() == str(tmp_path / "13h.mp3")
+    assert vues[-1] == (Kind.JINGLE, None)
+
+
+class _FeedSansEpisode:
+    def episodes(self, url: str) -> list[object]:  # noqa: ARG002 — l'interface l'impose
+        return []

@@ -134,8 +134,9 @@ Goals sont découpables.
 | GOAL-011 | Conteneurisation : Docker et Compose | `[x]` |
 | GOAL-012 | Les votes pondèrent les tirages suivants | `[-]` — seule l'écoute réelle reste |
 | GOAL-013 | Les programmes : une playlist, des jours, des heures | `[x]` |
-| GOAL-014 | Correctifs de la relecture du 2026-08-30 | `[ ]` — **avant toute écoute réelle** |
-| GOAL-015 | Un direct comme émission — dont le flash France Info | `[ ]` — après GOAL-014 |
+| GOAL-014 | Correctifs de la relecture du 2026-08-30 | `[-]` — T01 faite ; le reste disparaît avec GOAL-016 |
+| GOAL-015 | Un direct comme émission — dont le flash France Info | `[ ]` — après GOAL-016 |
+| GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[ ]` — après GOAL-014-T01 |
 
 ---
 
@@ -728,7 +729,7 @@ devra être rejouée si l'auteur tranche autrement.
 
 ## GOAL-014 — Correctifs de la relecture du 2026-08-30
 
-**État : TODO**
+**État : EN COURS** — `T01` corrigée et vérifiée (377 tests) ; `T02` à `T07` consignées, non corrigées : leur code est supprimé par `GOAL-016`
 
 Une relecture de `adapters/ffmpeg/`, `adapters/http/` et `app/` a trouvé sept
 défauts, dont quatre confirmés à la lecture du code. **376 tests passaient** :
@@ -737,7 +738,7 @@ par le test qui l'aurait vu.
 
 ### Les tâches
 
-- [ ] `GOAL-014-T01` **Les jingles ne passent jamais.** `app/playout.py` : `_prochaine_emission()` appelle `jingles.due_now()` — qui **consomme** — et jette le résultat ; `_prochain_jingle()` rappelle et obtient `()`. Dès que `shows` est câblé (toujours, `main.py`), ni `20h.mp3` ni `encore.mp3` ne sortent. Un seul appel par jonction, et un test avec émissions câblées **et** un jingle dû
+- [x] `GOAL-014-T01` **Les jingles ne passent jamais.** `app/playout.py` : `_prochaine_emission()` appelle `jingles.due_now()` — qui **consomme** — et jette le résultat ; `_prochain_jingle()` rappelle et obtient `()`. Dès que `shows` est câblé (toujours, `main.py`), ni `20h.mp3` ni `encore.mp3` ne sortent. Un seul appel par jonction, et un test avec émissions câblées **et** un jingle dû
 - [ ] `GOAL-014-T02` **Une chaîne qui coupe d'elle-même laisse les auditeurs pendus.** `app/main.py` : `end()` ne fait que baisser le compteur ; `Station` garde `_diffusion`, `Broadcast.close()` n'est jamais appelé, les lecteurs attendent sans EOF et tout nouvel auditeur s'abonne à une diffusion morte. Contredit SPECS.md §5.1 « couper en le disant ». Le test : file épuisée → les abonnés reçoivent la fin, le suivant redémarre une chaîne
 - [ ] `GOAL-014-T03` **`on_air` ne redescend jamais à l'arrêt normal.** `Station.stop_all()` ne passe pas par `end()` : après le dernier auditeur, l'API affiche « à l'antenne » pour personne. Une seule source de vérité pour « la chaîne tourne »
 - [ ] `GOAL-014-T04` **`next_entry()` appelé après l'arrêt.** `adapters/ffmpeg/encoder.py` : la pompe sort de `read()` sur `b""` quand le groupe est tué et entre dans `_enchainer` sans vérifier `_fini` — appel réseau, `declare(MUSIC)`, non-répétition et `record_airing` d'une chose jamais diffusée. Le test compte les appels à `next_entry` après `stop_all()` : zéro
@@ -746,16 +747,18 @@ par le test qui l'aurait vu.
 - [ ] `GOAL-014-T07` La pompe n'a aucun garde-fou : `termine.wait()` peut lever `TimeoutExpired`, et toute exception de `next_entry` laisse une chaîne zombie muette. Attraper, journaliser, et **appeler `end()`** — jamais mourir en silence
 - [ ] `GOAL-014-T08` Carte du dépôt, et les constats de ce Goal dans `docs/flux-icy.md` §3.bis
 
-> **L'ordre importe** : `T01` à `T04` d'abord — confiance haute, effets visibles
-> à la première écoute. `T05` à `T07` ensuite — confiance moyenne, fenêtres
-> étroites, mais ce sont exactement les défauts que ce projet a dit vouloir
-> traquer (`GOAL-004-T06`).
+> **Recadré le 2026-08-30 par la décision n°23** : `T02` à `T07` vivent dans
+> `adapters/ffmpeg/`, `adapters/http/` et le câblage de `main.py` — du code que
+> `GOAL-016` supprime. **On ne les corrige pas**, on les consigne : ils sont la
+> raison de la migration. Seule **`T01`** survit — elle est dans `app/playout.py`,
+> qui reste — et elle se corrige **avant** de migrer, parce qu'un jingle qui ne
+> passe jamais serait invisible dans la nouvelle chaîne aussi.
 
 ---
 
 ## GOAL-015 — Un direct comme émission — dont le flash France Info
 
-**État : TODO** — après `GOAL-014`
+**État : TODO** — après `GOAL-016`, qui change la façon de couper un direct
 
 Une émission peut capter **un flux de webradio** pendant une case déclarée
 (SPECS.md §4.11 « Une émission peut être un direct », §7 n°22). C'est ce qui
@@ -791,3 +794,38 @@ tient dans *quand l'arrêter*.
 > de franceinfo — journal à 00 et 30, environ neuf minutes — n'est connue que de
 > seconde main et n'a pas été écoutée. Un premier réglage se prend, et `T08`
 > le corrige.
+
+---
+
+## GOAL-016 — Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse
+
+**État : TODO** — après `GOAL-014-T01`
+
+Décision SPECS.md §7 n°23, relevé [docs/liquidsoap.md](./docs/liquidsoap.md),
+architecture ARCHITECTURE.md §4. Le noyau, les sources, les émissions, les
+votes, l'API et l'interface **ne bougent pas**. Ce qui change : qui encode, qui
+sert, qui compte les auditeurs.
+
+**La règle de ce Goal** : le script `.liq` ne décide de rien. Pas de
+`playlist()`, pas de hasard, pas de jingle dans le script. Il demande, il
+annonce, il diffuse.
+
+### Les tâches
+
+- [ ] `GOAL-016-T01` Le relevé complète ses incertitudes (`docs/liquidsoap.md` §3) : `prefetch=0` ou équivalent, en-têtes `icy-*` par `headers=`, comportement quand l'API ne répond pas, bascule réelle vers `input.http`. **Contre 2.3.3, dans le conteneur**
+- [ ] `GOAL-016-T02` `adapters/web/api.py` : la route que Liquidsoap appelle pour **le morceau suivant** — rend un chemin ou une URL, et rien d'autre ; passe par `app/playout.next_entry()` comme tout le monde
+- [ ] `GOAL-016-T03` La route par laquelle Liquidsoap **annonce un auditeur qui arrive ou part** ; le compteur de `app/radio.py` n'a plus d'autre source
+- [ ] `GOAL-016-T04` `adapters/liquidsoap/radio.liq` : `request.dynamic` → l'API, `switch`/`blank()` sans auditeur, `normalize`, `crossfade`, `output.harbor` avec les en-têtes de `docs/flux-icy.md` §1. **Aucune décision dans le script** — un test le lit et refuse `playlist(`, `random`, `.mp3`
+- [ ] `GOAL-016-T05` `verifier.sh` : `liquidsoap --check radio.liq` **dans l'image épinglée** — la syntaxe change de version en version (docs/liquidsoap.md §1.7)
+- [ ] `GOAL-016-T06` Docker : un second service `liquidsoap` épinglé `v2.3.3`, le port du flux passe chez lui ; `webradio` ne publie plus que l'API. La version dans l'image se **vérifie** à la construction (comme pour ffmpeg, docs/ffmpeg.md)
+- [ ] `GOAL-016-T07` Les jingles : le chemin unique reste `next_entry()` — un jingle est un morceau suivant comme un autre. Test : émissions câblées **et** jingle dû → il sort (c'est `GOAL-014-T01` rejoué dans la nouvelle chaîne)
+- [ ] `GOAL-016-T08` L'API dit ce qui passe **d'après ce qu'elle a rendu**, pas d'après Liquidsoap — sauf si `T01` montre qu'un morceau demandé peut ne pas être joué
+- [ ] `GOAL-016-T09` Les pannes (SPECS.md §5.1) : API injoignable, fichier illisible, Navidrome tombé — couper en le disant, jamais boucler. Test avec l'API arrêtée
+- [ ] `GOAL-016-T10` **Supprimer** `adapters/ffmpeg/`, `adapters/http/`, leurs tests, et le câblage de `main.py` ; `docs/ffmpeg.md` reste comme relevé historique et pour le décodage des podcasts
+- [ ] `GOAL-016-T11` `SPECS.md §1` et §4.7 reformulés : « rien n'est décodé ni demandé » ; `docs/flux-icy.md` rejoué contre `harbor`
+- [ ] `GOAL-016-T12` **Écoute réelle** : fondus, niveau, VLC / navigateur / enceinte — la matrice de `docs/flux-icy.md` §6
+- [ ] `GOAL-016-T13` Carte du dépôt
+
+> **Ce qui rend ce Goal sûr** : jusqu'à `T10`, l'ancienne chaîne existe encore
+> et tous ses tests passent. On ne supprime qu'après avoir écouté (`T12` avant
+> `T10` si l'auteur est disponible).
