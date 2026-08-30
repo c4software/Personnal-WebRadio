@@ -513,3 +513,17 @@ def test_un_jour_de_plage_inconnu_est_refuse() -> None:
     with pytest.raises(SettingsError) as refus:
         _valider(TOML_MINIMAL + UNE_PLAGE + 'days = ["caturday"]\n')
     assert "bands[0]" in str(refus.value)
+
+
+def test_une_plage_d_artistes_se_declare() -> None:
+    config = _valider(
+        TOML_MINIMAL + UNE_PLAGE.replace('genres = ["Chanson française"]', 'artists = ["Air"]')
+    )
+    assert config.bands[0].artists == ("Air",)
+    assert config.bands[0].genres == ()
+
+
+def test_genres_et_artistes_ensemble_sont_refuses_au_toml() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(TOML_MINIMAL + UNE_PLAGE + 'artists = ["Air"]\n')
+    assert "bands[0]" in str(refus.value)

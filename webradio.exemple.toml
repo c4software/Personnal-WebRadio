@@ -54,6 +54,15 @@ end    = "02:00"
 genres = ["Électro"]
 days   = ["samedi"]
 
+# Une plage peut imposer un ou des ARTISTES au lieu de genres — une heure d'un
+# seul artiste, par exemple. `genres` et `artists` ne se déclarent jamais
+# ensemble sur la même plage.
+[[bands]]
+start   = "17:00"
+end     = "18:00"
+artists = ["Air"]
+days    = ["dimanche"]
+
 # ── L'état ─────────────────────────────────────────────────────────────────
 # La SEULE chose que la radio retient entre deux démarrages : le dernier
 # épisode diffusé de chaque émission. Une table, trois colonnes.
@@ -129,7 +138,7 @@ name   = "Flash franceinfo"
 stream = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"
 duration_minutes = 9
 days = "all"
-time = "12:00"
+time = "11:57"
 
 [[shows]]
 name   = "LEGEND"

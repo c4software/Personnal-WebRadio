@@ -175,11 +175,16 @@ Liquidsoap demande la piste suivante et annonce ses auditeurs.
 
 ## 6. Points incertains — les métadonnées dans le flux (GOAL-020)
 
-- [ ] `output.harbor(metaint=8192)` (la valeur par défaut) n'a émis **ni**
-      l'en-tête `icy-metaint` **ni** de bloc `StreamTitle`, y compris avec
-      `Icy-MetaData: 1` côté client et des métadonnées `annotate:` sur la
-      source. Constaté le 2026-08-30, en maquette. Le mécanisme qui l'active
-      réellement en 2.3.3 reste à trouver — sans l'inventer.
+- [x] ~~Le mécanisme qui active les métadonnées ICY reste à trouver.~~
+      **Trouvé le 2026-08-30, et c'est un bug amont** : `harbor.ml` passe les
+      en-têtes clients **en minuscules** aux gestionnaires, et `harbor_output.ml`
+      cherche `"Icy-MetaData"` avec sa casse — l'assertion échoue toujours,
+      `metaint` devient −1, rien n'est émis. Constaté cassé en 2.3.3 **et** en
+      2.4.5 ; corrigé sur `main` (`List.assoc_opt "icy-metadata"`), non publié.
+      À réessayer au prochain déplacement d'épingle. La 2.4.5 casse par
+      ailleurs notre script — `http.post` exige `synchronous`, `null()` est
+      déprécié — ce qui reconfirme §1.7 : on ne bouge l'épingle qu'avec un
+      relevé complet.
 - [ ] La **pochette** : le protocole ICY ne transporte que `StreamTitle` et
       `StreamUrl`. Aucun flux MP3 n'embarque d'image ; les lecteurs qui en
       affichent une la récupèrent par un autre canal. Si l'envie reste, la

@@ -21,6 +21,18 @@ from webradio.core.shows import EVERY_DAY, WEEKDAYS
 
 
 @dataclass(frozen=True, slots=True)
+class Constraint:
+    """Ce qu'une plage impose au tirage : un genre, ou un artiste.
+
+    Jamais les deux — une plage déclare l'un ou l'autre (GOAL-023), et la
+    source ne sait de toute façon répondre qu'à une question à la fois.
+    """
+
+    genre: str | None = None
+    artist: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
 class Band:
     """Une tranche de la journée et le ou les genres qu'on y tire.
 
@@ -30,7 +42,9 @@ class Band:
 
     start: time
     end: time
-    genres: tuple[str, ...]
+    genres: tuple[str, ...] = ()
+    # Une heure entière d'un seul artiste, ou de quelques-uns (GOAL-023).
+    artists: tuple[str, ...] = ()
     # Aucun jour déclaré = tous les jours — c'est le comportement historique,
     # et le seul qui ne surprenne pas une configuration existante.
     days: tuple[str, ...] = field(default=(EVERY_DAY,))
@@ -43,8 +57,10 @@ class Band:
         if not self.days:
             message = f"la plage {self.start:%H:%M} n'a aucun jour : elle n'aurait jamais lieu"
             raise ValueError(message)
-        if not self.genres:
-            message = "une plage sans genre ne restreint rien : ne pas la déclarer"
+        if bool(self.genres) == bool(self.artists):
+            message = (
+                "une plage déclare des genres OU des artistes — ni les deux, ni aucun des deux"
+            )
             raise ValueError(message)
         if self.start == self.end:
             message = f"plage vide : {self.start} → {self.end}"
@@ -99,16 +115,20 @@ class Schedule:
                 return band
         return None
 
-    def genre_to_draw(self, random: Random) -> str | None:
-        """Le genre à demander à la source, `None` pour un tirage libre.
+    def constraint_to_draw(self, random: Random) -> Constraint | None:
+        """La contrainte à imposer à la source, `None` pour un tirage libre.
 
-        Une plage peut déclarer plusieurs genres (SPECS.md §4.4) alors que la
-        source n'en accepte qu'un : c'est le hasard injecté qui tranche, pour
-        que la soirée reste rejouable.
+        Une plage peut déclarer plusieurs genres — ou artistes (SPECS.md §4.4,
+        GOAL-023) — alors que la source n'accepte qu'une valeur : c'est le
+        hasard injecté qui tranche, pour que la soirée reste rejouable.
         """
         band = self.current_band()
         if band is None:
             return None
-        if len(band.genres) == 1:
-            return band.genres[0]
-        return random.pick(list(band.genres))
+        if band.artists:
+            values = band.artists
+            value = values[0] if len(values) == 1 else random.pick(list(values))
+            return Constraint(artist=value)
+        values = band.genres
+        value = values[0] if len(values) == 1 else random.pick(list(values))
+        return Constraint(genre=value)

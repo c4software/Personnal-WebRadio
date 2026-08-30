@@ -15,6 +15,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import cast
 
+from webradio.core.bands import Constraint
 from webradio.core.models import Track
 from webradio.core.rng import Random, WeightedRandom
 from webradio.core.rotation import Window
@@ -68,30 +69,34 @@ class Queue:
             message = "des poids sont fournis, mais ce hasard ne sait pas les honorer"
             raise TypeError(message)
 
-    def prepare(self, genre: str | None = None) -> None:
+    def prepare(self, constraint: Constraint | None = None) -> None:
         """Résout le morceau suivant à l'avance, sans le consommer.
 
         Appelée pendant que le courant joue. Une source lente coûte alors du
         temps que personne n'attend, au lieu d'un trou à la jonction.
         """
         if self._avance is None:
-            self._avance = self._choisir(genre)
+            self._avance = self._choisir(constraint)
 
-    def next_pick(self, genre: str | None = None) -> Pick:
+    def next_pick(self, constraint: Constraint | None = None) -> Pick:
         """Le morceau suivant. Sert l'avance si elle existe, la calcule sinon."""
-        pick = self._avance if self._avance is not None else self._choisir(genre)
+        pick = self._avance if self._avance is not None else self._choisir(constraint)
         self._avance = None
         self._fenetre.remember(pick.track)
         return pick
 
-    def _choisir(self, genre: str | None) -> Pick:
+    def _choisir(self, constraint: Constraint | None) -> Pick:
         fallbacks: list[str] = []
-        candidates = self._source.tracks(genre)
+        if constraint is not None and constraint.artist is not None:
+            candidates = self._source.tracks_by(constraint.artist)
+        else:
+            candidates = self._source.tracks(constraint.genre if constraint else None)
 
-        # Une plage thématique sans musique ne fait pas taire la radio : on
-        # revient au tirage libre (SPECS.md §4.4).
-        if not candidates and genre is not None:
-            fallbacks.append(f"plage « {genre} » sans musique : tirage libre")
+        # Une plage — thématique ou d'artiste — sans musique ne fait pas taire
+        # la radio : on revient au tirage libre (SPECS.md §4.4).
+        if not candidates and constraint is not None:
+            asked = constraint.artist if constraint.artist is not None else constraint.genre
+            fallbacks.append(f"plage « {asked} » sans musique : tirage libre")
             candidates = self._source.tracks(None)
 
         if not candidates:

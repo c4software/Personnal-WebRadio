@@ -5,6 +5,7 @@ from typing import TypeVar
 import pytest
 
 from tests.fakes import FakeSource, track
+from webradio.core.bands import Constraint
 from webradio.core.queue import EmptyQueue, Queue
 from webradio.core.rng import RealRandom, ScriptedRandom
 from webradio.core.rotation import Window
@@ -37,14 +38,14 @@ def test_la_file_respecte_la_non_repetition() -> None:
 def test_une_plage_sans_musique_replie_sur_le_tirage_libre() -> None:
     """SPECS.md §4.4 : la radio ne se tait pas, et le repli est signalé."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0]))
-    pick = f.next_pick(genre="jazz")
+    pick = f.next_pick(Constraint(genre="jazz"))
     assert pick.track in CATALOGUE
     assert any("jazz" in r for r in pick.fallbacks)
 
 
 def test_une_plage_pourvue_ne_replie_pas() -> None:
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0]))
-    pick = f.next_pick(genre="trip-hop")
+    pick = f.next_pick(Constraint(genre="trip-hop"))
     assert pick.track.genre == "trip-hop"
     assert pick.fallbacks == ()
 
@@ -151,3 +152,19 @@ def test_des_poids_sans_hasard_pondere_sont_refuses_a_la_construction() -> None:
 
     with pytest.raises(TypeError, match="ne sait pas les honorer"):
         Queue(FakeSource(CATALOGUE), PlainRandom(), weigh=lambda _: 1.0)
+
+
+def test_une_plage_d_artiste_tire_chez_cet_artiste() -> None:
+    """GOAL-023 : une heure d'un seul artiste — la contrainte va à `tracks_by`."""
+    source = FakeSource([track("1", "Air", genre="électro"), track("2", "Bowie", genre="rock")])
+    f = Queue(source, ScriptedRandom([0] * 10), Window(width=1))
+    pick = f.next_pick(Constraint(artist="Bowie"))
+    assert pick.track.artist == "Bowie"
+
+
+def test_une_plage_d_artiste_sans_musique_replie_sur_le_tirage_libre() -> None:
+    source = FakeSource([track("1", "Air", genre="électro")])
+    f = Queue(source, ScriptedRandom([0] * 10), Window(width=1))
+    pick = f.next_pick(Constraint(artist="Personne"))
+    assert pick.track.artist == "Air"
+    assert any("Personne" in raison for raison in pick.fallbacks)

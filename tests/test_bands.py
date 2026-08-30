@@ -4,9 +4,9 @@ from datetime import UTC, datetime, time, timedelta
 
 import pytest
 
-from webradio.core.bands import Band, Schedule
+from webradio.core.bands import Band, Constraint, Schedule
 from webradio.core.clock import FrozenClock
-from webradio.core.rng import RealRandom, ScriptedRandom
+from webradio.core.rng import Random, RealRandom, ScriptedRandom
 
 MATIN = Band(start=time(8), end=time(10), genres=("jazz",))
 SOIR = Band(start=time(20), end=time(23), genres=("electro",))
@@ -16,15 +16,21 @@ def a(hour: int, minute: int = 0) -> FrozenClock:
     return FrozenClock(datetime(2026, 8, 30, hour, minute, tzinfo=UTC))
 
 
+def _genre(grille: Schedule, random: Random) -> str | None:
+    """Le genre tiré, à travers la contrainte (GOAL-023)."""
+    contrainte = grille.constraint_to_draw(random)
+    return None if contrainte is None else contrainte.genre
+
+
 def test_hors_de_toute_plage_le_tirage_est_libre() -> None:
     grille = Schedule([MATIN, SOIR], a(15))
     assert grille.current_band() is None
-    assert grille.genre_to_draw(RealRandom(graine=1)) is None
+    assert _genre(grille, RealRandom(graine=1)) is None
 
 
 def test_une_plage_impose_son_genre() -> None:
-    assert Schedule([MATIN, SOIR], a(9)).genre_to_draw(RealRandom(graine=1)) == "jazz"
-    assert Schedule([MATIN, SOIR], a(21)).genre_to_draw(RealRandom(graine=1)) == "electro"
+    assert _genre(Schedule([MATIN, SOIR], a(9)), RealRandom(graine=1)) == "jazz"
+    assert _genre(Schedule([MATIN, SOIR], a(21)), RealRandom(graine=1)) == "electro"
 
 
 def test_le_debut_de_plage_est_inclus_et_la_fin_exclue() -> None:
@@ -50,21 +56,21 @@ def test_une_plage_a_plusieurs_genres_tranche_par_le_hasard_injecte() -> None:
     rejouable, donc il passe par le hasard injecté."""
     band = Band(start=time(8), end=time(10), genres=("jazz", "soul", "funk"))
     grille = Schedule([band], a(9))
-    assert grille.genre_to_draw(ScriptedRandom([1])) == "soul"
-    premier = Schedule([band], a(9)).genre_to_draw(RealRandom(graine=3))
-    second = Schedule([band], a(9)).genre_to_draw(RealRandom(graine=3))
+    assert _genre(grille, ScriptedRandom([1])) == "soul"
+    premier = _genre(Schedule([band], a(9)), RealRandom(graine=3))
+    second = _genre(Schedule([band], a(9)), RealRandom(graine=3))
     assert premier == second
 
 
 def test_la_premiere_plage_declaree_l_emporte_sur_un_recouvrement() -> None:
     tot = Band(start=time(8), end=time(12), genres=("jazz",))
     tard = Band(start=time(10), end=time(14), genres=("rock",))
-    assert Schedule([tot, tard], a(11)).genre_to_draw(RealRandom(graine=1)) == "jazz"
-    assert Schedule([tard, tot], a(11)).genre_to_draw(RealRandom(graine=1)) == "rock"
+    assert _genre(Schedule([tot, tard], a(11)), RealRandom(graine=1)) == "jazz"
+    assert _genre(Schedule([tard, tot], a(11)), RealRandom(graine=1)) == "rock"
 
 
-def test_une_plage_sans_genre_est_refusee() -> None:
-    with pytest.raises(ValueError, match="sans genre"):
+def test_une_plage_sans_genre_ni_artiste_est_refusee() -> None:
+    with pytest.raises(ValueError, match="OU des artistes"):
         Band(start=time(8), end=time(10), genres=())
 
 
@@ -76,7 +82,7 @@ def test_une_plage_de_duree_nulle_est_refusee() -> None:
 def test_une_grille_sans_plage_laisse_tout_le_tirage_libre() -> None:
     grille = Schedule([], a(9))
     assert grille.bands == ()
-    assert grille.genre_to_draw(RealRandom(graine=1)) is None
+    assert _genre(grille, RealRandom(graine=1)) is None
 
 
 def test_un_morceau_tire_dans_une_plage_n_est_pas_repris_par_la_suivante() -> None:
@@ -85,7 +91,7 @@ def test_un_morceau_tire_dans_une_plage_n_est_pas_repris_par_la_suivante() -> No
     ici, n'a de quoi le lui reprendre."""
     clock = FrozenClock(datetime(2026, 8, 30, 9, 58, tzinfo=UTC))
     grille = Schedule([MATIN], clock)
-    genre_au_tirage = grille.genre_to_draw(RealRandom(graine=1))
+    genre_au_tirage = _genre(grille, RealRandom(graine=1))
     clock.advance(timedelta(minutes=6))
     assert genre_au_tirage == "jazz"
     assert grille.current_band() is None
@@ -101,7 +107,7 @@ def test_une_journee_entiere_se_deroule_en_une_boucle_et_se_rejoue() -> None:
         random = RealRandom(graine=99)
         genres: list[str | None] = []
         for _ in range(24):
-            genres.append(grille.genre_to_draw(random))
+            genres.append(_genre(grille, random))
             clock.advance(timedelta(hours=1))
         return genres
 
@@ -137,3 +143,23 @@ def test_une_plage_de_nuit_appartient_au_jour_ou_elle_commence() -> None:
 def test_un_jour_inconnu_est_refuse_en_le_nommant() -> None:
     with pytest.raises(ValueError, match="caturday"):
         Band(start=time(8), end=time(10), genres=("jazz",), days=("caturday",))
+
+
+# ── Les plages d'artiste (GOAL-023) ─────────────────────────────────────────
+
+
+def test_une_plage_peut_imposer_un_artiste() -> None:
+    heure_air = Band(start=time(21), end=time(22), artists=("Air",))
+    contrainte = Schedule([heure_air], a(21, 30)).constraint_to_draw(RealRandom(graine=1))
+    assert contrainte == Constraint(artist="Air")
+
+
+def test_plusieurs_artistes_tranchent_par_le_hasard_injecte() -> None:
+    band = Band(start=time(21), end=time(22), artists=("Air", "Bowie", "M83"))
+    contrainte = Schedule([band], a(21, 30)).constraint_to_draw(ScriptedRandom([1]))
+    assert contrainte == Constraint(artist="Bowie")
+
+
+def test_genres_et_artistes_ensemble_sont_refuses() -> None:
+    with pytest.raises(ValueError, match="OU des artistes"):
+        Band(start=time(8), end=time(10), genres=("jazz",), artists=("Air",))

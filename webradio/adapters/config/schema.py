@@ -121,7 +121,8 @@ class Band:
 
     start: time
     end: time
-    genres: tuple[str, ...]
+    genres: tuple[str, ...] = ()
+    artists: tuple[str, ...] = ()
     days: tuple[str, ...] = DAYS
 
 
@@ -435,12 +436,15 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
     bands: list[Band] = []
     for index, table in enumerate(_liste_tables(brut, "bands")):
         prefix = f"bands[{index}]"
-        _verifier_cles(table, ("start", "end", "genres", "days"), prefix)
+        _verifier_cles(table, ("start", "end", "genres", "artists", "days"), prefix)
+        if ("genres" in table) == ("artists" in table):
+            _refuser(prefix, "une plage déclare `genres` OU `artists` — ni les deux, ni aucun")
         bands.append(
             Band(
                 start=_heure(table, "start", prefix),
                 end=_heure(table, "end", prefix),
-                genres=_liste_textes(table, "genres", prefix),
+                genres=_liste_textes(table, "genres", prefix) if "genres" in table else (),
+                artists=_liste_textes(table, "artists", prefix) if "artists" in table else (),
                 # Pas de `days` = tous les jours : le comportement historique.
                 days=_jours(table, prefix) if "days" in table else DAYS,
             )

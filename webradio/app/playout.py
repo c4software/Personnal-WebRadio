@@ -94,7 +94,7 @@ class RadioProgramme:
         jamais une cause d'arrêt.
         """
         try:
-            self._file.prepare(self._grille.genre_to_draw(self._hasard))
+            self._file.prepare(self._grille.constraint_to_draw(self._hasard))
         except (SourceUnavailable, EmptyQueue) as echec:
             logger.debug("préparation sans effet : %s", echec)
 
@@ -152,7 +152,7 @@ class RadioProgramme:
         if depuis_le_programme is not None:
             return depuis_le_programme
         try:
-            pick = self._file.next_pick(self._grille.genre_to_draw(self._hasard))
+            pick = self._file.next_pick(self._grille.constraint_to_draw(self._hasard))
         except SourceUnavailable as failure:
             logger.warning("source injoignable, la radio coupe : %s", failure)
             return None

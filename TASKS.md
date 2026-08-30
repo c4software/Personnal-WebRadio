@@ -142,6 +142,7 @@ Goals sont découpables.
 | GOAL-020 | Les votes portent un libellé lisible | `[x]` |
 | GOAL-021 | Effacer un vote, l'onglet Planning, et le bouton qui ne cliquait pas | `[x]` |
 | GOAL-022 | Fondu court des jingles, et le moment présent à l'antenne | `[x]` |
+| GOAL-023 | Une plage peut imposer un artiste | `[x]` |
 | GOAL-016 | Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse | `[-]` — seule l'écoute réelle reste |
 
 ---
@@ -925,3 +926,21 @@ migration : il n'a jamais été câblé, et aucun test ne le couvre.
 - [x] `GOAL-022-T01` Un jingle porte ses propres fondus (0,2 s, enchaînement 0,5 s) par les métadonnées `liq_fade_*` que `crossfade` honore — relevé : `initial_uri` conserve l'`annotate:`, le registre demandé/à l'antenne tient
 - [x] `GOAL-022-T02` `moment` sur `/api/on-air` : le programme ouvert (il l'emporte), sinon la plage thématique, sinon rien — affiché sous l'artiste
 - [ ] `GOAL-022-T03` **Écoute réelle** du fondu court, avec un vrai jingle dans `jingles/`
+
+---
+
+## GOAL-023 — Une plage peut imposer un artiste
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-30 (« pendant 1 h qu'un seul artiste »)
+
+- [x] `GOAL-023-T01` `core/bands.py` : une plage déclare des `genres` **ou** des `artists` — jamais les deux, jamais aucun ; la contrainte (`Constraint`) traverse la grille et la file, le hasard injecté tranche entre plusieurs valeurs
+- [x] `GOAL-023-T02` La file demande à `tracks_by(artist)` — qui existait depuis GOAL-007 — et une plage d'artiste sans musique se replie sur le tirage libre, en le disant
+- [x] `GOAL-023-T03` La clé `artists` au schéma, le TOML d'exemple, le moment et le planning l'affichent
+
+> **StreamTitle, verdict du soir** : cassé en 2.3.3 (les en-têtes clients sont
+> passés en minuscules aux gestionnaires, la comparaison `"Icy-MetaData"`
+> sensible à la casse ne réussit jamais — lu dans la source), **encore cassé en
+> 2.4.5** (constaté en maquette), corrigé seulement sur `main`, non publié. La
+> 2.4.5 casse par ailleurs notre script (`http.post` exige `synchronous`,
+> `null()` déprécié) : l'épingle reste en 2.3.3, et le titre dans le flux
+> attendra une version publiée portant le correctif (docs/liquidsoap.md §6).

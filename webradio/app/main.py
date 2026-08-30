@@ -101,7 +101,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         transport=UrllibTransport(settings.navidrome.timeout_seconds),
     )
     grille = Schedule(
-        [Band(p.start, p.end, p.genres, days=p.days) for p in settings.bands],
+        [Band(p.start, p.end, p.genres, artists=p.artists, days=p.days) for p in settings.bands],
         clock,
     )
     jingles = Jingles(clock)
@@ -163,7 +163,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             return f"Programme · {programme.name}"
         band = grille.current_band()
         if band is not None:
-            return f"Moment · {', '.join(band.genres)}"
+            return f"Moment · {', '.join(band.artists or band.genres)}"
         return None
 
     def oublier_le_vote(scope: str, target: str) -> bool:
@@ -254,7 +254,7 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "start": f"{b.start:%H:%M}",
                 "end": f"{b.end:%H:%M}",
-                "genres": list(b.genres),
+                "genres": list(b.artists or b.genres),
                 "days": list(b.days),
             }
             for b in s.bands
