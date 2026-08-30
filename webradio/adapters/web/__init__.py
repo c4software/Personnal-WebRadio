@@ -12,15 +12,18 @@ from webradio.adapters.web.api import (
     Vote,
     create_api,
 )
+from webradio.adapters.web.playout_api import Playout, create_playout_api
 from webradio.adapters.web.views import create_app, create_view
 
 __all__ = [
     "Kind",
     "OnAir",
+    "Playout",
     "Radio",
     "Verdict",
     "Vote",
     "create_api",
     "create_app",
+    "create_playout_api",
     "create_view",
 ]

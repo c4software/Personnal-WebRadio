@@ -22,6 +22,7 @@ from flask import Blueprint, Flask, render_template, url_for
 from flask.typing import ResponseReturnValue
 
 from webradio.adapters.web.api import Radio, Vote, create_api
+from webradio.adapters.web.playout_api import Playout, create_playout_api
 
 MILLISECONDES = 1000
 
@@ -51,7 +52,7 @@ def create_view(*, refresh: timedelta) -> Blueprint:
     return vue
 
 
-def create_app(radio: Radio, *, refresh: timedelta) -> Flask:
+def create_app(radio: Radio, *, refresh: timedelta, playout: Playout | None = None) -> Flask:
     """L'application complète : l'API, puis la page qui s'en sert.
 
     Les deux sont montées ensemble parce que la page ne sait rien faire sans
@@ -60,4 +61,6 @@ def create_app(radio: Radio, *, refresh: timedelta) -> Flask:
     app = Flask(__name__)
     app.register_blueprint(create_api(radio))
     app.register_blueprint(create_view(refresh=refresh))
+    if playout is not None:
+        app.register_blueprint(create_playout_api(playout))
     return app

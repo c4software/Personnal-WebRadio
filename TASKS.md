@@ -799,7 +799,7 @@ tient dans *quand l'arrêter*.
 
 ## GOAL-016 — Migration vers Liquidsoap : le noyau décide, Liquidsoap diffuse
 
-**État : EN COURS** — `T01` faite
+**État : EN COURS** — `T01`, `T02` faites, `T03` écrite (câblage en `T06`)
 
 Décision SPECS.md §7 n°23, relevé [docs/liquidsoap.md](./docs/liquidsoap.md),
 architecture ARCHITECTURE.md §4. Le noyau, les sources, les émissions, les
@@ -813,8 +813,8 @@ annonce, il diffuse.
 ### Les tâches
 
 - [x] `GOAL-016-T01` Le relevé complète ses incertitudes (`docs/liquidsoap.md` §3) : `prefetch=0` ou équivalent, en-têtes `icy-*` par `headers=`, comportement quand l'API ne répond pas, bascule réelle vers `input.http`. **Contre 2.3.3, dans le conteneur**
-- [ ] `GOAL-016-T02` `adapters/web/api.py` : la route que Liquidsoap appelle pour **le morceau suivant** — rend un chemin ou une URL, et rien d'autre ; passe par `app/playout.next_entry()` comme tout le monde
-- [ ] `GOAL-016-T03` La route par laquelle Liquidsoap **annonce un auditeur qui arrive ou part** ; le compteur de `app/radio.py` n'a plus d'autre source
+- [x] `GOAL-016-T02` `adapters/web/playout_api.py` : la route que Liquidsoap appelle pour **le morceau suivant** — rend un chemin ou une URL, et rien d'autre ; passe par `app/playout.next_entry()` comme tout le monde
+- [-] `GOAL-016-T03` La route par laquelle Liquidsoap **annonce un auditeur qui arrive ou part** — **écrite et testée** (`POST /playout/listeners`) ; le câblage vers `ListenerCount` se fait avec `T06`, quand l'ancienne chaîne cesse d'être l'autre source
 - [ ] `GOAL-016-T04` `adapters/liquidsoap/radio.liq` : `request.dynamic` → l'API, `switch`/`blank()` sans auditeur, `normalize`, `crossfade`, `output.harbor` avec les en-têtes de `docs/flux-icy.md` §1. **Aucune décision dans le script** — un test le lit et refuse `playlist(`, `random`, `.mp3`
 - [ ] `GOAL-016-T05` `verifier.sh` : `liquidsoap --check radio.liq` **dans l'image épinglée** — la syntaxe change de version en version (docs/liquidsoap.md §1.7)
 - [ ] `GOAL-016-T06` Docker : un second service `liquidsoap` épinglé `v2.3.3`, le port du flux passe chez lui ; `webradio` ne publie plus que l'API. La version dans l'image se **vérifie** à la construction (comme pour ffmpeg, docs/ffmpeg.md)
