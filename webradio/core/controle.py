@@ -123,14 +123,18 @@ class Controle:
         replis: list[str] = []
         ecartes = self._servis | {courant.identifiant}
 
-        candidates = [p for p in self._source.pistes_de(courant.artiste) if p.identifiant not in ecartes]
+        candidates = [
+            p for p in self._source.pistes_de(courant.artiste) if p.identifiant not in ecartes
+        ]
 
         if not candidates:
             replis.append(f"artiste « {courant.artiste} » épuisé")
             if courant.genre is None:
                 replis.append("morceau sans genre : tirage libre")
             else:
-                candidates = [p for p in self._source.pistes(courant.genre) if p.identifiant not in ecartes]
+                candidates = [
+                    p for p in self._source.pistes(courant.genre) if p.identifiant not in ecartes
+                ]
                 if not candidates:
                     replis.append(f"genre « {courant.genre} » épuisé : tirage libre")
 

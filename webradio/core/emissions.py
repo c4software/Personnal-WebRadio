@@ -70,7 +70,9 @@ class Emission:
     def a_lieu_le(self, jour: date) -> bool:
         if TOUS_LES_JOURS in self.jours:
             return True
-        return any(JOURS_DE_LA_SEMAINE[j] == jour.weekday() for j in self.jours if j != TOUS_LES_JOURS)
+        return any(
+            JOURS_DE_LA_SEMAINE[j] == jour.weekday() for j in self.jours if j != TOUS_LES_JOURS
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,7 +101,9 @@ class Case:
     debut: datetime
 
 
-def episode_a_diffuser(episodes: Sequence[Episode], deja_diffuse: str | None = None) -> Episode | None:
+def episode_a_diffuser(
+    episodes: Sequence[Episode], deja_diffuse: str | None = None
+) -> Episode | None:
     """Le `full` le plus récent, sauf s'il a déjà été diffusé — alors la case est sautée.
 
     On ne redescend **pas** à l'avant-dernier : « une émission qui n'a rien de
