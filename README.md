@@ -302,4 +302,4 @@ automatique. Voir [AGENTS.md §4.1](./AGENTS.md).
 
 ## Licence
 
-Non déterminée — tous droits réservés par défaut. Projet personnel.
+[MIT](./LICENSE).
