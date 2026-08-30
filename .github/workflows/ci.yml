@@ -47,8 +47,8 @@ jobs:
         with:
           context: .
           push: ${{ github.event_name == 'push' }}
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/personnal-webradio:latest
-            ghcr.io/${{ github.repository_owner }}/personnal-webradio:${{ github.sha }}
+          # `latest` seul, à la demande de l'auteur : une radio personnelle
+          # n'a qu'une version qui compte — celle qui tourne.
+          tags: ghcr.io/${{ github.repository_owner }}/personnal-webradio:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
