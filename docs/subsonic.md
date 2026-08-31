@@ -91,8 +91,12 @@ Les plus fournis : *Chanson française* (1280 titres), *Rap français* (426),
 passer : il ne peut pas garantir la non-répétition de SPECS.md §4.2.
 
 Le noyau tire donc lui-même (`core/rng.py`) parmi des pistes obtenues du serveur.
-`getRandomSongs` reste utile pour **échantillonner** une grande bibliothèque sans
-la rapatrier entière.
+
+> **Complété le 2026-08-31** (`GOAL-039-T03`) : l'échantillonnage par
+> `getRandomSongs` n'est plus nécessaire non plus. La bibliothèque **entière**
+> se parcourt par pagination (§2.7), et tirer dans un échantillon de 500 quand
+> la bibliothèque en compte 5704 revenait à faire tourner la radio en rond
+> dans un douzième de la musique.
 
 ### 2.5 Les autres pistes d'un artiste — ce dont `encore` dépend
 
@@ -154,6 +158,52 @@ liste demandée : 32 morceaux connus
 
 `HTTP 200`, `status: failed`, code **70**, « playlist not found » — même régime
 que pour une piste inexistante (§5).
+
+## 2.7 Parcourir la bibliothèque entière — **relevé**
+
+> **Constaté le 2026-08-31** (`GOAL-039-T03`), contre la même instance :
+> Navidrome 0.63.2, bibliothèque de **5704 pistes**.
+
+### 2.7.1 `search3` à requête vide rend toute la bibliothèque, paginée
+
+`search3&query=&songCount=N&songOffset=K` (avec `artistCount=0&albumCount=0`)
+rend des chansons ordinaires, `status: ok` :
+
+| Appel | Rendu |
+|---|---|
+| `songCount=500`, `songOffset` de 500 en 500 | pages pleines, puis une page courte (204) |
+| Total paginé | **5704 pistes, toutes distinctes** |
+| `songCount=501` | 501 — **pas de plafond à 500 ici** |
+| `songCount=6000` en un appel | 5704 — la bibliothèque entière |
+| Première page rejouée deux fois | **identique** : l'ordre est stable |
+
+> **La fin du parcours se reconnaît à une page plus courte que demandé.**
+> Aucun compteur de total n'est rendu, et ceux d'ailleurs mentent (§2.7.3).
+> Un plafond de `songCount` au-delà de 6000 n'a pas été cherché : la
+> pagination à 500 ne s'y expose pas.
+
+### 2.7.2 `getSongsByGenre` pagine aussi — mais tronque à 500 par appel
+
+| Appel | Rendu |
+|---|---|
+| `genre=Chanson française`, `count=500`, `offset` de 500 en 500 | 500, 500, 253 — **1253 distinctes** |
+| le même filtre appliqué chez nous sur la bibliothèque entière (`genre` exact) | **1253** — égalité parfaite |
+| `count=1000` | **500** — troncature **silencieuse**, comme `getRandomSongs` §2.1 |
+| `genre=rock` (minuscule) | des pistes : le filtre est **insensible à la casse** |
+| genre inexistant | `status: ok`, zéro piste (cohérent avec §2.2) |
+
+### 2.7.3 Les compteurs de `getGenres` ne correspondent pas aux pistes rendues
+
+| Genre | `songCount` annoncé | Pistes réellement rendues |
+|---|---|---|
+| Rock | **357** | **201** — par `getSongsByGenre`, par `getRandomSongs&genre`, et par le filtre local, tous d'accord |
+| Chanson française | 1280 | 1253 |
+
+**La cause n'a pas été établie.** La conduite est celle de §2.6.1 : **ne jamais
+se fier à un compteur annoncé** ; une population se juge sur les pistes rendues.
+
+Au passage : **834 pistes sur 5704 (14,6 %) n'ont aucun genre**, ce qui
+confirme §4 sur un échantillon complet cette fois.
 
 ## 3. Récupérer le son — **relevé**
 
@@ -223,10 +273,17 @@ cas de test reste obligatoire (AGENTS.md §4).
 ## 6. Points incertains
 
 **Établis** : authentification et son piège, tirage et sa troncature, filtre par
-genre, pistes d'un artiste, récupération du son, complétude des métadonnées, et
-les deux régimes d'erreur.
+genre, pistes d'un artiste, récupération du son, complétude des métadonnées,
+les deux régimes d'erreur, et le parcours complet de la bibliothèque par
+pagination (§2.7).
 
 **Restent ouverts :**
+
+- [ ] Un **plafond de `songCount` sur `search3`** au-delà de 6000. Non cherché :
+      la pagination à 500 ne s'y expose pas.
+- [ ] La **stabilité de l'ordre de `search3` pendant une analyse de
+      bibliothèque** : l'ordre s'est montré stable entre deux appels immédiats,
+      pas au travers d'un rafraîchissement.
 
 - [ ] Le comportement **pendant une analyse de bibliothèque** en cours. Non
       observé : aucune analyse n'a eu lieu pendant le relevé.

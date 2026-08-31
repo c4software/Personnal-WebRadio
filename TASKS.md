@@ -128,7 +128,7 @@ sur la bibliothèque **entière**, récupérée par pagination.
       l'implémentation observée) ; références mises à jour dans SPECS,
       ARCHITECTURE, README, AGENTS, CLAUDE, CONTRIBUTING, compose et exemples ;
       le scope de commit `navidrome` devient `subsonic`.
-- [ ] **GOAL-039-T03** — Relever la pagination contre l'instance réelle :
+- [x] **GOAL-039-T03** — Relever la pagination contre l'instance réelle :
       `search3` à requête vide, `songOffset`, `getSongsByGenre` et son
       `offset`, cohérence des totaux, plafond par page — consigné dans
       `docs/subsonic.md` (AGENTS.md §3).
