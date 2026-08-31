@@ -1231,3 +1231,29 @@ SPECS.md §4.7 (la pause au débranchement).
 Se rebrancher après plus de quinze minutes de pause : ni jingle périmé, ni
 avance rassise, ni reliquat du morceau interrompu — un départ propre sur un
 tirage neuf. Et un rebranchement rapide inchangé : la reprise sur l'avance.
+
+---
+
+## GOAL-042 — Le Planning s'ouvre sur aujourd'hui, créneau en cours visible, jours repliés
+
+**Terminé le 2026-08-31.**
+
+Constat de l'auteur (capture) : sept cartes de ~15 lignes, la veille en
+premier — la page était longue et le présent invisible. Présentation
+seulement : `index.html`, l'API inchangée, rien ne se décide dans la page.
+
+- [x] `GOAL-042-T01` Aujourd'hui en tête puis la suite de la semaine
+      (renverse le « veille d'abord » volontaire de GOAL-021) ; badge et fond
+      « en cours » sur le créneau du jour — minuit enjambé marqué sur son jour
+      de départ seulement, direct via sa durée, podcast et YouTube jamais
+      (fin inconnue) ; l'heure suit le rafraîchissement périodique
+- [x] `GOAL-042-T02` Seul aujourd'hui déplié par défaut ; un jour replié
+      tient en une ligne (chevron, nom, nombre de créneaux), dépliable au clic
+
+### Décisions prises
+
+- **L'état de dépli n'est pas persisté** : recharger la page revient à
+  « aujourd'hui seul » — c'est le défaut voulu, pas une préférence à retenir.
+- **Rendu constaté en chromium headless** avec un planning simulé : le
+  surlignage tombe à l'heure juste ; le vrai navigateur de l'auteur reste le
+  juge final (l'équivalent visuel d'AGENTS §4.1).
