@@ -75,7 +75,7 @@ se tire dans sa contrainte.
 - [x] GOAL-044-T04 — Noyau : `core/runs.py` — trois modes, ancre posée par le
       premier tirage, longueur au hasard injecté (2 / 2–6 / 3–6), titres déjà
       servis exclus, remise à zéro au changement de contrainte
-- [ ] GOAL-044-T05 — Câblage : `Band.mode` → `Constraint.mode` → `Queue` —
+- [x] GOAL-044-T05 — Câblage : `Band.mode` → `Constraint.mode` → `Queue` —
       exemption de fenêtre pour les suites d'artiste, filtre d'époque, rupture
       journalisée d'une suite épuisée ; `main.py`
 - [ ] GOAL-044-T06 — Config : la clé `mode` (combinable, mode seul = tirage

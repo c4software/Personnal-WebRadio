@@ -19,6 +19,7 @@ from webradio.core.bands import Constraint
 from webradio.core.models import Track
 from webradio.core.rng import Random, WeightedRandom
 from webradio.core.rotation import Window
+from webradio.core.runs import Directive, Runs, era_of
 from webradio.core.sources import MusicSource
 
 # Le poids d'une piste, fourni du dehors. La file ne va JAMAIS le chercher :
@@ -55,11 +56,13 @@ class Queue:
         random: Random,
         window: Window | None = None,
         weigh: Weigh | None = None,
+        runs: Runs | None = None,
     ) -> None:
         self._source = source
         self._hasard = random
         self._fenetre = window if window is not None else Window()
         self._peser = weigh
+        self._suites = runs
         self._avance: Pick | None = None
         if weigh is not None and not hasattr(random, "pick_weighted"):
             # Refuser ici plutôt qu'au premier tirage : une file construite avec
@@ -87,35 +90,94 @@ class Queue:
 
     def _choisir(self, constraint: Constraint | None) -> Pick:
         fallbacks: list[str] = []
-        if constraint is not None and constraint.artist is not None:
-            candidates = self._source.tracks_by(constraint.artist)
-        else:
-            candidates = self._source.tracks(constraint.genre if constraint else None)
+        directive = self._directive(constraint)
 
-        # Une plage — thématique ou d'artiste — sans musique ne fait pas taire
-        # la radio : on revient au tirage libre (SPECS.md §4.4).
-        if not candidates and constraint is not None:
-            asked = constraint.artist if constraint.artist is not None else constraint.genre
-            fallbacks.append(f"plage « {asked} » sans musique : tirage libre")
-            candidates = self._source.tracks(None)
+        # Une suite d'artiste SUIT l'artiste, même si la plage a retiré un
+        # autre genre entre-temps : c'est le chemin de l'encore (SPECS.md
+        # §4.6), et c'est ce qui fait qu'une « double dose » tient sur une
+        # plage multi-genres.
+        candidates: list[Track] = []
+        if directive is not None and directive.artist is not None:
+            candidates = [
+                t
+                for t in self._source.tracks_by(directive.artist)
+                if t.identifier not in directive.exclude
+            ]
+            if not candidates:
+                fallbacks.append(f"suite rompue : plus rien de « {directive.artist} »")
+                directive = None
 
         if not candidates:
-            message = "la source a répondu, mais elle n'a aucune piste"
-            raise EmptyQueue(message)
+            if constraint is not None and constraint.artist is not None:
+                candidates = self._source.tracks_by(constraint.artist)
+            else:
+                candidates = self._source.tracks(constraint.genre if constraint else None)
 
-        # La fenêtre rétrécit plutôt que de bloquer le tirage (SPECS.md §4.2).
-        #
-        # La boucle se termine toujours : une fenêtre vide n'écarte personne,
-        # donc `filtrer` rendrait `candidates`, qui n'est pas vide ici. Un
-        # garde-fou supplémentaire serait du code qu'aucun test ne peut
-        # atteindre — donc du code mort (AGENTS.md §2).
-        allowed = self._fenetre.filter_out(candidates)
-        while not allowed:
-            self._fenetre.shrink()
-            fallbacks.append("fenêtre de non-répétition rétrécie")
+            # Une plage — thématique ou d'artiste — sans musique ne fait pas
+            # taire la radio : on revient au tirage libre (SPECS.md §4.4).
+            if not candidates and constraint is not None:
+                asked = constraint.artist if constraint.artist is not None else constraint.genre
+                fallbacks.append(f"plage « {asked} » sans musique : tirage libre")
+                candidates = self._source.tracks(None)
+
+            if not candidates:
+                message = "la source a répondu, mais elle n'a aucune piste"
+                raise EmptyQueue(message)
+
+            # Une suite d'époque filtre les candidats de la plage : l'époque
+            # traverse les genres, elle n'a pas de requête à elle.
+            if directive is not None and directive.era is not None:
+                enchaines = [
+                    t
+                    for t in candidates
+                    if era_of(t) == directive.era and t.identifier not in directive.exclude
+                ]
+                if enchaines:
+                    candidates = enchaines
+                else:
+                    fallbacks.append(f"suite rompue : plus rien des années {directive.era}")
+                    directive = None
+
+        if directive is not None and directive.bypass_window:
+            # Une suite d'artiste répète l'artiste par construction : elle
+            # outrepasse la fenêtre, comme l'encore (SPECS.md §4.6). La
+            # fenêtre le retient quand même (`next_pick`) : la règle reprend
+            # dès la fin de la suite.
+            allowed = candidates
+        else:
+            # La fenêtre rétrécit plutôt que de bloquer le tirage (SPECS.md
+            # §4.2). La boucle se termine toujours : une fenêtre vide n'écarte
+            # personne, donc `filter_out` rendrait `candidates`, non vide ici.
             allowed = self._fenetre.filter_out(candidates)
+            while not allowed:
+                self._fenetre.shrink()
+                fallbacks.append("fenêtre de non-répétition rétrécie")
+                allowed = self._fenetre.filter_out(candidates)
 
-        return Pick(self._tirer(allowed), tuple(fallbacks))
+        track = self._tirer(allowed)
+        if self._suites is not None:
+            self._suites.observe(
+                self._cle_de_suite(constraint),
+                constraint.mode if constraint is not None else None,
+                track,
+            )
+        return Pick(track, tuple(fallbacks))
+
+    def _directive(self, constraint: Constraint | None) -> Directive | None:
+        if self._suites is None:
+            return None
+        return self._suites.directive(
+            self._cle_de_suite(constraint),
+            constraint.mode if constraint is not None else None,
+        )
+
+    @staticmethod
+    def _cle_de_suite(constraint: Constraint | None) -> object:
+        """La clé de remise à zéro des suites : l'occurrence de plage quand la
+        grille l'a donnée, la contrainte elle-même sinon."""
+        if constraint is None:
+            return None
+        return constraint.run_key if constraint.run_key is not None else constraint
 
     def _tirer(self, parmi: list[Track]) -> Track:
         """Un tirage pondéré si les poids sont fournis, uniforme sinon.

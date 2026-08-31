@@ -7,6 +7,7 @@ import pytest
 from webradio.core.bands import Band, Constraint, Schedule
 from webradio.core.clock import FrozenClock
 from webradio.core.rng import Random, RealRandom, ScriptedRandom
+from webradio.core.runs import Mode
 
 MATIN = Band(start=time(8), end=time(10), genres=("jazz",))
 SOIR = Band(start=time(20), end=time(23), genres=("electro",))
@@ -225,3 +226,50 @@ def test_une_plage_au_hasard_sans_resolveur_est_refusee_bruyamment() -> None:
     grille = Schedule([au_hasard], a(21, 30))
     with pytest.raises(ValueError, match="aucun résolveur"):
         grille.constraint_to_draw(RealRandom(graine=1))
+
+
+# ── Les modes d'enchaînement (SPECS.md §7 n°31) ────────────────────────────
+
+
+def test_le_mode_et_la_cle_d_occurrence_voyagent_avec_la_contrainte() -> None:
+    grille = Schedule([Band(time(9), time(11), genres=("jazz",), mode=Mode.DOUBLE_DOSE)], a(10))
+    contrainte = grille.constraint_to_draw(RealRandom(graine=1))
+    assert contrainte is not None
+    assert contrainte.mode is Mode.DOUBLE_DOSE
+    assert contrainte.run_key is not None
+
+
+def test_la_cle_d_occurrence_survit_au_changement_de_genre_de_la_plage() -> None:
+    """Une plage multi-genres retire un genre à chaque jonction : la clé, elle,
+    reste celle de l'occurrence — c'est ce qui garde la suite vivante."""
+    grille = Schedule(
+        [Band(time(9), time(11), genres=("jazz", "soul"), mode=Mode.ARTIST_FAN)], a(10)
+    )
+    c1 = grille.constraint_to_draw(ScriptedRandom([0]))
+    c2 = grille.constraint_to_draw(ScriptedRandom([1]))
+    assert c1 is not None and c2 is not None
+    assert (c1.genre, c2.genre) == ("jazz", "soul")
+    assert c1.run_key == c2.run_key
+
+
+def test_l_occurrence_du_lendemain_change_la_cle() -> None:
+    clock = a(10)
+    grille = Schedule([Band(time(9), time(11), genres=("jazz",), mode=Mode.ERA_FAN)], clock)
+    c1 = grille.constraint_to_draw(RealRandom(graine=1))
+    clock.advance(timedelta(days=1))
+    c2 = grille.constraint_to_draw(RealRandom(graine=1))
+    assert c1 is not None and c2 is not None
+    assert c1.run_key != c2.run_key
+
+
+def test_une_plage_a_mode_seul_est_un_tirage_libre_enchaine() -> None:
+    grille = Schedule([Band(time(9), time(11), mode=Mode.DOUBLE_DOSE)], a(10))
+    contrainte = grille.constraint_to_draw(RealRandom(graine=1))
+    assert contrainte is not None
+    assert contrainte.genre is None and contrainte.artist is None
+    assert contrainte.mode is Mode.DOUBLE_DOSE
+
+
+def test_une_plage_sans_theme_ni_mode_reste_refusee() -> None:
+    with pytest.raises(ValueError, match="exactement un des trois"):
+        Band(time(9), time(11))

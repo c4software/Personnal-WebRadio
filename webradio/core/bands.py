@@ -12,11 +12,12 @@ se décide là où l'on sait ce que la source a répondu, c'est-à-dire dans
 """
 
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, time, timedelta
 
 from webradio.core.clock import Clock
 from webradio.core.rng import Random
+from webradio.core.runs import Mode
 from webradio.core.shows import EVERY_DAY, WEEKDAYS
 
 # Ce qu'une plage peut demander de tirer au sort à sa place (GOAL-037).
@@ -29,10 +30,18 @@ class Constraint:
 
     Jamais les deux — une plage déclare l'un ou l'autre (GOAL-023), et la
     source ne sait de toute façon répondre qu'à une question à la fois.
+
+    `mode` demande en plus que les tirages s'enchaînent (décision n°31) ;
+    `run_key` identifie l'occurrence de plage qui a émis la contrainte — c'est
+    la clé de remise à zéro des suites, et elle est HORS de l'égalité : une
+    plage multi-genres retire un genre à chaque jonction, et la suite doit y
+    survivre.
     """
 
     genre: str | None = None
     artist: str | None = None
+    mode: Mode | None = None
+    run_key: object | None = field(default=None, compare=False)
 
 
 # Ce qui sait tirer le thème d'une plage qui a délégué son choix : la plage et
@@ -68,6 +77,10 @@ class Band:
     # Aucun jour déclaré = tous les jours — c'est le comportement historique,
     # et le seul qui ne surprenne pas une configuration existante.
     days: tuple[str, ...] = field(default=(EVERY_DAY,))
+    # Les tirages de la plage s'enchaînent (décision n°31) : double dose,
+    # passionné d'époque ou d'artiste. Combinable avec le thème — et une plage
+    # à mode SEUL est un tirage libre enchaîné.
+    mode: Mode | None = None
 
     def __post_init__(self) -> None:
         for jour in self.days:
@@ -84,10 +97,10 @@ class Band:
             )
             raise ValueError(message)
         declared = sum((bool(self.genres), bool(self.artists), self.random_theme is not None))
-        if declared != 1:
+        if declared > 1 or (declared == 0 and self.mode is None):
             message = (
                 "une plage déclare des genres, des artistes OU un thème à tirer — "
-                "exactement un des trois"
+                "exactement un des trois, sauf à porter un mode seul"
             )
             raise ValueError(message)
         if self.start == self.end:
@@ -182,6 +195,10 @@ class Schedule:
         band = self._band_at(instant)
         if band is None:
             return None
+        # La clé des suites (décision n°31) : l'occurrence, pas la contrainte —
+        # une plage multi-genres retire un genre à chaque jonction, et la suite
+        # doit y survivre ; l'occurrence suivante, elle, repart à zéro.
+        key = (band, band.occurrence_start(instant))
         if band.random_theme is not None:
             if self._tirer_theme is None:
                 # Refuser bruyamment plutôt que de tirer librement : une plage
@@ -190,11 +207,17 @@ class Schedule:
                 # ressemblerait à une bibliothèque mal rangée.
                 message = "une plage demande un thème à tirer, mais aucun résolveur n'est fourni"
                 raise ValueError(message)
-            return self._tirer_theme(band, instant)
+            resolved = self._tirer_theme(band, instant)
+            if resolved is None:
+                return Constraint(mode=band.mode, run_key=key) if band.mode is not None else None
+            return replace(resolved, mode=band.mode, run_key=key)
         if band.artists:
             values = band.artists
             value = values[0] if len(values) == 1 else random.pick(list(values))
-            return Constraint(artist=value)
-        values = band.genres
-        value = values[0] if len(values) == 1 else random.pick(list(values))
-        return Constraint(genre=value)
+            return Constraint(artist=value, mode=band.mode, run_key=key)
+        if band.genres:
+            values = band.genres
+            value = values[0] if len(values) == 1 else random.pick(list(values))
+            return Constraint(genre=value, mode=band.mode, run_key=key)
+        # Une plage à mode seul : un tirage libre, mais enchaîné.
+        return Constraint(mode=band.mode, run_key=key)

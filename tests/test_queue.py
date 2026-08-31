@@ -9,6 +9,7 @@ from webradio.core.bands import Constraint
 from webradio.core.queue import EmptyQueue, Queue
 from webradio.core.rng import RealRandom, ScriptedRandom
 from webradio.core.rotation import Window
+from webradio.core.runs import Mode, Runs
 from webradio.core.sources import SourceUnavailable
 
 T = TypeVar("T")
@@ -168,3 +169,86 @@ def test_une_plage_d_artiste_sans_musique_replie_sur_le_tirage_libre() -> None:
     pick = f.next_pick(Constraint(artist="Personne"))
     assert pick.track.artist == "Air"
     assert any("Personne" in raison for raison in pick.fallbacks)
+
+
+# ── Les suites (SPECS.md §7 n°31) ──────────────────────────────────────────
+
+
+def test_la_double_dose_sert_le_meme_artiste_deux_fois_sans_le_meme_titre() -> None:
+    """Le second titre outrepasse la fenêtre — le passe-droit de l'encore —
+    puis la règle reprend : le troisième tirage écarte l'artiste."""
+    catalogue = [
+        track("a1", "Air", genre="électro"),
+        track("a2", "Air", genre="électro"),
+        track("b1", "Bowie", genre="électro"),
+        track("b2", "Bowie", genre="électro"),
+    ]
+    hasard = ScriptedRandom([0, 0, 0, 0])
+    f = Queue(FakeSource(catalogue), hasard, Window(width=2), runs=Runs(hasard))
+    c = Constraint(genre="électro", mode=Mode.DOUBLE_DOSE, run_key="occurrence")
+    joues = [f.next_pick(c).track.identifier for _ in range(4)]
+    assert joues == ["a1", "a2", "b1", "b2"]
+
+
+def test_le_passionne_d_artiste_suit_l_artiste_meme_si_la_plage_change_de_genre() -> None:
+    """La clé est l'occurrence, et la suite passe par `tracks_by` : le genre
+    retiré entre deux jonctions ne la rompt pas."""
+    catalogue = [
+        track("a1", "Air", genre="électro"),
+        track("a2", "Air", genre="ambient"),
+        track("a3", "Air", genre="électro"),
+        track("b1", "Bowie", genre="rock"),
+    ]
+    hasard = ScriptedRandom([0, 0, 0, 0])  # le 2e indice : longueur 3 dans [3..6]
+    f = Queue(FakeSource(catalogue), hasard, Window(width=1), runs=Runs(hasard))
+    premier = f.next_pick(Constraint(genre="électro", mode=Mode.ARTIST_FAN, run_key="occ"))
+    deuxieme = f.next_pick(Constraint(genre="ambient", mode=Mode.ARTIST_FAN, run_key="occ"))
+    assert premier.track.identifier == "a1"
+    assert deuxieme.track.artist == "Air"  # le genre a changé, la suite tient
+
+
+def test_le_passionne_d_epoque_reste_dans_la_decennie() -> None:
+    catalogue = [
+        track("x1", "Air", year=1991),
+        track("x2", "Bowie", year=1995),
+        track("x3", "Portishead", year=1992),
+        track("y1", "Daft Punk", year=2003),
+    ]
+    hasard = ScriptedRandom([0, 0, 0])  # piste x1, longueur 2 dans [2..6], piste suivante
+    f = Queue(FakeSource(catalogue), hasard, Window(width=1), runs=Runs(hasard))
+    c = Constraint(mode=Mode.ERA_FAN, run_key="occ")
+    premier = f.next_pick(c)
+    deuxieme = f.next_pick(c)
+    assert premier.track.year == 1991
+    assert deuxieme.track.year is not None and 1990 <= deuxieme.track.year < 2000
+    assert deuxieme.track.identifier != premier.track.identifier
+
+
+def test_une_suite_d_epoque_epuisee_se_rompt_en_le_disant() -> None:
+    catalogue = [
+        track("s1", "Elvis", year=1956),
+        track("y1", "Daft Punk", year=2003),
+        track("y2", "Justice", year=2007),
+    ]
+    hasard = ScriptedRandom([0, 2, 0, 0])  # s1, longueur 4, la rupture, la nouvelle ancre
+    f = Queue(FakeSource(catalogue), hasard, Window(width=1), runs=Runs(hasard))
+    c = Constraint(mode=Mode.ERA_FAN, run_key="occ")
+    assert f.next_pick(c).track.identifier == "s1"
+    suivant = f.next_pick(c)
+    assert "suite rompue : plus rien des années 1950" in suivant.fallbacks
+    assert suivant.track.identifier in ("y1", "y2")
+
+
+def test_une_suite_d_artiste_epuisee_se_rompt_en_le_disant() -> None:
+    catalogue = [
+        track("a1", "Air", genre="électro"),
+        track("b1", "Bowie", genre="électro"),
+        track("b2", "Bowie", genre="électro"),
+    ]
+    hasard = ScriptedRandom([0, 0, 0, 0])  # a1, longueur 3, la rupture, la nouvelle ancre
+    f = Queue(FakeSource(catalogue), hasard, Window(width=1), runs=Runs(hasard))
+    c = Constraint(genre="électro", mode=Mode.ARTIST_FAN, run_key="occ")
+    assert f.next_pick(c).track.identifier == "a1"
+    suivant = f.next_pick(c)
+    assert "suite rompue : plus rien de « Air »" in suivant.fallbacks
+    assert suivant.track.artist == "Bowie"

@@ -43,6 +43,7 @@ from webradio.core.programmes import Programme, Programming
 from webradio.core.queue import Queue
 from webradio.core.rng import RealRandom
 from webradio.core.rotation import Window
+from webradio.core.runs import Runs
 from webradio.core.shows import Show, ShowSchedule
 from webradio.core.weighting import SLOPE_PER_VOTE
 
@@ -297,6 +298,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             random,
             Window(settings.draw.artist_gap),
             weigh=learning.weigh,
+            runs=Runs(random),
         ),
         source=source,
         grille=grille,
