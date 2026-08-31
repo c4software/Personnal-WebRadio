@@ -38,24 +38,22 @@ fichier assez court pour être lu à chaque session.
 
 **Phase 2 — Le produit** `[x]` **terminée le 2026-08-30.**
 
-Les trente-sept Goals sont terminés et la table ci-dessous en est le bilan. Le
-code est écrit, testé et vérifié, et ce que les tests n'entendent pas —
-votes, saut, encore, flash France Info, YouTube, jingles, interface — a été
-**validé à l'écoute par l'auteur le 2026-08-30**, au terme d'une soirée en
-conditions réelles.
+Les quarante-trois Goals sont terminés et la table ci-dessous en est le bilan.
+Le code est écrit, testé et vérifié, et ce que les tests n'entendent pas a été
+**validé à l'écoute par l'auteur** — le 2026-08-30 pour le produit (votes,
+saut, encore, flash France Info, YouTube, jingles, interface), puis le
+**2026-08-31** pour la vague suivante : le tirage sur la bibliothèque entière
+et son cache (GOAL-039/040), la plage au thème tiré au sort (GOAL-037), la
+reprise à neuf après une longue pause (GOAL-041), la grille de journée et ses
+quinze génériques (GOAL-043).
 
 **Aucun Goal ouvert.** Décisions restantes de SPECS.md §7 : la **n°9** est une
 conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
 musique.
 
-**Reste à écouter** : GOAL-037 (une heure d'un artiste tiré au sort, fenêtre
-rétrécie comprise), GOAL-039/040 (la variété d'un tirage qui voit 5704
-pistes au lieu de 500, servi de mémoire entre deux expirations du cache) et
-GOAL-041 (le rebranchement après plus de quinze minutes : départ propre sur un
-tirage neuf, sans jingle périmé ni avance rassise) ne se constatent qu'à
-l'antenne (AGENTS.md §4.1). S'y ajoute GOAL-043 : les quinze génériques de
-plage — voix, niveau, longueur — et la grille de journée elle-même.
+**Reste à écouter** : rien en attente. La tenue dans la durée et les angles
+morts d'AGENTS.md §4.1 restent, comme toujours, sans filet automatique.
 
 **Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
@@ -101,13 +99,13 @@ plage — voix, niveau, longueur — et la grille de journée elle-même.
 | GOAL-034 | L'encore agit sur la chanson suivante, l'avance est réinsérée | `[x]` |
 | GOAL-035 | « À suivre » : la file s'affiche à l'antenne | `[x]` |
 | GOAL-036 | La CI : vérification puis image publiée sur GHCR | `[x]` |
-| GOAL-037 | Une plage dont le genre ou l'artiste est tiré au sort | `[x]` — reste l'écoute réelle |
+| GOAL-037 | Une plage dont le genre ou l'artiste est tiré au sort | `[x]` — écoute validée le 2026-08-31 |
 | GOAL-038 | Le Compose de production tire l'image publiée ; un Compose de dev construit localement | `[x]` |
-| GOAL-039 | Parler Subsonic plutôt que Navidrome, et tirer dans toute la bibliothèque | `[x]` — reste l'écoute réelle |
+| GOAL-039 | Parler Subsonic plutôt que Navidrome, et tirer dans toute la bibliothèque | `[x]` — écoute validée le 2026-08-31 |
 | GOAL-040 | Un cache de bibliothèque dans l'adaptateur Subsonic | `[x]` |
-| GOAL-041 | Péremption des jingles horaires, et reprise à neuf après une longue pause | `[x]` — reste l'écoute réelle |
+| GOAL-041 | Péremption des jingles horaires, et reprise à neuf après une longue pause | `[x]` — écoute validée le 2026-08-31 |
 | GOAL-042 | Le Planning s'ouvre sur aujourd'hui, créneau en cours visible, jours repliés | `[x]` |
-| GOAL-043 | Une grille de journée complète, et un atelier à jingles en conteneur | `[x]` — reste l'écoute réelle |
+| GOAL-043 | Une grille de journée complète, et un atelier à jingles en conteneur | `[x]` — écoute validée le 2026-08-31 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
