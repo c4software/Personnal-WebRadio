@@ -399,6 +399,22 @@ def test_une_piste_sans_genre_est_conservee() -> None:
     assert tracks[0].identifier == "0f1a"
 
 
+def test_l_annee_est_mappee_et_son_absence_vaut_sans_annee() -> None:
+    """docs/subsonic.md §4.1 : `year` est un entier, absent sur 6,7 % des
+    pistes ; toute autre forme vaut « sans année », jamais un rejet."""
+    reponse = """
+{"subsonic-response": {"status": "ok", "version": "1.16.1", "searchResult3": {"song": [
+  {"id": "a1", "title": "Datée", "artist": "Un artiste", "duration": 200, "year": 1977},
+  {"id": "a2", "title": "Sans année", "artist": "Un artiste", "duration": 200},
+  {"id": "a3", "title": "Année étrange", "artist": "Un artiste", "duration": 200, "year": "1977"},
+  {"id": "a4", "title": "Année booléenne", "artist": "Un artiste", "duration": 200, "year": true}
+]}}}
+"""
+    tracks = _source(reponse).tracks()
+
+    assert [track.year for track in tracks] == [1977, None, None, None]
+
+
 def test_une_piste_inexploitable_est_ecartee_sans_faire_echouer_l_appel(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

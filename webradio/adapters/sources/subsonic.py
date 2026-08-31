@@ -455,6 +455,7 @@ def _en_piste(brute: Any) -> Track | None:
     artist = brute.get("artist")
     duration = brute.get("duration")
     genre = brute.get("genre")
+    year = brute.get("year")
     if (
         not isinstance(identifier, str)
         or not isinstance(title, str)
@@ -471,6 +472,9 @@ def _en_piste(brute: Any) -> Track | None:
             artist=artist,
             genre=genre if isinstance(genre, str) and genre else None,
             duration=timedelta(seconds=duration),
+            # Un entier, quand la piste est datée — 93,3 % de la bibliothèque
+            # réelle (docs/subsonic.md §4.1). Tout le reste vaut « sans année ».
+            year=year if isinstance(year, int) and not isinstance(year, bool) else None,
         )
     except ValueError as error:
         journal.warning("chanson ignorée : %s", error)
