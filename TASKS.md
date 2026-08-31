@@ -120,7 +120,7 @@ ajoutée n'apparaît qu'à l'expiration — se décide et se documente.
 
 - [x] **GOAL-040-T01** — La clé `cache_seconds` dans `[subsonic]` : défaut
       600 s, `0` = sans cache, refusée si négative ; exemples TOML mis à jour.
-- [ ] **GOAL-040-T02** — Le cache dans l'adaptateur : horloge injectée
+- [x] **GOAL-040-T02** — Le cache dans l'adaptateur : horloge injectée
       (`core/clock.py`), une entrée par clé de tirage (bibliothèque entière ou
       genre), expiration à la lecture, un échec n'est jamais mis en cache ;
       `tracks_by` et les listes de lecture restent sans cache ; câblage

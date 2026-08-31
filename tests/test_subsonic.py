@@ -12,7 +12,7 @@ import io
 import logging
 import urllib.error
 import urllib.parse
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from email.message import Message
 from types import TracebackType
 
@@ -25,6 +25,7 @@ from webradio.adapters.sources.subsonic import (
     SubsonicSource,
     UrllibTransport,
 )
+from webradio.core.clock import FrozenClock
 from webradio.core.models import Track
 from webradio.core.rng import ScriptedRandom
 from webradio.core.sources import SourceUnavailable
@@ -128,11 +129,14 @@ class UnreachableTransport:
         raise ConnectionRefusedError(message)
 
 
-def _reglages(resultats: int = 50) -> SubsonicSettings:
+UN_SOIR = datetime(2026, 8, 31, 20, 0, tzinfo=UTC)
+
+
+def _reglages(resultats: int = 50, cache: float = 0.0) -> SubsonicSettings:
     return SubsonicSettings(
         artist_results=resultats,
         timeout_seconds=1.0,
-        cache_seconds=0.0,
+        cache_seconds=cache,
     )
 
 
@@ -141,14 +145,17 @@ def _source(
     code: int = 200,
     *,
     transport: ScriptedTransport | UnreachableTransport | None = None,
+    cache: float = 0.0,
+    clock: FrozenClock | None = None,
 ) -> SubsonicSource:
     reel = transport if transport is not None else ScriptedTransport(HttpResponse(code, body))
     return SubsonicSource(
         credentials=IDENTIFIANTS,
-        config=_reglages(),
+        config=_reglages(cache=cache),
         # Un sel écrit à l'avance : deux exécutions produisent la même URL.
         random=ScriptedRandom([0] * 1000),
         transport=reel,
+        clock=clock if clock is not None else FrozenClock(UN_SOIR),
     )
 
 
@@ -292,6 +299,85 @@ def test_le_filtre_par_genre_passe_par_get_songs_by_genre_pagine() -> None:
     assert params["genre"] == "Rock"
     assert params["count"] == str(PAGE_SIZE)
     assert params["offset"] == "0"
+
+
+# ── Le cache : la bibliothèque n'est pas re-parcourue à chaque tirage ──────
+
+
+def test_un_second_tirage_dans_la_fenetre_ne_refait_aucun_appel() -> None:
+    transport = ScriptedTransport(HttpResponse(200, DEUX_CHANSONS))
+    clock = FrozenClock(UN_SOIR)
+    source = _source(transport=transport, cache=3600.0, clock=clock)
+
+    premier = source.tracks()
+    clock.advance(timedelta(minutes=59))
+    second = source.tracks()
+
+    assert len(transport.urls) == 1
+    assert [track.identifier for track in second] == [track.identifier for track in premier]
+
+
+def test_le_cache_expire_et_le_parcours_est_refait() -> None:
+    transport = ScriptedTransport(HttpResponse(200, DEUX_CHANSONS))
+    clock = FrozenClock(UN_SOIR)
+    source = _source(transport=transport, cache=3600.0, clock=clock)
+
+    source.tracks()
+    clock.advance(timedelta(hours=1))
+    source.tracks()
+
+    assert len(transport.urls) == 2
+
+
+def test_chaque_genre_a_sa_propre_entree_de_cache() -> None:
+    transport = ScriptedTransport(
+        [
+            HttpResponse(200, DEUX_CHANSONS),
+            HttpResponse(200, _page("songsByGenre", ["r1"])),
+        ]
+    )
+    source = _source(transport=transport, cache=3600.0)
+
+    source.tracks()
+    source.tracks(genre="Rock")
+    source.tracks()
+    source.tracks(genre="Rock")
+
+    assert len(transport.urls) == 2
+
+
+def test_une_duree_nulle_refait_les_appels_a_chaque_tirage() -> None:
+    transport = ScriptedTransport(HttpResponse(200, DEUX_CHANSONS))
+    source = _source(transport=transport, cache=0.0)
+
+    source.tracks()
+    source.tracks()
+
+    assert len(transport.urls) == 2
+
+
+def test_une_panne_n_entre_pas_au_cache() -> None:
+    transport = ScriptedTransport(
+        [
+            HttpResponse(200, PAGE_HTML_EN_200),
+            HttpResponse(200, DEUX_CHANSONS),
+        ]
+    )
+    source = _source(transport=transport, cache=3600.0)
+
+    with pytest.raises(SourceUnavailable):
+        source.tracks()
+
+    assert len(source.tracks()) == 2
+
+
+def test_muter_le_resultat_ne_corrompt_pas_le_cache() -> None:
+    transport = ScriptedTransport(HttpResponse(200, DEUX_CHANSONS))
+    source = _source(transport=transport, cache=3600.0)
+
+    source.tracks().clear()
+
+    assert len(source.tracks()) == 2
 
 
 # ── Les pièges n°4 et n°5 : genre inexistant, genre manquant ───────────────

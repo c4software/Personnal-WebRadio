@@ -33,10 +33,11 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Protocol
 
 from webradio.adapters.config.schema import SubsonicCredentials, SubsonicSettings
+from webradio.core.clock import Clock
 from webradio.core.models import Track
 from webradio.core.rng import Random
 from webradio.core.sources import SourceUnavailable
@@ -124,11 +125,15 @@ class SubsonicSource:
         config: SubsonicSettings,
         random: Random,
         transport: HttpTransport,
+        clock: Clock,
     ) -> None:
         self._identifiants = credentials
         self._reglages = config
         self._hasard = random
         self._transport = transport
+        self._horloge = clock
+        self._duree_cache = timedelta(seconds=config.cache_seconds)
+        self._cache: dict[str | None, tuple[datetime, list[Track]]] = {}
 
     def tracks(self, genre: str | None = None) -> list[Track]:
         """La bibliothèque **entière**, ou tout un genre — jamais un échantillon.
@@ -137,7 +142,24 @@ class SubsonicSource:
         faisait tourner la radio en rond dans un douzième de la musique : le
         tirage appartient au noyau (docs/subsonic.md §2.4), et il doit voir
         toutes les pistes.
+
+        Le parcours coûte une douzaine d'appels : il est servi de mémoire
+        pendant `cache_seconds`, une entrée par clé de tirage. Seul un parcours
+        **réussi** entre au cache — une panne se propage telle quelle, le
+        régime de SPECS.md §5 ne change pas — et le prix est assumé : un ajout
+        sur le serveur n'apparaît qu'à l'expiration. `tracks_by` et les listes
+        de lecture restent sans cache : l'« encore » est rare, et une liste
+        renommée ne doit pas rester résolue (§2.6).
         """
+        now = self._horloge.now()
+        entry = self._cache.get(genre)
+        if entry is not None and now - entry[0] < self._duree_cache:
+            return list(entry[1])
+        tracks = self._parcourir(genre)
+        self._cache[genre] = (now, tracks)
+        return list(tracks)
+
+    def _parcourir(self, genre: str | None) -> list[Track]:
         if genre is None:
             tracks = self._paginer(
                 "search3",

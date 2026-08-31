@@ -59,9 +59,9 @@ DEFAULT_VOTE_CEILING = 4.0
 DEFAULT_VOTE_HALF_LIFE = 90
 DEFAULT_ARTIST_RESULTS = 50
 DEFAULT_TIMEOUT_SECONDS = 10.0
-# La bibliothèque bouge rarement ; dix minutes bornent le retard d'apparition
+# La bibliothèque bouge rarement ; une heure borne le retard d'apparition
 # d'un ajout sans refaire le parcours complet à chaque tirage (GOAL-040).
-DEFAULT_CACHE_SECONDS = 600.0
+DEFAULT_CACHE_SECONDS = 3600.0
 
 MAX_PORT = 65535
 

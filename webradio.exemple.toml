@@ -132,8 +132,8 @@ timeout_seconds = 60.0
 artist_results  = 50
 timeout_seconds     = 10.0
 # La bibliothèque est servie de mémoire pendant cette durée : un morceau ajouté
-# sur le serveur apparaît au plus tard dix minutes après. 0 = sans cache.
-cache_seconds   = 600.0
+# sur le serveur apparaît au plus tard une heure après. 0 = sans cache.
+cache_seconds   = 3600.0
 
 # ── Les programmes ──────────────────────────────────────────────────────────
 # Des jours ET des heures, et la musique vient d'une liste de lecture que vous
