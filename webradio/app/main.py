@@ -22,7 +22,7 @@ from webradio.adapters.config.loading import load
 from webradio.adapters.config.schema import Band as BandSettings
 from webradio.adapters.config.schema import Config
 from webradio.adapters.podcast.feed import PodcastFeed, UrllibReader
-from webradio.adapters.sources.navidrome import NavidromeSource, UrllibTransport
+from webradio.adapters.sources.subsonic import SubsonicSource, UrllibTransport
 from webradio.adapters.state.database import Scope as StateScope
 from webradio.adapters.state.database import SqliteState, StateUnavailable
 from webradio.adapters.web.api import Kind as WebKind
@@ -126,11 +126,11 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         slope=SLOPE_PER_VOTE,
     )
 
-    source = NavidromeSource(
+    source = SubsonicSource(
         credentials=config.credentials,
-        config=settings.navidrome,
+        config=settings.subsonic,
         random=random,
-        transport=UrllibTransport(settings.navidrome.timeout_seconds),
+        transport=UrllibTransport(settings.subsonic.timeout_seconds),
     )
     theme_au_hasard = RandomTheme(source, random)
     grille = Schedule(

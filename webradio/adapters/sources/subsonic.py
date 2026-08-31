@@ -1,4 +1,4 @@
-"""La source Navidrome, via l'API Subsonic.
+"""La source Subsonic — le protocole ; Navidrome est l'instance relevée.
 
 Tout ce fichier est écrit contre [docs/navidrome.md](../../../docs/navidrome.md),
 un relevé établi contre une instance réelle. Six comportements constatés y
@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 from typing import Any, Protocol
 
-from webradio.adapters.config.schema import NavidromeCredentials, NavidromeSettings
+from webradio.adapters.config.schema import SubsonicCredentials, SubsonicSettings
 from webradio.core.models import Track
 from webradio.core.rng import Random
 from webradio.core.sources import SourceUnavailable
@@ -104,7 +104,7 @@ class UrllibTransport:
         except urllib.error.HTTPError as error:
             return HttpResponse(code=int(error.code), body=_texte(error.read()))
         except OSError as error:
-            message = f"Navidrome injoignable : {error}"
+            message = f"serveur Subsonic injoignable : {error}"
             raise SourceUnavailable(message) from error
 
 
@@ -112,13 +112,13 @@ def _texte(brut: bytes) -> str:
     return brut.decode("utf-8", errors="replace")
 
 
-class NavidromeSource:
-    """La bibliothèque Navidrome, vue comme une `SourceMusicale`."""
+class SubsonicSource:
+    """Une bibliothèque servie en Subsonic, vue comme une `MusicSource`."""
 
     def __init__(
         self,
-        credentials: NavidromeCredentials,
-        config: NavidromeSettings,
+        credentials: SubsonicCredentials,
+        config: SubsonicSettings,
         random: Random,
         transport: HttpTransport,
     ) -> None:
@@ -318,7 +318,7 @@ class NavidromeSource:
         try:
             answer = self._transport.fetch(self._url(method, params))
         except OSError as error:
-            message = f"« {method} » : Navidrome injoignable ({error})"
+            message = f"« {method} » : serveur Subsonic injoignable ({error})"
             raise SourceUnavailable(message) from error
 
         if answer.code != HTTP_OK:

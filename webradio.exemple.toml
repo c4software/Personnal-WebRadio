@@ -1,6 +1,6 @@
 # Modèle de configuration — à copier en `webradio.toml`, qui n'est pas versionné.
 #
-# Ce fichier ne porte AUCUN secret : les identifiants Navidrome sont dans
+# Ce fichier ne porte AUCUN secret : les identifiants Subsonic sont dans
 # `.env` (SPECS.md §6.1). Un secret trouvé ici fait échouer le démarrage.
 
 # ── Le flux servi aux auditeurs ────────────────────────────────────────────
@@ -125,8 +125,8 @@ timeout_seconds = 15.0
 [youtube]
 timeout_seconds = 60.0
 
-# ── Navidrome (hors identifiants, qui sont dans .env) ──────────────────────
-[navidrome]
+# ── Subsonic (hors identifiants, qui sont dans .env) ───────────────────────
+[subsonic]
 # Nombre de pistes demandées au serveur. Il tronque à 500 en silence : demander
 # davantage ne rend pas davantage (docs/navidrome.md §2.1).
 sample_size = 500
@@ -135,7 +135,7 @@ timeout_seconds     = 10.0
 
 # ── Les programmes ──────────────────────────────────────────────────────────
 # Des jours ET des heures, et la musique vient d'une liste de lecture que vous
-# avez faite dans Navidrome — pas d'un genre. Un programme l'emporte sur une
+# avez faite dans votre bibliothèque — pas d'un genre. Un programme l'emporte sur une
 # plage thématique qui le recouvre.
 # Une liste introuvable, vidée ou renommée ne fait pas taire la radio : elle se
 # replie sur le tirage libre et le journalise.

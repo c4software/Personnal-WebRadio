@@ -1,4 +1,4 @@
-"""L'adaptateur Navidrome, contre des réponses HTTP **littérales**.
+"""L'adaptateur Subsonic, contre des réponses HTTP **littérales**.
 
 Les corps de réponse sont recopiés de [docs/navidrome.md](../docs/navidrome.md),
 qui les a relevés contre une instance réelle. Aucun test ne touche au réseau :
@@ -18,11 +18,11 @@ from types import TracebackType
 
 import pytest
 
-from webradio.adapters.config.schema import NavidromeCredentials, NavidromeSettings
-from webradio.adapters.sources.navidrome import (
+from webradio.adapters.config.schema import SubsonicCredentials, SubsonicSettings
+from webradio.adapters.sources.subsonic import (
     SAMPLE_CAP,
     HttpResponse,
-    NavidromeSource,
+    SubsonicSource,
     UrllibTransport,
 )
 from webradio.core.models import Track
@@ -32,7 +32,7 @@ from webradio.core.sources import SourceUnavailable
 UTILISATEUR = "auditeur-fictif"
 MOT_DE_PASSE = "passe-fictif"
 
-IDENTIFIANTS = NavidromeCredentials(
+IDENTIFIANTS = SubsonicCredentials(
     url="http://exemple.local",
     username=UTILISATEUR,
     password=MOT_DE_PASSE,
@@ -42,7 +42,7 @@ IDENTIFIANTS = NavidromeCredentials(
 
 MOT_DE_PASSE_FAUX = """
 {"subsonic-response": {"status": "failed", "version": "1.16.1",
- "type": "navidrome", "serverVersion": "0.63.2",
+ "type": "subsonic", "serverVersion": "0.63.2",
  "error": {"code": 40, "message": "Wrong username or password"}}}
 """
 
@@ -128,8 +128,8 @@ class UnreachableTransport:
         raise ConnectionRefusedError(message)
 
 
-def _reglages(taille: int = 100, resultats: int = 50) -> NavidromeSettings:
-    return NavidromeSettings(
+def _reglages(taille: int = 100, resultats: int = 50) -> SubsonicSettings:
+    return SubsonicSettings(
         sample_size=taille,
         artist_results=resultats,
         timeout_seconds=1.0,
@@ -142,9 +142,9 @@ def _source(
     *,
     transport: ScriptedTransport | UnreachableTransport | None = None,
     taille: int = 100,
-) -> NavidromeSource:
+) -> SubsonicSource:
     reel = transport if transport is not None else ScriptedTransport(HttpResponse(code, body))
-    return NavidromeSource(
+    return SubsonicSource(
         credentials=IDENTIFIANTS,
         config=_reglages(taille=taille),
         # Un sel écrit à l'avance : deux exécutions produisent la même URL.

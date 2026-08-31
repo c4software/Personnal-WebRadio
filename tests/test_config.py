@@ -11,9 +11,9 @@ from pathlib import Path
 import pytest
 
 from webradio.adapters.config import (
-    NavidromeCredentials,
     Settings,
     SettingsError,
+    SubsonicCredentials,
     credentials_from,
     load,
     read_env,
@@ -39,9 +39,9 @@ database = "/var/lib/local-webradio/etat.sqlite3"
 
 ENV_FICTIF = """
 # Un modèle, avec des valeurs inventées.
-NAVIDROME_URL=http://exemple.local/
-NAVIDROME_UTILISATEUR=auditeur-fictif
-NAVIDROME_MOT_DE_PASSE="passe-fictif"
+SUBSONIC_URL=http://exemple.local/
+SUBSONIC_UTILISATEUR=auditeur-fictif
+SUBSONIC_MOT_DE_PASSE="passe-fictif"
 """
 
 
@@ -87,30 +87,30 @@ time = "20:00"
     assert config.state.database.endswith("etat.sqlite3")
 
 
-def test_les_reglages_navidrome_ont_des_defauts_declares() -> None:
+def test_les_reglages_subsonic_ont_des_defauts_declares() -> None:
     config = _valider(TOML_MINIMAL)
 
-    assert config.navidrome.sample_size == DEFAULT_SAMPLE_SIZE
-    assert config.navidrome.artist_results == DEFAULT_ARTIST_RESULTS
+    assert config.subsonic.sample_size == DEFAULT_SAMPLE_SIZE
+    assert config.subsonic.artist_results == DEFAULT_ARTIST_RESULTS
 
 
 def test_un_mot_de_passe_dans_le_toml_fait_echouer_le_demarrage() -> None:
-    content = TOML_MINIMAL + '\n[navidrome]\nmot_de_passe = "peu importe"\n'
+    content = TOML_MINIMAL + '\n[subsonic]\nmot_de_passe = "peu importe"\n'
 
     with pytest.raises(SettingsError) as refus:
         _valider(content)
 
-    assert "navidrome.mot_de_passe" in str(refus.value)
-    assert "NAVIDROME_MOT_DE_PASSE" in str(refus.value)
+    assert "subsonic.mot_de_passe" in str(refus.value)
+    assert "SUBSONIC_MOT_DE_PASSE" in str(refus.value)
 
 
 def test_un_utilisateur_dans_le_toml_fait_echouer_le_demarrage() -> None:
-    content = TOML_MINIMAL + '\n[navidrome]\nutilisateur = "peu importe"\n'
+    content = TOML_MINIMAL + '\n[subsonic]\nutilisateur = "peu importe"\n'
 
     with pytest.raises(SettingsError) as refus:
         _valider(content)
 
-    assert "NAVIDROME_UTILISATEUR" in str(refus.value)
+    assert "SUBSONIC_UTILISATEUR" in str(refus.value)
 
 
 def test_un_secret_cache_dans_une_liste_de_sections_est_refuse() -> None:
@@ -334,9 +334,9 @@ def test_le_env_fournit_les_identifiants(tmp_path: Path) -> None:
 
 
 def test_une_ligne_env_exportee_est_acceptee(tmp_path: Path) -> None:
-    variables = read_env(_ecrire(tmp_path / ".env", "export NAVIDROME_URL=http://exemple.local\n"))
+    variables = read_env(_ecrire(tmp_path / ".env", "export SUBSONIC_URL=http://exemple.local\n"))
 
-    assert variables["NAVIDROME_URL"] == "http://exemple.local"
+    assert variables["SUBSONIC_URL"] == "http://exemple.local"
 
 
 def test_un_env_absent_ne_fait_pas_echouer_la_lecture(tmp_path: Path) -> None:
@@ -344,7 +344,7 @@ def test_un_env_absent_ne_fait_pas_echouer_la_lecture(tmp_path: Path) -> None:
 
 
 def test_une_ligne_env_sans_egal_est_signalee_avec_son_numero(tmp_path: Path) -> None:
-    path = _ecrire(tmp_path / ".env", "# un commentaire\nNAVIDROME_URL\n")
+    path = _ecrire(tmp_path / ".env", "# un commentaire\nSUBSONIC_URL\n")
 
     with pytest.raises(SettingsError) as refus:
         read_env(path)
@@ -363,14 +363,14 @@ def test_une_ligne_env_sans_nom_est_signalee(tmp_path: Path) -> None:
 
 def test_un_identifiant_manquant_est_nomme() -> None:
     with pytest.raises(SettingsError) as refus:
-        credentials_from({"NAVIDROME_URL": "http://exemple.local"})
+        credentials_from({"SUBSONIC_URL": "http://exemple.local"})
 
-    assert "NAVIDROME_UTILISATEUR" in str(refus.value)
-    assert "NAVIDROME_MOT_DE_PASSE" in str(refus.value)
+    assert "SUBSONIC_UTILISATEUR" in str(refus.value)
+    assert "SUBSONIC_MOT_DE_PASSE" in str(refus.value)
 
 
 def test_le_mot_de_passe_n_apparait_pas_dans_la_representation_des_identifiants() -> None:
-    credentials = NavidromeCredentials(
+    credentials = SubsonicCredentials(
         url="http://exemple.local",
         username="auditeur-fictif",
         password="passe-fictif",
@@ -384,7 +384,7 @@ def test_une_variable_du_processus_prime_sur_le_fichier_env(tmp_path: Path) -> N
     toml = _ecrire(tmp_path / "webradio.toml", TOML_MINIMAL)
     env = _ecrire(tmp_path / ".env", ENV_FICTIF)
 
-    config = load(toml, env, {"NAVIDROME_UTILISATEUR": "autre-auditeur"})
+    config = load(toml, env, {"SUBSONIC_UTILISATEUR": "autre-auditeur"})
 
     assert config.credentials.username == "autre-auditeur"
     assert config.credentials.password == "passe-fictif"

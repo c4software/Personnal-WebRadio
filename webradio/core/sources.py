@@ -1,6 +1,6 @@
 """La frontière entre le noyau et ce qui détient la musique.
 
-Le noyau ne connaît que ce `Protocol`. Navidrome en est la seule implémentation
+Le noyau ne connaît que ce `Protocol`. Subsonic en est la seule implémentation
 écrite aujourd'hui ; le mécanisme est néanmoins complet, et c'est un **écart
 assumé** à l'interdit d'anticipation d'AGENTS.md §2, consigné dans
 ARCHITECTURE.md §9.1.

@@ -21,9 +21,9 @@ from webradio.adapters.config.schema import (
     VARIABLE_URL,
     VARIABLE_UTILISATEUR,
     Config,
-    NavidromeCredentials,
     Settings,
     SettingsError,
+    SubsonicCredentials,
     validate,
 )
 
@@ -76,7 +76,7 @@ def _sans_guillemets(value: str) -> str:
     return value
 
 
-def credentials_from(variables: Mapping[str, str]) -> NavidromeCredentials:
+def credentials_from(variables: Mapping[str, str]) -> SubsonicCredentials:
     """Extrait les trois identifiants, ou refuse le démarrage en nommant celui qui manque.
 
     Le message nomme la **variable**, jamais une valeur : dire ce qui manque
@@ -89,11 +89,11 @@ def credentials_from(variables: Mapping[str, str]) -> NavidromeCredentials:
     ]
     if manquantes:
         message = (
-            f"identifiants Navidrome absents : {', '.join(manquantes)} — "
+            f"identifiants Subsonic absents : {', '.join(manquantes)} — "
             "ces valeurs viennent du fichier .env, jamais du TOML (SPECS.md §6.1)"
         )
         raise SettingsError(message)
-    return NavidromeCredentials(
+    return SubsonicCredentials(
         url=variables[VARIABLE_URL].rstrip("/"),
         username=variables[VARIABLE_UTILISATEUR],
         password=variables[VARIABLE_MOT_DE_PASSE],

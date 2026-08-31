@@ -18,7 +18,7 @@ DECISIONS_INTERDITES = {
     r"\bsingle\(": "un fichier fixe — un jingle ne s'insère pas ici",
     r"\bfallback\(": "un repli local — la panne se dit, elle ne se cache pas",
     r"\.mp3\b": "un chemin de fichier — l'API rend les chemins",
-    r"\bnavidrome\b": "Navidrome — seul adapters/sources/ le connaît",
+    r"\b(?:subsonic|navidrome)\b": "la source de musique — seul adapters/sources/ la connaît",
     r"\btime\.": "l'horloge — il n'y en a qu'une, core/clock.py",
     r"\{\s*\d+h": "un prédicat horaire — la grille est dans le noyau",
 }

@@ -9,10 +9,10 @@ la priorité — c'est du câblage.
 **Ce module ne va chercher aucune piste.** Il dit *quel programme est ouvert*,
 et rien d'autre : le noyau ne parle à personne (AGENTS.md §2), et c'est ce qui
 permet de dérouler une semaine entière de programmation en une boucle, sans
-Navidrome ni réseau.
+source ni réseau.
 
 Le nom de la liste est transporté tel quel jusqu'à la source : le noyau ne
-connaît que des noms, jamais l'identifiant opaque que Navidrome leur donne.
+connaît que des noms, jamais l'identifiant opaque que la source leur donne.
 """
 
 from collections.abc import Sequence
@@ -119,7 +119,7 @@ class Programming:
         """Le nom de la liste où tirer maintenant, `None` hors de tout programme.
 
         C'est un nom, pas un identifiant : la résolution appartient à la source,
-        seule à savoir ce que Navidrome appelle une liste (SPECS.md §4.13).
+        seule à savoir ce que le serveur appelle une liste (SPECS.md §4.13).
         """
         programme = self.current_programme()
         return None if programme is None else programme.playlist

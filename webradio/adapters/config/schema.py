@@ -25,9 +25,9 @@ from webradio.core.bands import RANDOM_THEMES
 
 # Les trois variables du `.env`. Elles ne portent aucune valeur ici : seulement
 # leur nom, qui sert à dire d'où un secret aurait dû venir.
-VARIABLE_URL = "NAVIDROME_URL"
-VARIABLE_UTILISATEUR = "NAVIDROME_UTILISATEUR"
-VARIABLE_MOT_DE_PASSE = "NAVIDROME_MOT_DE_PASSE"
+VARIABLE_URL = "SUBSONIC_URL"
+VARIABLE_UTILISATEUR = "SUBSONIC_UTILISATEUR"
+VARIABLE_MOT_DE_PASSE = "SUBSONIC_MOT_DE_PASSE"
 
 # Un fragment de nom de clé qui trahit un secret, et l'origine attendue de sa
 # valeur. La recherche porte sur le nom, jamais sur la valeur : une valeur qui
@@ -223,8 +223,8 @@ class Show:
 
 
 @dataclass(frozen=True, slots=True)
-class NavidromeSettings:
-    """Ce que la source Navidrome a besoin de savoir, hors identifiants.
+class SubsonicSettings:
+    """Ce que la source Subsonic a besoin de savoir, hors identifiants.
 
     `taille_echantillon` est un nombre de pistes demandé au serveur, pas une
     borne du tirage : le serveur tronque au-delà de son propre plafond, ce que
@@ -246,14 +246,14 @@ class Settings:
     state: StateSettings
     shows: tuple[Show, ...]
     programmes: tuple[DeclaredProgramme, ...]
-    navidrome: NavidromeSettings
+    subsonic: SubsonicSettings
     web: WebSettings
     podcast: PodcastSettings
     youtube: YoutubeSettings
 
 
 @dataclass(frozen=True, slots=True, repr=False)
-class NavidromeCredentials:
+class SubsonicCredentials:
     """Les trois valeurs qui viennent du `.env`, et d'aucun autre endroit.
 
     La représentation masque le mot de passe : un objet passé par mégarde à un
@@ -266,7 +266,7 @@ class NavidromeCredentials:
 
     def __repr__(self) -> str:
         return (
-            f"IdentifiantsNavidrome(url={self.url!r}, "
+            f"SubsonicCredentials(url={self.url!r}, "
             f"utilisateur={self.username!r}, mot_de_passe=***)"
         )
 
@@ -276,7 +276,7 @@ class Config:
     """Les deux moitiés de la configuration, réunies pour l'assemblage."""
 
     settings: Settings
-    credentials: NavidromeCredentials
+    credentials: SubsonicCredentials
 
 
 def _refuser(path: str, reason: str) -> NoReturn:
@@ -611,16 +611,14 @@ def _refuser_les_collisions(shows: Sequence[Show]) -> None:
             occupes[creneau] = show.name
 
 
-def _navidrome(brut: Mapping[str, Any]) -> NavidromeSettings:
-    table = _table_optionnelle(brut, "navidrome", "")
-    _verifier_cles(table, ("sample_size", "artist_results", "timeout_seconds"), "navidrome")
-    return NavidromeSettings(
-        sample_size=_entier(table, "sample_size", "navidrome", default=DEFAULT_SAMPLE_SIZE),
-        artist_results=_entier(
-            table, "artist_results", "navidrome", default=DEFAULT_ARTIST_RESULTS
-        ),
+def _subsonic(brut: Mapping[str, Any]) -> SubsonicSettings:
+    table = _table_optionnelle(brut, "subsonic", "")
+    _verifier_cles(table, ("sample_size", "artist_results", "timeout_seconds"), "subsonic")
+    return SubsonicSettings(
+        sample_size=_entier(table, "sample_size", "subsonic", default=DEFAULT_SAMPLE_SIZE),
+        artist_results=_entier(table, "artist_results", "subsonic", default=DEFAULT_ARTIST_RESULTS),
         timeout_seconds=_reel(
-            table, "timeout_seconds", "navidrome", default=DEFAULT_TIMEOUT_SECONDS, minimum=0.1
+            table, "timeout_seconds", "subsonic", default=DEFAULT_TIMEOUT_SECONDS, minimum=0.1
         ),
     )
 
@@ -640,7 +638,7 @@ def validate(brut: Mapping[str, Any]) -> Settings:
             "bands",
             "state",
             "shows",
-            "navidrome",
+            "subsonic",
             "web",
             "podcast",
             "youtube",
@@ -669,7 +667,7 @@ def validate(brut: Mapping[str, Any]) -> Settings:
         ),
         shows=_emissions(brut),
         programmes=_programmes(brut),
-        navidrome=_navidrome(brut),
+        subsonic=_subsonic(brut),
         web=WebSettings(
             address=_texte(web, "address", "web", default=DEFAULT_WEB_ADDRESS),
             port=_entier(web, "port", "web", default=DEFAULT_WEB_PORT, maximum=MAX_PORT),

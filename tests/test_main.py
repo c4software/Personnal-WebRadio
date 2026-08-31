@@ -40,9 +40,9 @@ time = "20:00"
 """
 
 ENV_MINIMAL = """
-NAVIDROME_URL=http://exemple.test
-NAVIDROME_UTILISATEUR=auditeur-fictif
-NAVIDROME_MOT_DE_PASSE=passe-fictif
+SUBSONIC_URL=http://exemple.test
+SUBSONIC_UTILISATEUR=auditeur-fictif
+SUBSONIC_MOT_DE_PASSE=passe-fictif
 """
 
 
@@ -120,7 +120,7 @@ def test_un_secret_dans_le_toml_est_refuse(tmp_path: Path) -> None:
     toml = tmp_path / "webradio.toml"
     toml.write_text(
         TOML_MINIMAL.format(folder=folder, database=tmp_path / "e.sqlite3")
-        + '\n[navidrome]\nmot_de_passe = "ne devrait pas être ici"\n'
+        + '\n[subsonic]\nmot_de_passe = "ne devrait pas être ici"\n'
     )
     env = tmp_path / ".env"
     env.write_text(ENV_MINIMAL)
