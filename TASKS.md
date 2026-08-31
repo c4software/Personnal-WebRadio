@@ -72,7 +72,7 @@ se tire dans sa contrainte.
 - [x] GOAL-044-T02 — Noyau : `Track.year` optionnel, fakes à jour
 - [x] GOAL-044-T03 — Subsonic : mapper `year`, réponses littérales avec et
       sans année
-- [ ] GOAL-044-T04 — Noyau : `core/runs.py` — trois modes, ancre posée par le
+- [x] GOAL-044-T04 — Noyau : `core/runs.py` — trois modes, ancre posée par le
       premier tirage, longueur au hasard injecté (2 / 2–6 / 3–6), titres déjà
       servis exclus, remise à zéro au changement de contrainte
 - [ ] GOAL-044-T05 — Câblage : `Band.mode` → `Constraint.mode` → `Queue` —
