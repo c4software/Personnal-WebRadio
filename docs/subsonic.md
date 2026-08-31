@@ -252,6 +252,22 @@ Sur les mêmes 200 pistes :
 > chiffres : refuser ces pistes aurait amputé la radio de 18 % de la
 > bibliothèque.
 
+### 4.1 L'année des pistes — **relevé du 2026-08-31** (`GOAL-044`)
+
+Sur la bibliothèque **entière** (5704 pistes, `search3` paginé — la même
+requête que le parcours de la radio) :
+
+| Constat | Valeur |
+|---|---|
+| Forme de `year` | un **entier** (l'année seule, ex. `2011`) — jamais une date |
+| Pistes datées | **5323 / 5704 (93,3 %)** ; absent (ou nul) pour les autres |
+| Décennies peuplées | 1950 → 2020, toutes ; de 12 pistes (1950) à 2148 (2010) |
+
+> **Conséquence pour les suites d'époque** : `Track.year` est optionnel — une
+> piste sans année existe et ne se refuse pas — et une décennie maigre (45
+> pistes en 1980) croisée avec une plage thématique étroite peut s'épuiser en
+> deux titres : la suite doit savoir se rompre en le disant, pas boucler.
+
 ## 5. Quand ça se passe mal — **relevé**
 
 | Situation | Réponse |

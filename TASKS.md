@@ -55,7 +55,35 @@ musique.
 **Reste à écouter** : rien en attente. La tenue dans la durée et les angles
 morts d'AGENTS.md §4.1 restent, comme toujours, sans filet automatique.
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
+**Prochaine tâche** : GOAL-044-T01.
+
+---
+
+## GOAL-044 — Les modes d'enchaînement des plages
+
+Demandé par l'auteur le 2026-08-31 : une plage peut enchaîner — « double
+dose » (chaque artiste passe deux titres à la suite), « passionné d'une
+époque » (2 à 6 titres d'une même décennie), « passionné d'un artiste » (3 à
+6 titres du même artiste). Le mode se combine au thème de la plage ; la suite
+se tire dans sa contrainte.
+
+- [x] GOAL-044-T01 — Relevé Subsonic : le champ `year` des pistes chez le vrai
+      Navidrome — présence, forme, proportion de pistes datées → docs/subsonic.md
+- [ ] GOAL-044-T02 — Noyau : `Track.year` optionnel, fakes à jour
+- [ ] GOAL-044-T03 — Subsonic : mapper `year`, réponses littérales avec et
+      sans année
+- [ ] GOAL-044-T04 — Noyau : `core/runs.py` — trois modes, ancre posée par le
+      premier tirage, longueur au hasard injecté (2 / 2–6 / 3–6), titres déjà
+      servis exclus, remise à zéro au changement de contrainte
+- [ ] GOAL-044-T05 — Câblage : `Band.mode` → `Constraint.mode` → `Queue` —
+      exemption de fenêtre pour les suites d'artiste, filtre d'époque, rupture
+      journalisée d'une suite épuisée ; `main.py`
+- [ ] GOAL-044-T06 — Config : la clé `mode` (combinable, mode seul = tirage
+      libre enchaîné), SPECS §6
+- [ ] GOAL-044-T07 — SPECS §4.4 + n°31, webradio.exemple.toml, grille locale —
+      **à écouter : les trois enchaînements, et la fenêtre qui reprend après
+      chaque suite**
+- [ ] GOAL-044-T08 — Clôture : carte du dépôt (`runs.py`), archive, push
 
 ---
 
@@ -106,6 +134,7 @@ morts d'AGENTS.md §4.1 restent, comme toujours, sans filet automatique.
 | GOAL-041 | Péremption des jingles horaires, et reprise à neuf après une longue pause | `[x]` — écoute validée le 2026-08-31 |
 | GOAL-042 | Le Planning s'ouvre sur aujourd'hui, créneau en cours visible, jours repliés | `[x]` |
 | GOAL-043 | Une grille de journée complète, et un atelier à jingles en conteneur | `[x]` — écoute validée le 2026-08-31 |
+| GOAL-044 | Les modes d'enchaînement des plages : double dose, époque, artiste | `[ ]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
