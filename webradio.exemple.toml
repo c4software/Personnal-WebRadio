@@ -127,6 +127,11 @@ timeout_seconds = 15.0
 [youtube]
 timeout_seconds = 60.0
 
+# ── La reprise après une pause ─────────────────────────────────────────────
+[playout]
+# Au-delà de cette pause sans auditeur, le retour repart sur un tirage neuf. 0 = jamais.
+resume_fresh_seconds = 900.0
+
 # ── Subsonic (hors identifiants, qui sont dans .env) ───────────────────────
 [subsonic]
 # Le tirage voit la bibliothèque entière (GOAL-039). `artist_results` ne borne

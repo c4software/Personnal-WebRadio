@@ -1,5 +1,6 @@
 """La charnière Liquidsoap : demandé n'est pas à l'antenne (GOAL-016-T07, T08)."""
 
+from collections.abc import Callable
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -19,7 +20,13 @@ MIDI = datetime(2026, 8, 30, 12, 0, tzinfo=UTC)
 CATALOGUE = [track("1", "Air", genre="électro"), track("2", "Bowie", genre="rock")]
 
 
-def _playout(folder: Path) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
+def _playout(
+    folder: Path,
+    *,
+    resume_fresh_after: timedelta | None = None,
+    order_requeue: Callable[[], None] | None = None,
+    order_skip: Callable[[], None] | None = None,
+) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
     clock = FrozenClock(MIDI)
     random = ScriptedRandom([0] * 100)
     source = FakeSource(CATALOGUE)
@@ -37,9 +44,96 @@ def _playout(folder: Path) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
         jingle_folder=folder,
         on_kind=lambda kind, piste, e: branche[0].on_kind(kind, piste, e),
     )
-    playout = LiquidsoapPlayout(programme, radio, counter)
+    playout = LiquidsoapPlayout(
+        programme,
+        radio,
+        counter,
+        clock=clock,
+        resume_fresh_after=resume_fresh_after,
+        order_requeue=order_requeue,
+        order_skip=order_skip,
+    )
     branche.append(playout)
     return playout, radio, clock
+
+
+def _playout_avec_reprise(
+    folder: Path, ordres: list[str]
+) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
+    return _playout(
+        folder,
+        resume_fresh_after=timedelta(minutes=15),
+        order_requeue=lambda: ordres.append("requeue"),
+        order_skip=lambda: ordres.append("skip"),
+    )
+
+
+def test_une_longue_pause_fait_repartir_a_neuf(tmp_path: Path) -> None:
+    """SPECS.md §7 n°30 : l'avance rassise est jetée, le reliquat coupé."""
+    ordres: list[str] = []
+    playout, _radio, clock = _playout_avec_reprise(tmp_path, ordres)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    assert playout.next_entry() is not None  # l'avance du diffuseur
+    assert playout.up_next() is not None
+
+    playout.declare_listeners(0)
+    clock.advance(timedelta(minutes=20))
+    playout.declare_listeners(1)
+
+    assert ordres == ["requeue", "skip"]
+    assert playout.up_next() is None  # le registre de l'avance est purgé
+
+
+def test_une_pause_courte_reprend_l_avance_telle_quelle(tmp_path: Path) -> None:
+    """En deçà du seuil, la pause reste le mode nominal (SPECS.md §4.7)."""
+    ordres: list[str] = []
+    playout, _radio, clock = _playout_avec_reprise(tmp_path, ordres)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    playout.next_entry()
+
+    playout.declare_listeners(0)
+    clock.advance(timedelta(minutes=5))
+    playout.declare_listeners(1)
+
+    assert ordres == []
+    assert playout.up_next() is not None
+
+
+def test_le_battement_periodique_ne_redate_pas_la_pause(tmp_path: Path) -> None:
+    """Le diffuseur redit « 0 » toutes les quinze secondes : la pause se
+    mesure depuis le départ du dernier auditeur, pas depuis le dernier écho."""
+    ordres: list[str] = []
+    playout, _radio, clock = _playout_avec_reprise(tmp_path, ordres)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+
+    playout.declare_listeners(0)
+    clock.advance(timedelta(minutes=10))
+    playout.declare_listeners(0)
+    clock.advance(timedelta(minutes=10))
+    playout.declare_listeners(1)
+
+    assert ordres == ["requeue", "skip"]
+
+
+def test_sans_morceau_en_cours_le_saut_n_est_pas_ordonne(tmp_path: Path) -> None:
+    """À froid, un saut resterait enregistré et mangerait le premier morceau
+    (docs/liquidsoap.md §5.bis) : seule la file est purgée."""
+    ordres: list[str] = []
+    playout, _radio, clock = _playout_avec_reprise(tmp_path, ordres)
+    playout.declare_listeners(0)
+    clock.advance(timedelta(minutes=20))
+    playout.declare_listeners(1)
+
+    assert ordres == ["requeue"]
 
 
 def test_un_morceau_demande_n_est_pas_encore_a_l_antenne(tmp_path: Path) -> None:

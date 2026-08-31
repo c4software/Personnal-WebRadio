@@ -25,6 +25,7 @@ from webradio.adapters.config.schema import (
     DEFAULT_ARTIST_RESULTS,
     DEFAULT_CACHE_SECONDS,
     DEFAULT_JINGLE_EXPIRY_SECONDS,
+    DEFAULT_RESUME_FRESH_SECONDS,
 )
 
 TOML_MINIMAL = """
@@ -133,6 +134,25 @@ def test_une_peremption_negative_est_refusee_en_la_nommant() -> None:
         _valider(content)
 
     assert "jingles.expiry_seconds" in str(refus.value)
+
+
+def test_la_reprise_a_neuf_a_un_defaut_declare() -> None:
+    assert _valider(TOML_MINIMAL).playout.resume_fresh_seconds == DEFAULT_RESUME_FRESH_SECONDS
+
+
+def test_une_reprise_a_zero_dit_que_la_pause_ne_perime_jamais() -> None:
+    content = TOML_MINIMAL + "\n[playout]\nresume_fresh_seconds = 0\n"
+
+    assert _valider(content).playout.resume_fresh_seconds == 0.0
+
+
+def test_une_cle_inconnue_de_playout_est_nommee() -> None:
+    content = TOML_MINIMAL + "\n[playout]\ntimeout = 3\n"
+
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "playout.timeout" in str(refus.value)
 
 
 def test_l_ancienne_taille_d_echantillon_est_refusee_en_la_nommant() -> None:

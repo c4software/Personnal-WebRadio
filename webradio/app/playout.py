@@ -112,6 +112,21 @@ class RadioProgramme:
         """Replace une entrée déjà demandée, à jouer après l'effet d'un encore."""
         self._a_rejouer.append((entry, kind, track, label))
 
+    def forget_pending(self) -> None:
+        """Oublie ce qui attendait une jonction : la reprise se fait à neuf.
+
+        Après une longue pause sans auditeur (SPECS.md §7 n°30), ce qui
+        attendait ment : les génériques annoncent un moment fini, l'avance
+        qu'un encore d'avant la pause avait replacée n'a plus son contexte.
+        Le repère des moments repart comme au démarrage — une chaîne qui
+        reprend au milieu d'un moment ne rejoue pas son générique (GOAL-029).
+        L'encore lui-même n'est pas touché : un vote est une demande
+        explicite, il survit à la pause.
+        """
+        self._en_attente.clear()
+        self._a_rejouer.clear()
+        self._moment_vu = ...
+
     def prepare(self) -> None:
         """Résout le morceau suivant pendant que le courant joue.
 

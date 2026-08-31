@@ -282,10 +282,19 @@ Quand le **dernier** auditeur se débranche, la musique s'arrête : plus rien
 n'est décodé, la bibliothèque n'est plus interrogée, la file n'avance plus. Le
 diffuseur reste debout et encode du silence (§1, §7 n°23).
 
-Un auditeur qui se rebranche entend la radio repartir **au morceau suivant** —
-celui que le diffuseur avait demandé d'avance, jamais le milieu de celui qui
-passait. La radio ne reprend pas où elle s'était arrêtée — c'est cohérent avec
-« ce qui est passé est perdu » (§2).
+Un auditeur qui se rebranche **vite** entend la radio reprendre là où le
+diffuseur en était : le reliquat du morceau interrompu, puis le morceau demandé
+d'avance. (La première version de ce paragraphe promettait « jamais le milieu
+de celui qui passait » ; le relevé l'a démentie — le reliquat passe,
+docs/liquidsoap.md §5.bis.)
+
+Mais une avance rassit. Au-delà de `playout.resume_fresh_seconds` de pause
+(900 s par défaut, `0` = jamais — §7 n°30), le retour jette tout : l'avance du
+diffuseur, le reliquat du morceau interrompu, l'habillage en attente de
+jonction — et la radio repart sur un **tirage neuf**, comme à un démarrage.
+Seul un « encore » voté avant la pause survit : c'est une demande explicite
+(§4.6). En deçà du seuil, rien ne change : la reprise se fait sur l'avance,
+telle quelle. C'est cohérent avec « ce qui est passé est perdu » (§2).
 
 Une déconnexion brutale (câble arraché, lecteur tué) doit être détectée comme une
 déconnexion normale : sans quoi la chaîne tournerait indéfiniment pour un
@@ -771,6 +780,9 @@ Ce que le TOML doit décrire, au minimum :
   écriture accepte d'attendre un verrou — deux processus y touchent ;
 - **Le web** : adresse et port de l'interface et de l'API, et l'intervalle
   auquel la page redemande ce qui passe ;
+- **La reprise** : `playout.resume_fresh_seconds`, la pause sans auditeur
+  au-delà de laquelle le retour repart sur un tirage neuf (§4.7, 900 par
+  défaut, `0` = jamais) ;
 - **Les podcasts** : le délai au-delà duquel un flux est réputé injoignable. Il
   reste court : une émission qui ne répond pas ne bloque pas la radio, elle est
   perdue et la musique continue (§4.11) ;
@@ -1045,6 +1057,20 @@ pas une heure — ni les flashs ni les émissions (n°4).
 > *Raison* : la n°4 visait le retard **en cours de diffusion** — un morceau
 > long qui enjambe l'heure. Une avance congelée pendant une absence d'auditeur
 > est un autre régime : là, le jingle n'habille plus, il ment sur l'heure.
+
+**n°30 — Une longue pause sans auditeur ? Le retour repart à neuf.** Tranchée
+le 2026-08-31 par l'auteur, même constat que la n°29. Au-delà de
+`playout.resume_fresh_seconds` (900 s par défaut, `0` = jamais), le retour d'un
+auditeur jette l'avance du diffuseur, coupe le reliquat du morceau interrompu
+et oublie l'habillage en attente : tirage neuf (§4.7). En deçà, la reprise se
+fait sur l'avance, telle quelle — la pause reste le mode nominal. Un « encore »
+voté avant la pause survit.
+> *Raison* : garder l'avance rend la reprise instantanée et sans surprise pour
+> une pause courte ; après des heures, elle ne vaut plus rien — un morceau tiré
+> pour 19 h n'annonce rien à 22 h 30. Le mécanisme s'appuie sur ce que le
+> relevé a établi (docs/liquidsoap.md §5.bis) : l'annonce des auditeurs précède
+> la remise à l'antenne, la purge est donc sans course ; et le saut n'est
+> ordonné que si un morceau passait — à froid, il mangerait le premier tirage.
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :

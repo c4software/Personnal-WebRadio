@@ -76,7 +76,7 @@ radio sur un tirage neuf au rebranchement.
       son heure pleine n'est plus dû (`core/jingles.py`, délai injecté)
 - [x] GOAL-041-T03 — Config : `jingles.expiry_seconds` (défaut 900, 0 = jamais),
       câblage, SPECS §4.3, §6, §7 (n°4 amendée, n°29)
-- [ ] GOAL-041-T04 — Charnière : dater la pause et, au retour d'un auditeur
+- [x] GOAL-041-T04 — Charnière : dater la pause et, au retour d'un auditeur
       après plus de `playout.resume_fresh_seconds` (défaut 900), purger
       l'avance du diffuseur, les jingles et rejouables en attente, le registre
       — SPECS §4.7, §6, §7 n°30 — **à écouter : le départ propre au

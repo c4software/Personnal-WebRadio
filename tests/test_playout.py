@@ -52,6 +52,29 @@ def _programme(
     )
 
 
+def test_l_oubli_jette_les_jingles_en_attente(tmp_path: Path) -> None:
+    """Deux heures dues à la même jonction : la première sert, la seconde
+    attend — et l'oubli (SPECS.md §7 n°30) la jette avec le reste."""
+    (tmp_path / "hours").mkdir()
+    (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
+    (tmp_path / "hours" / "14h.mp3").write_bytes(b"jingle")
+    montre = FrozenClock(MIDI)
+    programme, _ = _programme(tmp_path, clock=montre)
+    montre.advance(timedelta(hours=2))
+    entry = programme.next_entry()
+    assert entry is not None and "13h.mp3" in entry
+    programme.forget_pending()
+    assert programme.next_entry() == "fake://1"
+
+
+def test_l_oubli_jette_l_avance_replacee_par_un_encore(tmp_path: Path) -> None:
+    """Ce qu'un encore d'avant la pause avait replacé n'a plus son contexte."""
+    programme, _ = _programme(tmp_path)
+    programme.replay_later("fake://2", Kind.MUSIC, CATALOGUE[1], None)
+    programme.forget_pending()
+    assert programme.next_entry() == "fake://1"
+
+
 def test_la_suivante_est_une_entree_que_ffmpeg_peut_ouvrir(tmp_path: Path) -> None:
     programme, _ = _programme(tmp_path)
     assert programme.next_entry() == "fake://1"

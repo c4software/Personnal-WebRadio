@@ -65,6 +65,9 @@ DEFAULT_CACHE_SECONDS = 3600.0
 # À plus d'un quart d'heure de son heure pleine, un jingle horaire sonne comme
 # une horloge cassée : il est abandonné (SPECS.md §7 n°29). 0 = jamais périmé.
 DEFAULT_JINGLE_EXPIRY_SECONDS = 900.0
+# Au-delà de cette pause sans auditeur, l'avance du diffuseur a rassi : le
+# retour repart sur un tirage neuf (SPECS.md §7 n°30). 0 = jamais.
+DEFAULT_RESUME_FRESH_SECONDS = 900.0
 
 MAX_PORT = 65535
 
@@ -147,6 +150,17 @@ class Band:
     days: tuple[str, ...] = DAYS
     intro: str | None = None
     outro: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PlayoutSettings:
+    """La reprise après une pause sans auditeur (SPECS.md §4.7).
+
+    `resume_fresh_seconds` : au-delà de cette pause, le retour d'un auditeur
+    jette l'avance et repart sur un tirage neuf ; `0` = jamais.
+    """
+
+    resume_fresh_seconds: float = DEFAULT_RESUME_FRESH_SECONDS
 
 
 @dataclass(frozen=True, slots=True)
@@ -262,6 +276,7 @@ class Settings:
     web: WebSettings
     podcast: PodcastSettings
     youtube: YoutubeSettings
+    playout: PlayoutSettings
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -655,6 +670,7 @@ def validate(brut: Mapping[str, Any]) -> Settings:
             "podcast",
             "youtube",
             "programmes",
+            "playout",
         ),
         "",
     )
@@ -666,6 +682,8 @@ def validate(brut: Mapping[str, Any]) -> Settings:
     _verifier_cles(web, ("address", "port", "refresh_seconds"), "web")
     podcast = _table_optionnelle(brut, "podcast", "")
     _verifier_cles(podcast, ("timeout_seconds",), "podcast")
+    playout = _table_optionnelle(brut, "playout", "")
+    _verifier_cles(playout, ("resume_fresh_seconds",), "playout")
     return Settings(
         draw=_tirage(brut),
         jingles=JingleSettings(
@@ -705,6 +723,11 @@ def validate(brut: Mapping[str, Any]) -> Settings:
         podcast=PodcastSettings(
             timeout_seconds=_reel(
                 podcast, "timeout_seconds", "podcast", default=DEFAULT_PODCAST_TIMEOUT
+            ),
+        ),
+        playout=PlayoutSettings(
+            resume_fresh_seconds=_reel(
+                playout, "resume_fresh_seconds", "playout", default=DEFAULT_RESUME_FRESH_SECONDS
             ),
         ),
     )

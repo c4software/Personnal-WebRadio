@@ -12,10 +12,13 @@ registre.
 
 import logging
 import threading
+from collections.abc import Callable
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from webradio.app.playout import RadioProgramme
 from webradio.app.radio import ListenerCount, LiveRadio
+from webradio.core.clock import Clock
 from webradio.core.control import Kind
 from webradio.core.models import Track
 
@@ -41,6 +44,11 @@ class LiquidsoapPlayout:
         radio: LiveRadio,
         listeners: ListenerCount,
         ephemeral_dir: Path | None = None,
+        *,
+        clock: Clock | None = None,
+        resume_fresh_after: timedelta | None = None,
+        order_requeue: Callable[[], None] | None = None,
+        order_skip: Callable[[], None] | None = None,
     ) -> None:
         self._programme = programme
         self._radio = radio
@@ -54,6 +62,13 @@ class LiquidsoapPlayout:
         # a été lu s'efface dès que la suite commence (GOAL-028).
         self._ephemere = ephemeral_dir
         self._entree_en_cours: str | None = None
+        # La reprise à neuf après une longue pause (SPECS.md §7 n°30) : la
+        # pause se date au départ du dernier auditeur, et se juge au retour.
+        self._horloge = clock
+        self._reprise_a_neuf = resume_fresh_after
+        self._ordonner_requeue = order_requeue
+        self._ordonner_skip = order_skip
+        self._pause_depuis: datetime | None = None
 
     def on_kind(self, kind: Kind, track: Track | None, label: str | None) -> None:
         """À brancher sur `RadioProgramme(on_kind=...)` : retient, ne déclare pas."""
@@ -145,6 +160,45 @@ class LiquidsoapPlayout:
             self._programme.replay_later(entry, kind, track, label)
 
     def declare_listeners(self, count: int) -> None:
+        """Le compte d'auditeurs — et, au retour après une longue pause, la
+        purge (SPECS.md §4.7).
+
+        Le diffuseur annonce AVANT de rendre l'antenne (docs/liquidsoap.md
+        §5.bis) : tout ce qui se décide ici s'applique pendant que l'auditeur
+        n'entend encore que le silence. Le battement périodique redit le même
+        compte : la pause se date à la première annonce à zéro, pas aux
+        suivantes.
+        """
         self._auditeurs.declare(on_air=count > 0)
         if count == 0:
-            logger.info("dernier auditeur parti : rien ne sera décodé ni demandé")
+            if self._pause_depuis is None:
+                if self._horloge is not None:
+                    self._pause_depuis = self._horloge.now()
+                logger.info("dernier auditeur parti : rien ne sera décodé ni demandé")
+            return
+        pause_depuis, self._pause_depuis = self._pause_depuis, None
+        if pause_depuis is None or self._horloge is None or self._reprise_a_neuf is None:
+            return
+        pause = self._horloge.now() - pause_depuis
+        if pause > self._reprise_a_neuf:
+            self._repartir_a_neuf(pause)
+
+    def _repartir_a_neuf(self, pause: timedelta) -> None:
+        """Une longue pause a rassis l'avance : tout repart d'un tirage neuf.
+
+        L'ordre suit le relevé (docs/liquidsoap.md §5.bis) : l'oubli du
+        programme d'abord — le recomplètement qui suivra le `/requeue` doit
+        calculer à neuf —, la file du diffuseur ensuite, le reliquat du
+        morceau interrompu enfin. Et ce dernier seulement s'il y en a un :
+        un saut sans morceau en cours reste enregistré et mangerait le
+        premier morceau frais.
+        """
+        logger.info("pause de %s : la radio repart sur un tirage neuf", pause)
+        with self._verrou:
+            courant = self._entree_en_cours
+            self._en_attente.clear()
+        self._programme.forget_pending()
+        if self._ordonner_requeue is not None:
+            self._ordonner_requeue()
+        if courant is not None and self._ordonner_skip is not None:
+            self._ordonner_skip()
