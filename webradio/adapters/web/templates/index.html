@@ -94,6 +94,7 @@
       .evenement .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
       .evenement .nom { overflow-wrap: anywhere; }
       .evenement .detail { color: var(--sourdine); font-size: 0.8rem; white-space: nowrap; }
+      .evenement.en-cours { background: rgba(68, 147, 248, 0.12); border-radius: 0 0.4rem 0.4rem 0; }
       .ligne-histoire { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); gap: 0.6rem;
                         padding: 0.45rem 0 0.45rem 0.6rem; border-left: 3px solid var(--bord);
                         margin-bottom: 0.35rem; }
@@ -179,9 +180,9 @@
           <article v-for="jour in semaine" :key="jour.nom" class="jour" :class="{ aujourdhui: jour.aujourdhui }">
             <h2 class="jour-nom">[[ jour.nom ]]<span v-if="jour.aujourdhui" class="badge">aujourd'hui</span></h2>
             <p v-if="jour.evenements.length === 0" class="jour-vide">tirage libre toute la journée</p>
-            <div v-for="e in jour.evenements" class="evenement" :class="e.type + '-b'">
+            <div v-for="e in jour.evenements" class="evenement" :class="[e.type + '-b', { 'en-cours': e.enCours }]">
               <span class="heure">[[ e.heure ]]</span>
-              <span class="nom">[[ e.nom ]]</span>
+              <span class="nom">[[ e.nom ]] <span v-if="e.enCours" class="badge">en cours</span></span>
               <span class="detail">[[ e.detail ]]</span>
             </div>
           </article>
@@ -225,6 +226,7 @@
             aSuivre: null,
             votes: [],
             planning: null,
+            maintenant: new Date(),
             historique: [],
             pageHeure: 0,
             urls: URLS,
@@ -252,37 +254,48 @@
             // semaine liste ce qui s'y passe, dans l'ordre chronologique.
             // La configuration parle anglais (GOAL-030), la page parle français.
             const semaine = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"];
-            const indexDuJour = (new Date().getDay() + 6) % 7;
+            const indexDuJour = (this.maintenant.getDay() + 6) % 7;
             const ceJour = semaine[indexDuJour];
-            // La veille d'abord, AUJOURD'HUI toujours en deuxième, puis la
-            // suite de la semaine : on lit ce qui vient, pas un calendrier.
+            // AUJOURD'HUI d'abord, puis la suite de la semaine : on lit ce qui
+            // vient. (Révision du 2026-08-31 — la première version mettait la
+            // veille en tête, et le présent se perdait au milieu de la page.)
             const ordre = [];
             for (let i = 0; i < 7; i += 1) {
-              ordre.push(semaine[(indexDuJour + 6 + i) % 7]);
+              ordre.push(semaine[(indexDuJour + i) % 7]);
             }
             return ordre.map((nom) => {
               const evenements = [];
               for (const b of this.planning.bands) {
                 if (b.days.includes(nom)) {
                   evenements.push({ type: "moment", heure: b.start + "–" + b.end, tri: b.start,
+                                    debut: b.start, fin: b.end,
                                     nom: b.genres.join(", "), detail: "" });
                 }
               }
               for (const p of this.planning.programmes) {
                 if (p.days.includes(nom)) {
                   evenements.push({ type: "programme", heure: p.start + "–" + p.end, tri: p.start,
+                                    debut: p.start, fin: p.end,
                                     nom: p.name, detail: "liste « " + p.playlist + " »" });
                 }
               }
               for (const e of this.planning.shows) {
                 if (e.days.includes(nom)) {
+                  // Seul un direct connaît sa fin : un podcast ou une chaîne
+                  // YouTube ne peut pas s'afficher « en cours ».
                   evenements.push({ type: "emission", heure: e.time, tri: e.time, nom: e.name,
+                                    debut: e.time,
+                                    fin: e.live ? this.finDeDirect(e.time, e.duration_minutes) : null,
                                     detail: e.live ? "direct · " + e.duration_minutes + " min"
                                           : e.youtube ? "chaîne YouTube" : "podcast" });
                 }
               }
               evenements.sort((a, b) => a.tri.localeCompare(b.tri));
-              return { nom: this.enFrancais(nom), evenements, aujourdhui: nom === ceJour };
+              const aujourdhui = nom === ceJour;
+              for (const e of evenements) {
+                e.enCours = aujourdhui && this.enCours(e);
+              }
+              return { nom: this.enFrancais(nom), evenements, aujourdhui };
             });
           },
           groupes() {
@@ -341,6 +354,22 @@
               this.planning = await reponse.json();
             } catch (erreur) { this.planning = null; }
           },
+          finDeDirect(heure, minutes) {
+            const [h, m] = heure.split(":").map(Number);
+            const total = h * 60 + m + minutes;
+            return String(Math.floor(total / 60) % 24).padStart(2, "0")
+              + ":" + String(total % 60).padStart(2, "0");
+          },
+          enCours(e) {
+            // Présentation seulement — le noyau ne sait rien de cette page.
+            // Une plage qui enjambe minuit n'est « en cours » que sur son jour
+            // de départ : sa queue d'après minuit appartient à une carte qui
+            // ne la liste pas.
+            if (!e.fin) { return false; }
+            const heure = this.maintenant.toTimeString().slice(0, 5);
+            if (e.debut > e.fin) { return heure >= e.debut; }
+            return e.debut <= heure && heure < e.fin;
+          },
           enFrancais(jour) {
             const noms = { monday: "lundi", tuesday: "mardi", wednesday: "mercredi",
                            thursday: "jeudi", friday: "vendredi", saturday: "samedi",
@@ -379,6 +408,7 @@
           });
           this.rafraichir();
           setInterval(() => {
+            this.maintenant = new Date();
             this.rafraichir();
             if (this.onglet === "votes") { this.chargerVotes(); }
             if (this.onglet === "historique") { this.ouvrirHistorique(); }

@@ -56,7 +56,22 @@ GOAL-041 (le rebranchement après plus de quinze minutes : départ propre sur un
 tirage neuf, sans jingle périmé ni avance rassise) ne se constatent qu'à
 l'antenne (AGENTS.md §4.1).
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
+**Prochaine tâche** : GOAL-042-T01.
+
+---
+
+## GOAL-042 — Le Planning s'ouvre sur aujourd'hui, créneau en cours visible, jours repliés
+
+Constat de l'auteur (capture du 2026-08-31) : sept cartes de ~15 lignes, la
+veille en premier — la page est longue et le présent invisible. L'ordre
+« veille d'abord » était volontaire ; il est renversé sur demande.
+
+- [x] GOAL-042-T01 — Aujourd'hui en tête, puis la suite de la semaine ; le
+      créneau en cours du jour porte un badge et un fond — minuit enjambé et
+      direct à durée connue compris ; l'heure suit le rafraîchissement
+- [ ] GOAL-042-T02 — Seul aujourd'hui est déplié par défaut ; les autres jours
+      se replient en une ligne (nombre de créneaux), dépliables au clic ;
+      clôture
 
 ---
 
@@ -105,6 +120,7 @@ l'antenne (AGENTS.md §4.1).
 | GOAL-039 | Parler Subsonic plutôt que Navidrome, et tirer dans toute la bibliothèque | `[x]` — reste l'écoute réelle |
 | GOAL-040 | Un cache de bibliothèque dans l'adaptateur Subsonic | `[x]` |
 | GOAL-041 | Péremption des jingles horaires, et reprise à neuf après une longue pause | `[x]` — reste l'écoute réelle |
+| GOAL-042 | Le Planning s'ouvre sur aujourd'hui, créneau en cours visible, jours repliés | `[ ]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
