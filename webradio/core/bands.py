@@ -11,7 +11,7 @@ se décide là où l'on sait ce que la source a répondu, c'est-à-dire dans
 `core/queue.py`, qui le journalise déjà.
 """
 
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, time, timedelta
 
@@ -33,6 +33,13 @@ class Constraint:
 
     genre: str | None = None
     artist: str | None = None
+
+
+# Ce qui sait tirer le thème d'une plage qui a délégué son choix : la plage et
+# l'instant, une contrainte ou rien (GOAL-037). Déclaré ici comme un simple
+# appel plutôt qu'importé de `core/mystery.py` — ce module-là a besoin de `Band`
+# et de `Constraint`, et l'importer en retour ferait un cycle.
+ThemeResolver = Callable[["Band", datetime], Constraint | None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -137,16 +144,24 @@ class Schedule:
     une réponse que l'auteur peut donner sans qu'on la lui demande.
     """
 
-    def __init__(self, bands: Sequence[Band], clock: Clock) -> None:
+    def __init__(
+        self,
+        bands: Sequence[Band],
+        clock: Clock,
+        resolve_random_theme: ThemeResolver | None = None,
+    ) -> None:
         self._plages = tuple(bands)
         self._horloge = clock
+        self._tirer_theme = resolve_random_theme
 
     @property
     def bands(self) -> tuple[Band, ...]:
         return self._plages
 
     def current_band(self) -> Band | None:
-        instant = self._horloge.now()
+        return self._band_at(self._horloge.now())
+
+    def _band_at(self, instant: datetime) -> Band | None:
         for band in self._plages:
             if band.covers(instant):
                 return band
@@ -158,10 +173,24 @@ class Schedule:
         Une plage peut déclarer plusieurs genres — ou artistes (SPECS.md §4.4,
         GOAL-023) — alors que la source n'accepte qu'une valeur : c'est le
         hasard injecté qui tranche, pour que la soirée reste rejouable.
+
+        L'horloge n'est lue **qu'une fois** : la plage retenue et l'occurrence
+        dont on tire le thème doivent parler du même instant, sinon un morceau
+        tiré à 22 h 59 min 59 s pourrait chercher le thème de la plage suivante.
         """
-        band = self.current_band()
+        instant = self._horloge.now()
+        band = self._band_at(instant)
         if band is None:
             return None
+        if band.random_theme is not None:
+            if self._tirer_theme is None:
+                # Refuser bruyamment plutôt que de tirer librement : une plage
+                # « au hasard » sans résolveur passerait pour une plage sans
+                # musique, et le défaut de câblage ne s'entendrait pas — il
+                # ressemblerait à une bibliothèque mal rangée.
+                message = "une plage demande un thème à tirer, mais aucun résolveur n'est fourni"
+                raise ValueError(message)
+            return self._tirer_theme(band, instant)
         if band.artists:
             values = band.artists
             value = values[0] if len(values) == 1 else random.pick(list(values))

@@ -195,3 +195,33 @@ def test_l_occurrence_d_une_plage_de_nuit_appartient_au_jour_ou_elle_commence() 
     assert nuit.occurrence_start(apres_minuit) == datetime(2026, 8, 30, 22, 0, tzinfo=UTC)
     avant_minuit = datetime(2026, 8, 30, 23, 0, tzinfo=UTC)
     assert nuit.occurrence_start(avant_minuit) == datetime(2026, 8, 30, 22, 0, tzinfo=UTC)
+
+
+def test_une_plage_au_hasard_delegue_au_resolveur_injecte() -> None:
+    au_hasard = Band(start=time(21), end=time(23), random_theme="genre")
+    vus: list[tuple[Band, datetime]] = []
+
+    def resolveur(band: Band, instant: datetime) -> Constraint | None:
+        vus.append((band, instant))
+        return Constraint(genre="dub")
+
+    grille = Schedule([au_hasard], a(21, 30), resolve_random_theme=resolveur)
+    assert grille.constraint_to_draw(RealRandom(graine=1)) == Constraint(genre="dub")
+    assert vus == [(au_hasard, datetime(2026, 8, 30, 21, 30, tzinfo=UTC))]
+
+
+def test_un_resolveur_sans_theme_a_proposer_rend_le_tirage_libre() -> None:
+    au_hasard = Band(start=time(21), end=time(23), random_theme="artist")
+
+    def rien(_band: Band, _instant: datetime) -> Constraint | None:
+        return None
+
+    grille = Schedule([au_hasard], a(21, 30), resolve_random_theme=rien)
+    assert grille.constraint_to_draw(RealRandom(graine=1)) is None
+
+
+def test_une_plage_au_hasard_sans_resolveur_est_refusee_bruyamment() -> None:
+    au_hasard = Band(start=time(21), end=time(23), random_theme="genre")
+    grille = Schedule([au_hasard], a(21, 30))
+    with pytest.raises(ValueError, match="aucun résolveur"):
+        grille.constraint_to_draw(RealRandom(graine=1))

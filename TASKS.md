@@ -77,7 +77,7 @@ en mémoire, une occurrence à la fois.
   contrainte de l'occurrence, la mémorise (une seule entrée), rend `None` sans
   mémoriser sur `SourceUnavailable` ou réservoir vide — retentera à la
   jonction suivante, journalisé une fois
-- [ ] `GOAL-037-T03` Brancher : `Schedule.constraint_to_draw` délègue les
+- [x] `GOAL-037-T03` Brancher : `Schedule.constraint_to_draw` délègue les
   plages `random_theme` au résolveur injecté ; câblage dans `app/main.py`
 - [ ] `GOAL-037-T04` Le TOML : clé `random` sur `[[bands]]`, validation
   (`genres`/`artists`/`random` s'excluent), message de refus explicite

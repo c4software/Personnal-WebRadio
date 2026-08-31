@@ -37,6 +37,7 @@ from webradio.core.bands import Band, Schedule
 from webradio.core.clock import SystemClock
 from webradio.core.control import Control
 from webradio.core.jingles import Jingles
+from webradio.core.mystery import RandomTheme
 from webradio.core.programmes import Programme, Programming
 from webradio.core.queue import Queue
 from webradio.core.rng import RealRandom
@@ -115,6 +116,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             for p in settings.bands
         ],
         clock,
+        resolve_random_theme=RandomTheme(source, random).constraint_for,
     )
     jingles = Jingles(clock, encore_name=settings.jingles.encore)
     control = Control(source=source, random=random, jingles=jingles)
