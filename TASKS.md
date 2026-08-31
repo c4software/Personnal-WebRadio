@@ -54,7 +54,8 @@ rétrécie comprise), GOAL-039/040 (la variété d'un tirage qui voit 5704
 pistes au lieu de 500, servi de mémoire entre deux expirations du cache) et
 GOAL-041 (le rebranchement après plus de quinze minutes : départ propre sur un
 tirage neuf, sans jingle périmé ni avance rassise) ne se constatent qu'à
-l'antenne (AGENTS.md §4.1).
+l'antenne (AGENTS.md §4.1). S'y ajoute GOAL-043 : les quinze génériques de
+plage — voix, niveau, longueur — et la grille de journée elle-même.
 
 **Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
@@ -106,6 +107,7 @@ l'antenne (AGENTS.md §4.1).
 | GOAL-040 | Un cache de bibliothèque dans l'adaptateur Subsonic | `[x]` |
 | GOAL-041 | Péremption des jingles horaires, et reprise à neuf après une longue pause | `[x]` — reste l'écoute réelle |
 | GOAL-042 | Le Planning s'ouvre sur aujourd'hui, créneau en cours visible, jours repliés | `[x]` |
+| GOAL-043 | Une grille de journée complète, et un atelier à jingles en conteneur | `[x]` — reste l'écoute réelle |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

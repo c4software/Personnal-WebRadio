@@ -65,6 +65,8 @@ select = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["T20"]
+# Un outil hors ligne parle sur la sortie standard : c'est son interface.
+"outils/*" = ["T20"]
 
 # --------------------------------------------------------------------------
 # mypy — strict, sans échappatoire silencieuse

@@ -567,6 +567,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 ├── Dockerfile, docker-compose.yml, .dockerignore
 ├── docker-compose.dev.yml  surcharge : construire le code en cours (§8.5.4)
 ├── jingles/ ............. les jingles de l'auteur — versionné vide, contenu ignoré
+├── outils/ .............. des scripts hors ligne qui FABRIQUENT des fichiers, en conteneur — voir son README
 ├── webradio.exemple.toml  toutes les clés, commentées — webradio.toml n'est pas versionné
 ├── .env.exemple ......... les noms des secrets — .env n'est pas versionné
 │

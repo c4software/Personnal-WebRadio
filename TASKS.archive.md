@@ -1257,3 +1257,54 @@ seulement : `index.html`, l'API inchangée, rien ne se décide dans la page.
 - **Rendu constaté en chromium headless** avec un planning simulé : le
   surlignage tombe à l'heure juste ; le vrai navigateur de l'auteur reste le
   juge final (l'équivalent visuel d'AGENTS §4.1).
+
+---
+
+## GOAL-043 — Une grille de journée complète, et un atelier à jingles en conteneur
+
+**Terminé le 2026-08-31.** Demande directe de l'auteur, hors `/goal`.
+
+La grille de `webradio.toml` (non versionné) couvre désormais la journée :
+quinze plages, dont trois propres au week-end, et **quatre trous volontaires**
+de tirage libre (10 h 30–12 h, 13 h 30–14 h, 19 h–20 h, 03 h–05 h). Les genres
+ont été relevés sur la bibliothèque réelle par `getGenres` plutôt qu'inventés :
+une plage qui nomme un genre absent se replierait en silence sur le tirage
+libre. Les plages de week-end sont déclarées **en tête** — deux plages qui se
+recouvrent ne sont pas refusées, c'est la première qui l'emporte
+(`core/bands.py`), et l'ordre du TOML est donc la réponse.
+
+- [x] `GOAL-043-T01` La grille de journée, trous de tirage libre compris
+- [x] `GOAL-043-T02` `outils/generer_jingles.py` : les quinze `intro` de plage
+      — voix de synthèse sur un lit musical synthétisé, mixés en habillage
+- [x] `GOAL-043-T03` L'atelier en conteneur (`outils/Dockerfile`,
+      `outils/generer-jingles.sh`) et son `README`
+
+### Décisions prises
+
+- **Une voix de service en ligne, pas une voix locale** : `edge-tts` parle au
+  service de lecture d'Edge — gratuit, sans compte ni clé, voix neuronales
+  françaises. Les moteurs locaux essayés sonnent le robot ; Google Cloud TTS et
+  ElevenLabs font aussi bien ou mieux mais réclament un compte facturable pour
+  quinze phrases par an. **La contrepartie est assumée** : l'API n'est pas
+  officielle, le jour où elle change l'outil casse — et la radio, non. C'est
+  pourquoi les mp3 sont conservés plutôt que refaits à la demande.
+- **Le lit musical est synthétisé note par note** (`aevalsrc`) : rien n'est
+  téléchargé, aucune licence n'est en jeu. Il sonne « électronique » — c'est un
+  habillage de station, pas de la musique.
+- **L'atelier tourne en conteneur, et n'est pas un service** : ses deux
+  dépendances (ffmpeg, edge-tts) ne doivent rien laisser sur la machine, et
+  `docker-compose.yml` ne le connaît pas. Seuls les mp3 finis sortent, par un
+  volume, avec l'`uid` de l'appelant.
+- **`outils/` est hors de `webradio/`** : il fabrique des fichiers, le
+  programme ne l'importe jamais. Il reste tenu par `./verifier.sh`, moins la
+  règle « pas de `print` » — un outil hors ligne parle sur la sortie standard.
+- **Les mp3 produits ne sont pas versionnés** : `jingles/*` est ignoré depuis
+  l'origine, le dossier n'est versionné que vide. Le script est la recette.
+
+### Reste à écouter (AGENTS §4.1)
+
+Les quinze génériques à leur place dans la journée : la voix tombe-t-elle
+juste, le lit ne couvre-t-il pas le premier mot, sept secondes ne sont-elles
+pas trop longues à cinq heures du matin — et la grille elle-même, une journée
+entière durant.
+
