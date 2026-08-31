@@ -180,12 +180,14 @@ on_air = switch(track_sensitive=true, [({live_pending() and live.is_ready()}, li
 # ── Rien n'est décodé ni demandé sans auditeur (SPECS.md §1) ────────────────
 listeners = ref(0)
 
-def announce() =
-  answer = http.post(timeout=api_timeout, data="#{listeners()}", "#{api}/playout/listeners")
+def announce_count(count) =
+  answer = http.post(timeout=api_timeout, data="#{count}", "#{api}/playout/listeners")
   if answer.status_code != 204 then
     log(level=2, "l'API n'a pas pris l'annonce des auditeurs (#{answer.status_code})")
   end
 end
+
+def announce() = announce_count(listeners()) end
 
 # Et PÉRIODIQUEMENT, pas seulement aux branchements : si `radio` redémarre
 # pendant que des auditeurs écoutent, son compteur repart à zéro et l'antenne
@@ -193,11 +195,14 @@ end
 # de battement ressoudent l'état sans que personne ne s'en aperçoive.
 thread.run(every=15., announce)
 
+# L'annonce part AVANT la bascule du compteur : tant que le ref est à zéro,
+# l'antenne reste sur blank(), et l'API peut purger une avance rassise sans
+# course avec la reprise du son (docs/liquidsoap.md §5.bis, SPECS.md §7 n°30).
 def on_connect(~headers, ~uri, ~protocol, ip) =
   ignore(headers) ignore(uri) ignore(protocol)
+  announce_count(listeners() + 1)
   listeners := listeners() + 1
   log("auditeur #{ip} branché — #{listeners()} à l'écoute")
-  announce()
 end
 
 def on_disconnect(ip) =

@@ -81,7 +81,7 @@ radio sur un tirage neuf au rebranchement.
       l'avance du diffuseur, les jingles et rejouables en attente, le registre
       — SPECS §4.7, §6, §7 n°30 — **à écouter : le départ propre au
       rebranchement**
-- [ ] GOAL-041-T05 — `radio.liq` : annoncer l'auditeur avant de rendre
+- [x] GOAL-041-T05 — `radio.liq` : annoncer l'auditeur avant de rendre
       l'antenne, selon ce que T01 a constaté — **à écouter : se rebrancher
       après une longue pause, ni jingle périmé ni avance rassise**
 - [ ] GOAL-041-T06 — Synthèse : ARCHITECTURE §4.1 (l'avance a une durée de

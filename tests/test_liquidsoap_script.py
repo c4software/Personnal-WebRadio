@@ -73,3 +73,14 @@ def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
     code = _code()
     assert '"/requeue"' in code
     assert "set_queue([])" in code
+
+
+def test_le_branchement_s_annonce_avant_de_rendre_l_antenne() -> None:
+    """GOAL-041 : tant que le compteur est à zéro, l'antenne reste muette —
+    c'est ce qui laisse l'API purger une avance rassise sans course
+    (docs/liquidsoap.md §5.bis)."""
+    code = _code()
+    connect = code[code.index("def on_connect") : code.index("def on_disconnect")]
+    annonce = connect.index("announce_count(listeners() + 1)")
+    bascule = connect.index("listeners := listeners() + 1")
+    assert annonce < bascule, "la bascule avant l'annonce rendrait l'antenne avant la purge"
