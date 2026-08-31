@@ -57,6 +57,8 @@ EVERY_DAY = "all"
 # Défauts déclarés au même endroit que la clé qu'ils concernent, faute de quoi
 # ils seraient « en dur » quelque part dans le code (AGENTS.md §2).
 DEFAULT_ARTIST_GAP_KEY = 5
+# Au-delà, une piste n'est jamais choisie (SPECS.md §7 n°32). 0 = sans limite.
+DEFAULT_MAX_TRACK_MINUTES = 20
 DEFAULT_VOTE_FLOOR = 0.25
 DEFAULT_VOTE_CEILING = 4.0
 DEFAULT_VOTE_HALF_LIFE = 90
@@ -116,6 +118,7 @@ class DrawSettings:
 
     artist_gap: int
     votes: VoteSettings
+    max_track_minutes: int = DEFAULT_MAX_TRACK_MINUTES
 
 
 @dataclass(frozen=True, slots=True)
@@ -462,7 +465,7 @@ def _liste_tables(parent: Mapping[str, Any], key: str) -> list[Mapping[str, Any]
 
 def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
     table = _table(brut, "draw", "")
-    _verifier_cles(table, ("artist_gap", "votes"), "draw")
+    _verifier_cles(table, ("artist_gap", "votes", "max_track_minutes"), "draw")
     votes = _table_optionnelle(table, "votes", "draw")
     _verifier_cles(
         votes,
@@ -479,6 +482,13 @@ def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
             "artist_gap",
             "draw",
             default=DEFAULT_ARTIST_GAP_KEY,
+            minimum=0,
+        ),
+        max_track_minutes=_entier(
+            table,
+            "max_track_minutes",
+            "draw",
+            default=DEFAULT_MAX_TRACK_MINUTES,
             minimum=0,
         ),
         votes=VoteSettings(

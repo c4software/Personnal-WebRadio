@@ -1359,3 +1359,30 @@ au thème, ou seul — un tirage libre enchaîné.
 Les trois enchaînements sur la grille locale — double dose à 20 h, époque à
 midi, artiste à 15 h — et la fenêtre de non-répétition qui reprend après
 chaque suite.
+
+---
+
+## GOAL-045 — Une chanson trop longue n'est jamais diffusée
+
+**Terminé le 2026-09-01.** Demandé par l'auteur.
+
+Au-delà de `draw.max_track_minutes` (20 min par défaut, la limite exacte
+passe, `0` = sans limite), une piste est écartée partout où une piste se
+choisit (SPECS.md §4.2, §7 n°32).
+
+- [x] `GOAL-045-T01` Le filtre (`broadcastable`, core/models.py) dans la file
+      — tirage libre, plages, suites, replis —, dans l'encore à chaque cran,
+      et dans les listes des programmes ; bibliothèque entière trop longue =
+      `EmptyQueue` qui nomme la durée
+- [x] `GOAL-045-T02` `draw.max_track_minutes` (défaut 20, minimum 0), câblage
+      des trois consommateurs dans `main.py`, SPECS §4.2/§6.2/n°32, les deux
+      TOML
+
+### Décisions prises
+
+- **La limite exacte passe** : « au-delà » est strict.
+- **Les émissions ne sont pas concernées** : leur durée est la leur (§4.11).
+- **Le filtre est silencieux piste par piste** — seuls les replis qu'il
+  provoque se journalisent, comme les autres.
+- Au passage, le §6.2 nommait encore `non_repetition_artistes` : la clé réelle
+  est `artist_gap` depuis toujours — corrigé (AGENTS §8).

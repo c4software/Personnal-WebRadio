@@ -56,21 +56,7 @@ musique.
 20 h, époque à midi, artiste à 15 h dans la grille locale), et la fenêtre de
 non-répétition qui reprend après chaque suite (AGENTS.md §4.1).
 
-**Prochaine tâche** : GOAL-045-T01.
-
----
-
-## GOAL-045 — Une chanson trop longue n'est jamais diffusée
-
-Demandé par l'auteur le 2026-08-31 : au-delà d'un plafond de durée (20 min par
-défaut, configurable), une piste est écartée du tirage — partout où une piste
-se choisit, émissions exceptées.
-
-- [x] GOAL-045-T01 — Noyau : le filtre de durée dans la file (tirage libre,
-      plages, suites, replis), l'encore et les listes des programmes ; limite
-      exacte incluse ; bibliothèque entière trop longue = `EmptyQueue` nommée
-- [ ] GOAL-045-T02 — Config `draw.max_track_minutes` (défaut 20, 0 = sans
-      limite), câblage, SPECS §4.2/§6/n°32, les deux TOML, clôture, push
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
 
@@ -122,7 +108,7 @@ se choisit, émissions exceptées.
 | GOAL-042 | Le Planning s'ouvre sur aujourd'hui, créneau en cours visible, jours repliés | `[x]` |
 | GOAL-043 | Une grille de journée complète, et un atelier à jingles en conteneur | `[x]` — écoute validée le 2026-08-31 |
 | GOAL-044 | Les modes d'enchaînement des plages : double dose, époque, artiste | `[x]` — reste l'écoute réelle |
-| GOAL-045 | Une chanson trop longue n'est jamais diffusée | `[ ]` |
+| GOAL-045 | Une chanson trop longue n'est jamais diffusée | `[x]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
