@@ -8,7 +8,7 @@ contributeurs humains autant que pour les agents.
 Puis, selon ce que vous touchez : [SPECS.md](./SPECS.md) pour un comportement
 audible, [ARCHITECTURE.md](./ARCHITECTURE.md) pour une décision technique,
 [TASKS.md](./TASKS.md) pour savoir où en est le travail, et le relevé
-correspondant dans [docs/](./docs/) si vous touchez à Navidrome, au flash
+correspondant dans [docs/](./docs/) si vous touchez à Subsonic, au flash
 France Info, à Liquidsoap, à ffmpeg ou à ce qu'attendent les lecteurs de webradio.
 
 ## Mettre en place l'environnement
@@ -19,7 +19,7 @@ pip install -e '.[dev]'
 ```
 
 Il faut par ailleurs **Docker** sur la machine (pour valider le script
-Liquidsoap contre la version épinglée), et un serveur **Navidrome**
+Liquidsoap contre la version épinglée), et un serveur **compatible Subsonic**
 joignable.
 
 Pour faire tourner la station avec **le code en cours** — `docker-compose.yml`

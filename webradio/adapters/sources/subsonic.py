@@ -1,6 +1,6 @@
 """La source Subsonic — le protocole ; Navidrome est l'instance relevée.
 
-Tout ce fichier est écrit contre [docs/navidrome.md](../../../docs/navidrome.md),
+Tout ce fichier est écrit contre [docs/subsonic.md](../../../docs/subsonic.md),
 un relevé établi contre une instance réelle. Six comportements constatés y
 commandent le code, et chacun serait un défaut audible s'il était ignoré :
 
@@ -215,7 +215,7 @@ class SubsonicSource:
 
         **`songCount` n'est jamais lu** : il a été constaté à 67 sur une liste
         qui n'a rendu que 32 entrées, toutes distinctes, sans que la cause soit
-        établie (docs/navidrome.md §2.6.1). Une liste se juge sur ce que
+        établie (docs/subsonic.md §2.6.1). Une liste se juge sur ce que
         `getPlaylist` rend.
         """
         identifier = self._identifiant_de_liste(name)
@@ -294,7 +294,7 @@ class SubsonicSource:
         """Construit l'appel authentifié par jeton dérivé.
 
         Le mot de passe ne circule jamais : seul `md5(motdepasse + sel)` part sur
-        le réseau, et le sel change à chaque appel (docs/navidrome.md §1).
+        le réseau, et le sel change à chaque appel (docs/subsonic.md §1).
         """
         salt = self._sel()
         empreinte = hashlib.md5((self._identifiants.password + salt).encode("utf-8")).hexdigest()
@@ -347,7 +347,7 @@ class SubsonicSource:
         """Extrait les pistes d'une réponse valable.
 
         Un contenant absent n'est pas une anomalie : c'est ce que rend un genre
-        inexistant, avec `status: ok` (docs/navidrome.md §2.2).
+        inexistant, avec `status: ok` (docs/subsonic.md §2.2).
         """
         content = envelope.get(contenant)
         brutes = content.get("song") if isinstance(content, Mapping) else None

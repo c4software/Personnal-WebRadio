@@ -27,7 +27,7 @@ Lire, dans cet ordre, **avant de toucher au code** :
    existe vraiment**
 4. `TASKS.md` — où le travail s'est arrêté
 
-Si l'objectif touche à **Navidrome**, au **flash France Info**, à
+Si l'objectif touche à **Subsonic**, au **flash France Info**, à
 **Liquidsoap**, à **YouTube/yt-dlp**, à **ffmpeg**, aux **lecteurs de webradio**
 ou aux **flux de podcast**, lire **aussi** le relevé correspondant dans `docs/`,
 et sa section « points incertains » en particulier (AGENTS.md §3).
@@ -90,7 +90,7 @@ Une mauvaise tâche est un domaine, pas un changement :
 
 Règles de découpage :
 
-- **l'étude précède l'implémentation** : une tâche qui touche à Navidrome, au
+- **l'étude précède l'implémentation** : une tâche qui touche à Subsonic, au
   flash France Info ou à ffmpeg commence par un relevé qui met à jour `docs/`
   (AGENTS.md §3) ;
 - **le noyau précède ses consommateurs** : `core/` avant `adapters/`, et une

@@ -113,7 +113,7 @@ Le détail de chacun — tâches, décisions prises, dettes, incidents — est d
 
 **Pourquoi.** L'adaptateur parle le protocole Subsonic ; Navidrome n'est que
 l'implémentation observée. Et le tirage actuel puise dans `getRandomSongs`,
-tronqué en silence à 500 pistes (docs/navidrome.md §2.1) : sur une bibliothèque
+tronqué en silence à 500 pistes (docs/subsonic.md §2.1) : sur une bibliothèque
 plus grande, la radio tourne dans un échantillon et l'auditeur l'entend. Le
 tirage appartient déjà au noyau (`core/rng.py`, relevé §2.4) — il doit porter
 sur la bibliothèque **entière**, récupérée par pagination.
@@ -123,7 +123,7 @@ sur la bibliothèque **entière**, récupérée par pagination.
       `adapters/sources/subsonic.py`, table TOML `[subsonic]`, variables
       d'environnement `SUBSONIC_*`, tests et `main.py` ; `.env` et
       `webradio.toml` locaux mis à jour dans la foulée.
-- [ ] **GOAL-039-T02** — Renommer la documentation : `docs/navidrome.md` →
+- [x] **GOAL-039-T02** — Renommer la documentation : `docs/subsonic.md` →
       `docs/subsonic.md` recentré sur le protocole (Navidrome reste
       l'implémentation observée) ; références mises à jour dans SPECS,
       ARCHITECTURE, README, AGENTS, CLAUDE, CONTRIBUTING, compose et exemples ;

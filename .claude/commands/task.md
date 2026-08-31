@@ -42,7 +42,7 @@ Annoncer la tâche retenue et pourquoi, avant de commencer.
 - l'entrée du Goal dans `TASKS.md`, et les tâches qui la précèdent
 - la section de `SPECS.md` que la tâche couvre
 - la section de `ARCHITECTURE.md` concernée, **et sa carte du dépôt**
-- le relevé de `docs/` si la tâche touche à Navidrome, au flash France Info,
+- le relevé de `docs/` si la tâche touche à Subsonic, au flash France Info,
   à Liquidsoap, à YouTube/yt-dlp, à ffmpeg, aux lecteurs de webradio ou aux
   flux de podcast — sa section « points incertains » en particulier
 - les fichiers de code que la tâche modifie, et leurs tests
@@ -68,7 +68,7 @@ Rappels qui coûtent cher à oublier (AGENTS.md §2) :
 - aucune URL, aucun chemin, aucun port, aucune durée en dur : tout vient du TOML ;
 - pas d'`except:` nu, pas d'`except Exception: pass`, pas de `print()` ;
 - pas de `TODO` sans tâche correspondante ;
-- aucun identifiant Navidrome dans un appel de journalisation.
+- aucun identifiant Subsonic dans un appel de journalisation.
 
 ---
 

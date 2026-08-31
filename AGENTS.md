@@ -64,7 +64,7 @@ cas, et seulement ceux-là** :
   silence un comportement audible par l'auditeur.
 - **Une action sortante ou difficilement réversible** : `git push`, publication,
   réécriture d'historique, suppression de données. Écrire dans la bibliothèque
-  Navidrome en fait partie — et c'est de toute façon hors périmètre
+  musicale en fait partie — et c'est de toute façon hors périmètre
   (SPECS.md §2).
 - **Un choix structurel s'impose** qui contredirait
   [ARCHITECTURE.md](./ARCHITECTURE.md) ou [SPECS.md](./SPECS.md).
@@ -184,7 +184,7 @@ Les relevés vivent dans [docs/](./docs/) :
 
 | Relevé | Ce qu'il couvre |
 |---|---|
-| [docs/navidrome.md](./docs/navidrome.md) | L'API Subsonic telle que Navidrome l'implémente réellement |
+| [docs/subsonic.md](./docs/subsonic.md) | L'API Subsonic telle que Navidrome l'implémente réellement |
 | [docs/franceinfo.md](./docs/franceinfo.md) | Le flash d'information : accès, format, disponibilité |
 | [docs/liquidsoap.md](./docs/liquidsoap.md) | Ce que Liquidsoap 2.3.3 fait réellement, et ce qui a décidé la migration |
 | [docs/ffmpeg.md](./docs/ffmpeg.md) | Relevé historique — vaut pour ce que Liquidsoap fait avec ffmpeg en dessous |
@@ -229,7 +229,7 @@ dans TASKS.md.
   **rejoue** exactement la même émission. Jamais de `sleep` réel.
 - La couche qui parle au monde extérieur se teste contre des réponses
   **littérales** — y compris malformées, tronquées, vides, ou d'un type
-  inattendu. Un Navidrome qui renvoie du HTML d'erreur là où du JSON était
+  inattendu. Un serveur Subsonic qui renvoie du HTML d'erreur là où du JSON était
   promis est un cas de test, pas un imprévu.
 - Cible de couverture : **80 % sur l'ensemble du dépôt**, imposée par
   `pytest --cov-fail-under=80`.
@@ -276,7 +276,7 @@ répète. Quatre habitudes suffisent à éviter l'essentiel des demandes :
 
 Les règles partagées vivent dans `.claude/settings.json`, versionné et sans
 chemin machine. Ce qui dépend de la machine — chemin de la bibliothèque, jeton
-Navidrome, adresse du serveur — va dans `.claude/settings.local.json` et dans le
+Subsonic, adresse du serveur — va dans `.claude/settings.local.json` et dans le
 TOML local, **jamais versionnés**. `git push` est **délibérément absent** de
 l'allowlist : une action sortante se confirme.
 
@@ -344,7 +344,7 @@ La documentation fait partie de la tâche, pas de son après-coup.
 | Nouvelle clé de configuration TOML | [SPECS.md](./SPECS.md) §6 |
 | Décision d'architecture, dépendance, découpage | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | Nouveau dossier, ou dossier dont le rôle change | [ARCHITECTURE.md](./ARCHITECTURE.md) §9 |
-| Une observation sur Navidrome, France Info, Liquidsoap, ffmpeg, YouTube/yt-dlp, un lecteur de webradio ou un flux de podcast | le relevé correspondant dans [docs/](./docs/) |
+| Une observation sur Subsonic, France Info, Liquidsoap, ffmpeg, YouTube/yt-dlp, un lecteur de webradio ou un flux de podcast | le relevé correspondant dans [docs/](./docs/) |
 | Une route d'API ajoutée, changée ou retirée | [SPECS.md](./SPECS.md) §4.8 — c'est une surface publique |
 | Nouvelle règle de développement | ce fichier |
 | Procédure de contribution | [CONTRIBUTING.md](./CONTRIBUTING.md) |
@@ -371,7 +371,7 @@ Réf: GOAL-00X-TYY
 
 Types : `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `build`, `ci`.
 
-Scopes usuels : `core`, `queue`, `schedule`, `rng`, `clock`, `navidrome`,
+Scopes usuels : `core`, `queue`, `schedule`, `rng`, `clock`, `subsonic`,
 `source`, `jingle`, `news`, `stream`, `ffmpeg`, `http`, `config`, `control`,
 `api`, `web`, `harness`.
 
@@ -379,7 +379,7 @@ Exemples :
 
 ```
 feat(schedule): faire tomber les jingles à l'heure pile
-test(navidrome): couvrir une réponse HTML là où du JSON était promis
+test(subsonic): couvrir une réponse HTML là où du JSON était promis
 docs(ffmpeg): relever le comportement en fin de fichier
 ```
 
@@ -448,7 +448,7 @@ Appliquées par `ruff` (mise en forme et analyse), `mypy` (types) et
 | Fonction, variable | `snake_case` | `next_track`, `is_news_time` |
 | Constante de module | `SCREAMING_SNAKE_CASE` en tête de fichier | `DEFAULT_BITRATE` |
 | Test | `test_` + le comportement observable, jamais un numéro | `test_un_jingle_tombe_a_l_heure_pile` |
-| Fake | préfixe `Fake` | `FakeNavidromeSource` |
+| Fake | préfixe `Fake` | `FakeSubsonicSource` |
 | Clé TOML | `snake_case`, en français | `duree_fondu`, `heures_thematiques` |
 
 ### Documentation du code
@@ -506,7 +506,7 @@ def prochain_morceau(self) -> Piste:
   dégradant silencieusement le format.
 - **Navidrome répond autrement que la spécification Subsonic** → c'est Navidrome
   qui fait foi. Consigner l'écart dans
-  [docs/navidrome.md](./docs/navidrome.md).
+  [docs/subsonic.md](./docs/subsonic.md).
 - **Le flash France Info est indisponible ou tronqué** → ce n'est pas une panne,
   c'est un cas nominal : la radio se replie sur la musique. Si SPECS.md ne dit
   pas comment, c'est une ambiguïté de spécification (§1.2).

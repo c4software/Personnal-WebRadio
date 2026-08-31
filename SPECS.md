@@ -13,14 +13,15 @@ Un comportement audible qui n'est pas décrit ici n'existe pas : il est soit à
 
 **local-webradio** est une station de radio personnelle. Elle diffuse un **flux
 HTTP audio unique**, alimenté par un tirage dans une bibliothèque
-[Navidrome](https://www.navidrome.org/), ponctué de jingles horaires,
+servie en [Subsonic](https://www.subsonic.org/pages/api.jsp) — Navidrome
+chez l'auteur —, ponctué de jingles horaires,
 d'interruptions d'information et d'**émissions** programmées.
 
 Elle n'existe **que lorsqu'on l'écoute** : rien n'est décodé ni demandé tant que
 personne n'est branché ; la musique démarre à la première connexion et s'arrête
 à la dernière. Depuis le 2026-08-30 (§7 n°23), un processus de diffusion reste
 debout entre deux écoutes — il encode du silence à moins d'un pour cent d'un
-cœur — mais il ne tire aucun morceau, n'interroge pas Navidrome et ne fait
+cœur — mais il ne tire aucun morceau, n'interroge pas la bibliothèque et ne fait
 avancer ni la file ni la non-répétition.
 
 L'expérience recherchée :
@@ -28,7 +29,7 @@ L'expérience recherchée :
 ```
 un auditeur se branche
         ↓
-la chaîne démarre — Navidrome est interrogé, un morceau est tiré
+la chaîne démarre — la bibliothèque est interrogée, un morceau est tiré
         ↓
 la musique joue en continu, sans blanc entre les morceaux
         ↓
@@ -55,7 +56,7 @@ précédente : c'est elle qui empêche les Goals de déborder.
 | Exclu | Pourquoi |
 |---|---|
 | **Plusieurs flux ou qualités** | Un seul flux, un seul débit, un seul format. C'est ce qui garde le cœur — une file partagée vers N auditeurs — aussi simple qu'il peut l'être. |
-| **Gérer la bibliothèque** | Le projet **lit** Navidrome. Il ne classe pas, ne renomme pas, ne modifie aucune étiquette, n'écrit jamais rien côté bibliothèque. Navidrome reste la seule autorité sur les fichiers. |
+| **Gérer la bibliothèque** | Le projet **lit** la bibliothèque. Il ne classe pas, ne renomme pas, ne modifie aucune étiquette, n'écrit jamais rien côté bibliothèque. Le serveur de musique reste la seule autorité sur les fichiers. |
 | **Enregistrer, rejouer, podcaster** | Pas d'archivage du flux, pas de retour en arrière, pas de podcast des flashs. Une radio est un présent continu : ce qui est passé est perdu, et c'est assumé. |
 
 L'**interface web**, laissée indécise à l'initialisation, est désormais **dans le
@@ -69,7 +70,8 @@ La station est livrée en **conteneur Docker**, démarrée par un
 `docker-compose.yml` (ARCHITECTURE.md §8.5). C'est ce qui fige la version de
 ffmpeg avec le code qui l'a relevée.
 
-Navidrome n'en fait pas partie : il existe déjà et appartient à l'auteur.
+Le serveur de musique — Navidrome chez l'auteur — n'en fait pas partie : il
+existe déjà et lui appartient.
 
 ## 3. Qui s'en sert
 
@@ -82,7 +84,7 @@ Conséquences, et elles sont larges :
 - **Pas de gestion de charge**, pas de limite de connexions. La diffusion doit
   néanmoins supporter proprement plusieurs lecteurs simultanés — un téléphone,
   un navigateur et une enceinte peuvent coexister.
-- **Les seuls secrets** sont les identifiants Navidrome. Ils vivent dans le TOML
+- **Les seuls secrets** sont les identifiants Subsonic. Ils vivent dans le TOML
   local, jamais versionné, et n'apparaissent dans aucun journal (AGENTS.md §2).
 - **L'interface web n'est pas protégée non plus** : quiconque est sur le réseau
   peut voir ce qui passe et voter. Elle est faite pour un téléphone posé à côté
@@ -98,7 +100,7 @@ Conséquences, et elles sont larges :
 L'auditeur ouvre l'URL du flux dans un lecteur (VLC, un navigateur, une enceinte
 connectée).
 
-- Si **personne n'écoutait**, la chaîne démarre : Navidrome est interrogé, un
+- Si **personne n'écoutait**, la chaîne démarre : la bibliothèque est interrogée, un
   premier morceau est tiré selon la grille de l'heure, l'encodage commence.
   Un délai d'amorçage est acceptable ; il doit rester **court et silencieux**,
   jamais un blanc de plusieurs secondes suivi d'un démarrage brutal.
@@ -109,8 +111,8 @@ connectée).
 
 | Situation | Comportement attendu |
 |---|---|
-| Navidrome injoignable | La chaîne ne démarre pas silencieusement. L'erreur est journalisée, et l'auditeur reçoit une réponse HTTP explicite plutôt qu'un flux vide. |
-| Navidrome joignable, bibliothèque vide | Même traitement : une radio sans musique est une erreur, pas un silence. |
+| Source Subsonic injoignable | La chaîne ne démarre pas silencieusement. L'erreur est journalisée, et l'auditeur reçoit une réponse HTTP explicite plutôt qu'un flux vide. |
+| Source joignable, bibliothèque vide | Même traitement : une radio sans musique est une erreur, pas un silence. |
 | Liquidsoap ne joint pas l'API | Il s'arrête en le journalisant, et le superviseur le relance ; il ne sert jamais un flux qui ne contient rien (§7 n°23). |
 
 ### 4.2 Écouter
@@ -272,7 +274,7 @@ longtemps après.
 ### 4.7 Se débrancher
 
 Quand le **dernier** auditeur se débranche, la musique s'arrête : plus rien
-n'est décodé, Navidrome n'est plus interrogé, la file n'avance plus. Le
+n'est décodé, la bibliothèque n'est plus interrogée, la file n'avance plus. Le
 diffuseur reste debout et encode du silence (§1, §7 n°23).
 
 Un auditeur qui se rebranche entend la radio repartir **au morceau suivant** —
@@ -316,7 +318,7 @@ d'entrée des réglages (§6) — et ne touche pas à la bibliothèque (§2).
 
 Un **programme** est une plage de temps — **des jours et des heures** — pendant
 laquelle la musique est tirée au hasard dans une **liste de lecture** que
-l'auteur a constituée dans Navidrome.
+l'auteur a constituée dans sa bibliothèque.
 
 ```toml
 [[programmes]]
@@ -402,7 +404,7 @@ prétexte à violer cet ordre.
 
 ### 4.10 D'où vient la musique
 
-La musique vient de **sources** déclarées dans le TOML. Navidrome en est une ;
+La musique vient de **sources** déclarées dans le TOML. Subsonic en est une ;
 d'autres pourront être ajoutées sans rien reprendre du cœur.
 
 Une source sait faire trois choses, et seulement trois : chercher, tirer au
@@ -410,7 +412,7 @@ hasard sous contrainte de genre ou d'artiste, et résoudre une piste en un flux
 audio lisible. Tout le reste — la grille, le tirage, la non-répétition — est
 décidé au-dessus d'elles et ne dépend d'aucune.
 
-**Une seule source est écrite aujourd'hui** : Navidrome. Le mécanisme est
+**Une seule source est écrite aujourd'hui** : Subsonic. Le mécanisme est
 néanmoins complet — plusieurs sources peuvent être déclarées et activées. Ce
 choix est un **écart assumé** à la règle « une abstraction arrive avec son
 deuxième cas d'usage » : il est consigné comme tel dans ARCHITECTURE.md §9.1,
@@ -686,9 +688,9 @@ contournée en continuant la musique l'est, et laisse une trace journalisée.
 | Une plage thématique sans musique | se replie sur le tirage libre, journalise |
 | La non-répétition ne laisse aucun artiste | rétrécit la fenêtre d'un cran, journalise (§4.2) |
 | `encore` sans autre morceau de l'artiste | replie sur le genre, puis sur le tirage libre |
-| Navidrome injoignable **au démarrage** | refuse de démarrer, erreur HTTP explicite (§4.1) |
-| Navidrome injoignable **en cours** | continue avec ce qui est en file, réessaie en arrière-plan (§5.1) |
-| La file s'épuise, Navidrome toujours injoignable | **coupe proprement** plutôt que de servir du silence (§5.1) |
+| Source injoignable **au démarrage** | refuse de démarrer, erreur HTTP explicite (§4.1) |
+| Source injoignable **en cours** | continue avec ce qui est en file, réessaie en arrière-plan (§5.1) |
+| La file s'épuise, la source toujours injoignable | **coupe proprement** plutôt que de servir du silence (§5.1) |
 | Liquidsoap qui meurt en cours | le superviseur le relance ; les auditeurs se rebranchent sur une radio neuve (§4.7) |
 
 La distinction est nette : **au démarrage**, une erreur est fatale et se dit ;
@@ -702,7 +704,7 @@ change.
 
 | Panne | Ce que fait la radio |
 |---|---|
-| Navidrome injoignable | continue avec ce qui est en file, réessaie en arrière-plan |
+| Source injoignable | continue avec ce qui est en file, réessaie en arrière-plan |
 | … et la file s'épuise sans retour | **coupe**, en journalisant pourquoi |
 | l'API ne répond plus à Liquidsoap | il réessaie **une fois**, puis **coupe** en journalisant pourquoi |
 | Liquidsoap meurt | le superviseur le relance, neuf |
@@ -721,7 +723,7 @@ le reste de l'autre.** Aucune URL, aucun chemin, aucun port, aucune durée n'est
 ### 6.1 Les secrets : `.env`
 
 Un fichier `.env`, **jamais versionné**, qui ne porte **que** des secrets :
-identifiants Navidrome aujourd'hui, ce qui s'y ajoutera demain.
+identifiants Subsonic aujourd'hui, ce qui s'y ajoutera demain.
 
 Un `.env.exemple` **est** versionné : il ne contient que des noms de variables et
 leur rôle, jamais une valeur.
@@ -766,7 +768,7 @@ Ce que le TOML doit décrire, au minimum :
 - **Les podcasts** : le délai au-delà duquel un flux est réputé injoignable. Il
   reste court : une émission qui ne répond pas ne bloque pas la radio, elle est
   perdue et la musique continue (§4.11) ;
-- **Navidrome** : taille des échantillons demandés, nombre de résultats par
+- **Subsonic** : taille des échantillons demandés, nombre de résultats par
   artiste, délai réseau ;
 - **Les seuils** : durée de fondu. **Aucun seuil de péremption** : ni les
   jingles ni les flashs ne sont abandonnés pour cause de retard (§4.3).
@@ -812,7 +814,7 @@ jingles horaires (§4.6).
 
 **n°2 — La modularité des sources ? Abstraction complète.** Tranchée le
 2026-08-30. Le mécanisme est complet dès maintenant : sources déclarées au TOML,
-plusieurs activables (§4.10). Une seule est écrite — Navidrome.
+plusieurs activables (§4.10). Une seule est écrite — Subsonic.
 > *Raison* : choix de l'auteur, contre l'interdit d'anticipation d'AGENTS.md §2.
 > **C'est un écart, pas une exception tacite** : il est consigné dans
 > ARCHITECTURE.md §9.1 pour rester visible. Il ouvre la décision n°12.
@@ -849,7 +851,7 @@ tiré dans une plage y termine, quitte à déborder (§4.4).
 > défaut.
 
 **n°8 — Les pannes en cours ? Tenir, puis couper en le disant.** Tranchée le
-2026-08-30. Navidrome injoignable : continuer sur la file, réessayer en
+2026-08-30. Source injoignable : continuer sur la file, réessayer en
 arrière-plan, couper si la file s'épuise. API muette pour le diffuseur :
 réessayer une fois, couper en le disant (§5.1, n°23).
 > *Raison* : couper tout de suite rendrait la radio fragile à une micro-coupure ;

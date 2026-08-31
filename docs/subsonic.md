@@ -1,4 +1,4 @@
-# docs/navidrome.md — Relevé de l'API Subsonic telle que Navidrome l'implémente
+# docs/subsonic.md — Relevé de l'API Subsonic telle que Navidrome l'implémente
 
 > **Relevé établi le 2026-08-30** (`GOAL-002-T08`), contre l'instance de
 > l'auteur : **Navidrome 0.63.2**, API Subsonic 1.16.1.

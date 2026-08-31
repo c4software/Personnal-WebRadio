@@ -3,7 +3,8 @@
 Une station de radio personnelle qui **n'existe que lorsqu'on l'écoute**.
 
 Elle diffuse un flux HTTP audio unique, tiré au hasard dans une bibliothèque
-[Navidrome](https://www.navidrome.org/), ponctué de jingles horaires et
+servie en [Subsonic](https://www.subsonic.org/pages/api.jsp) — Navidrome
+chez l'auteur —, ponctué de jingles horaires et
 d'émissions programmées. Rien ne tourne tant que personne n'est branché : la
 chaîne démarre à la première connexion et s'arrête à la dernière.
 
@@ -13,7 +14,7 @@ qu'on écoute — on se branche, et **ça joue déjà**.
 ```
 un auditeur se branche
         ↓
-la chaîne démarre — Navidrome est interrogé, un morceau est tiré
+la chaîne démarre — la bibliothèque est interrogée, un morceau est tiré
         ↓
 la musique joue en continu, sans blanc entre les morceaux
         ↓
@@ -34,7 +35,7 @@ le dernier auditeur se débranche → la chaîne s'arrête
 |---|---|
 | **Tirage aléatoire** | Dans toute la bibliothèque, avec une règle de non-répétition des artistes |
 | **Grille horaire** | Tirage libre par défaut ; des plages par **genres** ou par **artiste** (« une heure d'un seul artiste »), ou **au hasard** (`random = "genre"` / `"artist"` : la radio tire le thème au début de la plage et s'y tient), restreignables à des **jours**, avec **générique d'ouverture et de fermeture** optionnels |
-| **Programmes** | Une liste de lecture Navidrome sur un créneau — « le vendredi de Chloé, 18 h–20 h » |
+| **Programmes** | Une liste de lecture de la bibliothèque sur un créneau — « le vendredi de Chloé, 18 h–20 h » |
 | **Jingles horaires** | `00h.mp3` … `23h.mp3`, insérés à la jonction sans couper un morceau, fondu court |
 | **Émissions** | À heure dite : un **podcast** (l'épisode le plus récent non diffusé), une **chaîne YouTube** (la dernière vidéo, téléchargée en fond puis servie en local — zéro blanc), ou un **direct** — le flash France Info, capté et coupé à l'heure |
 | **Pilotage** | `stop` **passe le morceau** à l'instant ; `encore` force le prochain **chez le même artiste**, et s'annonce par un jingle |
@@ -45,7 +46,7 @@ le dernier auditeur se débranche → la chaîne s'arrête
 ## Ce qu'elle ne fait pas
 
 - **Plusieurs flux ou qualités.** Un seul flux, un seul débit, un seul format.
-- **Gérer la bibliothèque.** Elle *lit* Navidrome ; elle n'y écrit jamais rien.
+- **Gérer la bibliothèque.** Elle *lit* la bibliothèque ; elle n'y écrit jamais rien.
 - **Enregistrer, rejouer, podcaster.** Une radio est un présent continu : ce qui
   est passé est perdu, et c'est assumé. (Un **journal des titres** existe —
   qui est passé, à quelle heure, borné à 24 h — jamais l'audio.)
@@ -59,7 +60,8 @@ Détail et raisons : [SPECS.md §2](./SPECS.md).
 ### Ce qu'il faut
 
 - **Docker** et **Docker Compose** — c'est la façon prévue de la faire tourner
-- Un serveur **Navidrome** joignable, et ses identifiants
+- Un serveur **compatible Subsonic** (Navidrome, par exemple) joignable, et
+  ses identifiants
 - Un dossier de **jingles** MP3 — facultatif, et même vide
 
 Pour développer, en plus : **Python 3.11+** — et Docker sert aussi à valider le
@@ -79,9 +81,9 @@ chmod 600 .env
 `.env` ne porte **que** des secrets :
 
 ```dotenv
-NAVIDROME_URL=http://music
-NAVIDROME_UTILISATEUR=votre-utilisateur
-NAVIDROME_MOT_DE_PASSE=votre-mot-de-passe
+SUBSONIC_URL=http://music
+SUBSONIC_UTILISATEUR=votre-utilisateur
+SUBSONIC_MOT_DE_PASSE=votre-mot-de-passe
 ```
 
 `webradio.toml` porte le reste, et **aucun secret** — un secret trouvé dedans
@@ -137,7 +139,7 @@ même réseau — **un autre port**, parce que c'est l'autre service :
 http://<la-machine>:8080/
 ```
 
-> **Si les conteneurs ne joignent pas Navidrome** : `http://music` est un nom résolu
+> **Si les conteneurs ne joignent pas le serveur Subsonic** : `http://music` est un nom résolu
 > par le réseau de *l'hôte*, qu'un conteneur ne résout pas forcément. Décommentez
 > `extra_hosts` dans `docker-compose.yml` — pour les **deux** services, `liquidsoap`
 > ouvre les mêmes URL que `radio`.
@@ -253,7 +255,7 @@ projet, et le travail avance par **Goals** découpés en tâches traçables.
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Comment elle est conçue, et ce qui existe vraiment |
 | [TASKS.md](./TASKS.md) | Où en est le travail |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Comment contribuer |
-| [docs/](./docs/) | Navidrome, Liquidsoap, ffmpeg, podcasts, lecteurs — **relevés par observation** |
+| [docs/](./docs/) | Subsonic, Liquidsoap, ffmpeg, podcasts, lecteurs — **relevés par observation** |
 
 Commandes de pilotage : `/status`, `/goal <objectif>`, `/task [ID]`, `/verify`.
 

@@ -17,7 +17,7 @@ Deux zones, et une frontière qui ne se franchit que dans un sens :
 webradio/
   core/        les décisions — ne parle à personne
   adapters/    le monde extérieur — ne décide de rien
-    sources/     d'où vient la musique — Navidrome aujourd'hui
+    sources/     d'où vient la musique — Subsonic aujourd'hui
     podcast/     les émissions programmées
     ffmpeg/      l'encodage
     http/        le flux servi aux auditeurs
@@ -81,7 +81,7 @@ fichier devrait porter.
 
 | Détail | Confiné dans |
 |---|---|
-| L'API Subsonic : `salt`, `token`, `u`, `p`, `v`, `c`, la forme des réponses | `adapters/sources/navidrome/` |
+| L'API Subsonic : `salt`, `token`, `u`, `p`, `v`, `c`, la forme des réponses | `adapters/sources/subsonic.py` |
 | Le langage de Liquidsoap, l'encodage, les fondus, les en-têtes du flux, les connexions | `adapters/liquidsoap/radio.liq` |
 | Les deux routes que Liquidsoap appelle, et leur contrat en texte brut | `adapters/web/playout_api.py` |
 | L'adresse du direct France Info | Le TOML (`adapters/config/`) — et c'est tout : un direct est une entrée ffmpeg comme une autre (`docs/franceinfo.md` §1.bis, `GOAL-015`) |
@@ -148,7 +148,7 @@ Liquidsoap  ──« morceau suivant ? »──▶  adapters/liquidsoap  ──�
 
 **Le script n'a pas de raccourci**, comme l'interface web (§6) : il demande le
 morceau suivant à l'API, il annonce ses auditeurs à l'API. Il ne lit ni le TOML,
-ni la base, ni Navidrome.
+ni la base, ni la bibliothèque.
 
 ### 4.0 Un format unique, réencodé en permanence
 
@@ -156,7 +156,7 @@ SPECS.md §4.9 exige **lisible par tout lecteur** et **sans coupure**, et §7 n�
 place l'économie de la machine en troisième. Liquidsoap réencode tout vers un
 seul format (`%mp3(bitrate=…)` dans `radio.liq`) : un lecteur ne voit jamais le
 format changer, quelle que soit l'hétérogénéité de la bibliothèque
-(docs/navidrome.md §3.1). Le coût mesuré est de l'ordre d'un pour cent d'un
+(docs/subsonic.md §3.1). Le coût mesuré est de l'ordre d'un pour cent d'un
 cœur (docs/ffmpeg.md §2.bis, docs/liquidsoap.md §1.3) : il n'y a rien à
 optimiser.
 
@@ -305,11 +305,11 @@ versionné, il n'a pas de sauvegarde, et le perdre n'est pas une panne (§5.0).
 
 ### 5.1 Les secrets
 
-Les identifiants Navidrome vivent dans le TOML local, **jamais versionné**. Un
+Les identifiants Subsonic vivent dans le `.env` local, **jamais versionné**. Un
 exemple commenté l'est, sans secret.
 
 L'API Subsonic accepte un jeton dérivé plutôt qu'un mot de passe en clair : la
-forme retenue relèvera de [docs/navidrome.md](./docs/navidrome.md), une fois
+forme retenue relèvera de [docs/subsonic.md](./docs/subsonic.md), une fois
 observée. Dans tous les cas, **aucun identifiant ne paraît dans un journal** —
 c'est un interdit contrôlé (AGENTS.md §2).
 
@@ -380,7 +380,7 @@ ni la non-répétition, ni le tirage, qui sont décidés au-dessus et ne dépend
 d'aucune source.
 
 Le mécanisme est **complet** : les sources sont déclarées au TOML et plusieurs
-peuvent être activées (SPECS.md §4.10). **Une seule est écrite** — Navidrome.
+peuvent être activées (SPECS.md §4.10). **Une seule est écrite** — Subsonic.
 
 C'est un **écart assumé** à l'interdit d'anticipation, consigné en §9.1. Ce qui
 suit en découle et doit rester vrai : le registre ne contient qu'une entrée, et
@@ -422,7 +422,7 @@ nominal, pas une anomalie.
 ## 7. Erreurs
 
 Les erreurs techniques sont traduites en erreurs **métier** au plus près de leur
-origine : un code HTTP 500 de Navidrome devient une `SourceIndisponible`, pas une
+origine : un code HTTP 500 du serveur Subsonic devient une `SourceIndisponible`, pas une
 exception `httpx` qui traverse le programme. Au-dessus des adaptateurs, plus
 personne ne connaît de code HTTP ni de nom de codec.
 
@@ -577,7 +577,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   │   └── weighting.py . des votes aux poids du tirage
 │   ├── adapters/ ........ le monde extérieur — ne décide de rien
 │   │   ├── config/ ...... schema.py (les clés du TOML) · loading.py (fichier et .env)
-│   │   ├── sources/ ..... navidrome.py — l'API Subsonic, et rien d'autre ne la connaît
+│   │   ├── sources/ ..... subsonic.py — l'API Subsonic, et rien d'autre ne la connaît
 │   │   ├── podcast/ ..... feed.py — RSS, enclosure, redirections
 │   │   ├── youtube/ ..... channel.py — une chaîne comme flux d'épisodes, yt-dlp au dernier moment
 │   │   ├── liquidsoap/ .. radio.liq — demande, annonce, sert ; ne décide de rien
@@ -595,7 +595,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   └── fakes.py ......... doubles versionnés — FakeSource, track()
 │
 ├── docs/
-│   ├── navidrome.md ..... relevé de l'API Subsonic telle que Navidrome l'implémente
+│   ├── subsonic.md ..... relevé de l'API Subsonic telle que Navidrome l'implémente
 │   ├── franceinfo.md .... relevé du flash d'information — source non confirmée
 │   ├── podcast.md ....... relevé des flux de podcast des émissions
 │   ├── liquidsoap.md .... relevé de Liquidsoap 2.3.3, et ce qui a décidé la migration
@@ -640,7 +640,7 @@ pas avant* (AGENTS.md §2).
 
 **Ce que le projet fait** : le mécanisme de sources est complet — `Protocol`,
 déclaration au TOML, plusieurs sources activables — alors qu'**une seule est
-écrite**, Navidrome.
+écrite**, Subsonic.
 
 **Pourquoi** : décision de l'auteur, prise à l'initialisation (SPECS.md §7 n°2).
 L'intention est de pouvoir brancher une autre source sans reprendre le cœur.

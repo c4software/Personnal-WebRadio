@@ -487,7 +487,7 @@ tard, ce serait découvrir tard les surprises de réseau et de volumes.
 - [x] `GOAL-005-T12` Carte du dépôt
 
 > Les tâches `T06` à `T11` sont entièrement pré-écrites par
-> [docs/navidrome.md](./docs/navidrome.md) : chacune correspond à un piège
+> [docs/subsonic.md](./docs/subsonic.md) : chacune correspond à un piège
 > constaté, et à lui seul.
 
 ---
@@ -657,7 +657,7 @@ au hasard dans une liste de lecture Navidrome (SPECS.md §4.13).
 
 ### Ce que le relevé impose
 
-`docs/navidrome.md` §2.6 a été établi pour ce Goal, et il change deux choses :
+`docs/subsonic.md` §2.6 a été établi pour ce Goal, et il change deux choses :
 
 | Constat | Conséquence |
 |---|---|

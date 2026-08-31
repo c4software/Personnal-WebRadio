@@ -228,7 +228,7 @@ class SubsonicSettings:
 
     `taille_echantillon` est un nombre de pistes demandé au serveur, pas une
     borne du tirage : le serveur tronque au-delà de son propre plafond, ce que
-    l'adaptateur sait et rappelle (docs/navidrome.md §2.1).
+    l'adaptateur sait et rappelle (docs/subsonic.md §2.1).
     """
 
     sample_size: int

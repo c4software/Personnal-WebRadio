@@ -95,8 +95,8 @@ def ask_next() =
   if answer.status_code == 200 then
     failures := 0
     entry = string.trim(answer)
-    # Sans la chaîne de requête : une URL Navidrome porte le jeton d'accès
-    # (docs/navidrome.md), et un journal n'est pas un endroit pour un secret.
+    # Sans la chaîne de requête : une URL de flux Subsonic porte le jeton d'accès
+    # (docs/subsonic.md), et un journal n'est pas un endroit pour un secret.
     shown = list.hd(default=entry, string.split(separator="\\?", entry))
     log("suivant : #{shown}")
     entry

@@ -1,6 +1,6 @@
 """L'adaptateur Subsonic, contre des réponses HTTP **littérales**.
 
-Les corps de réponse sont recopiés de [docs/navidrome.md](../docs/navidrome.md),
+Les corps de réponse sont recopiés de [docs/subsonic.md](../docs/subsonic.md),
 qui les a relevés contre une instance réelle. Aucun test ne touche au réseau :
 le transport est un Fake versionné, pas un mock généré (AGENTS.md §4).
 
@@ -38,11 +38,11 @@ IDENTIFIANTS = SubsonicCredentials(
     password=MOT_DE_PASSE,
 )
 
-# ── Corps relevés (docs/navidrome.md) ──────────────────────────────────────
+# ── Corps relevés (docs/subsonic.md) ──────────────────────────────────────
 
 MOT_DE_PASSE_FAUX = """
 {"subsonic-response": {"status": "failed", "version": "1.16.1",
- "type": "subsonic", "serverVersion": "0.63.2",
+ "type": "navidrome", "serverVersion": "0.63.2",
  "error": {"code": 40, "message": "Wrong username or password"}}}
 """
 
@@ -461,7 +461,7 @@ def test_entree_rend_une_url_de_flux_portant_le_jeton() -> None:
     assert MOT_DE_PASSE not in url
 
 
-# ── Les listes de lecture (docs/navidrome.md §2.6) ─────────────────────────
+# ── Les listes de lecture (docs/subsonic.md §2.6) ─────────────────────────
 
 LISTES = """
 {"subsonic-response": {"status": "ok", "version": "1.16.1", "playlists": {"playlist": [
@@ -532,7 +532,7 @@ def test_une_liste_de_lecture_est_resolue_par_son_nom() -> None:
 
 def test_le_song_count_annonce_n_est_pas_ce_qui_est_rendu() -> None:
     """67 annoncés, deux entrées rendues : une liste se juge sur ses entrées
-    (docs/navidrome.md §2.6.1)."""
+    (docs/subsonic.md §2.6.1)."""
     source = _source(
         transport=ScriptedTransport([HttpResponse(200, LISTES), HttpResponse(200, LISTE_CHLOE)])
     )
