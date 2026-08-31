@@ -1149,3 +1149,36 @@ de 500 — ne se constate qu'en écoutant sur la durée (AGENTS.md §4.1). Un
 `tracks()` complet coûte désormais douze appels HTTP au lieu d'un, à chaque
 tirage, et rien n'est mis en cache — le coût n'a pas été mesuré ; si un blanc
 s'entendait un jour à la jonction, la mesure précéderait le remède.
+*Soldée par GOAL-040 : la bibliothèque est servie de mémoire pendant
+`cache_seconds` (une heure par défaut).*
+
+---
+
+## GOAL-040 — Un cache de bibliothèque dans l'adaptateur Subsonic
+
+**Terminé le 2026-08-31.**
+
+Depuis GOAL-039, chaque tirage parcourait la bibliothèque entière : ~12 appels
+HTTP par changement de chanson, pour des données qui bougent rarement.
+
+- [x] `GOAL-040-T01` La clé `cache_seconds` sur `[subsonic]` : `0` = sans
+      cache, valeur négative refusée en nommant la clé ; exemples TOML
+- [x] `GOAL-040-T02` Le cache dans l'adaptateur : horloge injectée
+      (`core/clock.py`), une entrée par clé de tirage, expiration stricte à la
+      lecture, copie rendue à chaque appel (personne ne mute l'entrée
+      partagée) ; seul un parcours réussi entre au cache ; câblé dans
+      `main.py` ; tests au `FrozenClock`, transport qui compte ses appels
+- [x] `GOAL-040-T03` SPECS §6, dette de GOAL-039 soldée, clôture
+
+### Décisions prises
+
+- **Défaut de 3600 s** — demandé par l'auteur en cours de Goal (T01 était
+  partie sur 600 s) : une heure de retard au pire sur un ajout, contre douze
+  appels économisés par tirage.
+- **Une panne ne sert jamais un cache périmé** : `SourceIndisponible` se
+  propage comme avant, le régime de panne de SPECS.md §5 reste inchangé et
+  visible. Servir du périmé en panne serait un autre choix, à décider s'il
+  manque un jour.
+- **`tracks_by` et les listes de lecture restent sans cache** : l'« encore »
+  est rare, et une liste renommée ne doit pas rester résolue sur un
+  identifiant périmé (docs/subsonic.md §2.6).

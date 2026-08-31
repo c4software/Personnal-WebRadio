@@ -768,9 +768,11 @@ Ce que le TOML doit décrire, au minimum :
 - **Les podcasts** : le délai au-delà duquel un flux est réputé injoignable. Il
   reste court : une émission qui ne répond pas ne bloque pas la radio, elle est
   perdue et la musique continue (§4.11) ;
-- **Subsonic** : nombre de résultats par artiste, délai réseau. **Aucune
-  taille d'échantillon** : le tirage voit la bibliothèque entière, récupérée
-  par pagination (docs/subsonic.md §2.7) ;
+- **Subsonic** : nombre de résultats par artiste, délai réseau, durée du
+  cache de bibliothèque (`cache_seconds`, une heure par défaut, `0` = sans
+  cache — le prix est assumé : un morceau ajouté sur le serveur n'apparaît
+  qu'à l'expiration). **Aucune taille d'échantillon** : le tirage voit la
+  bibliothèque entière, récupérée par pagination (docs/subsonic.md §2.7) ;
 - **Les seuils** : durée de fondu. **Aucun seuil de péremption** : ni les
   jingles ni les flashs ne sont abandonnés pour cause de retard (§4.3).
 
