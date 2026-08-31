@@ -1072,3 +1072,24 @@ en mémoire, une occurrence à la fois. Consigné en SPECS.md §7 n°28.
 L'écoute réelle de T05 n'a pas eu lieu (AGENTS.md §1.2 : il n'existe pas de cas
 d'arrêt « demander une écoute avant de cocher »). C'est la conséquence assumée
 de la décision ouverte n°9 de SPECS.md.
+
+---
+
+## GOAL-038 — Le Compose de production tire l'image publiée ; un Compose de dev construit localement
+
+**Terminé le 2026-08-31.**
+
+La CI publie l'image du service `radio` sur GHCR depuis GOAL-036, mais le
+Compose continuait de construire localement, la bascule n'étant qu'un
+commentaire. Le défaut s'inverse : `docker compose up` tire du vérifié, et
+construire le code en cours devient le geste explicite du développement.
+
+**Décision** : une surcharge `-f docker-compose.dev.yml` plutôt qu'un
+`docker-compose.override.yml`, que Compose chargerait automatiquement — un
+`docker compose up` chez un utilisateur reconstruirait alors en local,
+l'inverse de l'objectif. La surcharge ne redéfinit que la provenance de
+l'image (`build: .`, `local-webradio:dev`) : volumes, réseau et santé restent
+ceux de la production. Consigné en ARCHITECTURE.md §8.5.4.
+
+- [x] `GOAL-038-T01` `docker-compose.yml` référence `ghcr.io/c4software/personnal-webradio:latest` au lieu de `build: .` ; README (« Lancer », note `docker login ghcr.io`) ajusté ; validé par `docker compose config -q`
+- [x] `GOAL-038-T02` `docker-compose.dev.yml` : surcharge minimale (`build: .`, image `local-webradio:dev`) ; documentation dev (README, CONTRIBUTING), ARCHITECTURE §8.5.4 et carte du dépôt §9 ; validé par `docker compose -f docker-compose.yml -f docker-compose.dev.yml config -q`

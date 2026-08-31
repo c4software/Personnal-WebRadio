@@ -44,10 +44,7 @@ votes, saut, encore, flash France Info, YouTube, jingles, interface — a été
 **validé à l'écoute par l'auteur le 2026-08-30**, au terme d'une soirée en
 conditions réelles.
 
-**Goal ouvert** : GOAL-038 — le Compose de production tire l'image publiée,
-un Compose de dev construit localement.
-
-Décisions restantes de SPECS.md §7 : la **n°9** est une
+**Aucun Goal ouvert.** Décisions restantes de SPECS.md §7 : la **n°9** est une
 conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
 musique.
@@ -56,7 +53,7 @@ musique.
 qu'une heure d'un artiste tiré au sort tienne — fenêtre de non-répétition
 rétrécie comprise — ne se constate qu'à l'antenne (AGENTS.md §4.1).
 
-**Prochaine tâche** : `GOAL-038-T01`.
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
 
@@ -101,25 +98,7 @@ rétrécie comprise — ne se constate qu'à l'antenne (AGENTS.md §4.1).
 | GOAL-035 | « À suivre » : la file s'affiche à l'antenne | `[x]` |
 | GOAL-036 | La CI : vérification puis image publiée sur GHCR | `[x]` |
 | GOAL-037 | Une plage dont le genre ou l'artiste est tiré au sort | `[x]` — reste l'écoute réelle |
-| GOAL-038 | Le Compose de production tire l'image publiée ; un Compose de dev construit localement | `[ ]` |
+| GOAL-038 | Le Compose de production tire l'image publiée ; un Compose de dev construit localement | `[x]` |
 
-Le détail de chacun — sauf les Goals encore ouverts, détaillés ci-dessous — tâches, décisions prises, dettes, incidents — est dans
+Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
-
----
-
-## GOAL-038 — Le Compose de production tire l'image publiée ; un Compose de dev construit localement
-
-La CI publie déjà l'image du service `radio` sur GHCR à chaque poussée vérifiée
-sur `master` (GOAL-036). Le `docker-compose.yml` continuait pourtant de
-construire localement, la bascule n'étant qu'un commentaire. Ce Goal inverse le
-défaut : la production tire l'image publiée, et le développement — qui a besoin
-de construire le code en cours — passe par une surcharge explicite.
-
-**Décision** : une surcharge `-f docker-compose.dev.yml` plutôt qu'un
-`docker-compose.override.yml`, que Compose chargerait automatiquement — un
-`docker compose up` chez un utilisateur reconstruirait alors en local, l'inverse
-de l'objectif.
-
-- [x] `GOAL-038-T01` `docker-compose.yml` référence `ghcr.io/c4software/personnal-webradio:latest` au lieu de `build: .` ; README (« Lancer », note `docker login ghcr.io`) ajusté ; validé par `docker compose config -q`
-- [x] `GOAL-038-T02` `docker-compose.dev.yml` : surcharge minimale (`build: .`, image `local-webradio:dev`) ; documentation dev (README, CONTRIBUTING), ARCHITECTURE §8.5 et carte du dépôt §9 ; validé par `docker compose -f docker-compose.yml -f docker-compose.dev.yml config -q`

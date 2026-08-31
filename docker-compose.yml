@@ -10,11 +10,6 @@
 
 services:
   radio:
-    # L'image que la CI publie à chaque poussée vérifiée sur master
-    # (.github/workflows/ci.yml). Dépôt privé : `docker login ghcr.io` avec un
-    # token au préalable. Pour construire le code en cours plutôt que tirer,
-    # ajouter la surcharge de développement :
-    #   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
     image: ghcr.io/c4software/personnal-webradio:latest
     container_name: local-webradio
     restart: unless-stopped
