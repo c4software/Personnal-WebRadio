@@ -114,6 +114,10 @@ On ajoute un jingle en déposant un fichier, on le retire en le supprimant.
 
 ### Lancer
 
+Le Compose tire l'image du service `radio` publiée par la CI sur GHCR — le
+dépôt est privé, il faut s'y être connecté une fois (`docker login ghcr.io`,
+avec un token) :
+
 ```bash
 docker compose up -d
 docker compose logs -f
