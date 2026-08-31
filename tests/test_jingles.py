@@ -31,9 +31,9 @@ def test_l_heure_pile_franchie_rend_le_jingle_de_cette_heure() -> None:
     assert jingles.due_now() == ("hours/14h.mp3",)
 
 
-def test_un_jingle_en_retard_passe_quand_meme() -> None:
-    """SPECS.md §7 n°4 : `14h.mp3` peut s'entendre à 14 h 25 si le morceau en
-    cours est long. Renoncer aurait coûté un seuil pour un gain nul."""
+def test_sans_peremption_un_jingle_en_retard_passe_quand_meme() -> None:
+    """Sans péremption déclarée (`expiry=None`), l'ancienne règle n°4 tient :
+    `14h.mp3` peut s'entendre à 14 h 25 si le morceau en cours est long."""
     h = clock(13, 50)
     jingles = Jingles(h)
     h.advance(timedelta(minutes=35))
@@ -120,6 +120,57 @@ def test_une_journee_entiere_fait_tomber_les_vingt_quatre_jingles() -> None:
         h.advance(timedelta(minutes=5))
         entendus.extend(jingles.due_now())
     assert entendus == [f"hours/{hour:02d}h.mp3" for hour in [*range(1, 24), 0]]
+
+
+def test_un_jingle_dans_sa_peremption_passe() -> None:
+    """À 14 h 14, le jingle de 14 h a encore un sens : il passe."""
+    h = clock(13, 50)
+    jingles = Jingles(h, expiry=timedelta(minutes=15))
+    h.advance(timedelta(minutes=24))
+    assert jingles.due_now() == ("hours/14h.mp3",)
+
+
+def test_un_jingle_a_la_limite_exacte_de_sa_peremption_passe() -> None:
+    h = clock(14, 0)
+    jingles = Jingles(h, expiry=timedelta(minutes=15))
+    h.advance(timedelta(minutes=75))
+    assert jingles.due_now() == ("hours/15h.mp3",)
+
+
+def test_un_jingle_perime_est_abandonne() -> None:
+    """SPECS.md §7 n°29 : à plus de la péremption de son heure pleine, un
+    jingle horaire sonne comme une horloge cassée — il est abandonné."""
+    h = clock(13, 50)
+    jingles = Jingles(h, expiry=timedelta(minutes=15))
+    h.advance(timedelta(minutes=35))
+    assert jingles.due_now() == ()
+
+
+def test_un_morceau_tres_long_n_offre_que_le_jingle_encore_frais() -> None:
+    """Deux heures enjambées : la plus ancienne a périmé, la plus récente
+    passe — la péremption s'évalue heure par heure, pas en bloc."""
+    h = clock(13, 55)
+    jingles = Jingles(h, expiry=timedelta(minutes=15))
+    h.advance(timedelta(minutes=80))
+    assert jingles.due_now() == ("hours/15h.mp3",)
+
+
+def test_une_longue_pause_ne_ressort_aucun_jingle_horaire() -> None:
+    """Le cas constaté le 2026-08-31 : 19 h entendu à 22 h 28 après 3 h 30
+    sans auditeur. Avec la péremption, plus rien de tel ne sort."""
+    h = clock(18, 55)
+    jingles = Jingles(h, expiry=timedelta(minutes=15))
+    h.advance(timedelta(hours=3, minutes=33))
+    assert jingles.due_now() == ()
+
+
+def test_le_jingle_d_encore_ne_perime_jamais() -> None:
+    """L'encore répond à un vote, pas à l'horloge : il survit à la pause."""
+    h = clock(18, 55)
+    jingles = Jingles(h, expiry=timedelta(minutes=15))
+    jingles.mark_more()
+    h.advance(timedelta(hours=3, minutes=33))
+    assert jingles.due_now() == (JINGLE_ENCORE,)
 
 
 def test_le_nom_du_jingle_d_encore_se_configure() -> None:

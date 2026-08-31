@@ -72,7 +72,7 @@ radio sur un tirage neuf au rebranchement.
       bascule d'antenne, `set_queue([])` sur une file au repos (recomplètement
       du prefetch), et le harbor pendant un `on_connect` qui attend l'API —
       mise à jour de docs/liquidsoap.md
-- [ ] GOAL-041-T02 — Noyau : un jingle horaire à plus du délai de péremption de
+- [x] GOAL-041-T02 — Noyau : un jingle horaire à plus du délai de péremption de
       son heure pleine n'est plus dû (`core/jingles.py`, délai injecté)
 - [ ] GOAL-041-T03 — Config : `jingles.expiry_seconds` (défaut 900, 0 = jamais),
       câblage, SPECS §4.3, §6, §7 (n°4 amendée, n°29)

@@ -5,13 +5,18 @@ absent n'est pas une erreur, c'est le mode d'emploi (SPECS.md §4.3), et c'est u
 adaptateur qui le constatera au moment de le lire. Le noyau ne regarde aucun
 disque (ARCHITECTURE.md §1.1).
 
-Deux règles commandent tout le reste :
+Trois règles commandent tout le reste :
 
-- **aucun jingle n'est abandonné pour cause de retard** (SPECS.md §7 n°4). Un
-  morceau de soixante-dix minutes enjambe deux heures pleines : les deux jingles
-  passent, dans l'ordre chronologique. C'est un cas nominal ;
-- **sauf pendant une émission**, qui remplace la programmation, habillage
-  compris (SPECS.md §7 n°15). C'est la seule exception, et elle ne tient pas au
+- **un jingle horaire en retard passe quand même**, dans la limite de sa
+  péremption (SPECS.md §7 n°4, amendée par la n°29) : un morceau long qui
+  enjambe une heure pleine n'abandonne pas le jingle, c'est un cas nominal ;
+- **mais pas au-delà** : à plus du délai de péremption de son heure pleine, un
+  jingle horaire est abandonné — un `19h.mp3` entendu à 22 h 28, après une
+  longue pause sans auditeur, sonne comme une horloge cassée (constaté le
+  2026-08-31). Le jingle d'« encore » ne périme jamais : il répond à un vote,
+  pas à l'horloge ;
+- **rien ne passe pendant une émission**, qui remplace la programmation,
+  habillage compris (SPECS.md §7 n°15). Cette exception-là ne tient pas au
   retard mais à la nature de l'émission.
 """
 
@@ -53,13 +58,20 @@ class Jingles:
     (SPECS.md §1).
     """
 
-    def __init__(self, clock: Clock, encore_name: str = JINGLE_ENCORE) -> None:
+    def __init__(
+        self,
+        clock: Clock,
+        encore_name: str = JINGLE_ENCORE,
+        expiry: timedelta | None = None,
+    ) -> None:
         self._horloge = clock
         self._repere = clock.now()
         self._encore_du = False
         # Le nom du jingle d'« encore » se configure (GOAL-031) : les jingles
         # horaires restent nommés par leur heure, c'est leur programmation.
         self._nom_encore = encore_name
+        # `None` : aucun jingle horaire ne périme — l'ancienne règle n°4.
+        self._peremption = expiry
 
     @property
     def encore_du(self) -> bool:
@@ -91,6 +103,8 @@ class Jingles:
         if during_show:
             return ()
 
+        if self._peremption is not None:
+            franchies = [hour for hour in franchies if now - hour <= self._peremption]
         names = [jingle_name(hour) for hour in franchies]
         if encore:
             names.append(self._nom_encore)
