@@ -1308,3 +1308,54 @@ juste, le lit ne couvre-t-il pas le premier mot, sept secondes ne sont-elles
 pas trop longues à cinq heures du matin — et la grille elle-même, une journée
 entière durant.
 
+
+---
+
+## GOAL-044 — Les modes d'enchaînement des plages : double dose, époque, artiste
+
+**Terminé le 2026-08-31.** Demandé par l'auteur.
+
+Une plage peut demander que ses tirages s'enchaînent (`mode`, SPECS.md §4.4,
+n°31) : `double_dose` (deux titres par artiste tiré), `era_fan` (2 à 6 titres
+d'une même décennie), `artist_fan` (3 à 6 titres du même artiste). Combinable
+au thème, ou seul — un tirage libre enchaîné.
+
+- [x] `GOAL-044-T01` Relevé : `year` est un entier, présent sur 93,3 % des
+      5704 pistes réelles (docs/subsonic.md §4.1)
+- [x] `GOAL-044-T02` `Track.year` optionnel, fakes à jour
+- [x] `GOAL-044-T03` Mappage `year` chez Subsonic — absent, chaîne ou booléen
+      valent « sans année »
+- [x] `GOAL-044-T04` `core/runs.py` : ancre posée par le premier tirage,
+      longueur par `pick` sur l'étendue, titres déjà servis exclus, remise à
+      zéro au changement de clé, rupture qui ré-ancre
+- [x] `GOAL-044-T05` Câblage : `Band.mode` → `Constraint.mode` + `run_key`
+      (l'occurrence, hors égalité) → `Queue` — suites d'artiste par
+      `tracks_by` et hors fenêtre, filtre d'époque, ruptures journalisées
+- [x] `GOAL-044-T06` La clé `mode` au TOML, valeurs tirées du noyau, plage à
+      mode seul acceptée ; « Tirage libre » au planning
+- [x] `GOAL-044-T07` SPECS §4.4 + n°31, exemple TOML, grille locale (era_fan
+      à midi, artist_fan à 15 h, double_dose à 20 h)
+- [x] `GOAL-044-T08` Carte du dépôt (`runs.py`), archive, push
+
+### Décisions prises
+
+- **L'époque est la décennie** de l'année de la piste ; une piste sans année
+  n'ancre pas de suite, sans consommer le hasard — la soirée se rejoue.
+- **Les longueurs se tirent par `pick` sur l'étendue** : aucune capacité de
+  plus au hasard injecté.
+- **La clé de remise à zéro est l'occurrence de la plage**, pas sa
+  contrainte : une plage multi-genres retire un genre à chaque jonction et la
+  suite y survit — une suite d'artiste suit son artiste par `tracks_by`, même
+  hors du genre du moment.
+- **Le passe-droit de fenêtre est celui de l'encore** (SPECS.md §4.6) : les
+  suites d'artiste l'empruntent, les suites d'époque laissent la fenêtre agir.
+- **Le même titre ne repasse jamais dans une suite** ; une suite épuisée se
+  rompt en le journalisant et le morceau tiré devient l'ancre suivante.
+- **Hors périmètre** : programmes, émissions, encore et tirage libre hors
+  plage ignorent les modes.
+
+### Reste à écouter (AGENTS §4.1)
+
+Les trois enchaînements sur la grille locale — double dose à 20 h, époque à
+midi, artiste à 15 h — et la fenêtre de non-répétition qui reprend après
+chaque suite.

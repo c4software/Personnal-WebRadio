@@ -582,6 +582,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   │   ├── bands.py ..... les plages thématiques de la grille
 │   │   ├── mystery.py ... le thème d'une plage « au hasard », figé sur l'occurrence
 │   │   ├── programmes.py  les programmes : une playlist, des jours, des heures
+│   │   ├── runs.py ...... les suites d'une plage : double dose, époque, artiste
 │   │   ├── jingles.py ... quel jingle est dû, d'après l'heure
 │   │   ├── shows.py ..... quelle émission est due, d'après la grille déclarée
 │   │   ├── control.py ... l'effet de stop et encore, et le refus motivé
