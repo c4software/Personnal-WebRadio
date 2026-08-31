@@ -35,6 +35,8 @@ le dernier auditeur se débranche → la chaîne s'arrête
 |---|---|
 | **Tirage aléatoire** | Dans toute la bibliothèque, avec une règle de non-répétition des artistes |
 | **Grille horaire** | Tirage libre par défaut ; des plages par **genres** ou par **artiste** (« une heure d'un seul artiste »), ou **au hasard** (`random = "genre"` / `"artist"` : la radio tire le thème au début de la plage et s'y tient), restreignables à des **jours**, avec **générique d'ouverture et de fermeture** optionnels |
+| **Modes d'enchaînement** | `mode` sur une plage, combinable au thème — ou seul, pour un tirage libre enchaîné : `"double_dose"` (chaque artiste tiré passe **deux titres à la suite**), `"era_fan"` (**2 à 6 titres d'une même décennie**), `"artist_fan"` (**3 à 6 titres du même artiste**). Le premier morceau tiré pose l'ancre, la suite se rompt d'elle-même quand elle s'épuise |
+| **Plafond de durée** | Au-delà de `max_track_minutes` (20 min par défaut), une piste n'est **jamais** choisie — un DJ set étiqueté « piste » ne cassera pas le rythme |
 | **Programmes** | Une liste de lecture de la bibliothèque sur un créneau — « le vendredi de Chloé, 18 h–20 h » |
 | **Jingles horaires** | `00h.mp3` … `23h.mp3`, insérés à la jonction sans couper un morceau, fondu court |
 | **Émissions** | À heure dite : un **podcast** (l'épisode le plus récent non diffusé), une **chaîne YouTube** (la dernière vidéo, téléchargée en fond puis servie en local — zéro blanc), ou un **direct** — le flash France Info, capté et coupé à l'heure |
