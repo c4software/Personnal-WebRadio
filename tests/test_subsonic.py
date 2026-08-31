@@ -20,7 +20,7 @@ import pytest
 
 from webradio.adapters.config.schema import SubsonicCredentials, SubsonicSettings
 from webradio.adapters.sources.subsonic import (
-    SAMPLE_CAP,
+    PAGE_SIZE,
     HttpResponse,
     SubsonicSource,
     UrllibTransport,
@@ -54,7 +54,7 @@ IDENTIFIANT_INCONNU = """
 ECHEC_SANS_DETAIL = '{"subsonic-response": {"status": "failed", "version": "1.16.1"}}'
 
 DEUX_CHANSONS = """
-{"subsonic-response": {"status": "ok", "version": "1.16.1", "randomSongs": {"song": [
+{"subsonic-response": {"status": "ok", "version": "1.16.1", "searchResult3": {"song": [
   {"id": "0f1a", "title": "Un titre", "artist": "Un artiste", "album": "Un album",
    "genre": "Chanson française", "duration": 213, "suffix": "mp3", "bitRate": 320},
   {"id": "0f1b", "title": "Sans étiquette", "artist": "Un autre artiste",
@@ -63,11 +63,11 @@ DEUX_CHANSONS = """
 """
 
 GENRE_INEXISTANT = """
-{"subsonic-response": {"status": "ok", "version": "1.16.1", "randomSongs": {}}}
+{"subsonic-response": {"status": "ok", "version": "1.16.1", "songsByGenre": {}}}
 """
 
 CHANSONS_ABIMEES = """
-{"subsonic-response": {"status": "ok", "version": "1.16.1", "randomSongs": {"song": [
+{"subsonic-response": {"status": "ok", "version": "1.16.1", "searchResult3": {"song": [
   {"title": "Sans identifiant", "artist": "Un artiste", "duration": 200, "suffix": "mp3"},
   {"id": "0f1c", "title": "Durée nulle", "artist": "Un artiste", "duration": 0},
   {"id": "0f1d", "title": "Durée absente", "artist": "Un artiste"},
@@ -99,7 +99,7 @@ PAGE_HTML_EN_200 = """<!DOCTYPE html>
 <body><h1>502 Bad Gateway</h1><p>nginx</p></body></html>
 """
 
-JSON_TRONQUE = '{"subsonic-response": {"status": "ok", "randomSongs": {"song": [{"id": "0f1'
+JSON_TRONQUE = '{"subsonic-response": {"status": "ok", "searchResult3": {"song": [{"id": "0f1'
 
 JSON_SANS_ENVELOPPE = '{"error": "quelque chose d\'autre"}'
 
@@ -128,9 +128,8 @@ class UnreachableTransport:
         raise ConnectionRefusedError(message)
 
 
-def _reglages(taille: int = 100, resultats: int = 50) -> SubsonicSettings:
+def _reglages(resultats: int = 50) -> SubsonicSettings:
     return SubsonicSettings(
-        sample_size=taille,
         artist_results=resultats,
         timeout_seconds=1.0,
     )
@@ -141,12 +140,11 @@ def _source(
     code: int = 200,
     *,
     transport: ScriptedTransport | UnreachableTransport | None = None,
-    taille: int = 100,
 ) -> SubsonicSource:
     reel = transport if transport is not None else ScriptedTransport(HttpResponse(code, body))
     return SubsonicSource(
         credentials=IDENTIFIANTS,
-        config=_reglages(taille=taille),
+        config=_reglages(),
         # Un sel écrit à l'avance : deux exécutions produisent la même URL.
         random=ScriptedRandom([0] * 1000),
         transport=reel,
@@ -154,7 +152,8 @@ def _source(
 
 
 def _parametres(url: str) -> dict[str, str]:
-    return dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query))
+    # `keep_blank_values` : la requête vide de search3 (`query=`) doit se voir.
+    return dict(urllib.parse.parse_qsl(urllib.parse.urlsplit(url).query, keep_blank_values=True))
 
 
 def _empreinte(texte: str) -> str:
@@ -230,27 +229,68 @@ def test_le_jeton_est_l_empreinte_du_mot_de_passe_et_du_sel() -> None:
     assert params["f"] == "json"
 
 
-# ── Le piège n°2 : la troncature silencieuse à 500 ─────────────────────────
+# ── Le piège n°2 : la bibliothèque entière, page par page ──────────────────
+# Les pages pleines sont générées : recopier 500 chansons littérales
+# n'apprendrait rien de plus que leur forme, déjà relevée (docs/subsonic.md).
 
 
-def test_une_taille_au_dessus_du_plafond_est_ramenee_a_500(
+def _page(container: str, identifiers: list[str]) -> str:
+    songs = ", ".join(
+        f'{{"id": "{identifier}", "title": "T", "artist": "A", "duration": 100}}'
+        for identifier in identifiers
+    )
+    return (
+        f'{{"subsonic-response": {{"status": "ok", "version": "1.16.1", '
+        f'"{container}": {{"song": [{songs}]}}}}}}'
+    )
+
+
+def test_la_bibliotheque_est_reunie_page_par_page_jusqu_a_une_page_courte() -> None:
+    full = [f"p{index}" for index in range(PAGE_SIZE)]
+    transport = ScriptedTransport(
+        [
+            HttpResponse(200, _page("searchResult3", full)),
+            HttpResponse(200, _page("searchResult3", ["q0", "q1", "q2"])),
+        ]
+    )
+
+    tracks = _source(transport=transport).tracks()
+
+    assert len(tracks) == PAGE_SIZE + 3
+    assert len({track.identifier for track in tracks}) == PAGE_SIZE + 3
+    premieres = _parametres(transport.urls[0])
+    assert premieres["query"] == ""
+    assert premieres["songCount"] == str(PAGE_SIZE)
+    assert premieres["songOffset"] == "0"
+    assert _parametres(transport.urls[1])["songOffset"] == str(PAGE_SIZE)
+
+
+def test_un_serveur_qui_ignore_l_offset_ne_fait_pas_boucler_le_parcours(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    transport = ScriptedTransport(HttpResponse(200, DEUX_CHANSONS))
+    # §2.6.2 : un paramètre inconnu est ignoré en silence. Un serveur qui
+    # ignorerait l'offset resservirait la même page pleine indéfiniment.
+    page = HttpResponse(200, _page("searchResult3", [f"p{index}" for index in range(PAGE_SIZE)]))
+    transport = ScriptedTransport([page, page])
 
     with caplog.at_level(logging.WARNING):
-        source = _source(transport=transport, taille=1000)
-    source.tracks()
+        tracks = _source(transport=transport).tracks()
 
-    assert _parametres(transport.urls[0])["size"] == str(SAMPLE_CAP)
-    assert "tronque" in caplog.text
+    assert len(tracks) == PAGE_SIZE
+    assert "ressert" in caplog.text
 
 
-def test_une_taille_sous_le_plafond_est_demandee_telle_quelle() -> None:
-    transport = ScriptedTransport(HttpResponse(200, DEUX_CHANSONS))
-    _source(transport=transport, taille=100).tracks()
+def test_le_filtre_par_genre_passe_par_get_songs_by_genre_pagine() -> None:
+    transport = ScriptedTransport(HttpResponse(200, _page("songsByGenre", ["r1", "r2"])))
 
-    assert _parametres(transport.urls[0])["size"] == "100"
+    tracks = _source(transport=transport).tracks(genre="Rock")
+
+    assert [track.identifier for track in tracks] == ["r1", "r2"]
+    params = _parametres(transport.urls[0])
+    assert "getSongsByGenre" in transport.urls[0]
+    assert params["genre"] == "Rock"
+    assert params["count"] == str(PAGE_SIZE)
+    assert params["offset"] == "0"
 
 
 # ── Les pièges n°4 et n°5 : genre inexistant, genre manquant ───────────────

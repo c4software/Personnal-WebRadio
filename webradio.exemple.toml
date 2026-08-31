@@ -127,9 +127,8 @@ timeout_seconds = 60.0
 
 # ── Subsonic (hors identifiants, qui sont dans .env) ───────────────────────
 [subsonic]
-# Nombre de pistes demandées au serveur. Il tronque à 500 en silence : demander
-# davantage ne rend pas davantage (docs/subsonic.md §2.1).
-sample_size = 500
+# Le tirage voit la bibliothèque ENTIÈRE, récupérée par pages de 500 : il n'y a
+# pas de taille d'échantillon à régler (docs/subsonic.md §2.7).
 artist_results  = 50
 timeout_seconds     = 10.0
 

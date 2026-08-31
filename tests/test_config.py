@@ -23,7 +23,6 @@ from webradio.adapters.config.loading import load_toml
 from webradio.adapters.config.schema import (
     DAYS,
     DEFAULT_ARTIST_RESULTS,
-    DEFAULT_SAMPLE_SIZE,
 )
 
 TOML_MINIMAL = """
@@ -90,8 +89,18 @@ time = "20:00"
 def test_les_reglages_subsonic_ont_des_defauts_declares() -> None:
     config = _valider(TOML_MINIMAL)
 
-    assert config.subsonic.sample_size == DEFAULT_SAMPLE_SIZE
     assert config.subsonic.artist_results == DEFAULT_ARTIST_RESULTS
+
+
+def test_l_ancienne_taille_d_echantillon_est_refusee_en_la_nommant() -> None:
+    # La clé a disparu avec l'échantillonnage (GOAL-039) : une configuration
+    # qui la porte encore doit le dire, pas l'ignorer en silence.
+    content = TOML_MINIMAL + "\n[subsonic]\nsample_size = 500\n"
+
+    with pytest.raises(SettingsError) as refus:
+        validate(tomllib.loads(content))
+
+    assert "sample_size" in str(refus.value)
 
 
 def test_un_mot_de_passe_dans_le_toml_fait_echouer_le_demarrage() -> None:

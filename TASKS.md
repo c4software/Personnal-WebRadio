@@ -132,7 +132,7 @@ sur la bibliothèque **entière**, récupérée par pagination.
       `search3` à requête vide, `songOffset`, `getSongsByGenre` et son
       `offset`, cohérence des totaux, plafond par page — consigné dans
       `docs/subsonic.md` (AGENTS.md §3).
-- [ ] **GOAL-039-T04** — `tracks()` récupère la bibliothèque entière par
+- [x] **GOAL-039-T04** — `tracks()` récupère la bibliothèque entière par
       pagination (genre compris) et laisse le tirage au noyau ; `sample_size`
       disparaît de la configuration ; tests contre réponses littérales, pages
       tronquées et vides comprises.

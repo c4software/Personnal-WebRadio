@@ -8,8 +8,10 @@ commandent le code, et chacun serait un défaut audible s'il était ignoré :
    lu dans le corps à *chaque* appel, avant toute donnée : un client qui se
    fierait au code HTTP prendrait un mot de passe faux pour une bibliothèque
    vide, et la radio se tairait en annonçant qu'elle va bien.
-2. **`getRandomSongs` tronque à 500 en silence** (§2.1). La demande est donc
-   plafonnée ici, une fois, plutôt que crue sur parole.
+2. **La bibliothèque se parcourt entière, par pages de 500** (§2.7). Les
+   endpoints qui tronquent — à 500, et en silence — ne sont pas crus sur
+   parole : la fin d'un parcours se reconnaît à une page plus courte que
+   demandé, jamais à un compteur annoncé (§2.7.3).
 3. **`search3` ramène aussi d'autres artistes** (§2.5). Le filtre sur l'égalité
    exacte du nom est ce qui empêche `encore` de servir un artiste que
    l'auditeur n'a pas demandé.
@@ -47,9 +49,10 @@ CLIENT_NAME = "local-webradio"
 FORMAT_REPONSE = "json"
 HTTP_OK = 200
 
-# Le plafond de `getRandomSongs`, constaté : `size=501` rend 500 pistes avec
-# `status: ok`. Ce n'est pas un réglage, c'est une propriété du serveur.
-SAMPLE_CAP = 500
+# La taille d'une page de parcours. 500 est le plafond constaté de
+# `getSongsByGenre`, qui tronque au-delà sans rien dire (docs/subsonic.md
+# §2.7.2) : demander davantage reviendrait à croire un endpoint sur parole.
+PAGE_SIZE = 500
 
 # Le sel accompagne le jeton dans l'URL ; sa seule exigence est de varier d'un
 # appel à l'autre. Il est tiré par le hasard injecté, parce que `random` et
@@ -126,34 +129,77 @@ class SubsonicSource:
         self._reglages = config
         self._hasard = random
         self._transport = transport
-        self._taille = self._plafonner(config.sample_size)
-
-    def _plafonner(self, requested: int) -> int:
-        """Le dépassement est ramené au plafond une fois, au démarrage, et dit.
-
-        Le serveur tronque sans rien signaler : croire une demande de 1000
-        pistes reviendrait à tirer dans 500 en pensant tirer dans 1000.
-        """
-        if requested > SAMPLE_CAP:
-            journal.warning(
-                "taille d'échantillon %d ramenée à %d : le serveur tronque en silence au-delà",
-                requested,
-                SAMPLE_CAP,
-            )
-            return SAMPLE_CAP
-        return requested
 
     def tracks(self, genre: str | None = None) -> list[Track]:
-        params = {"size": str(self._taille)}
-        if genre is not None:
-            params["genre"] = genre
-        envelope = self._appeler("getRandomSongs", params)
-        tracks = self._pistes_de_la_liste(envelope, "randomSongs")
-        if genre is not None and not tracks:
-            journal.info(
-                "le genre « %s » ne rend aucune piste : le repli se décide plus haut", genre
+        """La bibliothèque **entière**, ou tout un genre — jamais un échantillon.
+
+        Tirer dans un échantillon de 500 quand la bibliothèque en compte 5704
+        faisait tourner la radio en rond dans un douzième de la musique : le
+        tirage appartient au noyau (docs/subsonic.md §2.4), et il doit voir
+        toutes les pistes.
+        """
+        if genre is None:
+            tracks = self._paginer(
+                "search3",
+                {"query": "", "artistCount": "0", "albumCount": "0"},
+                container="searchResult3",
+                count_key="songCount",
+                offset_key="songOffset",
             )
+        else:
+            tracks = self._paginer(
+                "getSongsByGenre",
+                {"genre": genre},
+                container="songsByGenre",
+                count_key="count",
+                offset_key="offset",
+            )
+            if not tracks:
+                journal.info(
+                    "le genre « %s » ne rend aucune piste : le repli se décide plus haut", genre
+                )
         return tracks
+
+    def _paginer(
+        self,
+        method: str,
+        params: Mapping[str, str],
+        *,
+        container: str,
+        count_key: str,
+        offset_key: str,
+    ) -> list[Track]:
+        """Réunit toutes les pages, et la fin est une page courte — rien d'autre.
+
+        Aucun compteur annoncé n'est lu : ils divergent des pistes rendues
+        (docs/subsonic.md §2.7.3). Et un serveur qui ignorerait le paramètre
+        d'offset — le silence de §2.6.2 est exactement ce genre de piège —
+        resservirait indéfiniment la même page : une page sans aucune piste
+        nouvelle arrête le parcours en le journalisant, plutôt que de boucler.
+        """
+        gathered: list[Track] = []
+        seen: set[str] = set()
+        offset = 0
+        while True:
+            envelope = self._appeler(
+                method,
+                {**params, count_key: str(PAGE_SIZE), offset_key: str(offset)},
+            )
+            page = self._pistes_de_la_liste(envelope, container)
+            fresh = [track for track in page if track.identifier not in seen]
+            if page and not fresh:
+                journal.warning(
+                    "« %s » ressert les mêmes pistes malgré l'offset %d : parcours arrêté à %d",
+                    method,
+                    offset,
+                    len(gathered),
+                )
+                return gathered
+            gathered.extend(fresh)
+            seen.update(track.identifier for track in fresh)
+            if len(page) < PAGE_SIZE:
+                return gathered
+            offset += len(page)
 
     def tracks_by(self, artist: str) -> list[Track]:
         """Les pistes de cet artiste, et de lui seul.

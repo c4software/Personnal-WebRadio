@@ -57,7 +57,6 @@ DEFAULT_ARTIST_GAP_KEY = 5
 DEFAULT_VOTE_FLOOR = 0.25
 DEFAULT_VOTE_CEILING = 4.0
 DEFAULT_VOTE_HALF_LIFE = 90
-DEFAULT_SAMPLE_SIZE = 500
 DEFAULT_ARTIST_RESULTS = 50
 DEFAULT_TIMEOUT_SECONDS = 10.0
 
@@ -226,12 +225,11 @@ class Show:
 class SubsonicSettings:
     """Ce que la source Subsonic a besoin de savoir, hors identifiants.
 
-    `taille_echantillon` est un nombre de pistes demandé au serveur, pas une
-    borne du tirage : le serveur tronque au-delà de son propre plafond, ce que
-    l'adaptateur sait et rappelle (docs/subsonic.md §2.1).
+    Aucune taille d'échantillon : la bibliothèque se parcourt entière, par
+    pagination, et la taille de page est une propriété constatée du serveur,
+    pas un réglage (docs/subsonic.md §2.7).
     """
 
-    sample_size: int
     artist_results: int
     timeout_seconds: float
 
@@ -613,9 +611,8 @@ def _refuser_les_collisions(shows: Sequence[Show]) -> None:
 
 def _subsonic(brut: Mapping[str, Any]) -> SubsonicSettings:
     table = _table_optionnelle(brut, "subsonic", "")
-    _verifier_cles(table, ("sample_size", "artist_results", "timeout_seconds"), "subsonic")
+    _verifier_cles(table, ("artist_results", "timeout_seconds"), "subsonic")
     return SubsonicSettings(
-        sample_size=_entier(table, "sample_size", "subsonic", default=DEFAULT_SAMPLE_SIZE),
         artist_results=_entier(table, "artist_results", "subsonic", default=DEFAULT_ARTIST_RESULTS),
         timeout_seconds=_reel(
             table, "timeout_seconds", "subsonic", default=DEFAULT_TIMEOUT_SECONDS, minimum=0.1
