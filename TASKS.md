@@ -44,48 +44,19 @@ votes, saut, encore, flash France Info, YouTube, jingles, interface — a été
 **validé à l'écoute par l'auteur le 2026-08-30**, au terme d'une soirée en
 conditions réelles.
 
-**Un Goal ouvert : GOAL-041** (ci-dessous). Décisions restantes de SPECS.md §7 : la **n°9** est une
+**Aucun Goal ouvert.** Décisions restantes de SPECS.md §7 : la **n°9** est une
 conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
 musique.
 
 **Reste à écouter** : GOAL-037 (une heure d'un artiste tiré au sort, fenêtre
-rétrécie comprise) et GOAL-039/040 (la variété d'un tirage qui voit 5704
-pistes au lieu de 500, servi de mémoire entre deux expirations du cache) ne se
-constatent qu'à l'antenne (AGENTS.md §4.1).
+rétrécie comprise), GOAL-039/040 (la variété d'un tirage qui voit 5704
+pistes au lieu de 500, servi de mémoire entre deux expirations du cache) et
+GOAL-041 (le rebranchement après plus de quinze minutes : départ propre sur un
+tirage neuf, sans jingle périmé ni avance rassise) ne se constatent qu'à
+l'antenne (AGENTS.md §4.1).
 
-**Prochaine tâche** : GOAL-041-T01.
-
----
-
-## GOAL-041 — Péremption des jingles horaires, et reprise à neuf après une longue pause
-
-Constaté le 2026-08-31 : le jingle de 19 h entendu à 22 h 28, après 3 h 30 sans
-auditeur. L'avance du diffuseur (un morceau demandé d'avance,
-docs/liquidsoap.md §3) avait traversé la pause intacte — angle mort entre la
-décision n°4 (« aucune péremption ») et SPECS.md §4.7 (la pause au
-débranchement). Décidé par l'auteur : un jingle horaire à plus de 15 min de son
-heure pleine est abandonné, et une pause de plus de 15 min fait repartir la
-radio sur un tirage neuf au rebranchement.
-
-- [x] GOAL-041-T01 — Relevé Liquidsoap : l'ordre entre `on_connect` et la
-      bascule d'antenne, `set_queue([])` sur une file au repos (recomplètement
-      du prefetch), et le harbor pendant un `on_connect` qui attend l'API —
-      mise à jour de docs/liquidsoap.md
-- [x] GOAL-041-T02 — Noyau : un jingle horaire à plus du délai de péremption de
-      son heure pleine n'est plus dû (`core/jingles.py`, délai injecté)
-- [x] GOAL-041-T03 — Config : `jingles.expiry_seconds` (défaut 900, 0 = jamais),
-      câblage, SPECS §4.3, §6, §7 (n°4 amendée, n°29)
-- [x] GOAL-041-T04 — Charnière : dater la pause et, au retour d'un auditeur
-      après plus de `playout.resume_fresh_seconds` (défaut 900), purger
-      l'avance du diffuseur, les jingles et rejouables en attente, le registre
-      — SPECS §4.7, §6, §7 n°30 — **à écouter : le départ propre au
-      rebranchement**
-- [x] GOAL-041-T05 — `radio.liq` : annoncer l'auditeur avant de rendre
-      l'antenne, selon ce que T01 a constaté — **à écouter : se rebrancher
-      après une longue pause, ni jingle périmé ni avance rassise**
-- [ ] GOAL-041-T06 — Synthèse : ARCHITECTURE §4.1 (l'avance a une durée de
-      vie), carte du dépôt vérifiée, clôture du Goal
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
 
@@ -133,7 +104,7 @@ radio sur un tirage neuf au rebranchement.
 | GOAL-038 | Le Compose de production tire l'image publiée ; un Compose de dev construit localement | `[x]` |
 | GOAL-039 | Parler Subsonic plutôt que Navidrome, et tirer dans toute la bibliothèque | `[x]` — reste l'écoute réelle |
 | GOAL-040 | Un cache de bibliothèque dans l'adaptateur Subsonic | `[x]` |
-| GOAL-041 | Péremption des jingles horaires, et reprise à neuf après une longue pause | `[ ]` |
+| GOAL-041 | Péremption des jingles horaires, et reprise à neuf après une longue pause | `[x]` — reste l'écoute réelle |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

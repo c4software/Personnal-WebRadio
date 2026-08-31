@@ -1182,3 +1182,52 @@ HTTP par changement de chanson, pour des données qui bougent rarement.
 - **`tracks_by` et les listes de lecture restent sans cache** : l'« encore »
   est rare, et une liste renommée ne doit pas rester résolue sur un
   identifiant périmé (docs/subsonic.md §2.6).
+
+---
+
+## GOAL-041 — Péremption des jingles horaires, et reprise à neuf après une longue pause
+
+**Terminé le 2026-08-31.**
+
+Constaté à l'antenne : le jingle de 19 h entendu à 22 h 28, après 3 h 30 sans
+auditeur. L'avance du diffuseur (un morceau demandé d'avance) avait traversé la
+pause intacte — angle mort entre la décision n°4 (« aucune péremption ») et
+SPECS.md §4.7 (la pause au débranchement).
+
+- [x] `GOAL-041-T01` Relevé Liquidsoap (docs/liquidsoap.md §5.bis) : l'avance
+      survit à la pause ; le reliquat du morceau interrompu passe d'abord ;
+      `set_queue([])` au repos ne recomplète pas ; annoncer avant de basculer
+      le ref rend la purge sans course ; un skip sans morceau en cours mange
+      le premier morceau frais
+- [x] `GOAL-041-T02` Noyau : un jingle horaire à plus du délai de péremption
+      de son heure pleine n'est plus dû — heure par heure, l'encore ne périme
+      jamais, `None` = ancienne règle
+- [x] `GOAL-041-T03` Config `jingles.expiry_seconds` (900 par défaut, 0 =
+      jamais) ; SPECS §4.3, §6.2, n°4 amendée, n°29
+- [x] `GOAL-041-T04` Charnière : pause datée à la première annonce à zéro ;
+      au retour après plus de `playout.resume_fresh_seconds` (900 par défaut,
+      0 = jamais), purge — `/requeue`, `/skip` si un morceau passait,
+      `forget_pending()` côté programme ; SPECS §4.7 corrigé (le reliquat
+      passe bel et bien), §6.2, n°30
+- [x] `GOAL-041-T05` `radio.liq` : `on_connect` annonce AVANT de basculer le
+      compteur — l'antenne reste muette pendant la purge ; test du script
+- [x] `GOAL-041-T06` ARCHITECTURE §4.1 (l'avance a une durée de vie) et §6.2 ;
+      carte du dépôt inchangée ; clôture
+
+### Décisions prises
+
+- **Deux seuils distincts, même défaut (15 min)** : la péremption d'un jingle
+  se mesure à son heure pleine, la reprise à neuf à la durée de la pause. Les
+  confondre aurait fait dépendre l'un de l'autre sans raison.
+- **Un « encore » voté avant la pause survit** : c'est une demande explicite
+  de l'auditeur, pas de l'habillage horaire.
+- **Le `/skip` n'est ordonné que si un morceau passait** : à froid, le saut
+  reste enregistré chez Liquidsoap et mangerait le premier tirage (relevé).
+- **Flashs et émissions ne périment toujours pas** : la n°29 ne touche que
+  les jingles horaires.
+
+### Reste à écouter (AGENTS §4.1)
+
+Se rebrancher après plus de quinze minutes de pause : ni jingle périmé, ni
+avance rassise, ni reliquat du morceau interrompu — un départ propre sur un
+tirage neuf. Et un rebranchement rapide inchangé : la reprise sur l'avance.

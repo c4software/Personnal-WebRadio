@@ -169,6 +169,15 @@ Liquidsoap **demande toujours un morceau d'avance** (`prefetch=1` est le
 minimum, docs/liquidsoap.md §3). *Demandé* n'est donc pas *à l'antenne* — l'API
 n'affiche un morceau que lorsque Liquidsoap dit l'avoir commencé.
 
+**Et cette avance a une durée de vie.** Elle survit telle quelle à une pause
+sans auditeur (docs/liquidsoap.md §5.bis) — c'est ainsi qu'un jingle de 19 h
+s'est entendu à 22 h 28. Au retour d'un auditeur après plus de
+`playout.resume_fresh_seconds`, la charnière la jette (`/requeue`), coupe le
+reliquat du morceau interrompu (`/skip`, seulement si un morceau passait) et
+fait oublier au programme l'habillage en attente : tirage neuf (SPECS.md §4.7,
+§7 n°30). Le script annonce l'auditeur **avant** de rendre l'antenne, ce qui
+rend cette purge sans course.
+
 ### 4.2 Couper en le disant
 
 Laissé à lui-même, Liquidsoap réessaie sans fin et sert du silence
@@ -415,9 +424,10 @@ suite** : les jingles horaires d'abord, dans l'ordre chronologique, puis
 `encore.mp3` en dernier — il annonce le morceau qui suit immédiatement et perdrait
 son sens s'il en était séparé (SPECS.md §4.3).
 
-Puisque aucun jingle n'est jamais abandonné pour retard (SPECS.md §7 n°4), un
-morceau très long peut faire s'accumuler deux jingles horaires. C'est un cas
-nominal, pas une anomalie.
+Un morceau très long peut faire s'accumuler deux jingles horaires — c'est un
+cas nominal, pas une anomalie —, dans la limite de leur péremption : à plus de
+`jingles.expiry_seconds` de son heure pleine, un jingle horaire est abandonné
+(SPECS.md §7 n°4 amendée par la n°29). L'« encore », lui, ne périme jamais.
 
 ## 7. Erreurs
 
