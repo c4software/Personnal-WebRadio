@@ -280,7 +280,7 @@
                 if (b.days.includes(nom)) {
                   evenements.push({ type: "moment", heure: b.start + "–" + b.end, tri: b.start,
                                     debut: b.start, fin: b.end,
-                                    nom: b.genres.join(", "), detail: "" });
+                                    nom: b.genres.join(", "), detail: this.libelleMode(b.mode) });
                 }
               }
               for (const p of this.planning.programmes) {
@@ -392,6 +392,13 @@
             const heure = this.maintenant.toTimeString().slice(0, 5);
             if (e.debut > e.fin) { return heure >= e.debut; }
             return e.debut <= heure && heure < e.fin;
+          },
+          libelleMode(mode) {
+            // Les valeurs sont celles du TOML (SPECS.md §7 n°31) ; la page
+            // parle français, comme partout.
+            const libelles = { double_dose: "double dose", era_fan: "passionné d'époque",
+                               artist_fan: "passionné d'artiste" };
+            return libelles[mode] || "";
           },
           enFrancais(jour) {
             const noms = { monday: "lundi", tuesday: "mardi", wednesday: "mercredi",

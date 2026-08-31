@@ -109,6 +109,7 @@ non-répétition qui reprend après chaque suite (AGENTS.md §4.1).
 | GOAL-043 | Une grille de journée complète, et un atelier à jingles en conteneur | `[x]` — écoute validée le 2026-08-31 |
 | GOAL-044 | Les modes d'enchaînement des plages : double dose, époque, artiste | `[x]` — reste l'écoute réelle |
 | GOAL-045 | Une chanson trop longue n'est jamais diffusée | `[x]` |
+| GOAL-046 | Le mode d'une plage se voit dans le Planning | `[x]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

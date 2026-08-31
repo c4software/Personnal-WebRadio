@@ -1386,3 +1386,15 @@ choisit (SPECS.md §4.2, §7 n°32).
   provoque se journalisent, comme les autres.
 - Au passage, le §6.2 nommait encore `non_repetition_artistes` : la clé réelle
   est `artist_gap` depuis toujours — corrigé (AGENTS §8).
+
+---
+
+## GOAL-046 — Le mode d'une plage se voit dans le Planning
+
+**Terminé le 2026-09-01.** Constat de l'auteur : les modes de GOAL-044 ne
+s'affichaient nulle part.
+
+- [x] `GOAL-046-T01` L'API du planning porte `mode` brut sur chaque plage ;
+      la page le traduit en détail — « double dose », « passionné d'époque »,
+      « passionné d'artiste » — et une plage sans mode reste sobre. Rendu
+      constaté en chromium headless.

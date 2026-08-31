@@ -386,6 +386,8 @@ def main(argv: list[str] | None = None) -> int:
                 "end": f"{b.end:%H:%M}",
                 "genres": _libelle_de_plage(b),
                 "days": list(b.days),
+                # Le mode d'enchaînement, brut (n°31) : la page le traduit.
+                "mode": b.mode,
             }
             for b in s.bands
         ],
