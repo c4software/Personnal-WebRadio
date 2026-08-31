@@ -510,7 +510,23 @@ bibliothèque est hors périmètre).
 > — un nom résolu par le réseau **de l'hôte**. Un conteneur ne le résout pas
 > forcément. C'est un cas de test au premier démarrage, pas une évidence.
 
-### 8.5.4 Ce que le conteneur ne doit pas cacher
+### 8.5.4 Production tirée, développement construit
+
+**Décidé le 2026-08-31 (GOAL-038)** : le service `radio` de
+`docker-compose.yml` référence l'image que la CI publie sur GHCR — on déploie
+du vérifié, pas ce qui traîne dans la copie de travail. Construire le code en
+cours est le geste **explicite** du développement, par une surcharge qui ne
+redéfinit que la provenance de l'image :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
+Ce n'est volontairement **pas** un `docker-compose.override.yml` : Compose le
+chargerait automatiquement, et `docker compose up` chez un utilisateur
+reconstruirait en local — l'inverse du défaut voulu.
+
+### 8.5.5 Ce que le conteneur ne doit pas cacher
 
 `docker compose up` ne remplace pas `./verifier.sh` : la vérification tourne
 **hors conteneur**, sur le code, comme aujourd'hui. Un conteneur qui démarre ne
@@ -539,6 +555,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 ├── pyproject.toml ....... paquet, ruff, mypy, pytest, couverture
 ├── verifier.sh .......... LA commande de vérification (AGENTS.md §5.2)
 ├── Dockerfile, docker-compose.yml, .dockerignore
+├── docker-compose.dev.yml  surcharge : construire le code en cours (§8.5.4)
 ├── jingles/ ............. les jingles de l'auteur — versionné vide, contenu ignoré
 ├── webradio.exemple.toml  toutes les clés, commentées — webradio.toml n'est pas versionné
 ├── .env.exemple ......... les noms des secrets — .env n'est pas versionné

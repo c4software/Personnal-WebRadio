@@ -1,0 +1,15 @@
+# Surcharge de DÉVELOPPEMENT : construire le code en cours au lieu de tirer
+# l'image publiée. Volontairement pas un `docker-compose.override.yml` — Compose
+# le chargerait tout seul, et `docker compose up` chez un utilisateur
+# reconstruirait en local, l'inverse de ce que fait la production.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+#
+# Elle ne redéfinit QUE la provenance de l'image : tout le reste — volumes,
+# réseau, santé — reste celui de docker-compose.yml, pour développer dans les
+# conditions de la production.
+
+services:
+  radio:
+    build: .
+    image: local-webradio:dev

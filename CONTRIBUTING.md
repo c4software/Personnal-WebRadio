@@ -22,6 +22,14 @@ Il faut par ailleurs **Docker** sur la machine (pour valider le script
 Liquidsoap contre la version épinglée), et un serveur **Navidrome**
 joignable.
 
+Pour faire tourner la station avec **le code en cours** — `docker-compose.yml`
+tire l'image publiée, pas votre copie de travail — ajouter la surcharge de
+développement :
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+```
+
 ```bash
 cp .env.exemple .env      # puis y mettre vos identifiants
 chmod 600 .env
