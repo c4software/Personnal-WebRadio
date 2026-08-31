@@ -24,6 +24,7 @@ from webradio.adapters.config.schema import (
     DAYS,
     DEFAULT_ARTIST_RESULTS,
     DEFAULT_CACHE_SECONDS,
+    DEFAULT_JINGLE_EXPIRY_SECONDS,
 )
 
 TOML_MINIMAL = """
@@ -107,6 +108,31 @@ def test_une_duree_de_cache_nulle_est_acceptee_sans_cache() -> None:
     content = TOML_MINIMAL + "\n[subsonic]\ncache_seconds = 0\n"
 
     assert validate(tomllib.loads(content)).subsonic.cache_seconds == 0.0
+
+
+def test_la_peremption_des_jingles_a_un_defaut_declare() -> None:
+    assert _valider(TOML_MINIMAL).jingles.expiry_seconds == DEFAULT_JINGLE_EXPIRY_SECONDS
+
+
+def test_la_peremption_des_jingles_se_regle() -> None:
+    content = TOML_MINIMAL.replace('folder = "/chemin', 'expiry_seconds = 600\nfolder = "/chemin')
+
+    assert _valider(content).jingles.expiry_seconds == 600.0
+
+
+def test_une_peremption_nulle_dit_qu_un_jingle_ne_perime_jamais() -> None:
+    content = TOML_MINIMAL.replace('folder = "/chemin', 'expiry_seconds = 0\nfolder = "/chemin')
+
+    assert _valider(content).jingles.expiry_seconds == 0.0
+
+
+def test_une_peremption_negative_est_refusee_en_la_nommant() -> None:
+    content = TOML_MINIMAL.replace('folder = "/chemin', 'expiry_seconds = -5\nfolder = "/chemin')
+
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "jingles.expiry_seconds" in str(refus.value)
 
 
 def test_l_ancienne_taille_d_echantillon_est_refusee_en_la_nommant() -> None:

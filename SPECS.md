@@ -155,13 +155,18 @@ on ajoute un jingle en déposant un fichier, on le retire en le supprimant.
   pas.
 - Le jingle **ne coupe pas** un morceau en cours : il s'insère à la jonction
   suivante. Un jingle à cheval sur un refrain est un défaut.
-- **Un jingle n'est jamais abandonné pour cause de retard**, quel qu'il soit.
-  `14h.mp3` peut donc s'entendre à 14 h 25 si le morceau en cours est long. C'est
-  assumé : un jingle est de l'habillage, personne ne règle sa montre dessus, et
-  renoncer aurait demandé un seuil, un réglage et une famille de cas limites pour
-  un gain nul.
-  → **Une seule exception, et elle n'a rien à voir avec le retard** : les jingles
-  dus **pendant une émission** sont abandonnés, parce qu'une émission remplace la
+- **Un jingle en retard passe quand même — dans la limite de sa péremption**
+  (`jingles.expiry_seconds`, quinze minutes par défaut, `0` = jamais périmé).
+  `14h.mp3` peut donc s'entendre à 14 h 10 si le morceau en cours est long :
+  c'est un cas nominal, personne ne règle sa montre sur l'habillage. Mais à
+  plus d'un quart d'heure de son heure pleine, il est **abandonné** : un
+  `19h.mp3` entendu à 22 h 28, au retour d'une longue pause sans auditeur,
+  sonne comme une horloge cassée (constaté le 2026-08-31, §7 n°29 — qui amende
+  la n°4). La péremption s'évalue heure par heure : de deux heures enjambées,
+  seule la plus récente peut encore passer. Le jingle d'« encore » (§4.6), lui,
+  ne périme jamais : il répond à un vote, pas à l'horloge.
+  → **L'autre exception n'a rien à voir avec le retard** : les jingles dus
+  **pendant une émission** sont abandonnés, parce qu'une émission remplace la
   programmation, habillage compris (§4.11).
 - **Si plusieurs jingles sont dus** à la même jonction — un morceau très long a
   enjambé deux heures — ils sont **tous diffusés, dans l'ordre chronologique**.
@@ -209,9 +214,9 @@ coupure, aucune durée à connaître d'avance, aucun cas limite à tester.
 À certaines heures déclarées dans le TOML, un **flash France Info** est diffusé.
 
 - Comme le jingle, il **ne coupe pas** un morceau en cours.
-- Comme un jingle, **il n'est jamais abandonné pour cause de retard** (§4.3). Un
-  flash peut donc s'entendre avec un décalage, borné par la durée du morceau en
-  cours.
+- **Il n'est jamais abandonné pour cause de retard** (§7 n°4) — la péremption
+  des jingles horaires (§4.3, n°29) ne le concerne pas. Un flash peut donc
+  s'entendre avec un décalage, borné par la durée du morceau en cours.
 - **L'indisponibilité du flash est un cas nominal, pas une panne** : si le flux
   France Info ne répond pas, ou renvoie un contenu tronqué, la radio **se replie
   sur la musique** et journalise. Elle ne diffuse jamais un flash incomplet.
@@ -743,9 +748,10 @@ pour tout ce qui n'est pas secret :
 Ce que le TOML doit décrire, au minimum :
 
 - **Le flux** : adresse d'écoute, port, format et débit ;
-- **Les jingles** : le dossier seul — les noms sont fixes et ne se configurent
-  pas : `hours/00h.mp3` … `hours/23h.mp3` pour les heures (§4.3), `encore.mp3` pour le vote
-  (§4.6) ;
+- **Les jingles** : le dossier, et la péremption des jingles horaires
+  (`expiry_seconds`, 900 par défaut, `0` = jamais — §4.3). Les noms sont fixes
+  et ne se configurent pas : `hours/00h.mp3` … `hours/23h.mp3` pour les heures
+  (§4.3), `encore.mp3` pour le vote (§4.6) ;
 
 - **Le web** : adresse d'écoute et port de l'interface et de l'API ;
 - **Les informations** : à quelles heures un flash est diffusé ;
@@ -773,8 +779,9 @@ Ce que le TOML doit décrire, au minimum :
   cache — le prix est assumé : un morceau ajouté sur le serveur n'apparaît
   qu'à l'expiration). **Aucune taille d'échantillon** : le tirage voit la
   bibliothèque entière, récupérée par pagination (docs/subsonic.md §2.7) ;
-- **Les seuils** : durée de fondu. **Aucun seuil de péremption** : ni les
-  jingles ni les flashs ne sont abandonnés pour cause de retard (§4.3).
+- **Les seuils** : durée de fondu. Un seul seuil de péremption existe — celui
+  des **jingles horaires** (`jingles.expiry_seconds`, §4.3, n°29) ; les flashs
+  et les émissions, eux, ne périment toujours pas (§7 n°4).
 
 Le schéma exact se construit avec les Goals. Toute clé ajoutée est documentée
 ici dans le même incrément (AGENTS.md §6).
@@ -830,13 +837,16 @@ bloquer le tirage (§4.2).
 > tester. Une fenêtre en minutes aurait fait varier le nombre de titres du simple
 > au triple.
 
-**n°4 — La péremption ? Aucune.** Tranchée le 2026-08-30. Ni les jingles ni les
-flashs ne sont abandonnés **pour cause de retard**. `14h.mp3` peut s'entendre à
-14 h 25 (§4.3). **Une exception a été ouverte depuis par la n°15** : ce qui est dû
-pendant une émission est abandonné — pour une raison qui n'est pas le retard.
-> *Raison* : un jingle est de l'habillage, personne ne règle sa montre dessus.
-> Renoncer aurait coûté un seuil, un réglage et une famille de cas limites pour
-> un gain nul. **Supprime aussi tout seuil de péremption du TOML.**
+**n°4 — La péremption ? Aucune.** Tranchée le 2026-08-30, **amendée le
+2026-08-31 par la n°29** : les jingles horaires périment désormais. Le reste
+tient : ni les flashs ni les émissions ne sont abandonnés **pour cause de
+retard**. **L'exception de la n°15** demeure : ce qui est dû pendant une
+émission est abandonné — pour une raison qui n'est pas le retard.
+> *Raison d'origine* : un jingle est de l'habillage, personne ne règle sa
+> montre dessus. Renoncer aurait coûté un seuil, un réglage et une famille de
+> cas limites pour un gain nul. La décision supprimait aussi tout seuil de
+> péremption du TOML — la n°29 en rouvre un, et un seul, en sachant ce que
+> cela coûte.
 
 **n°7 — L'épuisement de `encore` ? Aucun compteur.** Tranchée le 2026-08-30.
 `encore` s'enchaîne sans limite ; ce qui le borne est la bibliothèque, quand
@@ -1024,6 +1034,17 @@ jusqu'à la fin. L'occurrence suivante retire, et rien n'est persisté.
 > piste tirée librement, et non par une capacité « lister les artistes »
 > ajoutée au `Protocol` : une capacité de plus coûterait à toutes les sources à
 > venir pour un seul appel.
+
+**n°29 — Un jingle horaire loin de son heure ? Abandonné.** Tranchée le
+2026-08-31 par l'auteur, sur constat : le jingle de 19 h entendu à 22 h 28,
+après 3 h 30 sans auditeur — l'avance du diffuseur avait traversé la pause
+(docs/liquidsoap.md §5.bis). À plus de `jingles.expiry_seconds` de son heure
+pleine (900 s par défaut, `0` = jamais), un jingle horaire n'est plus dû. La
+péremption s'évalue heure par heure, et ne touche ni l'« encore » — un vote,
+pas une heure — ni les flashs ni les émissions (n°4).
+> *Raison* : la n°4 visait le retard **en cours de diffusion** — un morceau
+> long qui enjambe l'heure. Une avance congelée pendant une absence d'auditeur
+> est un autre régime : là, le jingle n'habille plus, il ment sur l'heure.
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :

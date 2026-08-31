@@ -74,7 +74,7 @@ radio sur un tirage neuf au rebranchement.
       mise à jour de docs/liquidsoap.md
 - [x] GOAL-041-T02 — Noyau : un jingle horaire à plus du délai de péremption de
       son heure pleine n'est plus dû (`core/jingles.py`, délai injecté)
-- [ ] GOAL-041-T03 — Config : `jingles.expiry_seconds` (défaut 900, 0 = jamais),
+- [x] GOAL-041-T03 — Config : `jingles.expiry_seconds` (défaut 900, 0 = jamais),
       câblage, SPECS §4.3, §6, §7 (n°4 amendée, n°29)
 - [ ] GOAL-041-T04 — Charnière : dater la pause et, au retour d'un auditeur
       après plus de `playout.resume_fresh_seconds` (défaut 900), purger

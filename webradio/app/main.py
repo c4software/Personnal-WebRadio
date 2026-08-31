@@ -151,7 +151,13 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         clock,
         resolve_random_theme=theme_au_hasard.constraint_for,
     )
-    jingles = Jingles(clock, encore_name=settings.jingles.encore)
+    # `0` = jamais périmé : l'ancienne règle n°4, pour qui la préfère.
+    peremption = settings.jingles.expiry_seconds
+    jingles = Jingles(
+        clock,
+        encore_name=settings.jingles.encore,
+        expiry=timedelta(seconds=peremption) if peremption > 0 else None,
+    )
     control = Control(source=source, random=random, jingles=jingles)
     counter = ListenerCount()
 

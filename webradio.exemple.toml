@@ -35,6 +35,8 @@ folder = "jingles"
 # Le jingle qui annonce un « encore » accepté — personnalisable (GOAL-031).
 # Les jingles HORAIRES, eux, restent nommés par leur heure : 00h.mp3 … 23h.mp3.
 encore = "encore.mp3"
+# Un jingle horaire à plus de cette distance de son heure pleine est abandonné. 0 = jamais.
+expiry_seconds = 900.0
 
 # ── Les moments thématiques ────────────────────────────────────────────────
 # En dehors de ces plages, le tirage est libre. Une plage sans musique se

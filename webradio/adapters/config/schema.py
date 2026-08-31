@@ -62,6 +62,9 @@ DEFAULT_TIMEOUT_SECONDS = 10.0
 # La bibliothèque bouge rarement ; une heure borne le retard d'apparition
 # d'un ajout sans refaire le parcours complet à chaque tirage (GOAL-040).
 DEFAULT_CACHE_SECONDS = 3600.0
+# À plus d'un quart d'heure de son heure pleine, un jingle horaire sonne comme
+# une horloge cassée : il est abandonné (SPECS.md §7 n°29). 0 = jamais périmé.
+DEFAULT_JINGLE_EXPIRY_SECONDS = 900.0
 
 MAX_PORT = 65535
 
@@ -111,14 +114,17 @@ class DrawSettings:
 
 @dataclass(frozen=True, slots=True)
 class JingleSettings:
-    """Le dossier, et le nom du jingle d'« encore » (GOAL-031).
+    """Le dossier, le nom du jingle d'« encore » (GOAL-031), la péremption.
 
     Les jingles HORAIRES restent nommés par leur heure — c'est leur
-    programmation, pas un réglage.
+    programmation, pas un réglage. `expiry_seconds` est la distance à l'heure
+    pleine au-delà de laquelle un jingle horaire est abandonné (SPECS.md §7
+    n°29) ; `0` = jamais.
     """
 
     folder: str
     encore: str = "encore.mp3"
+    expiry_seconds: float = DEFAULT_JINGLE_EXPIRY_SECONDS
 
 
 @dataclass(frozen=True, slots=True)
@@ -653,7 +659,7 @@ def validate(brut: Mapping[str, Any]) -> Settings:
         "",
     )
     jingles = _table(brut, "jingles", "")
-    _verifier_cles(jingles, ("folder", "encore"), "jingles")
+    _verifier_cles(jingles, ("folder", "encore", "expiry_seconds"), "jingles")
     state = _table(brut, "state", "")
     _verifier_cles(state, ("database", "timeout_seconds"), "state")
     web = _table_optionnelle(brut, "web", "")
@@ -665,6 +671,9 @@ def validate(brut: Mapping[str, Any]) -> Settings:
         jingles=JingleSettings(
             folder=_texte(jingles, "folder", "jingles"),
             encore=_texte(jingles, "encore", "jingles", default="encore.mp3"),
+            expiry_seconds=_reel(
+                jingles, "expiry_seconds", "jingles", default=DEFAULT_JINGLE_EXPIRY_SECONDS
+            ),
         ),
         bands=_plages(brut),
         state=StateSettings(
