@@ -15,6 +15,7 @@ def track(
     artist: str,
     genre: str | None = None,
     secondes: int = 180,
+    year: int | None = None,
 ) -> Track:
     return Track(
         identifier=identifier,
@@ -22,6 +23,7 @@ def track(
         artist=artist,
         genre=genre,
         duration=timedelta(seconds=secondes),
+        year=year,
     )
 
 

@@ -46,3 +46,13 @@ def test_une_duree_nulle_ou_negative_est_refusee(secondes: int) -> None:
     fausse ferait glisser toute la grille sans que rien ne le signale."""
     with pytest.raises(ValueError, match="durée non valable"):
         Track("id", "t", "Bowie", None, timedelta(seconds=secondes))
+
+
+def test_une_piste_sans_annee_reste_valable() -> None:
+    """6,7 % de la bibliothèque réelle n'a pas d'année (docs/subsonic.md §4.1) :
+    la refuser amputerait la radio, elle ne participe juste pas aux époques."""
+    assert track("id1", "Bowie").year is None
+
+
+def test_l_annee_est_portee_quand_la_bibliotheque_la_connait() -> None:
+    assert track("id1", "Bowie", year=1977).year == 1977

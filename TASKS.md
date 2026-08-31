@@ -69,7 +69,7 @@ se tire dans sa contrainte.
 
 - [x] GOAL-044-T01 — Relevé Subsonic : le champ `year` des pistes chez le vrai
       Navidrome — présence, forme, proportion de pistes datées → docs/subsonic.md
-- [ ] GOAL-044-T02 — Noyau : `Track.year` optionnel, fakes à jour
+- [x] GOAL-044-T02 — Noyau : `Track.year` optionnel, fakes à jour
 - [ ] GOAL-044-T03 — Subsonic : mapper `year`, réponses littérales avec et
       sans année
 - [ ] GOAL-044-T04 — Noyau : `core/runs.py` — trois modes, ancre posée par le

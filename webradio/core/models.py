@@ -24,6 +24,10 @@ class Track:
     artist: str
     genre: str | None
     duration: timedelta
+    # L'année de la piste, quand la bibliothèque la connaît : 6,7 % des pistes
+    # réelles n'en ont pas (docs/subsonic.md §4.1), et elles restent valables —
+    # elles ne participent simplement pas aux suites d'époque (GOAL-044).
+    year: int | None = None
 
     def __post_init__(self) -> None:
         if not self.identifier:
