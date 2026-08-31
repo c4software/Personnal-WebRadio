@@ -389,13 +389,14 @@ l'historique Git à TASKS.md.
 **Un message de commit ne se passe jamais à `-m` avec des accents graves** : le
 shell les prend pour des substitutions de commande et mange les mots. Utiliser
 `git commit -F -` ou un heredoc cité. C'est arrivé le 2026-08-30, et la
-correction est dans TASKS.md — pas dans un `--amend`.
+correction est consignée dans TASKS.archive.md — pas dans un `--amend`.
 
 **Jamais `git add -A` quand un autre agent écrit dans le dépôt.** On nomme les
 fichiers, ou l'on attend. Un dépôt partagé n'a pas d'index par agent : `-A` prend
 tout ce qui traîne, y compris ce que quelqu'un est en train d'écrire — et produit
 un commit dont le message ment sur son contenu, avec du code que rien n'a
-vérifié. C'est arrivé le 2026-08-30 ; l'incident est consigné dans TASKS.md.
+vérifié. C'est arrivé le 2026-08-30 ; l'incident est consigné dans
+TASKS.archive.md.
 
 Ne jamais committer : `.env`, un mot de passe, un jeton, le TOML local,
 `.claude/settings.local.json`, un fichier audio, un artefact de build.

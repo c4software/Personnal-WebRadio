@@ -532,7 +532,8 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 ├── SPECS.md ............. le quoi
 ├── ARCHITECTURE.md ...... le comment (ce fichier)
 ├── AGENTS.md ............ les règles
-├── TASKS.md ............. l'ordre — mémoire persistante
+├── TASKS.md ............. l'ordre — mémoire persistante, Goals ouverts seulement
+├── TASKS.archive.md ..... l'histoire — le détail des Goals terminés
 ├── CONTRIBUTING.md ...... comment contribuer
 ├── README.md ............ documentation générale
 ├── pyproject.toml ....... paquet, ruff, mypy, pytest, couverture

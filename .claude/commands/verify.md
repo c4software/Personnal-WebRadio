@@ -70,15 +70,19 @@ d'`AGENTS.md §2` : un interdit sans contrôle ici est un vœu.
 
 C'est le contrôle qui distingue cette commande d'un simple build.
 
-Pour **chaque tâche `[x]`**, vérifier que ce qu'elle prétend avoir produit
-existe réellement **et est testé**. Une tâche cochée dont le code est absent, ou
-présent sans tests, est **FAIL** — et la case doit être décochée, pas ignorée.
+Pour **chaque tâche `[x]` encore détaillée dans `TASKS.md`**, vérifier que ce
+qu'elle prétend avoir produit existe réellement **et est testé**. Une tâche
+cochée dont le code est absent, ou présent sans tests, est **FAIL** — et la
+case doit être décochée, pas ignorée. Les Goals archivés dans
+`TASKS.archive.md` ne se ré-auditent pas.
 
 Vérifier aussi :
 
 - la carte du dépôt d'`ARCHITECTURE.md` décrit bien le dépôt actuel → sinon **WARN**
 - aucune fonctionnalité implémentée n'est restée `[ ]` → sinon **WARN**
 - chaque tâche `[!]` porte sa raison écrite → sinon **WARN**
+- aucun Goal entièrement `[x]` ne traîne son détail dans `TASKS.md` → sinon
+  **WARN** : l'archiver (conventions de `TASKS.md`)
 
 ---
 

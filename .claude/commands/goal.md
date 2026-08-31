@@ -169,6 +169,9 @@ Quand toutes les tâches sont `[x]` :
 
 - passer le Goal à `[x]` dans la table de vue d'ensemble ;
 - mettre à jour la « Phase courante » et la « Prochaine tâche » de `TASKS.md` ;
+- **archiver** : déplacer le détail du Goal en fin de `TASKS.archive.md`, ne
+  laisser dans `TASKS.md` que sa ligne de la table — c'est ce qui garde la
+  mémoire lisible à chaque session ;
 - inscrire les dettes ouvertes par le Goal comme **tâches**, pas comme remarques ;
 - produire un rapport : ce qui a été fait, les décisions prises et leur raison,
   ce qui reste ouvert.
