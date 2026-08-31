@@ -27,9 +27,10 @@ Lire, dans cet ordre, **avant de toucher au code** :
    existe vraiment**
 4. `TASKS.md` — où le travail s'est arrêté
 
-Si l'objectif touche à **Navidrome**, au **flash France Info** ou à
-**Liquidsoap** ou à **ffmpeg**, lire **aussi** le relevé correspondant dans `docs/`, et sa section
-« points incertains » en particulier (AGENTS.md §3).
+Si l'objectif touche à **Navidrome**, au **flash France Info**, à
+**Liquidsoap**, à **YouTube/yt-dlp**, à **ffmpeg**, aux **lecteurs de webradio**
+ou aux **flux de podcast**, lire **aussi** le relevé correspondant dans `docs/`,
+et sa section « points incertains » en particulier (AGENTS.md §3).
 
 Lire ensuite **uniquement** les fichiers de code nécessaires à l'objectif. Ne
 pas parcourir le dépôt entier.

@@ -51,10 +51,11 @@ et une sélection au hasard qui lisent directement `datetime.now()` ou
 vérifier qu'un jingle tombe à l'heure. Ils sont **injectés**, et un seul module
 les fournit (AGENTS.md §2).
 
-**Les tests n'entendent rien.** Cinq choses ne se constatent qu'en écoutant : le
-son lui-même, les transitions, la tenue dans la durée, le comportement des vrais
-lecteurs, et le jingle qui annonce un vote. Elles sont listées en
-AGENTS.md §4.1 — et personne ne les détecte automatiquement.
+**Les tests n'entendent rien.** Le son lui-même, les transitions, la tenue dans
+la durée, le comportement des vrais lecteurs, le jingle qui annonce un vote,
+l'effet de la pondération : rien de cela ne se constate autrement qu'en
+écoutant. La liste vit en AGENTS.md §4.1 — et personne ne le détecte
+automatiquement.
 
 **L'interface web n'a aucun raccourci.** Ses boutons passent par l'API, comme
 n'importe quel autre client. Une route Flask ou un gabarit Jinja2 qui appellerait

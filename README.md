@@ -266,39 +266,17 @@ pip install -e '.[dev]'
 ./verifier.sh
 ```
 
-Cinq contrôles, du moins cher au plus cher, qui **s'arrêtent au premier échec** :
-mise en forme, analyse statique, types, **les interdits d'AGENTS.md §2**, puis
-tests et couverture.
-
-Le quatrième est ce qui distingue ce script d'un `make check` : il transforme les
-interdits en recherches exécutées. Un interdit que rien ne contrôle n'est pas un
-interdit, c'est un vœu — et il finit toujours par être enfreint, de bonne foi.
+Des contrôles enchaînés du moins cher au plus cher, qui **s'arrêtent au premier
+échec** : mise en forme, analyse statique, types, **les interdits
+d'AGENTS.md §2**, la validation du script Liquidsoap contre l'image épinglée,
+puis tests et couverture. Le détail est en [AGENTS.md §5.2](./AGENTS.md).
 
 > `./verifier.sh` tourne **hors conteneur**, sur le code. Un conteneur qui
 > démarre ne prouve rien sur la qualité de ce qu'il contient.
 
-### Les relevés
-
-`docs/` ne contient pas de la documentation recopiée : ce sont des **constats**,
-établis contre les vraies dépendances, avec leur date. La règle qui les
-accompagne n'a pas d'exception :
-
-> **Ne jamais inventer le comportement d'une dépendance externe**, et ne jamais
-> l'inférer d'une implémentation existante de ce dépôt.
-
-Ils ont déjà évité des erreurs coûteuses — que la bibliothèque soit hétérogène
-rendait impossible la voie qui semblait la plus économe, et qu'un mot de passe
-faux revienne en HTTP 200 aurait fait conclure « bibliothèque vide ».
-
-### Ce qu'aucun test ne verra
-
-Cinq choses ne se constatent **qu'en écoutant** : le son lui-même, les
-transitions, la tenue dans la durée, le comportement des vrais lecteurs, et
-l'effet de la pondération.
-
-Personne ne les détecte automatiquement. Celui qui touche à ces zones **écoute
-réellement la radio avant de committer** — c'est le seul filet, et il n'est pas
-automatique. Voir [AGENTS.md §4.1](./AGENTS.md).
+Ce que la vérification n'entendra jamais — le son, les transitions, la tenue
+dans la durée, les vrais lecteurs — s'écoute avant de committer :
+[AGENTS.md §4.1](./AGENTS.md).
 
 ---
 

@@ -42,6 +42,3 @@ jingles/hours/*
 
 # Divers
 .DS_Store
-
-# Environnement créé par GOAL-001-T01
-.venv/

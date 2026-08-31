@@ -40,8 +40,8 @@ Rappel, à faire figurer dans le rapport comme **WARN** dès qu'une tâche audib
 
 Présents et non vides : `SPECS.md`, `AGENTS.md`, `ARCHITECTURE.md`, `TASKS.md`,
 `CONTRIBUTING.md`, `README.md`, `CLAUDE.md`,
-`.claude/commands/{goal,task,status,verify}.md`, `docs/navidrome.md`, `docs/franceinfo.md`,
-`docs/ffmpeg.md`.
+`.claude/commands/{goal,task,status,verify}.md`, et les relevés de `docs/`
+listés en `AGENTS.md §3`.
 
 ## 4 — État Git
 

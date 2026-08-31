@@ -13,8 +13,6 @@ France Info, à Liquidsoap, à ffmpeg ou à ce qu'attendent les lecteurs de webr
 
 ## Mettre en place l'environnement
 
-L'outillage sera posé par `GOAL-001-T02` et `T03`. Une fois fait :
-
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e '.[dev]'

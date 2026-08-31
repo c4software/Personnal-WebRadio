@@ -42,8 +42,9 @@ Annoncer la tâche retenue et pourquoi, avant de commencer.
 - l'entrée du Goal dans `TASKS.md`, et les tâches qui la précèdent
 - la section de `SPECS.md` que la tâche couvre
 - la section de `ARCHITECTURE.md` concernée, **et sa carte du dépôt**
-- le relevé de `docs/` si la tâche touche à Navidrome, au flash France Info
-  à Liquidsoap ou à ffmpeg — sa section « points incertains » en particulier
+- le relevé de `docs/` si la tâche touche à Navidrome, au flash France Info,
+  à Liquidsoap, à YouTube/yt-dlp, à ffmpeg, aux lecteurs de webradio ou aux
+  flux de podcast — sa section « points incertains » en particulier
 - les fichiers de code que la tâche modifie, et leurs tests
 
 Puis **constater l'état réel du code**. Ne jamais supposer qu'une tâche `[-]`

@@ -180,7 +180,7 @@ Une règle, et elle n'a pas d'exception :
 
 > **Ne jamais inventer le comportement d'une dépendance externe.**
 
-Trois relevés vivent dans [docs/](./docs/) :
+Les relevés vivent dans [docs/](./docs/) :
 
 | Relevé | Ce qu'il couvre |
 |---|---|
@@ -190,8 +190,10 @@ Trois relevés vivent dans [docs/](./docs/) :
 | [docs/ffmpeg.md](./docs/ffmpeg.md) | Relevé historique — vaut pour ce que Liquidsoap fait avec ffmpeg en dessous |
 | [docs/flux-icy.md](./docs/flux-icy.md) | Ce qu'attendent réellement les lecteurs de webradio |
 | [docs/podcast.md](./docs/podcast.md) | Les flux de podcast des émissions, et ce qu'ils exposent vraiment |
+| [docs/youtube.md](./docs/youtube.md) | Une chaîne YouTube comme émission : ce que yt-dlp et le flux Atom exposent vraiment |
 
-> Le dernier est le plus mal outillé des quatre : **il n'existe aucune norme du
+> Le relevé des lecteurs ([docs/flux-icy.md](./docs/flux-icy.md)) est le plus
+> mal outillé de tous : **il n'existe aucune norme du
 > « flux de webradio »**. Ce que les lecteurs acceptent est une convention de
 > fait, et chacun l'interprète à sa façon. Rien ne s'y déduit d'une
 > spécification ; tout se constate en branchant de vrais lecteurs.
@@ -234,8 +236,8 @@ dans TASKS.md.
 
 ### 4.1 Ce que les tests ne verront jamais
 
-Les tests vérifient **ce qui est décidé** ; ils n'entendent rien. Quatre choses
-ne se constatent qu'en écoutant réellement la radio :
+Les tests vérifient **ce qui est décidé** ; ils n'entendent rien. Ce qui suit
+ne se constate qu'en écoutant réellement la radio :
 
 | Angle mort | Ce qui s'y cache |
 |---|---|
@@ -289,18 +291,19 @@ l'allowlist : une action sortante se confirme.
 C'est exactement ce que fait `/verify`. **Si elle change, elle change ici**, et
 les autres fichiers la recopient.
 
-Le script enchaîne cinq contrôles, du moins cher au plus cher, et **s'arrête au
+Le script enchaîne les contrôles du moins cher au plus cher, et **s'arrête au
 premier échec** (`set -euo pipefail`) :
 
 | Contrôle | Ce qu'il refuse |
 |---|---|
 | `ruff format --check` | Une mise en forme qui s'écarte |
-| `ruff check` | Import ou variable inutilisés, `print()`, `except` nu, argument ignoré, et — depuis `GOAL-003-T02` — `import random`/`secrets` hors de `core/rng.py` |
+| `ruff check` | Import ou variable inutilisés, `print()`, `except` nu, argument ignoré, `import random`/`secrets` hors de `core/rng.py` |
 | `mypy` (strict) | Une fonction sans annotations, un type incohérent, du code inatteignable |
 | **Les interdits d'AGENTS.md §2** | Entrée-sortie dans le noyau, horloge hors de `core/clock.py`, hasard hors de `core/rng.py`, Flask hors de `adapters/web/`, `TODO` sans tâche |
+| `liquidsoap --check` (image épinglée) | Un `radio.liq` que la version de production n'accepte pas |
 | `pytest --cov --cov-fail-under=80` | Un test en échec, une couverture sous 80 % |
 
-Le quatrième contrôle est ce qui distingue ce script d'un simple `make check` :
+Le contrôle des interdits est ce qui distingue ce script d'un simple `make check` :
 il transforme les interdits en **recherches textuelles exécutées**. Un interdit
 que rien ne contrôle n'est pas un interdit, c'est un vœu — et il est toujours
 enfreint, tôt ou tard, par quelqu'un de bonne foi.
@@ -341,7 +344,7 @@ La documentation fait partie de la tâche, pas de son après-coup.
 | Nouvelle clé de configuration TOML | [SPECS.md](./SPECS.md) §6 |
 | Décision d'architecture, dépendance, découpage | [ARCHITECTURE.md](./ARCHITECTURE.md) |
 | Nouveau dossier, ou dossier dont le rôle change | [ARCHITECTURE.md](./ARCHITECTURE.md) §9 |
-| Une observation sur Navidrome, France Info, Liquidsoap, ffmpeg, un lecteur de webradio ou un flux de podcast | le relevé correspondant dans [docs/](./docs/) |
+| Une observation sur Navidrome, France Info, Liquidsoap, ffmpeg, YouTube/yt-dlp, un lecteur de webradio ou un flux de podcast | le relevé correspondant dans [docs/](./docs/) |
 | Une route d'API ajoutée, changée ou retirée | [SPECS.md](./SPECS.md) §4.8 — c'est une surface publique |
 | Nouvelle règle de développement | ce fichier |
 | Procédure de contribution | [CONTRIBUTING.md](./CONTRIBUTING.md) |
