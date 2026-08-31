@@ -18,6 +18,11 @@ from dataclasses import dataclass
 from datetime import time
 from typing import Any, NoReturn
 
+# Les valeurs acceptées par `random` viennent du noyau : les recopier ici en
+# ferait deux listes à tenir d'accord, et c'est la configuration qui mentirait
+# la première.
+from webradio.core.bands import RANDOM_THEMES
+
 # Les trois variables du `.env`. Elles ne portent aucune valeur ici : seulement
 # leur nom, qui sert à dire d'où un secret aurait dû venir.
 VARIABLE_URL = "NAVIDROME_URL"
@@ -120,12 +125,17 @@ class Band:
 
     `days` restreint la plage à certains jours ; sans elle, tous les jours —
     le comportement historique (GOAL-019).
+
+    `random_theme` remplace les deux premiers : la plage ne dit plus *quoi*,
+    elle dit *quelle sorte* — « un genre » ou « un artiste » —, et la radio
+    tire dans la bibliothèque (GOAL-037).
     """
 
     start: time
     end: time
     genres: tuple[str, ...] = ()
     artists: tuple[str, ...] = ()
+    random_theme: str | None = None
     days: tuple[str, ...] = DAYS
     intro: str | None = None
     outro: str | None = None
@@ -452,16 +462,28 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
     for index, table in enumerate(_liste_tables(brut, "bands")):
         prefix = f"bands[{index}]"
         _verifier_cles(
-            table, ("start", "end", "genres", "artists", "days", "intro", "outro"), prefix
+            table,
+            ("start", "end", "genres", "artists", "random", "days", "intro", "outro"),
+            prefix,
         )
-        if ("genres" in table) == ("artists" in table):
-            _refuser(prefix, "une plage déclare `genres` OU `artists` — ni les deux, ni aucun")
+        declarees = sum(cle in table for cle in ("genres", "artists", "random"))
+        if declarees != 1:
+            _refuser(
+                prefix,
+                "une plage déclare `genres`, `artists` OU `random` — exactement une des trois",
+            )
+        if "random" in table and table["random"] not in RANDOM_THEMES:
+            _refuser(
+                _chemin(prefix, "random"),
+                f"attendu {' ou '.join(RANDOM_THEMES)}, pas {table['random']!r}",
+            )
         bands.append(
             Band(
                 start=_heure(table, "start", prefix),
                 end=_heure(table, "end", prefix),
                 genres=_liste_textes(table, "genres", prefix) if "genres" in table else (),
                 artists=_liste_textes(table, "artists", prefix) if "artists" in table else (),
+                random_theme=_texte(table, "random", prefix) if "random" in table else None,
                 # Pas de `days` = tous les jours : le comportement historique.
                 days=_jours(table, prefix) if "days" in table else DAYS,
                 intro=_texte(table, "intro", prefix) if "intro" in table else None,

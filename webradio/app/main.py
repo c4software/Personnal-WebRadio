@@ -109,6 +109,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
                 p.end,
                 p.genres,
                 artists=p.artists,
+                random_theme=p.random_theme,
                 days=p.days,
                 intro=p.intro,
                 outro=p.outro,

@@ -528,6 +528,50 @@ def test_genres_et_artistes_ensemble_sont_refuses_au_toml() -> None:
     assert "bands[0]" in str(refus.value)
 
 
+# ── Une plage au thème tiré au sort (GOAL-037) ──────────────────────────────
+
+
+def test_une_plage_peut_demander_un_genre_au_hasard() -> None:
+    config = _valider(
+        TOML_MINIMAL + UNE_PLAGE.replace('genres = ["Chanson française"]', 'random = "genre"')
+    )
+    assert config.bands[0].random_theme == "genre"
+    assert config.bands[0].genres == ()
+    assert config.bands[0].artists == ()
+
+
+def test_une_plage_peut_demander_un_artiste_au_hasard() -> None:
+    config = _valider(
+        TOML_MINIMAL + UNE_PLAGE.replace('genres = ["Chanson française"]', 'random = "artist"')
+    )
+    assert config.bands[0].random_theme == "artist"
+
+
+def test_sans_random_une_plage_ne_tire_rien_au_sort() -> None:
+    assert _valider(TOML_MINIMAL + UNE_PLAGE).bands[0].random_theme is None
+
+
+def test_random_et_genres_ensemble_sont_refuses_au_toml() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(TOML_MINIMAL + UNE_PLAGE + 'random = "genre"\n')
+    assert "exactement une des trois" in str(refus.value)
+
+
+def test_une_plage_qui_ne_declare_rien_du_tout_est_refusee_au_toml() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(TOML_MINIMAL + UNE_PLAGE.replace('genres = ["Chanson française"]', ""))
+    assert "exactement une des trois" in str(refus.value)
+
+
+def test_une_sorte_de_theme_inconnue_est_refusee_en_la_nommant() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL + UNE_PLAGE.replace('genres = ["Chanson française"]', 'random = "album"')
+        )
+    assert "bands[0].random" in str(refus.value)
+    assert "album" in str(refus.value)
+
+
 # ── Une chaîne YouTube comme émission (GOAL-025) ────────────────────────────
 
 
