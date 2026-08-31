@@ -70,7 +70,7 @@ def test_la_premiere_plage_declaree_l_emporte_sur_un_recouvrement() -> None:
 
 
 def test_une_plage_sans_genre_ni_artiste_est_refusee() -> None:
-    with pytest.raises(ValueError, match="OU des artistes"):
+    with pytest.raises(ValueError, match="exactement un des trois"):
         Band(start=time(8), end=time(10), genres=())
 
 
@@ -161,5 +161,37 @@ def test_plusieurs_artistes_tranchent_par_le_hasard_injecte() -> None:
 
 
 def test_genres_et_artistes_ensemble_sont_refuses() -> None:
-    with pytest.raises(ValueError, match="OU des artistes"):
+    with pytest.raises(ValueError, match="exactement un des trois"):
         Band(start=time(8), end=time(10), genres=("jazz",), artists=("Air",))
+
+
+# ── Les plages au thème tiré au sort (GOAL-037) ─────────────────────────────
+
+
+def test_une_plage_peut_demander_un_theme_tire_au_sort() -> None:
+    band = Band(start=time(21), end=time(22), random_theme="genre")
+    assert band.random_theme == "genre"
+
+
+def test_un_theme_a_tirer_inconnu_est_refuse_en_le_nommant() -> None:
+    with pytest.raises(ValueError, match="album"):
+        Band(start=time(21), end=time(22), random_theme="album")
+
+
+def test_un_theme_a_tirer_et_des_genres_ensemble_sont_refuses() -> None:
+    with pytest.raises(ValueError, match="exactement un des trois"):
+        Band(start=time(8), end=time(10), genres=("jazz",), random_theme="artist")
+
+
+def test_l_occurrence_commence_a_l_heure_de_la_plage_ce_jour_la() -> None:
+    band = Band(start=time(20), end=time(23), genres=("electro",))
+    instant = datetime(2026, 8, 30, 21, 15, tzinfo=UTC)
+    assert band.occurrence_start(instant) == datetime(2026, 8, 30, 20, 0, tzinfo=UTC)
+
+
+def test_l_occurrence_d_une_plage_de_nuit_appartient_au_jour_ou_elle_commence() -> None:
+    nuit = Band(start=time(22), end=time(2), genres=("electro",))
+    apres_minuit = datetime(2026, 8, 31, 1, 30, tzinfo=UTC)
+    assert nuit.occurrence_start(apres_minuit) == datetime(2026, 8, 30, 22, 0, tzinfo=UTC)
+    avant_minuit = datetime(2026, 8, 30, 23, 0, tzinfo=UTC)
+    assert nuit.occurrence_start(avant_minuit) == datetime(2026, 8, 30, 22, 0, tzinfo=UTC)

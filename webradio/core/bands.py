@@ -19,6 +19,9 @@ from webradio.core.clock import Clock
 from webradio.core.rng import Random
 from webradio.core.shows import EVERY_DAY, WEEKDAYS
 
+# Ce qu'une plage peut demander de tirer au sort à sa place (GOAL-037).
+RANDOM_THEMES = ("genre", "artist")
+
 
 @dataclass(frozen=True, slots=True)
 class Constraint:
@@ -45,6 +48,11 @@ class Band:
     genres: tuple[str, ...] = ()
     # Une heure entière d'un seul artiste, ou de quelques-uns (GOAL-023).
     artists: tuple[str, ...] = ()
+    # « Choisis toi-même » : la radio tire un genre ou un artiste de la
+    # bibliothèque au début de l'occurrence, et s'y tient jusqu'à sa fin
+    # (GOAL-037). Exclusif de `genres` et `artists` — le tirage lui-même vit
+    # dans `core/mystery.py`, car il a besoin de la source.
+    random_theme: str | None = None
     # Générique d'ouverture et de fermeture — des NOMS de fichiers dans le
     # dossier des jingles, optionnels : absents, rien ne se passe et rien ne
     # se signale, comme tout jingle (SPECS.md §4.3, GOAL-029).
@@ -62,9 +70,17 @@ class Band:
         if not self.days:
             message = f"la plage {self.start:%H:%M} n'a aucun jour : elle n'aurait jamais lieu"
             raise ValueError(message)
-        if bool(self.genres) == bool(self.artists):
+        if self.random_theme is not None and self.random_theme not in RANDOM_THEMES:
             message = (
-                "une plage déclare des genres OU des artistes — ni les deux, ni aucun des deux"
+                f"thème à tirer inconnu pour la plage {self.start:%H:%M} : "
+                f"{self.random_theme} (attendu : {' ou '.join(RANDOM_THEMES)})"
+            )
+            raise ValueError(message)
+        declared = sum((bool(self.genres), bool(self.artists), self.random_theme is not None))
+        if declared != 1:
+            message = (
+                "une plage déclare des genres, des artistes OU un thème à tirer — "
+                "exactement un des trois"
             )
             raise ValueError(message)
         if self.start == self.end:
@@ -91,6 +107,22 @@ class Band:
         if moment < self.end:
             return self._a_lieu_le((instant - timedelta(days=1)).date())
         return False
+
+    def occurrence_start(self, instant: datetime) -> datetime:
+        """Le moment où l'occurrence courante de la plage a commencé.
+
+        C'est la clé qui distingue « la même soirée » de « le samedi suivant » :
+        un thème tiré au sort (GOAL-037) vaut pour une occurrence, et retirer ou
+        non se décide en comparant ces débuts. Minuit enjambé suit la règle de
+        `covers` : l'occurrence appartient au jour où elle commence.
+
+        N'a de sens que si `covers(instant)` est vrai — hors de la plage, il n'y
+        a pas d'occurrence courante.
+        """
+        day = instant.date()
+        if self.start > self.end and instant.time() < self.end:
+            day = (instant - timedelta(days=1)).date()
+        return datetime.combine(day, self.start, tzinfo=instant.tzinfo)
 
 
 class Schedule:

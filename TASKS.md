@@ -70,7 +70,7 @@ tirée librement — aucune capacité nouvelle au `Protocol`) ; la configuration
 **déclare** si c'est un genre ou un artiste. Aucune persistance : le tirage vit
 en mémoire, une occurrence à la fois.
 
-- [ ] `GOAL-037-T01` `Band.random_theme` + invariant révisé (exactement un de
+- [x] `GOAL-037-T01` `Band.random_theme` + invariant révisé (exactement un de
   `genres`/`artists`/`random_theme`), et `Band.occurrence_start(instant)` —
   le début de l'occurrence courante, minuit enjambé compris
 - [ ] `GOAL-037-T02` `core/mystery.py` : `RandomTheme(source, random)` tire la
