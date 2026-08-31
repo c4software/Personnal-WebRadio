@@ -127,8 +127,12 @@ timeout_seconds = 60.0
 
 # ── Subsonic (hors identifiants, qui sont dans .env) ───────────────────────
 [subsonic]
-# Le tirage voit la bibliothèque ENTIÈRE, récupérée par pages de 500 : il n'y a
-# pas de taille d'échantillon à régler (docs/subsonic.md §2.7).
+# Le tirage voit la bibliothèque ENTIÈRE : aucune taille d'échantillon à
+# régler — l'ancien plafond de 500 n'existe plus (GOAL-039). Le parcours se
+# fait par pages, dont la taille est une propriété constatée du serveur, pas
+# un réglage (docs/subsonic.md §2.7).
+# `artist_results` ne borne QUE la recherche des pistes d'un artiste précis —
+# un « encore », une plage à artiste imposé.
 artist_results  = 50
 timeout_seconds     = 10.0
 # La bibliothèque est servie de mémoire pendant cette durée : un morceau ajouté
