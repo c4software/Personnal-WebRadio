@@ -23,6 +23,7 @@ from webradio.adapters.config.loading import load_toml
 from webradio.adapters.config.schema import (
     DAYS,
     DEFAULT_ARTIST_RESULTS,
+    DEFAULT_CACHE_SECONDS,
 )
 
 TOML_MINIMAL = """
@@ -90,6 +91,22 @@ def test_les_reglages_subsonic_ont_des_defauts_declares() -> None:
     config = _valider(TOML_MINIMAL)
 
     assert config.subsonic.artist_results == DEFAULT_ARTIST_RESULTS
+    assert config.subsonic.cache_seconds == DEFAULT_CACHE_SECONDS
+
+
+def test_une_duree_de_cache_negative_est_refusee_en_la_nommant() -> None:
+    content = TOML_MINIMAL + "\n[subsonic]\ncache_seconds = -1\n"
+
+    with pytest.raises(SettingsError) as refus:
+        validate(tomllib.loads(content))
+
+    assert "subsonic.cache_seconds" in str(refus.value)
+
+
+def test_une_duree_de_cache_nulle_est_acceptee_sans_cache() -> None:
+    content = TOML_MINIMAL + "\n[subsonic]\ncache_seconds = 0\n"
+
+    assert validate(tomllib.loads(content)).subsonic.cache_seconds == 0.0
 
 
 def test_l_ancienne_taille_d_echantillon_est_refusee_en_la_nommant() -> None:

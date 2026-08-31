@@ -59,6 +59,9 @@ DEFAULT_VOTE_CEILING = 4.0
 DEFAULT_VOTE_HALF_LIFE = 90
 DEFAULT_ARTIST_RESULTS = 50
 DEFAULT_TIMEOUT_SECONDS = 10.0
+# La bibliothèque bouge rarement ; dix minutes bornent le retard d'apparition
+# d'un ajout sans refaire le parcours complet à chaque tirage (GOAL-040).
+DEFAULT_CACHE_SECONDS = 600.0
 
 MAX_PORT = 65535
 
@@ -228,10 +231,15 @@ class SubsonicSettings:
     Aucune taille d'échantillon : la bibliothèque se parcourt entière, par
     pagination, et la taille de page est une propriété constatée du serveur,
     pas un réglage (docs/subsonic.md §2.7).
+
+    `cache_seconds` est la durée pendant laquelle un parcours reste servi de
+    mémoire ; `0` refait les appels à chaque tirage. Le prix du cache est
+    assumé : de la musique ajoutée sur le serveur n'apparaît qu'à l'expiration.
     """
 
     artist_results: int
     timeout_seconds: float
+    cache_seconds: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -611,12 +619,13 @@ def _refuser_les_collisions(shows: Sequence[Show]) -> None:
 
 def _subsonic(brut: Mapping[str, Any]) -> SubsonicSettings:
     table = _table_optionnelle(brut, "subsonic", "")
-    _verifier_cles(table, ("artist_results", "timeout_seconds"), "subsonic")
+    _verifier_cles(table, ("artist_results", "timeout_seconds", "cache_seconds"), "subsonic")
     return SubsonicSettings(
         artist_results=_entier(table, "artist_results", "subsonic", default=DEFAULT_ARTIST_RESULTS),
         timeout_seconds=_reel(
             table, "timeout_seconds", "subsonic", default=DEFAULT_TIMEOUT_SECONDS, minimum=0.1
         ),
+        cache_seconds=_reel(table, "cache_seconds", "subsonic", default=DEFAULT_CACHE_SECONDS),
     )
 
 

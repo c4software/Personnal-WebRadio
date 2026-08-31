@@ -54,7 +54,10 @@ rétrécie comprise) et GOAL-039 (la variété d'un tirage qui voit 5704 pistes 
 lieu de 500, et le coût de douze appels HTTP par tirage) ne se constatent qu'à
 l'antenne (AGENTS.md §4.1).
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
+**Goal ouvert** : GOAL-040 — un cache de bibliothèque dans l'adaptateur
+Subsonic, pour ne plus payer douze appels HTTP à chaque tirage.
+
+**Prochaine tâche** : GOAL-040-T01.
 
 ---
 
@@ -101,7 +104,28 @@ l'antenne (AGENTS.md §4.1).
 | GOAL-037 | Une plage dont le genre ou l'artiste est tiré au sort | `[x]` — reste l'écoute réelle |
 | GOAL-038 | Le Compose de production tire l'image publiée ; un Compose de dev construit localement | `[x]` |
 | GOAL-039 | Parler Subsonic plutôt que Navidrome, et tirer dans toute la bibliothèque | `[x]` — reste l'écoute réelle |
+| GOAL-040 | Un cache de bibliothèque dans l'adaptateur Subsonic | `[ ]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
+
+---
+
+## GOAL-040 — Un cache de bibliothèque dans l'adaptateur Subsonic
+
+**Pourquoi.** Depuis GOAL-039, chaque tirage parcourt la bibliothèque entière :
+~12 appels HTTP par changement de chanson, pour des données qui bougent
+rarement. Un cache avec expiration règle le coût ; le compromis — de la musique
+ajoutée n'apparaît qu'à l'expiration — se décide et se documente.
+
+- [x] **GOAL-040-T01** — La clé `cache_seconds` dans `[subsonic]` : défaut
+      600 s, `0` = sans cache, refusée si négative ; exemples TOML mis à jour.
+- [ ] **GOAL-040-T02** — Le cache dans l'adaptateur : horloge injectée
+      (`core/clock.py`), une entrée par clé de tirage (bibliothèque entière ou
+      genre), expiration à la lecture, un échec n'est jamais mis en cache ;
+      `tracks_by` et les listes de lecture restent sans cache ; câblage
+      `main.py` ; tests avec `FrozenClock` et transport qui compte ses appels.
+- [ ] **GOAL-040-T03** — Documentation (SPECS §6, ARCHITECTURE si besoin),
+      clôture, archivage ; la dette « douze appels par tirage » de GOAL-039
+      est soldée.
 

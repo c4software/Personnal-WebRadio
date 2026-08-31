@@ -132,6 +132,7 @@ def _reglages(resultats: int = 50) -> SubsonicSettings:
     return SubsonicSettings(
         artist_results=resultats,
         timeout_seconds=1.0,
+        cache_seconds=0.0,
     )
 
 
