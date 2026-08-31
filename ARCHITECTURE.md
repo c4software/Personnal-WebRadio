@@ -552,6 +552,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   │   ├── rotation.py .. la fenêtre de non-répétition, et son rétrécissement
 │   │   ├── queue.py ..... ce qui passe ensuite, et ce qui a été relâché
 │   │   ├── bands.py ..... les plages thématiques de la grille
+│   │   ├── mystery.py ... le thème d'une plage « au hasard », figé sur l'occurrence
 │   │   ├── programmes.py  les programmes : une playlist, des jours, des heures
 │   │   ├── jingles.py ... quel jingle est dû, d'après l'heure
 │   │   ├── shows.py ..... quelle émission est due, d'après la grille déclarée

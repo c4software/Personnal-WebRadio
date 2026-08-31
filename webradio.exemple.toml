@@ -78,6 +78,19 @@ days    = ["sunday"]
 intro   = "heure-air-debut.mp3"
 outro   = "heure-air-fin.mp3"
 
+# Une plage peut enfin laisser la radio CHOISIR : `random = "genre"` ou
+# `random = "artist"` dit la sorte de thème voulue, pas sa valeur. La radio tire
+# dans toute la bibliothèque au début de l'occurrence et s'y tient jusqu'à la fin
+# de la plage ; le samedi suivant retire. Une plage déclare exactement une des
+# trois clés : `genres`, `artists` ou `random`.
+[[bands]]
+start  = "21:00"
+end    = "23:00"
+random = "artist"
+days   = ["saturday"]
+intro  = "mystere-debut.mp3"
+outro  = "mystere-fin.mp3"
+
 # ── L'état ─────────────────────────────────────────────────────────────────
 # La SEULE chose que la radio retient entre deux démarrages : le dernier
 # épisode diffusé de chaque émission. Une table, trois colonnes.

@@ -38,56 +38,22 @@ fichier assez court pour être lu à chaque session.
 
 **Phase 2 — Le produit** `[x]` **terminée le 2026-08-30.**
 
-Les trente-six Goals sont terminés et la table ci-dessous en est le bilan. Le
+Les trente-sept Goals sont terminés et la table ci-dessous en est le bilan. Le
 code est écrit, testé et vérifié, et ce que les tests n'entendent pas —
 votes, saut, encore, flash France Info, YouTube, jingles, interface — a été
 **validé à l'écoute par l'auteur le 2026-08-30**, au terme d'une soirée en
 conditions réelles.
 
-**Un Goal ouvert : GOAL-037** (ci-dessous). Décisions restantes de SPECS.md §7 :
-la **n°9** est une conséquence consignée, non une question ; la **n°12**
-(combiner plusieurs sources actives) est délibérément différée jusqu'à la
-deuxième source de musique.
+**Aucun Goal ouvert.** Décisions restantes de SPECS.md §7 : la **n°9** est une
+conséquence consignée, non une question ; la **n°12** (combiner plusieurs
+sources actives) est délibérément différée jusqu'à la deuxième source de
+musique.
 
-**Prochaine tâche** : `GOAL-037-T01`.
+**Reste à écouter** : GOAL-037 a été codé et vérifié le 2026-08-31, mais
+qu'une heure d'un artiste tiré au sort tienne — fenêtre de non-répétition
+rétrécie comprise — ne se constate qu'à l'antenne (AGENTS.md §4.1).
 
----
-
-## GOAL-037 — Une plage dont le genre ou l'artiste est tiré au sort
-
-**État : EN COURS** — demandé par l'auteur le 2026-08-31, plan validé le même
-jour.
-
-Une plage `[[bands]]` peut déclarer `random = "genre"` ou `random = "artist"`
-au lieu d'énumérer ses valeurs : la radio tire elle-même un genre (ou un
-artiste) de la bibliothèque **au début de l'occurrence**, et s'y tient jusqu'à
-la fin de la plage. L'occurrence suivante retire.
-
-Choix validés par l'auteur : greffé sur `[[bands]]` (pas un 4ᵉ mécanisme, pas
-une émission) ; tirage **figé sur l'occurrence** ; réservoir = **toute la
-bibliothèque** (genre : `source.genres()` ; artiste : l'artiste d'une piste
-tirée librement — aucune capacité nouvelle au `Protocol`) ; la configuration
-**déclare** si c'est un genre ou un artiste. Aucune persistance : le tirage vit
-en mémoire, une occurrence à la fois.
-
-- [x] `GOAL-037-T01` `Band.random_theme` + invariant révisé (exactement un de
-  `genres`/`artists`/`random_theme`), et `Band.occurrence_start(instant)` —
-  le début de l'occurrence courante, minuit enjambé compris
-- [x] `GOAL-037-T02` `core/mystery.py` : `RandomTheme(source, random)` tire la
-  contrainte de l'occurrence, la mémorise (une seule entrée), rend `None` sans
-  mémoriser sur `SourceUnavailable` ou réservoir vide — retentera à la
-  jonction suivante, journalisé une fois
-- [x] `GOAL-037-T03` Brancher : `Schedule.constraint_to_draw` délègue les
-  plages `random_theme` au résolveur injecté ; câblage dans `app/main.py`
-- [x] `GOAL-037-T04` Le TOML : clé `random` sur `[[bands]]`, validation
-  (`genres`/`artists`/`random` s'excluent), message de refus explicite
-- [x] `GOAL-037-T05` Ce qui se voit : `moment_courant()` nomme le thème tiré
-  (« Moment · Air (au hasard) ») ; le planning statique affiche « Au hasard ·
-  un artiste » — **à écouter** : qu'une heure d'un artiste tiré au sort tienne,
-  fenêtre de non-répétition rétrécie comprise (AGENTS.md §4.1)
-- [ ] `GOAL-037-T06` La doc, même incrément : SPECS.md §4.4 + §6 + décision
-  n°28, `webradio.exemple.toml`, README ; carte du dépôt (ARCHITECTURE.md §9)
-  pour `core/mystery.py`
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
 
@@ -131,7 +97,7 @@ en mémoire, une occurrence à la fois.
 | GOAL-034 | L'encore agit sur la chanson suivante, l'avance est réinsérée | `[x]` |
 | GOAL-035 | « À suivre » : la file s'affiche à l'antenne | `[x]` |
 | GOAL-036 | La CI : vérification puis image publiée sur GHCR | `[x]` |
-| GOAL-037 | Une plage dont le genre ou l'artiste est tiré au sort | `[-]` |
+| GOAL-037 | Une plage dont le genre ou l'artiste est tiré au sort | `[x]` — reste l'écoute réelle |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

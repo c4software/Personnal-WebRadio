@@ -33,7 +33,7 @@ le dernier auditeur se débranche → la chaîne s'arrête
 | | |
 |---|---|
 | **Tirage aléatoire** | Dans toute la bibliothèque, avec une règle de non-répétition des artistes |
-| **Grille horaire** | Tirage libre par défaut ; des plages par **genres** ou par **artiste** (« une heure d'un seul artiste »), restreignables à des **jours**, avec **générique d'ouverture et de fermeture** optionnels |
+| **Grille horaire** | Tirage libre par défaut ; des plages par **genres** ou par **artiste** (« une heure d'un seul artiste »), ou **au hasard** (`random = "genre"` / `"artist"` : la radio tire le thème au début de la plage et s'y tient), restreignables à des **jours**, avec **générique d'ouverture et de fermeture** optionnels |
 | **Programmes** | Une liste de lecture Navidrome sur un créneau — « le vendredi de Chloé, 18 h–20 h » |
 | **Jingles horaires** | `00h.mp3` … `23h.mp3`, insérés à la jonction sans couper un morceau, fondu court |
 | **Émissions** | À heure dite : un **podcast** (l'épisode le plus récent non diffusé), une **chaîne YouTube** (la dernière vidéo, téléchargée en fond puis servie en local — zéro blanc), ou un **direct** — le flash France Info, capté et coupé à l'heure |

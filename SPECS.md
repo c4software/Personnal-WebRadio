@@ -176,10 +176,26 @@ TOML, il est restreint à un genre ou à un ensemble de genres.
 par défaut          → tirage libre dans toute la bibliothèque
 08h00–10h00         → un genre déclaré
 20h00–23h00         → un autre
+21h00–23h00         → « un genre, choisis-le toi-même »
 ```
 
+Une plage peut aussi **déléguer le choix** : plutôt que d'énumérer ses valeurs,
+elle déclare la *sorte* de thème voulue — un genre, ou un artiste. La radio tire
+alors dans toute la bibliothèque **au début de l'occurrence**, et s'y tient
+jusqu'à la fin de la plage ; l'occurrence suivante retire (§7 n°28).
+
+- Le tirage est **figé sur l'occurrence** : c'est ce qui en fait une soirée
+  d'artiste, et non un tirage libre déguisé. Rien n'est persisté — une radio qui
+  redémarre au milieu d'une plage retire.
+- L'antenne nomme le thème sorti et **dit qu'il a été tiré** — « Moment · Air
+  (au hasard) ». Le planning, lui, ne peut annoncer d'avance que la sorte : « Au
+  hasard · un artiste ».
+- Un tirage qui n'aboutit pas — source injoignable, bibliothèque vide — laisse
+  la plage en tirage libre et sera **retenté à la jonction suivante** ; il est
+  journalisé une fois par occurrence.
 - Une plage sans musique disponible **ne fait pas taire la radio** : elle se
   replie sur le tirage libre, et le repli est journalisé.
+
 **La grille n'est consultée qu'au moment du tirage**, jamais après. Un morceau
 tiré dans la plage « jazz » finit dans la plage « jazz », même s'il déborde de
 quatre minutes sur la suivante. La transition entre deux plages tombe donc à la
@@ -731,7 +747,9 @@ Ce que le TOML doit décrire, au minimum :
 
 - **Le web** : adresse d'écoute et port de l'interface et de l'API ;
 - **Les informations** : à quelles heures un flash est diffusé ;
-- **Les moments thématiques** : plages horaires et genres associés ;
+- **Les moments thématiques** : plages horaires et genres associés — ou
+  artistes, ou `random = "genre"` / `random = "artist"` pour laisser la radio
+  choisir (§4.4). Une plage déclare **exactement une** des trois clés ;
 - **Le tirage** : `non_repetition_artistes`, le nombre d'artistes distincts qui
   doivent passer avant qu'un artiste puisse revenir (§4.2, défaut 5) ;
 - **Les sources** : une section par source, avec son type et ses paramètres
@@ -985,6 +1003,22 @@ dans un journal chronologique de deux cents lignes, visible dans l'interface.
 > *Raison* : « c'était quoi, tout à l'heure ? » est une question légitime.
 > §2 tient toujours : c'est un journal des **titres**, jamais l'audio — rien
 > ne se rejoue, rien ne s'archive.
+
+**n°28 — Une plage au thème tiré au sort ? Greffée sur les plages, figée sur
+l'occurrence.** Tranchée le 2026-08-31 par l'auteur. Une plage déclare
+`random = "genre"` ou `random = "artist"` au lieu d'énumérer ses valeurs ; la
+radio tire dans **toute la bibliothèque** au début de l'occurrence et s'y tient
+jusqu'à la fin. L'occurrence suivante retire, et rien n'est persisté.
+> *Raison* : ni un quatrième mécanisme, ni une émission — c'est la même question
+> que les plages, *que jouer à telle heure*, avec une réponse que la
+> configuration ne donne pas. Figer sur l'occurrence est ce qui en fait une
+> soirée plutôt qu'un tirage libre déguisé : sans cela, chaque morceau
+> changerait de thème et rien ne s'entendrait. La configuration **déclare** la
+> sorte parce que la déduire d'un réservoir mêlant genres et artistes rendrait
+> le résultat imprévisible à la lecture du TOML. L'artiste se tire par une
+> piste tirée librement, et non par une capacité « lister les artistes »
+> ajoutée au `Protocol` : une capacité de plus coûterait à toutes les sources à
+> venir pour un seul appel.
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :

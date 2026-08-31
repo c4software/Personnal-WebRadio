@@ -1038,3 +1038,37 @@ queue ? ») ; codé et vérifié, déploiement dans la même fenêtre que GOAL-0
 
 - [x] `GOAL-036-T01` GitHub Actions rejoue **la** commande de vérification du dépôt (`./verifier.sh`, `liquidsoap --check` compris — Docker est sur le runner), jamais une variante allégée
 - [x] `GOAL-036-T02` L'image `radio` se construit sur du vérifié et se publie sur `ghcr.io/c4software/personnal-webradio` (`latest` + sha) depuis `master` seulement ; une PR construit sans publier. Le service `liquidsoap` n'a rien à construire : image amont épinglée, script monté
+
+---
+
+## GOAL-037 — Une plage dont le genre ou l'artiste est tiré au sort
+
+**État : TERMINÉ** — demandé par l'auteur le 2026-08-31, plan validé le même
+jour. Code écrit, testé, vérification complète constatée (`radio.liq` compris).
+**Reste l'écoute réelle** : qu'une heure d'un artiste tiré au sort tienne,
+fenêtre de non-répétition rétrécie comprise (AGENTS.md §4.1, §1.2).
+
+Une plage `[[bands]]` peut déclarer `random = "genre"` ou `random = "artist"`
+au lieu d'énumérer ses valeurs : la radio tire elle-même un genre (ou un
+artiste) de la bibliothèque **au début de l'occurrence**, et s'y tient jusqu'à
+la fin de la plage. L'occurrence suivante retire.
+
+Choix validés par l'auteur : greffé sur `[[bands]]` (pas un 4ᵉ mécanisme, pas
+une émission) ; tirage **figé sur l'occurrence** ; réservoir = **toute la
+bibliothèque** (genre : `source.genres()` ; artiste : l'artiste d'une piste
+tirée librement — aucune capacité nouvelle au `Protocol`) ; la configuration
+**déclare** si c'est un genre ou un artiste. Aucune persistance : le tirage vit
+en mémoire, une occurrence à la fois. Consigné en SPECS.md §7 n°28.
+
+- [x] `GOAL-037-T01` `Band.random_theme` + invariant révisé (exactement un de `genres`/`artists`/`random_theme`), et `Band.occurrence_start(instant)` — le début de l'occurrence courante, minuit enjambé compris
+- [x] `GOAL-037-T02` `core/mystery.py` : `RandomTheme(source, random)` tire la contrainte de l'occurrence, la mémorise (une seule entrée), rend `None` sans mémoriser sur `SourceUnavailable` ou réservoir vide — retentera à la jonction suivante, journalisé une fois
+- [x] `GOAL-037-T03` `Schedule.constraint_to_draw` délègue les plages `random_theme` au `ThemeResolver` injecté — type déclaré dans `bands.py` pour éviter le cycle avec `mystery.py` ; l'horloge n'est plus lue qu'une fois ; câblage dans `app/main.py`
+- [x] `GOAL-037-T04` Le TOML : clé `random` sur `[[bands]]`, exactement une des trois clés, sorte inconnue nommée dans le refus. Les valeurs acceptées sont **importées du noyau**, pas recopiées
+- [x] `GOAL-037-T05` `_libelle_du_moment` et `_libelle_de_plage`, deux fonctions pures : « Moment · Air (au hasard) » à l'antenne, « Au hasard · un artiste » au planning. Le gabarit joint déjà la liste : rien à y changer
+- [x] `GOAL-037-T06` SPECS.md §4.4 + §6 + décision n°28, `webradio.exemple.toml`, README, carte du dépôt pour `core/mystery.py`
+
+### Dette laissée
+
+L'écoute réelle de T05 n'a pas eu lieu (AGENTS.md §1.2 : il n'existe pas de cas
+d'arrêt « demander une écoute avant de cocher »). C'est la conséquence assumée
+de la décision ouverte n°9 de SPECS.md.
