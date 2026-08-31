@@ -73,7 +73,7 @@ en mémoire, une occurrence à la fois.
 - [x] `GOAL-037-T01` `Band.random_theme` + invariant révisé (exactement un de
   `genres`/`artists`/`random_theme`), et `Band.occurrence_start(instant)` —
   le début de l'occurrence courante, minuit enjambé compris
-- [ ] `GOAL-037-T02` `core/mystery.py` : `RandomTheme(source, random)` tire la
+- [x] `GOAL-037-T02` `core/mystery.py` : `RandomTheme(source, random)` tire la
   contrainte de l'occurrence, la mémorise (une seule entrée), rend `None` sans
   mémoriser sur `SourceUnavailable` ou réservoir vide — retentera à la
   jonction suivante, journalisé une fois
