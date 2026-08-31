@@ -203,6 +203,31 @@ jusqu'à la fin de la plage ; l'occurrence suivante retire (§7 n°28).
 - Une plage sans musique disponible **ne fait pas taire la radio** : elle se
   replie sur le tirage libre, et le repli est journalisé.
 
+#### Les modes d'enchaînement
+
+Une plage peut enfin demander que ses tirages s'**enchaînent** (`mode`, §7
+n°31) — combinable avec son thème, ou seul (un tirage libre enchaîné) :
+
+| Mode | Ce qui s'entend |
+|---|---|
+| `double_dose` | Chaque artiste tiré passe **deux titres à la suite** — jamais deux fois le même titre |
+| `era_fan` | **2 à 6 titres d'une même décennie**, tirés dans le thème de la plage |
+| `artist_fan` | **3 à 6 titres du même artiste**, à la suite |
+
+- Le premier morceau tiré pose l'**ancre** — son artiste, ou sa décennie — et
+  la longueur de la suite est tirée au hasard injecté : une soirée se rejoue.
+- Une suite d'artiste **outrepasse la fenêtre de non-répétition**, comme
+  l'encore (§4.6) — répéter est le but — et la règle reprend dès la fin de la
+  suite. Une suite d'époque, elle, varie les artistes : la fenêtre s'applique.
+- Le **même titre ne repasse jamais** dans une même suite. Une suite qui
+  s'épuise — plus rien de cet artiste, plus rien de cette décennie dans la
+  plage — se **rompt en le journalisant**, et le morceau tiré à la place
+  devient l'ancre de la suite suivante.
+- Une piste **sans année** ne pose pas d'ancre d'époque : le tirage reste
+  simple (6,7 % de la bibliothèque, docs/subsonic.md §4.1).
+- La suite est **remise à zéro** au changement d'occurrence de plage, et ne
+  vaut ni pour les programmes (§4.13) ni pour le tirage libre hors plage.
+
 **La grille n'est consultée qu'au moment du tirage**, jamais après. Un morceau
 tiré dans la plage « jazz » finit dans la plage « jazz », même s'il déborde de
 quatre minutes sur la suivante. La transition entre deux plages tombe donc à la
@@ -1074,6 +1099,22 @@ voté avant la pause survit.
 > relevé a établi (docs/liquidsoap.md §5.bis) : l'annonce des auditeurs précède
 > la remise à l'antenne, la purge est donc sans course ; et le saut n'est
 > ordonné que si un morceau passait — à froid, il mangerait le premier tirage.
+
+**n°31 — Des tirages qui s'enchaînent ? Trois modes, portés par la plage.**
+Tranchée le 2026-08-31, demande directe de l'auteur. `mode` sur une plage :
+`double_dose` (deux titres par artiste tiré), `era_fan` (2 à 6 titres d'une
+même décennie), `artist_fan` (3 à 6 titres du même artiste). L'époque est la
+**décennie** de l'année de la piste ; les longueurs se tirent par `pick` sur
+l'étendue — aucune capacité de plus au hasard ; le même titre ne repasse
+jamais dans une suite ; la clé de remise à zéro est l'**occurrence** de la
+plage, pas sa contrainte — une plage multi-genres retire un genre à chaque
+jonction et la suite y survit, une suite d'artiste suivant son artiste par
+`tracks_by`, même hors du genre du moment.
+> *Raison* : c'est un geste d'antenne — « encore un peu de la même chose » —
+> pas un nouveau mécanisme de grille : le mode se greffe sur la plage comme le
+> thème au hasard (n°28), et tout le reste (émissions, programmes, encore,
+> votes) l'ignore. Les suites d'artiste empruntent le passe-droit de fenêtre
+> de l'encore (§4.6) plutôt qu'une règle nouvelle.
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :

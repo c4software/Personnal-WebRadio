@@ -80,7 +80,7 @@ se tire dans sa contrainte.
       journalisée d'une suite épuisée ; `main.py`
 - [x] GOAL-044-T06 — Config : la clé `mode` (combinable, mode seul = tirage
       libre enchaîné), SPECS §6
-- [ ] GOAL-044-T07 — SPECS §4.4 + n°31, webradio.exemple.toml, grille locale —
+- [x] GOAL-044-T07 — SPECS §4.4 + n°31, webradio.exemple.toml, grille locale —
       **à écouter : les trois enchaînements, et la fenêtre qui reprend après
       chaque suite**
 - [ ] GOAL-044-T08 — Clôture : carte du dépôt (`runs.py`), archive, push

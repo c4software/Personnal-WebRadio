@@ -80,6 +80,15 @@ days    = ["sunday"]
 intro   = "heure-air-debut.mp3"
 outro   = "heure-air-fin.mp3"
 
+# `mode` fait s'ENCHAÎNER les tirages d'une plage (SPECS.md §4.4) — combinable
+# au thème, ou seul : double_dose (2 titres par artiste tiré), era_fan (2 à 6
+# d'une même décennie), artist_fan (3 à 6 du même artiste).
+[[bands]]
+start  = "15:00"
+end    = "17:00"
+genres = ["Soul", "Funk"]
+mode   = "double_dose"
+
 # Une plage peut enfin laisser la radio CHOISIR : `random = "genre"` ou
 # `random = "artist"` dit la sorte de thème voulue, pas sa valeur. La radio tire
 # dans toute la bibliothèque au début de l'occurrence et s'y tient jusqu'à la fin
