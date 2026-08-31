@@ -4,14 +4,23 @@ Ces tests ont remplacé ceux du squelette de `GOAL-001` : `main()` ne se content
 plus d'annoncer son nom, il lit une configuration et câble une radio.
 """
 
+from datetime import time
 from pathlib import Path
 
 import pytest
 
 from webradio.adapters.config.loading import load
+from webradio.adapters.config.schema import Band as BandSettings
 from webradio.adapters.config.schema import SettingsError
 from webradio.app import main as module_main
-from webradio.app.main import _arguments, build, version
+from webradio.app.main import (
+    _arguments,
+    _libelle_de_plage,
+    _libelle_du_moment,
+    build,
+    version,
+)
+from webradio.core.bands import Band, Constraint
 
 TOML_MINIMAL = """
 [draw]
@@ -117,3 +126,34 @@ def test_un_secret_dans_le_toml_est_refuse(tmp_path: Path) -> None:
     env.write_text(ENV_MINIMAL)
     with pytest.raises(SettingsError, match="mot_de_passe"):
         load(toml, env, environment={})
+
+
+# ── Ce que voit l'auditeur d'une plage au hasard (GOAL-037) ─────────────────
+
+
+def test_l_antenne_nomme_le_theme_tire_et_dit_qu_il_l_a_ete() -> None:
+    """Sans le « au hasard », l'auditeur croirait à une plage déclarée."""
+    band = Band(start=time(21), end=time(23), random_theme="artist")
+    assert _libelle_du_moment(band, Constraint(artist="Air")) == "Moment · Air (au hasard)"
+    band_genre = Band(start=time(21), end=time(23), random_theme="genre")
+    assert _libelle_du_moment(band_genre, Constraint(genre="dub")) == "Moment · dub (au hasard)"
+
+
+def test_un_tirage_qui_n_a_pas_abouti_ne_nomme_rien() -> None:
+    band = Band(start=time(21), end=time(23), random_theme="genre")
+    assert _libelle_du_moment(band, None) == "Moment · au hasard"
+
+
+def test_une_plage_declaree_s_annonce_comme_avant() -> None:
+    band = Band(start=time(8), end=time(10), genres=("jazz", "soul"))
+    assert _libelle_du_moment(band, None) == "Moment · jazz, soul"
+
+
+def test_le_planning_annonce_la_sorte_d_une_plage_au_hasard() -> None:
+    """Le thème n'existera qu'à l'occurrence : d'avance, seule la sorte est vraie."""
+    artiste = BandSettings(start=time(21), end=time(23), random_theme="artist")
+    genre = BandSettings(start=time(21), end=time(23), random_theme="genre")
+    declaree = BandSettings(start=time(8), end=time(10), genres=("jazz",))
+    assert _libelle_de_plage(artiste) == ["Au hasard · un artiste"]
+    assert _libelle_de_plage(genre) == ["Au hasard · un genre"]
+    assert _libelle_de_plage(declaree) == ["jazz"]

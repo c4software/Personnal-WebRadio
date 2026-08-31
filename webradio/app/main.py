@@ -19,6 +19,7 @@ from importlib.metadata import version as _version
 from pathlib import Path
 
 from webradio.adapters.config.loading import load
+from webradio.adapters.config.schema import Band as BandSettings
 from webradio.adapters.config.schema import Config
 from webradio.adapters.podcast.feed import PodcastFeed, UrllibReader
 from webradio.adapters.sources.navidrome import NavidromeSource, UrllibTransport
@@ -33,7 +34,7 @@ from webradio.app.liquidsoap_playout import LiquidsoapPlayout
 from webradio.app.playout import RadioProgramme
 from webradio.app.radio import ListenerCount, LiveRadio
 from webradio.app.show_scheduler import Shows
-from webradio.core.bands import Band, Schedule
+from webradio.core.bands import Band, Constraint, Schedule
 from webradio.core.clock import SystemClock
 from webradio.core.control import Control
 from webradio.core.jingles import Jingles
@@ -69,6 +70,35 @@ def _arguments(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _libelle_de_plage(band: BandSettings) -> list[str]:
+    """Ce que le planning affiche d'une plage, avant même qu'elle ait lieu.
+
+    Une plage au hasard n'a rien à montrer : son thème n'existera qu'à
+    l'occurrence. Le planning annonce donc la **sorte** — c'est ce qu'il y a de
+    vrai à en dire d'avance, et l'antenne nommera le tirage le moment venu.
+    """
+    if band.random_theme == "artist":
+        return ["Au hasard · un artiste"]
+    if band.random_theme == "genre":
+        return ["Au hasard · un genre"]
+    return list(band.artists or band.genres)
+
+
+def _libelle_du_moment(band: Band, drawn: Constraint | None) -> str:
+    """Ce que l'antenne annonce de la plage en cours.
+
+    Une plage au hasard nomme son tirage — « Moment · Air (au hasard) » : sans
+    le « au hasard », l'auditeur croirait à une plage déclarée, et ne
+    comprendrait pas qu'elle change demain. Tant que le tirage n'a pas abouti,
+    la plage tire librement, et l'annonce reste honnête là-dessus.
+    """
+    if band.random_theme is None:
+        return f"Moment · {', '.join(band.artists or band.genres)}"
+    if drawn is None:
+        return "Moment · au hasard"
+    return f"Moment · {drawn.artist or drawn.genre} (au hasard)"
+
+
 def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
     """Câble le tout, et rend ce que Liquidsoap et l'API interrogent.
 
@@ -102,6 +132,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         random=random,
         transport=UrllibTransport(settings.navidrome.timeout_seconds),
     )
+    theme_au_hasard = RandomTheme(source, random)
     grille = Schedule(
         [
             Band(
@@ -117,7 +148,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             for p in settings.bands
         ],
         clock,
-        resolve_random_theme=RandomTheme(source, random).constraint_for,
+        resolve_random_theme=theme_au_hasard.constraint_for,
     )
     jingles = Jingles(clock, encore_name=settings.jingles.encore)
     control = Control(source=source, random=random, jingles=jingles)
@@ -199,9 +230,12 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         if programme is not None:
             return f"Programme · {programme.name}"
         band = grille.current_band()
-        if band is not None:
-            return f"Moment · {', '.join(band.artists or band.genres)}"
-        return None
+        if band is None:
+            return None
+        # Le tirage est déjà figé pour l'occurrence : le demander ici, c'est
+        # dire ce qui passe, pas en décider.
+        tire = theme_au_hasard.constraint_for(band, clock.now()) if band.random_theme else None
+        return _libelle_du_moment(band, tire)
 
     def journaliser_le_titre(kind: str, title: str, artist: str) -> None:
         try:
@@ -323,7 +357,7 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "start": f"{b.start:%H:%M}",
                 "end": f"{b.end:%H:%M}",
-                "genres": list(b.artists or b.genres),
+                "genres": _libelle_de_plage(b),
                 "days": list(b.days),
             }
             for b in s.bands

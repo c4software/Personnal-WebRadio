@@ -81,7 +81,7 @@ en mémoire, une occurrence à la fois.
   plages `random_theme` au résolveur injecté ; câblage dans `app/main.py`
 - [x] `GOAL-037-T04` Le TOML : clé `random` sur `[[bands]]`, validation
   (`genres`/`artists`/`random` s'excluent), message de refus explicite
-- [ ] `GOAL-037-T05` Ce qui se voit : `moment_courant()` nomme le thème tiré
+- [x] `GOAL-037-T05` Ce qui se voit : `moment_courant()` nomme le thème tiré
   (« Moment · Air (au hasard) ») ; le planning statique affiche « Au hasard ·
   un artiste » — **à écouter** : qu'une heure d'un artiste tiré au sort tienne,
   fenêtre de non-répétition rétrécie comprise (AGENTS.md §4.1)
