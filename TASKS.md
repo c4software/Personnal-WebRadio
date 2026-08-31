@@ -69,7 +69,7 @@ veille en premier — la page est longue et le présent invisible. L'ordre
 - [x] GOAL-042-T01 — Aujourd'hui en tête, puis la suite de la semaine ; le
       créneau en cours du jour porte un badge et un fond — minuit enjambé et
       direct à durée connue compris ; l'heure suit le rafraîchissement
-- [ ] GOAL-042-T02 — Seul aujourd'hui est déplié par défaut ; les autres jours
+- [x] GOAL-042-T02 — Seul aujourd'hui est déplié par défaut ; les autres jours
       se replient en une ligne (nombre de créneaux), dépliables au clic ;
       clôture
 

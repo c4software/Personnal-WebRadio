@@ -88,6 +88,10 @@
       .badge { font-size: 0.65rem; color: var(--accent); border: 1px solid var(--accent);
                border-radius: 999px; padding: 0.1rem 0.5rem; letter-spacing: 0.05em; text-transform: none; }
       .jour-vide { color: var(--sourdine); font-size: 0.85rem; }
+      .jour-nom.cliquable { cursor: pointer; user-select: none; }
+      .chevron { color: var(--sourdine); width: 0.9rem; flex: none; }
+      .compte { color: var(--sourdine); font-size: 0.75rem; letter-spacing: normal;
+                text-transform: none; margin-left: auto; }
       .evenement { display: grid; grid-template-columns: 7.2rem 1fr auto; gap: 0.6rem;
                    padding: 0.4rem 0 0.4rem 0.6rem; border-left: 3px solid var(--bord);
                    margin-bottom: 0.35rem; align-items: baseline; }
@@ -178,13 +182,19 @@
             <span><i class="pastille emission-c"></i> émission</span>
           </nav>
           <article v-for="jour in semaine" :key="jour.nom" class="jour" :class="{ aujourdhui: jour.aujourdhui }">
-            <h2 class="jour-nom">[[ jour.nom ]]<span v-if="jour.aujourdhui" class="badge">aujourd'hui</span></h2>
-            <p v-if="jour.evenements.length === 0" class="jour-vide">tirage libre toute la journée</p>
-            <div v-for="e in jour.evenements" class="evenement" :class="[e.type + '-b', { 'en-cours': e.enCours }]">
-              <span class="heure">[[ e.heure ]]</span>
-              <span class="nom">[[ e.nom ]] <span v-if="e.enCours" class="badge">en cours</span></span>
-              <span class="detail">[[ e.detail ]]</span>
-            </div>
+            <h2 class="jour-nom cliquable" @click="basculer(jour)">
+              <span class="chevron">[[ estDeplie(jour) ? "▾" : "▸" ]]</span>
+              [[ jour.nom ]]<span v-if="jour.aujourdhui" class="badge">aujourd'hui</span>
+              <span v-if="!estDeplie(jour)" class="compte">[[ resume(jour) ]]</span>
+            </h2>
+            <template v-if="estDeplie(jour)">
+              <p v-if="jour.evenements.length === 0" class="jour-vide">tirage libre toute la journée</p>
+              <div v-for="e in jour.evenements" class="evenement" :class="[e.type + '-b', { 'en-cours': e.enCours }]">
+                <span class="heure">[[ e.heure ]]</span>
+                <span class="nom">[[ e.nom ]] <span v-if="e.enCours" class="badge">en cours</span></span>
+                <span class="detail">[[ e.detail ]]</span>
+              </div>
+            </template>
           </article>
         </template>
       </section>
@@ -227,6 +237,7 @@
             votes: [],
             planning: null,
             maintenant: new Date(),
+            deplies: {},
             historique: [],
             pageHeure: 0,
             urls: URLS,
@@ -353,6 +364,18 @@
               const reponse = await fetch(this.urls.planning, { headers: { Accept: "application/json" } });
               this.planning = await reponse.json();
             } catch (erreur) { this.planning = null; }
+          },
+          estDeplie(jour) {
+            // Seul aujourd'hui s'ouvre par défaut : sept cartes pleines
+            // faisaient une page interminable (constat de l'auteur).
+            return jour.nom in this.deplies ? this.deplies[jour.nom] : jour.aujourdhui;
+          },
+          basculer(jour) {
+            this.deplies[jour.nom] = !this.estDeplie(jour);
+          },
+          resume(jour) {
+            const n = jour.evenements.length;
+            return n === 0 ? "tirage libre" : n === 1 ? "1 créneau" : n + " créneaux";
           },
           finDeDirect(heure, minutes) {
             const [h, m] = heure.split(":").map(Number);
