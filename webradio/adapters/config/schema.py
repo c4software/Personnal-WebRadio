@@ -18,10 +18,13 @@ from dataclasses import dataclass
 from datetime import time
 from typing import Any, NoReturn
 
-# Les valeurs acceptées par `random` viennent du noyau : les recopier ici en
-# ferait deux listes à tenir d'accord, et c'est la configuration qui mentirait
-# la première.
+# Les valeurs acceptées par `random` et `mode` viennent du noyau : les
+# recopier ici en ferait deux listes à tenir d'accord, et c'est la
+# configuration qui mentirait la première.
 from webradio.core.bands import RANDOM_THEMES
+from webradio.core.runs import Mode
+
+MODES = tuple(m.value for m in Mode)
 
 # Les trois variables du `.env`. Elles ne portent aucune valeur ici : seulement
 # leur nom, qui sert à dire d'où un secret aurait dû venir.
@@ -140,6 +143,9 @@ class Band:
     `random_theme` remplace les deux premiers : la plage ne dit plus *quoi*,
     elle dit *quelle sorte* — « un genre » ou « un artiste » —, et la radio
     tire dans la bibliothèque (GOAL-037).
+
+    `mode` demande que les tirages s'enchaînent (SPECS.md §7 n°31) : il se
+    combine au thème, ou se déclare seul — un tirage libre enchaîné.
     """
 
     start: time
@@ -150,6 +156,7 @@ class Band:
     days: tuple[str, ...] = DAYS
     intro: str | None = None
     outro: str | None = None
+    mode: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -490,19 +497,25 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
         prefix = f"bands[{index}]"
         _verifier_cles(
             table,
-            ("start", "end", "genres", "artists", "random", "days", "intro", "outro"),
+            ("start", "end", "genres", "artists", "random", "days", "intro", "outro", "mode"),
             prefix,
         )
         declarees = sum(cle in table for cle in ("genres", "artists", "random"))
-        if declarees != 1:
+        if declarees > 1 or (declarees == 0 and "mode" not in table):
             _refuser(
                 prefix,
-                "une plage déclare `genres`, `artists` OU `random` — exactement une des trois",
+                "une plage déclare `genres`, `artists` OU `random` — exactement une des "
+                "trois, sauf à porter un `mode` seul",
             )
         if "random" in table and table["random"] not in RANDOM_THEMES:
             _refuser(
                 _chemin(prefix, "random"),
                 f"attendu {' ou '.join(RANDOM_THEMES)}, pas {table['random']!r}",
+            )
+        if "mode" in table and table["mode"] not in MODES:
+            _refuser(
+                _chemin(prefix, "mode"),
+                f"attendu {', '.join(MODES)}, pas {table['mode']!r}",
             )
         bands.append(
             Band(
@@ -515,6 +528,7 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
                 days=_jours(table, prefix) if "days" in table else DAYS,
                 intro=_texte(table, "intro", prefix) if "intro" in table else None,
                 outro=_texte(table, "outro", prefix) if "outro" in table else None,
+                mode=_texte(table, "mode", prefix) if "mode" in table else None,
             )
         )
     return tuple(bands)

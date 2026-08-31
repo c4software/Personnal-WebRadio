@@ -78,7 +78,7 @@ se tire dans sa contrainte.
 - [x] GOAL-044-T05 — Câblage : `Band.mode` → `Constraint.mode` → `Queue` —
       exemption de fenêtre pour les suites d'artiste, filtre d'époque, rupture
       journalisée d'une suite épuisée ; `main.py`
-- [ ] GOAL-044-T06 — Config : la clé `mode` (combinable, mode seul = tirage
+- [x] GOAL-044-T06 — Config : la clé `mode` (combinable, mode seul = tirage
       libre enchaîné), SPECS §6
 - [ ] GOAL-044-T07 — SPECS §4.4 + n°31, webradio.exemple.toml, grille locale —
       **à écouter : les trois enchaînements, et la fenêtre qui reprend après

@@ -136,6 +136,67 @@ def test_une_peremption_negative_est_refusee_en_la_nommant() -> None:
     assert "jingles.expiry_seconds" in str(refus.value)
 
 
+def test_une_plage_peut_porter_un_mode_d_enchainement() -> None:
+    content = (
+        TOML_MINIMAL
+        + """
+[[bands]]
+start = "20:00"
+end = "22:00"
+genres = ["Rock"]
+mode = "double_dose"
+"""
+    )
+    assert _valider(content).bands[0].mode == "double_dose"
+
+
+def test_une_plage_a_mode_seul_est_acceptee() -> None:
+    """Un tirage libre enchaîné : le mode remplace le thème (SPECS.md §7 n°31)."""
+    content = (
+        TOML_MINIMAL
+        + """
+[[bands]]
+start = "20:00"
+end = "22:00"
+mode = "era_fan"
+"""
+    )
+    plage = _valider(content).bands[0]
+    assert plage.mode == "era_fan"
+    assert plage.genres == () and plage.artists == ()
+
+
+def test_un_mode_inconnu_est_refuse_en_nommant_les_valeurs() -> None:
+    content = (
+        TOML_MINIMAL
+        + """
+[[bands]]
+start = "20:00"
+end = "22:00"
+genres = ["Rock"]
+mode = "triple_dose"
+"""
+    )
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "bands[0].mode" in str(refus.value)
+    assert "double_dose" in str(refus.value)
+
+
+def test_une_plage_sans_theme_ni_mode_reste_refusee() -> None:
+    content = (
+        TOML_MINIMAL
+        + """
+[[bands]]
+start = "20:00"
+end = "22:00"
+"""
+    )
+    with pytest.raises(SettingsError, match="exactement une des trois"):
+        _valider(content)
+
+
 def test_la_reprise_a_neuf_a_un_defaut_declare() -> None:
     assert _valider(TOML_MINIMAL).playout.resume_fresh_seconds == DEFAULT_RESUME_FRESH_SECONDS
 

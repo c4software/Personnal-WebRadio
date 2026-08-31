@@ -43,7 +43,7 @@ from webradio.core.programmes import Programme, Programming
 from webradio.core.queue import Queue
 from webradio.core.rng import RealRandom
 from webradio.core.rotation import Window
-from webradio.core.runs import Runs
+from webradio.core.runs import Mode, Runs
 from webradio.core.shows import Show, ShowSchedule
 from webradio.core.weighting import SLOPE_PER_VOTE
 
@@ -82,6 +82,9 @@ def _libelle_de_plage(band: BandSettings) -> list[str]:
         return ["Au hasard · un artiste"]
     if band.random_theme == "genre":
         return ["Au hasard · un genre"]
+    if not band.artists and not band.genres:
+        # Une plage à mode seul (SPECS.md §7 n°31) : rien à annoncer d'autre.
+        return ["Tirage libre"]
     return list(band.artists or band.genres)
 
 
@@ -146,6 +149,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
                 days=p.days,
                 intro=p.intro,
                 outro=p.outro,
+                mode=Mode(p.mode) if p.mode is not None else None,
             )
             for p in settings.bands
         ],

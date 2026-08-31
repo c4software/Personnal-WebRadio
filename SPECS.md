@@ -766,7 +766,10 @@ Ce que le TOML doit décrire, au minimum :
 - **Les informations** : à quelles heures un flash est diffusé ;
 - **Les moments thématiques** : plages horaires et genres associés — ou
   artistes, ou `random = "genre"` / `random = "artist"` pour laisser la radio
-  choisir (§4.4). Une plage déclare **exactement une** des trois clés ;
+  choisir (§4.4). Une plage déclare **exactement une** des trois clés — sauf à
+  porter un `mode` seul. `mode` demande que les tirages s'**enchaînent**
+  (§4.4, n°31) : `double_dose`, `era_fan` ou `artist_fan`, combinable au
+  thème ;
 - **Le tirage** : `non_repetition_artistes`, le nombre d'artistes distincts qui
   doivent passer avant qu'un artiste puisse revenir (§4.2, défaut 5) ;
 - **Les sources** : une section par source, avec son type et ses paramètres
