@@ -49,14 +49,12 @@ conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
 musique.
 
-**Reste à écouter** : GOAL-037 a été codé et vérifié le 2026-08-31, mais
-qu'une heure d'un artiste tiré au sort tienne — fenêtre de non-répétition
-rétrécie comprise — ne se constate qu'à l'antenne (AGENTS.md §4.1).
+**Reste à écouter** : GOAL-037 (une heure d'un artiste tiré au sort, fenêtre
+rétrécie comprise) et GOAL-039 (la variété d'un tirage qui voit 5704 pistes au
+lieu de 500, et le coût de douze appels HTTP par tirage) ne se constatent qu'à
+l'antenne (AGENTS.md §4.1).
 
-**Goal ouvert** : GOAL-039 — parler Subsonic plutôt que Navidrome, et tirer
-dans toute la bibliothèque au lieu de l'échantillon de 500.
-
-**Prochaine tâche** : GOAL-039-T01.
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
 
@@ -102,39 +100,8 @@ dans toute la bibliothèque au lieu de l'échantillon de 500.
 | GOAL-036 | La CI : vérification puis image publiée sur GHCR | `[x]` |
 | GOAL-037 | Une plage dont le genre ou l'artiste est tiré au sort | `[x]` — reste l'écoute réelle |
 | GOAL-038 | Le Compose de production tire l'image publiée ; un Compose de dev construit localement | `[x]` |
-| GOAL-039 | Parler Subsonic plutôt que Navidrome, et tirer dans toute la bibliothèque | `[ ]` |
+| GOAL-039 | Parler Subsonic plutôt que Navidrome, et tirer dans toute la bibliothèque | `[x]` — reste l'écoute réelle |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
 
----
-
-## GOAL-039 — Parler Subsonic plutôt que Navidrome, et tirer dans toute la bibliothèque
-
-**Pourquoi.** L'adaptateur parle le protocole Subsonic ; Navidrome n'est que
-l'implémentation observée. Et le tirage actuel puise dans `getRandomSongs`,
-tronqué en silence à 500 pistes (docs/subsonic.md §2.1) : sur une bibliothèque
-plus grande, la radio tourne dans un échantillon et l'auditeur l'entend. Le
-tirage appartient déjà au noyau (`core/rng.py`, relevé §2.4) — il doit porter
-sur la bibliothèque **entière**, récupérée par pagination.
-
-- [x] **GOAL-039-T01** — Renommer dans le code : `SubsonicSource`,
-      `SubsonicSettings`, `SubsonicCredentials`, module
-      `adapters/sources/subsonic.py`, table TOML `[subsonic]`, variables
-      d'environnement `SUBSONIC_*`, tests et `main.py` ; `.env` et
-      `webradio.toml` locaux mis à jour dans la foulée.
-- [x] **GOAL-039-T02** — Renommer la documentation : `docs/subsonic.md` →
-      `docs/subsonic.md` recentré sur le protocole (Navidrome reste
-      l'implémentation observée) ; références mises à jour dans SPECS,
-      ARCHITECTURE, README, AGENTS, CLAUDE, CONTRIBUTING, compose et exemples ;
-      le scope de commit `navidrome` devient `subsonic`.
-- [x] **GOAL-039-T03** — Relever la pagination contre l'instance réelle :
-      `search3` à requête vide, `songOffset`, `getSongsByGenre` et son
-      `offset`, cohérence des totaux, plafond par page — consigné dans
-      `docs/subsonic.md` (AGENTS.md §3).
-- [x] **GOAL-039-T04** — `tracks()` récupère la bibliothèque entière par
-      pagination (genre compris) et laisse le tirage au noyau ; `sample_size`
-      disparaît de la configuration ; tests contre réponses littérales, pages
-      tronquées et vides comprises.
-- [ ] **GOAL-039-T05** — Documentation de clôture : SPECS §6 (clé retirée,
-      variables renommées), carte du dépôt si besoin, archivage du Goal.

@@ -1093,3 +1093,59 @@ ceux de la production. Consigné en ARCHITECTURE.md §8.5.4.
 
 - [x] `GOAL-038-T01` `docker-compose.yml` référence `ghcr.io/c4software/personnal-webradio:latest` au lieu de `build: .` ; README (« Lancer », note `docker login ghcr.io`) ajusté ; validé par `docker compose config -q`
 - [x] `GOAL-038-T02` `docker-compose.dev.yml` : surcharge minimale (`build: .`, image `local-webradio:dev`) ; documentation dev (README, CONTRIBUTING), ARCHITECTURE §8.5.4 et carte du dépôt §9 ; validé par `docker compose -f docker-compose.yml -f docker-compose.dev.yml config -q`
+
+---
+
+## GOAL-039 — Parler Subsonic plutôt que Navidrome, et tirer dans toute la bibliothèque
+
+**Terminé le 2026-08-31.**
+
+Deux défauts d'un coup. Le vocabulaire : l'adaptateur parlait le protocole
+Subsonic mais portait le nom d'un serveur, Navidrome — qui n'est que l'instance
+contre laquelle le relevé a été établi. Et le tirage : il puisait dans
+`getRandomSongs`, tronqué à 500 en silence — sur une bibliothèque de 5704
+pistes, la radio tournait en rond dans un douzième de la musique.
+
+- [x] `GOAL-039-T01` Renommage code : `SubsonicSource`, `SubsonicSettings`,
+      `SubsonicCredentials`, `adapters/sources/subsonic.py`, `[subsonic]`,
+      `SUBSONIC_*` (renommage sec, l'erreur au démarrage nomme les variables) ;
+      `.env` et `webradio.toml` locaux mis à jour
+- [x] `GOAL-039-T02` `docs/navidrome.md` → `docs/subsonic.md` ; SPECS,
+      ARCHITECTURE, README, AGENTS, CLAUDE, CONTRIBUTING et le harness parlent
+      du protocole ; Navidrome ne subsiste que là où il désigne ce serveur-là ;
+      scope de commit `navidrome` → `subsonic` ; le littéral relevé
+      `"type": "navidrome"` altéré par T01 restauré
+- [x] `GOAL-039-T03` Relevé de la pagination contre l'instance réelle :
+      `search3` à requête vide rend tout (5704, ordre stable, pas de plafond à
+      500) ; `getSongsByGenre` pagine par `offset` mais tronque à 500 par
+      appel ; les `songCount` de `getGenres` mentent (Rock : 357 annoncées,
+      201 rendues par trois chemins concordants)
+- [x] `GOAL-039-T04` `tracks()` réunit la bibliothèque entière page par page
+      (fin = page courte, jamais un compteur) ; un serveur qui ignore l'offset
+      est détecté (page sans piste nouvelle → arrêt journalisé) ;
+      `sample_size` retiré de la configuration et refusé s'il traîne encore ;
+      constaté contre l'instance : 5704 pistes, Rock 201, Chanson française
+      1253
+- [x] `GOAL-039-T05` SPECS §6 (plus de taille d'échantillon), clôture et
+      archivage
+
+### Décisions prises
+
+- Variables d'environnement renommées sans repli sur les anciens noms : le
+  démarrage échoue en nommant ce qui manque, c'est le régime voulu de la
+  configuration (SPECS.md §6.2).
+- La taille de page (500) est une constante de l'adaptateur, pas une clé de
+  configuration : c'est le plafond constaté de `getSongsByGenre`, une
+  propriété du serveur (docs/subsonic.md §2.7.2).
+- Le filtre par genre reste côté serveur (`getSongsByGenre`, insensible à la
+  casse) : le relevé montre qu'il coïncide exactement avec un filtre local
+  sur le champ `genre` (1253 = 1253), et il évite de rapatrier la
+  bibliothèque pour une plage thématique.
+
+### Dette laissée
+
+Ce que la variété retrouvée change à l'antenne — 5704 pistes tirables au lieu
+de 500 — ne se constate qu'en écoutant sur la durée (AGENTS.md §4.1). Un
+`tracks()` complet coûte désormais douze appels HTTP au lieu d'un, à chaque
+tirage, et rien n'est mis en cache — le coût n'a pas été mesuré ; si un blanc
+s'entendait un jour à la jonction, la mesure précéderait le remède.
