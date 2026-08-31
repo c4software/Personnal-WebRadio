@@ -39,3 +39,16 @@ class Track:
         if self.duration <= timedelta(0):
             message = f"durée non valable pour « {self.title} » : {self.duration}"
             raise ValueError(message)
+
+
+def broadcastable(tracks: list[Track], ceiling: timedelta | None) -> list[Track]:
+    """Les pistes qui tiennent sous le plafond de durée (SPECS.md §7 n°32).
+
+    La limite exacte passe — « au-delà » est strict — et `None` ne filtre
+    rien. Le filtre s'applique partout où une piste se choisit : tirage,
+    suites, encore, listes des programmes. Les émissions, elles, ont leur
+    propre durée et ne passent pas par ici.
+    """
+    if ceiling is None:
+        return tracks
+    return [track for track in tracks if track.duration <= ceiling]

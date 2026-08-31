@@ -1,5 +1,6 @@
 """La file : ce qui passe ensuite, ce qu'elle relâche, et ce qu'elle refuse."""
 
+from datetime import timedelta
 from typing import TypeVar
 
 import pytest
@@ -252,3 +253,42 @@ def test_une_suite_d_artiste_epuisee_se_rompt_en_le_disant() -> None:
     suivant = f.next_pick(c)
     assert "suite rompue : plus rien de « Air »" in suivant.fallbacks
     assert suivant.track.artist == "Bowie"
+
+
+# ── Le plafond de durée (SPECS.md §7 n°32) ─────────────────────────────────
+
+
+def test_une_piste_trop_longue_n_est_jamais_tiree() -> None:
+    catalogue = [track("long", "Air", secondes=1300), track("ok", "Bowie", secondes=180)]
+    f = Queue(
+        FakeSource(catalogue),
+        RealRandom(graine=1),
+        Window(width=0),
+        max_duration=timedelta(minutes=20),
+    )
+    assert all(f.next_pick().track.identifier == "ok" for _ in range(10))
+
+
+def test_la_limite_exacte_de_duree_passe() -> None:
+    """« Au-delà » est strict : vingt minutes pile se diffusent."""
+    catalogue = [track("pile", "Air", secondes=1200)]
+    f = Queue(FakeSource(catalogue), ScriptedRandom([0]), max_duration=timedelta(minutes=20))
+    assert f.next_pick().track.identifier == "pile"
+
+
+def test_une_plage_videe_par_le_plafond_replie_sur_le_tirage_libre() -> None:
+    catalogue = [
+        track("long", "Air", genre="ambient", secondes=2400),
+        track("ok", "Bowie", genre="rock", secondes=200),
+    ]
+    f = Queue(FakeSource(catalogue), ScriptedRandom([0]), max_duration=timedelta(minutes=20))
+    pick = f.next_pick(Constraint(genre="ambient"))
+    assert pick.track.identifier == "ok"
+    assert any("ambient" in raison for raison in pick.fallbacks)
+
+
+def test_une_bibliotheque_entierement_trop_longue_se_refuse_en_le_disant() -> None:
+    catalogue = [track("long", "Air", secondes=2400)]
+    f = Queue(FakeSource(catalogue), ScriptedRandom([0]), max_duration=timedelta(minutes=20))
+    with pytest.raises(EmptyQueue, match="durée maximale"):
+        f.next_pick()

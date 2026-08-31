@@ -588,3 +588,28 @@ def test_une_entree_replacee_passe_apres_le_force_et_avant_le_tirage(tmp_path: P
     assert programme.next_entry() == str(tmp_path / "encore.mp3")  # l'annonce
     assert programme.next_entry() == "fake://3"  # le même artiste, forcé
     assert programme.next_entry() == "fake://2"  # l'avance replacée — rien de jeté
+
+
+def test_un_programme_ecarte_les_titres_trop_longs(tmp_path: Path) -> None:
+    """SPECS.md §7 n°32 : une liste est choisie, ses titres trop longs n'en
+    restent pas moins trop longs."""
+    clock = FrozenClock(MIDI)
+    liste = [
+        track("long", "Nina Simone", secondes=2400),
+        track("ok", "Chet Baker", secondes=200),
+    ]
+    source = FakeSource(CATALOGUE, listes={"Chloé": liste})
+    random = ScriptedRandom([0] * 20)
+    programme = RadioProgramme(
+        queue=Queue(source, random, Window(width=1)),
+        source=source,
+        grille=Schedule([], clock),
+        jingles=Jingles(clock),
+        clock=clock,
+        random=random,
+        jingle_folder=tmp_path,
+        on_kind=lambda _n, _p, _e: None,
+        programming=Programming([PROG], clock),
+        max_duration=timedelta(minutes=20),
+    )
+    assert programme.next_entry() == "fake://ok"

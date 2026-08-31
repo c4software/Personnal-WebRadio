@@ -17,10 +17,11 @@ Trois règles tranchées portent ce module :
 """
 
 from dataclasses import dataclass
+from datetime import timedelta
 from enum import Enum
 
 from webradio.core.jingles import Jingles
-from webradio.core.models import Track
+from webradio.core.models import Track, broadcastable
 from webradio.core.queue import EmptyQueue, Pick
 from webradio.core.rng import Random
 from webradio.core.sources import MusicSource
@@ -68,10 +69,12 @@ class Control:
         random: Random,
         jingles: Jingles,
         kind: Kind = Kind.MUSIC,
+        max_duration: timedelta | None = None,
     ) -> None:
         self._source = source
         self._hasard = random
         self._jingles = jingles
+        self._plafond = max_duration
         self._nature = kind
         self._saut_demande = False
         self._encore_demande = False
@@ -123,8 +126,12 @@ class Control:
         fallbacks: list[str] = []
         ecartes = self._servis | {courant.identifier}
 
+        # Le plafond de durée s'applique à chaque cran (SPECS.md §7 n°32) : un
+        # encore ne fait pas passer ce que le tirage aurait écarté.
         candidates = [
-            p for p in self._source.tracks_by(courant.artist) if p.identifier not in ecartes
+            p
+            for p in broadcastable(self._source.tracks_by(courant.artist), self._plafond)
+            if p.identifier not in ecartes
         ]
 
         if not candidates:
@@ -133,20 +140,26 @@ class Control:
                 fallbacks.append("morceau sans genre : tirage libre")
             else:
                 candidates = [
-                    p for p in self._source.tracks(courant.genre) if p.identifier not in ecartes
+                    p
+                    for p in broadcastable(self._source.tracks(courant.genre), self._plafond)
+                    if p.identifier not in ecartes
                 ]
                 if not candidates:
                     fallbacks.append(f"genre « {courant.genre} » épuisé : tirage libre")
 
         if not candidates:
-            candidates = [p for p in self._source.tracks(None) if p.identifier not in ecartes]
+            candidates = [
+                p
+                for p in broadcastable(self._source.tracks(None), self._plafond)
+                if p.identifier not in ecartes
+            ]
             # La chaîne d'`encore` s'arrête là où la bibliothèque s'arrête : on
             # relâche alors « non déjà servi » plutôt que de faire taire la radio
             # (SPECS.md §5.1).
             if not candidates:
                 self._servis.clear()
                 fallbacks.append("bibliothèque entièrement servie : la chaîne repart")
-                candidates = self._source.tracks(None)
+                candidates = broadcastable(self._source.tracks(None), self._plafond)
 
         if not candidates:
             message = "la source a répondu, mais elle n'a aucune piste"
