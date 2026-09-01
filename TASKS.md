@@ -52,11 +52,10 @@ conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
 musique.
 
-**Reste à écouter** (AGENTS.md §4.1) : GOAL-044 — les trois modes
-d'enchaînement (double dose à 20 h, époque à midi, artiste à 15 h dans la
-grille locale), et la fenêtre de non-répétition qui reprend après chaque
-suite ; GOAL-047 — la coupe d'une piste longue au plafond, et son fondu vers
-le morceau suivant.
+**Plus rien à écouter.** Les deux dernières écoutes — GOAL-044, les trois
+modes d'enchaînement et la fenêtre de non-répétition qui reprend après chaque
+suite ; GOAL-047, la coupe d'une piste longue au plafond et son fondu — ont
+été **validées par l'auteur le 2026-09-01**.
 
 **Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
@@ -109,10 +108,10 @@ le morceau suivant.
 | GOAL-041 | Péremption des jingles horaires, et reprise à neuf après une longue pause | `[x]` — écoute validée le 2026-08-31 |
 | GOAL-042 | Le Planning s'ouvre sur aujourd'hui, créneau en cours visible, jours repliés | `[x]` |
 | GOAL-043 | Une grille de journée complète, et un atelier à jingles en conteneur | `[x]` — écoute validée le 2026-08-31 |
-| GOAL-044 | Les modes d'enchaînement des plages : double dose, époque, artiste | `[x]` — reste l'écoute réelle |
+| GOAL-044 | Les modes d'enchaînement des plages : double dose, époque, artiste | `[x]` — écoute validée le 2026-09-01 |
 | GOAL-045 | Une chanson trop longue n'est jamais diffusée | `[x]` — n°32 révisée par GOAL-047 |
 | GOAL-046 | Le mode d'une plage se voit dans le Planning | `[x]` |
-| GOAL-047 | Une chanson trop longue se joue, mais se coupe en fondu au plafond | `[x]` — reste l'écoute réelle |
+| GOAL-047 | Une chanson trop longue se joue, mais se coupe en fondu au plafond | `[x]` — écoute validée le 2026-09-01 |
 | GOAL-048 | Un libellé trop long du Planning se tronque en ellipse | `[x]` |
 | GOAL-049 | Tirage par genre fiable malgré les genres fantômes de Navidrome | `[x]` — clos le 2026-09-01 : diagnostic consigné (T01), le reste abandonné — la bibliothèque a été purgée, T03 annulée par revert |
 

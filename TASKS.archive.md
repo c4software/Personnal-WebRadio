@@ -1358,7 +1358,7 @@ au thème, ou seul — un tirage libre enchaîné.
 
 Les trois enchaînements sur la grille locale — double dose à 20 h, époque à
 midi, artiste à 15 h — et la fenêtre de non-répétition qui reprend après
-chaque suite.
+chaque suite. **Écoute validée par l'auteur le 2026-09-01.**
 
 ---
 
@@ -1435,7 +1435,7 @@ plafond, fondue vers l'entrée suivante.
 ### Reste à écouter (AGENTS.md §4.1)
 
 La coupe réelle à 20 minutes et son fondu vers le morceau suivant, sur la
-vraie radio.
+vraie radio. **Écoute validée par l'auteur le 2026-09-01.**
 
 ---
 
