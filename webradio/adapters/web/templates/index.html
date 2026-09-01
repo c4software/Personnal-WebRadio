@@ -98,9 +98,10 @@
                    margin-bottom: 0.35rem; align-items: baseline; }
       .evenement .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
       /* Une ligne par créneau : un libellé trop long se tronque en ellipse
-         (la liste complète reste lisible au survol, par `title`), et le badge
-         « en cours » ne part pas à la ligne. `min-width: 0` : sans lui, un
-         enfant de grille refuse de rétrécir sous son contenu. */
+         (la liste complète reste lisible au survol, par `title`).
+         `min-width: 0` : sans lui, un enfant de grille refuse de rétrécir
+         sous son contenu. Le créneau en cours se voit à son fond bleu, sans
+         badge. */
       .evenement .nom { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; }
       .evenement .nom-texte { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .evenement .detail { color: var(--sourdine); font-size: 0.8rem; white-space: nowrap; }
@@ -197,7 +198,7 @@
               <p v-if="jour.evenements.length === 0" class="jour-vide">tirage libre toute la journée</p>
               <div v-for="e in jour.evenements" class="evenement" :class="[e.type + '-b', { 'en-cours': e.enCours }]">
                 <span class="heure">[[ e.heure ]]</span>
-                <span class="nom"><span class="nom-texte" :title="e.nom">[[ e.nom ]]</span><span v-if="e.enCours" class="badge">en cours</span></span>
+                <span class="nom"><span class="nom-texte" :title="e.nom">[[ e.nom ]]</span></span>
                 <span class="detail">[[ e.detail ]]</span>
               </div>
             </template>
