@@ -1398,3 +1398,41 @@ s'affichaient nulle part.
       la page le traduit en détail — « double dose », « passionné d'époque »,
       « passionné d'artiste » — et une plage sans mode reste sobre. Rendu
       constaté en chromium headless.
+
+---
+
+## GOAL-047 — Une chanson trop longue se joue, mais se coupe en fondu au plafond
+
+**Terminé le 2026-09-01.** Révision de la n°32 sur demande directe de
+l'auteur : au lieu d'écarter du tirage toute piste au-dessus de
+`draw.max_track_minutes`, la laisser se choisir et couper sa lecture au
+plafond, fondue vers l'entrée suivante.
+
+- [x] `GOAL-047-T01` Relevé contre la maquette v2.3.3 (docs/liquidsoap.md §7,
+      nouveau) : `annotate:liq_cue_out` coupe un fichier comme une URL
+      Subsonic au point dit, et le crossfade fond la coupe comme une fin de
+      piste ordinaire ; le §7 que `JINGLE_FADES` référençait sans qu'il
+      existe est écrit au passage
+- [x] `GOAL-047-T02` Le plafond ne filtre plus : `broadcastable` supprimé
+      avec les paramètres `max_duration` de queue/control/playout — une piste
+      longue redevient éligible au tirage, aux suites, à l'encore et aux
+      listes
+- [x] `GOAL-047-T03` La charnière (`LiquidsoapPlayout`) annote l'entrée d'un
+      `liq_cue_out` au plafond quand la piste musicale le dépasse, coupe
+      journalisée ; SPECS §4.2/§6/§7 n°32, README, les deux TOML
+
+### Décisions prises
+
+- **La coupe vit dans la charnière, pas dans le noyau** : c'est une affaire
+  de lecture, pas de choix — le noyau ne connaît plus le plafond.
+- **Aucun fondu supplémentaire** : le relevé montre que le `crossfade` traite
+  la coupe comme une fin de piste ordinaire (fondu mesuré à l'enveloppe RMS).
+- **Une entrée replacée après un encore ne se double pas** : elle revient
+  déjà annotée, la garde `startswith("annotate:")` suffit.
+- **Émissions et jingles ne sont pas concernés** : durée propre pour les
+  unes, brièveté par construction pour les autres.
+
+### Reste à écouter (AGENTS.md §4.1)
+
+La coupe réelle à 20 minutes et son fondu vers le morceau suivant, sur la
+vraie radio.
