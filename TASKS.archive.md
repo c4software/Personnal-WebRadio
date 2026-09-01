@@ -1449,3 +1449,38 @@ genres repliait sur deux lignes et poussait le badge « en cours » à la ligne.
       la liste complète reste lisible au survol (`title`) ; le badge « en
       cours » ne se comprime plus (`flex: none`, `white-space: nowrap`).
       Rendu constaté en Chrome headless : une ligne, ellipse, badge entier.
+
+---
+
+## GOAL-049 — Tirage par genre fiable malgré les genres fantômes de Navidrome
+
+**Clos le 2026-09-01, sans changement de code.** Pendant le moment RAP du
+2026-09-01, KISS est passé à l'antenne : le genre tiré (« Hip-Hop ») ne rendait
+aucune piste, et `core/queue.py` s'est replié directement sur le tirage libre.
+
+- [x] `GOAL-049-T01` Le diagnostic est consigné dans docs/subsonic.md et le
+      point incertain §2.7.3 est résolu : Navidrome garde les fichiers disparus
+      (`missing=1` — 1795 sur 7499) et les statistiques de `getGenres`
+      (table `library_tag`) les comptent, alors que `getSongsByGenre`,
+      `getRandomSongs`, `getAlbumList2` et `search3` les excluent. Les 142
+      pistes « Hip-Hop » annoncées étaient toutes des disparues. Vérifié dans
+      la base SQLite du serveur, Navidrome 0.63.2.
+- ~~GOAL-049-T02 — Filtrer `tracks(genre)` localement~~ — abandonnée : le
+  filtrage est le rôle de l'API (décision de l'auteur).
+- ~~GOAL-049-T03 — Juger un genre tiré sur ses pistes rendues, plancher
+  `genre_min_tracks` compris~~ — implémentée puis **annulée par revert** à la
+  demande de l'auteur : la purge de la bibliothèque a fait disparaître les
+  genres fantômes, le comportement d'avant convenait.
+- ~~GOAL-049-T04 — Le repli en échelle (genre tiré → autres genres de la plage
+  → réunion → tirage libre)~~ — abandonnée pour la même raison.
+- ~~GOAL-049-T05 — Câbler `[draw] genre_min_tracks`~~ — abandonnée pour la
+  même raison.
+
+### Décision retenue
+
+**La bibliothèque se soigne côté serveur, pas dans le code.** La purge des
+fichiers disparus (interface Navidrome) a été faite le 2026-09-01 et constatée :
+« Hip-Hop » a disparu de `getGenres` (262 → 246 genres). Si un genre maigre ou
+fantôme réapparaît un jour, le relevé docs/subsonic.md §2.7.3 porte le
+diagnostic complet, et l'historique Git porte l'implémentation annulée
+(commit d30f77a, annulé par son revert).

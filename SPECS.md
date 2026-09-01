@@ -200,12 +200,6 @@ jusqu'à la fin de la plage ; l'occurrence suivante retire (§7 n°28).
 - Le tirage est **figé sur l'occurrence** : c'est ce qui en fait une soirée
   d'artiste, et non un tirage libre déguisé. Rien n'est persisté — une radio qui
   redémarre au milieu d'une plage retire.
-- Un genre tiré **se juge sur les pistes que la source rend**, jamais sur un
-  compteur annoncé : les statistiques de genres peuvent compter des fichiers
-  disparus (docs/subsonic.md §2.7.3). Un genre qui rend moins de
-  `genre_min_tracks` pistes (§6.2) est écarté en le journalisant, et le tirage
-  retire parmi les genres restants — une plage d'un genre à deux pistes
-  serinerait les mêmes artistes toute l'heure.
 - L'antenne nomme le thème sorti et **dit qu'il a été tiré** — « Moment · Air
   (au hasard) ». Le planning, lui, ne peut annoncer d'avance que la sorte : « Au
   hasard · un artiste ».
@@ -808,11 +802,9 @@ Ce que le TOML doit décrire, au minimum :
   (§4.4, n°31) : `double_dose`, `era_fan` ou `artist_fan`, combinable au
   thème ;
 - **Le tirage** : `artist_gap`, le nombre d'artistes distincts qui doivent
-  passer avant qu'un artiste puisse revenir (§4.2, défaut 5),
+  passer avant qu'un artiste puisse revenir (§4.2, défaut 5), et
   `max_track_minutes`, le plafond de durée de lecture d'une piste (§4.2,
-  défaut 20, `0` = sans limite), et `genre_min_tracks`, le plancher de pistes
-  qu'un genre tiré au sort doit rendre pour être retenu (§4.4, défaut 20 —
-  même sous un plancher nul, un genre sans aucune piste reste écarté) ;
+  défaut 20, `0` = sans limite) ;
 - **Les sources** : une section par source, avec son type et ses paramètres
   (§4.10) ;
 - **Les programmes** : une entrée `[[programmes]]` par programme — nom, liste

@@ -59,7 +59,6 @@ EVERY_DAY = "all"
 DEFAULT_ARTIST_GAP_KEY = 5
 # Au-delà, la lecture se coupe au plafond (SPECS.md §7 n°32). 0 = sans limite.
 DEFAULT_MAX_TRACK_MINUTES = 20
-DEFAULT_GENRE_MIN_TRACKS = 20
 DEFAULT_VOTE_FLOOR = 0.25
 DEFAULT_VOTE_CEILING = 4.0
 DEFAULT_VOTE_HALF_LIFE = 90
@@ -120,7 +119,6 @@ class DrawSettings:
     artist_gap: int
     votes: VoteSettings
     max_track_minutes: int = DEFAULT_MAX_TRACK_MINUTES
-    genre_min_tracks: int = DEFAULT_GENRE_MIN_TRACKS
 
 
 @dataclass(frozen=True, slots=True)
@@ -467,7 +465,7 @@ def _liste_tables(parent: Mapping[str, Any], key: str) -> list[Mapping[str, Any]
 
 def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
     table = _table(brut, "draw", "")
-    _verifier_cles(table, ("artist_gap", "votes", "max_track_minutes", "genre_min_tracks"), "draw")
+    _verifier_cles(table, ("artist_gap", "votes", "max_track_minutes"), "draw")
     votes = _table_optionnelle(table, "votes", "draw")
     _verifier_cles(
         votes,
@@ -491,13 +489,6 @@ def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
             "max_track_minutes",
             "draw",
             default=DEFAULT_MAX_TRACK_MINUTES,
-            minimum=0,
-        ),
-        genre_min_tracks=_entier(
-            table,
-            "genre_min_tracks",
-            "draw",
-            default=DEFAULT_GENRE_MIN_TRACKS,
             minimum=0,
         ),
         votes=VoteSettings(

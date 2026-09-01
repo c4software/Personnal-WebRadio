@@ -22,17 +22,11 @@ logger = logging.getLogger(__name__)
 
 
 class RandomTheme:
-    """Tire le genre ou l'artiste d'une plage, une fois par occurrence.
+    """Tire le genre ou l'artiste d'une plage, une fois par occurrence."""
 
-    `min_tracks` est le plancher d'un genre tiré : en dessous, la plage
-    tournerait en rond sur une poignée de pistes — deux artistes en
-    alternance pendant une heure, et ça s'entend comme un défaut.
-    """
-
-    def __init__(self, source: MusicSource, random: Random, *, min_tracks: int) -> None:
+    def __init__(self, source: MusicSource, random: Random) -> None:
         self._source = source
         self._random = random
-        self._min_tracks = min_tracks
         self._occurrence: datetime | None = None
         self._constraint: Constraint | None = None
         self._reported: datetime | None = None
@@ -61,7 +55,9 @@ class RandomTheme:
     def _draw(self, theme: str, occurrence: datetime) -> Constraint | None:
         try:
             if theme == "genre":
-                return self._draw_genre(occurrence)
+                genres = self._source.genres()
+                if genres:
+                    return Constraint(genre=self._random.pick(genres))
             else:
                 # L'artiste se tire par une piste, et non par une capacité
                 # « lister les artistes » ajoutée au `Protocol` : le réservoir
@@ -75,36 +71,6 @@ class RandomTheme:
             self._report(occurrence, "la source ne répond pas")
             return None
         self._report(occurrence, "la bibliothèque est vide")
-        return None
-
-    def _draw_genre(self, occurrence: datetime) -> Constraint | None:
-        """Un genre annoncé n'est pas un genre jouable : il se juge sur ses pistes.
-
-        Les compteurs de `getGenres` comptent des fichiers disparus
-        (docs/subsonic.md §2.7.3) : un genre tiré peut ne rendre aucune piste —
-        c'est un genre fantôme. Et un genre trop maigre serine : deux artistes
-        en alternance pendant une heure s'entendent comme un défaut. Chaque
-        candidat est donc jugé sur ce que la source **rend**, et un genre sous
-        le plancher est écarté en le disant, jusqu'à en trouver un qui tienne
-        une plage.
-        """
-        remaining = self._source.genres()
-        if not remaining:
-            self._report(occurrence, "la bibliothèque est vide")
-            return None
-        while remaining:
-            genre = remaining[0] if len(remaining) == 1 else self._random.pick(remaining)
-            remaining.remove(genre)
-            rendered = len(self._source.tracks(genre))
-            if rendered >= max(self._min_tracks, 1):
-                return Constraint(genre=genre)
-            logger.info(
-                "genre « %s » écarté : %d piste(s) rendue(s), plancher %d",
-                genre,
-                rendered,
-                self._min_tracks,
-            )
-        self._report(occurrence, "aucun genre n'atteint le plancher")
         return None
 
     def _report(self, occurrence: datetime, reason: str) -> None:

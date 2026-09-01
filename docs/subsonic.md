@@ -216,7 +216,8 @@ Deux conséquences pour ce projet :
 - la bibliothèque elle-même se soigne côté serveur : la purge des fichiers
   disparus (interface Navidrome) fait disparaître les genres fantômes. Le
   filtrage reste à l'API — c'est son rôle — et le code se contente de ne
-  jamais croire un genre sur parole.
+  jamais croire un genre sur parole. **Constaté** : purge faite le 2026-09-01,
+  « Hip-Hop » a disparu de `getGenres` (262 → 246 genres).
 
 Au passage : **834 pistes sur 5704 (14,6 %) n'ont aucun genre**, ce qui
 confirme §4 sur un échantillon complet cette fois.
