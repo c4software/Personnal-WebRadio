@@ -77,10 +77,12 @@ milieu du morceau, plein volume. C'est cette bascule qu'on fond.
       (enveloppe RMS, conteneur épinglé), consigné dans `docs/liquidsoap.md`
       §8 — `fade.in` ne fond pas une source entamée, `amplify` armé par la
       transition fond ; un fondu par auditeur est impossible
-- [-] `GOAL-050-T02` `radio.liq` : le fondu à la prise d'antenne ; test du
-      script à jour ; **reste l'écoute réelle** — la montée du volume au
-      branchement du premier auditeur
-- [ ] `GOAL-050-T03` SPECS.md, clôture et archive — la carte du dépôt ne
+- [x] `GOAL-050-T02` `radio.liq` : le fondu à la prise d'antenne — transition
+      qui arme, `amplify` qui monte en 2 s ; `amplify` constaté accepté sur la
+      structure complète, `input.http` compris ; test du script à jour ;
+      **reste l'écoute réelle** — la montée du volume au branchement du
+      premier auditeur
+- [-] `GOAL-050-T03` SPECS.md, clôture et archive — la carte du dépôt ne
       change pas
 
 ---

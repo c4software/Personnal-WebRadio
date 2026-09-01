@@ -211,7 +211,31 @@ def on_disconnect(ip) =
   announce()
 end
 
-on_air = switch(track_sensitive=false, [({listeners() > 0}, on_air), ({true}, blank())])
+# ── Le fondu à la prise d'antenne (GOAL-050) ────────────────────────────────
+# Le flux est encodé une fois et partagé : pas de fondu par auditeur. Quand le
+# premier se branche, la bascule blank() → antenne tombe au milieu du morceau,
+# plein volume. `fade.in` ne fond pas une source entamée : la transition arme
+# un instant, et un `amplify` monte le gain de 0 à 1 en deux secondes
+# (docs/liquidsoap.md §8).
+duree_fondu = 2.
+antenne_prise = ref(0.)
+
+def prise_antenne(_, b) =
+  antenne_prise := time()
+  b
+end
+
+def rendre_antenne(_, b) = b end
+
+on_air = switch(track_sensitive=false, transitions=[prise_antenne, rendre_antenne],
+                [({listeners() > 0}, on_air), ({true}, blank())])
+
+def gain_antenne() =
+  d = time() - antenne_prise()
+  if d >= duree_fondu then 1. elsif d < 0. then 0. else d / duree_fondu end
+end
+
+on_air = amplify(gain_antenne, on_air)
 
 output.harbor(
   %mp3(bitrate=bitrate),

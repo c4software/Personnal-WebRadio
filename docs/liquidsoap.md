@@ -251,6 +251,7 @@ volume (témoin : −inf → −3,6 dB en une fenêtre). Comment fondre cette ba
 | Le typage de la liste `transitions` | **Homogène ou refus** : `fade.in(…)` rend une source enrichie de méthodes, la mélanger avec `fun (_, b) -> b` est une erreur de type |
 | `fade.in` dans la transition | **Ne fond rien** : il agit sur les débuts de piste, et une source déjà entamée n'en présente aucun à la bascule — enveloppe mesurée **identique** au témoin, alors que la transition s'est bien exécutée |
 | `amplify` piloté par l'horloge, armé par la transition | **Fond.** La transition pose `t0 := time()`, un `amplify({…})` en aval monte le gain de 0 à 1 en 2 s : RMS mesuré −24 → −3,5 dB, rampe régulière sur 2 s, indépendante des débuts de piste |
+| `amplify` autour du `switch` contenant `input.http` | **Accepté à l'exécution** — contrairement à `normalize`/`crossfade` (relevé §3) : la structure complète de radio.liq, `input.http` compris, tourne et la rampe se mesure à l'identique |
 
 ### Points incertains
 

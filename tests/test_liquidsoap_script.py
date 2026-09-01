@@ -75,6 +75,15 @@ def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
     assert "set_queue([])" in code
 
 
+def test_la_prise_d_antenne_se_fond() -> None:
+    """GOAL-050 : le premier auditeur ne prend pas le son en pleine face.
+    `fade.in` ne fond pas une source entamée — c'est la transition qui arme un
+    `amplify` (docs/liquidsoap.md §8)."""
+    code = _code()
+    assert "transitions=[prise_antenne" in code
+    assert re.search(r"amplify\(gain_antenne", code)
+
+
 def test_le_branchement_s_annonce_avant_de_rendre_l_antenne() -> None:
     """GOAL-041 : tant que le compteur est à zéro, l'antenne reste muette —
     c'est ce qui laisse l'API purger une avance rassise sans course
