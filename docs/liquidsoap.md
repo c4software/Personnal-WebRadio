@@ -231,3 +231,28 @@ opérateurs lisent. Ce qui a été constaté :
 | La jonction à la coupe | **Fondue, pas brutale** : le RMS du morceau coupé décroît régulièrement (−22 → −31 dB sur ~0,6 s) et le suivant démarre 2 s avant la coupe — le `crossfade` traite la coupe comme une fin de piste ordinaire |
 | `initial_uri` à l'annonce | **Garde le préfixe `annotate:` entier** — la charnière peut donc l'utiliser comme clé de son registre, ce que `LiquidsoapPlayout` fait déjà pour les jingles |
 | Un direct (flux infini) en `annotate:` + `liq_cue_out` | **Non** — relevé §5 : la résolution expire. Rien de neuf |
+
+---
+
+## 8. Sixième relevé — le fondu à la prise d'antenne (GOAL-050-T01, le 2026-09-01)
+
+> Même image (`v2.3.3`). Maquette : `sine(440.)` derrière le `switch`
+> `blank()` → programme de radio.liq, bascule à t=3 s, sortie MP3 mesurée à
+> l'enveloppe RMS (`ffmpeg astats`, fenêtres de ~0,26 s).
+
+La question : un auditeur qui déclenche la prise d'antenne (0 → 1 auditeur)
+prend le son en pleine face — le `switch` bascule au milieu du morceau, plein
+volume (témoin : −inf → −3,6 dB en une fenêtre). Comment fondre cette bascule ?
+
+| Question | Constat |
+|---|---|
+| Un fondu **par auditeur** | **Impossible** : `output.harbor` encode une fois et sert le même flux à tous. Tout fondu est global — il ne peut porter que sur la prise d'antenne, pas sur chaque branchement |
+| `transitions=[…]` sur le `switch` à `track_sensitive=false` | **S'exécute à la bascule** (`Switch to sine with transition`). La liste est complétée par `fun (x, y) -> y` ; `transition_length` plafonne à 5 s par défaut |
+| Le typage de la liste `transitions` | **Homogène ou refus** : `fade.in(…)` rend une source enrichie de méthodes, la mélanger avec `fun (_, b) -> b` est une erreur de type |
+| `fade.in` dans la transition | **Ne fond rien** : il agit sur les débuts de piste, et une source déjà entamée n'en présente aucun à la bascule — enveloppe mesurée **identique** au témoin, alors que la transition s'est bien exécutée |
+| `amplify` piloté par l'horloge, armé par la transition | **Fond.** La transition pose `t0 := time()`, un `amplify({…})` en aval monte le gain de 0 à 1 en 2 s : RMS mesuré −24 → −3,5 dB, rampe régulière sur 2 s, indépendante des débuts de piste |
+
+### Points incertains
+
+- [ ] La courbe : la rampe est linéaire en amplitude. À l'oreille, un fondu
+      logarithmique peut sembler plus régulier — seule l'écoute le dira.
