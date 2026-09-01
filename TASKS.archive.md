@@ -1436,3 +1436,16 @@ plafond, fondue vers l'entrée suivante.
 
 La coupe réelle à 20 minutes et son fondu vers le morceau suivant, sur la
 vraie radio.
+
+---
+
+## GOAL-048 — Un libellé trop long du Planning se tronque en ellipse
+
+**Terminé le 2026-09-01.** Constat de l'auteur (capture) : une longue liste de
+genres repliait sur deux lignes et poussait le badge « en cours » à la ligne.
+
+- [x] `GOAL-048-T01` `.evenement .nom` passe en flex avec un `.nom-texte`
+      tronqué en ellipse (`min-width: 0` pour que l'enfant de grille rétrécisse) ;
+      la liste complète reste lisible au survol (`title`) ; le badge « en
+      cours » ne se comprime plus (`flex: none`, `white-space: nowrap`).
+      Rendu constaté en Chrome headless : une ligne, ellipse, badge entier.

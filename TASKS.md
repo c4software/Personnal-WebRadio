@@ -113,6 +113,7 @@ le morceau suivant.
 | GOAL-045 | Une chanson trop longue n'est jamais diffusée | `[x]` — n°32 révisée par GOAL-047 |
 | GOAL-046 | Le mode d'une plage se voit dans le Planning | `[x]` |
 | GOAL-047 | Une chanson trop longue se joue, mais se coupe en fondu au plafond | `[x]` — reste l'écoute réelle |
+| GOAL-048 | Un libellé trop long du Planning se tronque en ellipse | `[x]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
