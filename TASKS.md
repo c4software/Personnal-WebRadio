@@ -58,7 +58,40 @@ grille locale), et la fenêtre de non-répétition qui reprend après chaque
 suite ; GOAL-047 — la coupe d'une piste longue au plafond, et son fondu vers
 le morceau suivant.
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
+**Prochaine tâche** : GOAL-049-T01.
+
+---
+
+## GOAL-049 — Tirage par genre fiable : filtrage local, plancher de pistes, repli en échelle
+
+**Origine** (2026-09-01) : pendant le moment RAP, KISS est passé à l'antenne. Le
+diagnostic est établi : Navidrome garde les fichiers disparus (`missing=1`) en
+base et les compte dans les statistiques de `getGenres` — « Hip-Hop » : 142
+pistes annoncées, **toutes disparues**, 0 rendue par `getSongsByGenre`. Le
+genre tiré était donc vide, et `core/queue.py` s'est replié directement sur le
+tirage libre, sans essayer les quatre autres genres de la plage.
+
+- [x] GOAL-049-T01 — Consigner le diagnostic Navidrome dans docs/subsonic.md et
+      résoudre le point incertain §2.7.3 (les `missing` comptés par
+      `getGenres`/`library_tag`, vérifié en base le 2026-09-01, Navidrome 0.63.2)
+- [ ] GOAL-049-T02 — Filtrer `tracks(genre)` localement depuis le parcours
+      complet en cache (insensible à la casse, équivalence §2.7.2) ;
+      `getSongsByGenre` disparaît
+- [ ] GOAL-049-T03 — Tirer le genre « au hasard » parmi ceux comptés depuis la
+      bibliothèque et atteignant le plancher ; retirer `genres()` du `Protocol`
+      (plus aucun consommateur)
+- [ ] GOAL-049-T04 — Faire porter à `Constraint` les autres genres de la plage
+      et replier en échelle dans `core/queue.py` : genre tiré → autres genres →
+      réunion des genres → tirage libre, plancher compris, chaque marche
+      journalisée
+- [ ] GOAL-049-T05 — Câbler le plancher `[draw] genre_min_tracks = 20` (schéma,
+      `main.py`, exemple TOML), mettre à jour SPECS.md §4.4 et §6, vérifier la
+      carte du dépôt
+
+**Décisions prises** : si aucun genre de la plage n'atteint le plancher, la
+**réunion des genres non vides** de la plage passe avant le tirage libre — le
+thème survit à une bibliothèque clairsemée. Le plancher vaut pour la plage
+thématique et pour la plage « au hasard ».
 
 ---
 
@@ -114,6 +147,7 @@ le morceau suivant.
 | GOAL-046 | Le mode d'une plage se voit dans le Planning | `[x]` |
 | GOAL-047 | Une chanson trop longue se joue, mais se coupe en fondu au plafond | `[x]` — reste l'écoute réelle |
 | GOAL-048 | Un libellé trop long du Planning se tronque en ellipse | `[x]` |
+| GOAL-049 | Tirage par genre fiable : filtrage local, plancher de pistes, repli en échelle | `[ ]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

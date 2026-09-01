@@ -198,9 +198,28 @@ rend des chansons ordinaires, `status: ok` :
 |---|---|---|
 | Rock | **357** | **201** — par `getSongsByGenre`, par `getRandomSongs&genre`, et par le filtre local, tous d'accord |
 | Chanson française | 1280 | 1253 |
+| **Hip-Hop** | **142** | **0** — par `getSongsByGenre`, `getRandomSongs&genre` et `getAlbumList2 byGenre`, casse et variantes comprises |
 
-**La cause n'a pas été établie.** La conduite est celle de §2.6.1 : **ne jamais
-se fier à un compteur annoncé** ; une population se juge sur les pistes rendues.
+**La cause est établie** (2026-09-01, Navidrome 0.63.2, vérifiée dans la base
+SQLite du serveur) : **Navidrome garde les fichiers disparus du disque en base**
+(`media_file.missing = 1` — ici 1795 sur 7499) et les statistiques de genre de
+`getGenres` (table `library_tag`) **les comptent encore**, tandis que
+`getSongsByGenre`, `getRandomSongs`, `getAlbumList2` et `search3` les excluent.
+Les 142 pistes « Hip-Hop » étaient **toutes** des disparues : un genre annoncé
+par `getGenres` peut donc être un **genre fantôme**, sans aucune piste jouable.
+
+Deux conséquences pour ce projet :
+
+- **ne jamais se fier à un compteur annoncé** (conduite de §2.6.1), ni même à
+  la **présence** d'un genre dans `getGenres` — seules les pistes rendues font
+  foi ;
+- le filtrage par genre se fait **localement**, sur le parcours complet de
+  §2.7.1 : l'équivalence avec `getSongsByGenre` est relevée en §2.7.2
+  (1253 = 1253, filtre insensible à la casse), et le parcours ne rend que des
+  pistes vivantes. `getSongsByGenre` et `getGenres` ne sont plus appelés.
+
+Au passage : **834 pistes sur 5704 (14,6 %) n'ont aucun genre**, ce qui
+confirme §4 sur un échantillon complet cette fois.
 
 Au passage : **834 pistes sur 5704 (14,6 %) n'ont aucun genre**, ce qui
 confirme §4 sur un échantillon complet cette fois.
@@ -290,8 +309,10 @@ cas de test reste obligatoire (AGENTS.md §4).
 
 **Établis** : authentification et son piège, tirage et sa troncature, filtre par
 genre, pistes d'un artiste, récupération du son, complétude des métadonnées,
-les deux régimes d'erreur, et le parcours complet de la bibliothèque par
-pagination (§2.7).
+les deux régimes d'erreur, le parcours complet de la bibliothèque par
+pagination (§2.7), et la cause des compteurs de `getGenres` — les fichiers
+disparus, comptés par les statistiques mais exclus des pistes rendues (§2.7.3,
+résolu le 2026-09-01).
 
 **Restent ouverts :**
 
