@@ -212,11 +212,11 @@ Deux conséquences pour ce projet :
 
 - **ne jamais se fier à un compteur annoncé** (conduite de §2.6.1), ni même à
   la **présence** d'un genre dans `getGenres` — seules les pistes rendues font
-  foi ;
-- le filtrage par genre se fait **localement**, sur le parcours complet de
-  §2.7.1 : l'équivalence avec `getSongsByGenre` est relevée en §2.7.2
-  (1253 = 1253, filtre insensible à la casse), et le parcours ne rend que des
-  pistes vivantes. `getSongsByGenre` et `getGenres` ne sont plus appelés.
+  foi : un genre se juge sur ce que `getSongsByGenre` rend réellement ;
+- la bibliothèque elle-même se soigne côté serveur : la purge des fichiers
+  disparus (interface Navidrome) fait disparaître les genres fantômes. Le
+  filtrage reste à l'API — c'est son rôle — et le code se contente de ne
+  jamais croire un genre sur parole.
 
 Au passage : **834 pistes sur 5704 (14,6 %) n'ont aucun genre**, ce qui
 confirme §4 sur un échantillon complet cette fois.

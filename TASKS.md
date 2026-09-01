@@ -74,12 +74,12 @@ tirage libre, sans essayer les quatre autres genres de la plage.
 - [x] GOAL-049-T01 — Consigner le diagnostic Navidrome dans docs/subsonic.md et
       résoudre le point incertain §2.7.3 (les `missing` comptés par
       `getGenres`/`library_tag`, vérifié en base le 2026-09-01, Navidrome 0.63.2)
-- [ ] GOAL-049-T02 — Filtrer `tracks(genre)` localement depuis le parcours
-      complet en cache (insensible à la casse, équivalence §2.7.2) ;
-      `getSongsByGenre` disparaît
-- [ ] GOAL-049-T03 — Tirer le genre « au hasard » parmi ceux comptés depuis la
-      bibliothèque et atteignant le plancher ; retirer `genres()` du `Protocol`
-      (plus aucun consommateur)
+- ~~GOAL-049-T02 — Filtrer `tracks(genre)` localement~~ — **abandonnée le
+  2026-09-01, sur décision de l'auteur** : le filtrage est le rôle de l'API,
+  et la bibliothèque sera purgée de ses fantômes côté Navidrome
+- [ ] GOAL-049-T03 — Tirer le genre « au hasard » parmi ceux que la source
+      **rend réellement** : le genre tiré se vérifie sur ses pistes
+      (`tracks(genre)`, plancher compris) et se retire s'il ne les a pas
 - [ ] GOAL-049-T04 — Faire porter à `Constraint` les autres genres de la plage
       et replier en échelle dans `core/queue.py` : genre tiré → autres genres →
       réunion des genres → tirage libre, plancher compris, chaque marche
