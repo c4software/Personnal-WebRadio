@@ -171,8 +171,8 @@ class LiveRadio(Radio):
 class ListenerCount:
     """Ce que la façade a besoin de savoir de la station : rien de plus.
 
-    Un `Protocol` d'une seule propriété plutôt qu'une dépendance vers
-    `adapters/http` : la façade n'a aucune raison de connaître un serveur.
+    Un `Protocol` d'une seule propriété plutôt qu'une dépendance vers un
+    serveur : la façade n'a aucune raison d'en connaître un.
     """
 
     def __init__(self) -> None:
