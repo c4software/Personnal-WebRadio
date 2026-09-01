@@ -12,7 +12,6 @@ relâché en chemin.
 import logging
 from collections import deque
 from collections.abc import Callable
-from datetime import timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -20,7 +19,7 @@ from webradio.core.bands import Band, Schedule
 from webradio.core.clock import Clock
 from webradio.core.control import Control, Kind
 from webradio.core.jingles import Jingles
-from webradio.core.models import Track, broadcastable
+from webradio.core.models import Track
 from webradio.core.programmes import Programme, Programming
 from webradio.core.queue import EmptyQueue, Queue
 from webradio.core.rng import Random
@@ -57,7 +56,6 @@ class RadioProgramme:
         shows: "Shows | None" = None,
         control: Control | None = None,
         now_playing: Callable[[], Track | None] | None = None,
-        max_duration: timedelta | None = None,
     ) -> None:
         self._file = queue
         self._source = source
@@ -71,10 +69,6 @@ class RadioProgramme:
         self._emissions = shows
         self._controle = control
         self._a_l_antenne = now_playing
-        # Le plafond de durée vaut aussi pour les listes des programmes
-        # (SPECS.md §7 n°32) : une liste est choisie, ses titres trop longs
-        # n'en restent pas moins trop longs.
-        self._plafond = max_duration
         self._derniere_piste: Track | None = None
         # Un programme a sa propre fenêtre de non-répétition : la liste est
         # courte, et partager celle du tirage libre ferait rétrécir l'une à
@@ -290,7 +284,7 @@ class RadioProgramme:
         normal du programme — jamais au-dehors (SPECS.md §7 n°20).
         """
         try:
-            tracks = broadcastable(self._source.tracks_from_playlist(liste), self._plafond)
+            tracks = self._source.tracks_from_playlist(liste)
         except SourceUnavailable as failure:
             logger.warning("encore dans « %s » : liste illisible — %s", liste, failure)
             return None
@@ -321,7 +315,7 @@ class RadioProgramme:
         if name is None:
             return None
         try:
-            tracks = broadcastable(self._source.tracks_from_playlist(name), self._plafond)
+            tracks = self._source.tracks_from_playlist(name)
         except SourceUnavailable as failure:
             logger.warning("liste « %s » illisible, repli sur le tirage libre : %s", name, failure)
             return None

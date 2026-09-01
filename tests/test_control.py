@@ -1,6 +1,6 @@
 """`stop` et `encore` : ce qu'ils obtiennent, et ce qu'ils se voient refuser."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 import pytest
 
@@ -182,18 +182,12 @@ def test_une_source_vide_refuse_de_servir_un_encore() -> None:
         c.track_after_more(BOWIE_1)
 
 
-def test_l_encore_n_offre_pas_une_piste_trop_longue() -> None:
-    """SPECS.md §7 n°32 : un encore ne fait pas passer ce que le tirage
-    aurait écarté — l'artiste « s'épuise » et le repli est dit."""
+def test_l_encore_sert_aussi_une_piste_longue() -> None:
+    """SPECS.md §7 n°32 révisée : une piste longue se choisit comme les
+    autres — la diffusion la coupera au plafond, l'encore ne l'écarte pas."""
     courant = track("a1", "Air", genre="électro", secondes=200)
-    trop_long = track("a2", "Air", genre="électro", secondes=2400)
-    autre = track("b1", "Bowie", genre="électro", secondes=210)
-    c = Control(
-        FakeSource([courant, trop_long, autre]),
-        ScriptedRandom([0] * 5),
-        jingles(),
-        max_duration=timedelta(minutes=20),
-    )
+    long = track("a2", "Air", genre="électro", secondes=2400)
+    c = Control(FakeSource([courant, long]), ScriptedRandom([0]), jingles())
     pick = c.track_after_more(courant)
-    assert pick.track.identifier == "b1"
-    assert any("épuisé" in raison for raison in pick.fallbacks)
+    assert pick.track.identifier == "a2"
+    assert pick.fallbacks == ()

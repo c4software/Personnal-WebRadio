@@ -132,7 +132,7 @@ donc relevé d'abord (AGENTS.md §3).
       point dit, le crossfade fond-il la coupe, `liq_fade_out` s'y ajoute-t-il
       — écouter le résultat, consigner dans docs/liquidsoap.md (et réparer la
       référence « §7 » de `JINGLE_FADES`, qui ne pointe nulle part)
-- [ ] **GOAL-047-T02** — Retirer le filtre du plafond partout où une piste se
+- [x] **GOAL-047-T02** — Retirer le filtre du plafond partout où une piste se
       choisit : `broadcastable` et les paramètres `max_duration` de
       queue/control/playout, tests adaptés — une piste longue redevient
       éligible au tirage, aux suites, à l'encore et aux listes

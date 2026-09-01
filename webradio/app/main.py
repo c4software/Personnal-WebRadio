@@ -163,9 +163,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         encore_name=settings.jingles.encore,
         expiry=timedelta(seconds=peremption) if peremption > 0 else None,
     )
-    minutes = settings.draw.max_track_minutes
-    plafond = timedelta(minutes=minutes) if minutes > 0 else None
-    control = Control(source=source, random=random, jingles=jingles, max_duration=plafond)
+    control = Control(source=source, random=random, jingles=jingles)
     counter = ListenerCount()
 
     def lister_votes() -> "list[VoteScore]":
@@ -305,7 +303,6 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             Window(settings.draw.artist_gap),
             weigh=learning.weigh,
             runs=Runs(random),
-            max_duration=plafond,
         ),
         source=source,
         grille=grille,
@@ -345,7 +342,6 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         ),
         control=control,
         now_playing=lambda: radio.playing_track(),
-        max_duration=plafond,
     )
 
     reprise = settings.playout.resume_fresh_seconds

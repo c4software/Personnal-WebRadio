@@ -13,11 +13,10 @@ qui se vide chez l'auditeur, donc une déconnexion.
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import timedelta
 from typing import cast
 
 from webradio.core.bands import Constraint
-from webradio.core.models import Track, broadcastable
+from webradio.core.models import Track
 from webradio.core.rng import Random, WeightedRandom
 from webradio.core.rotation import Window
 from webradio.core.runs import Directive, Runs, era_of
@@ -58,14 +57,12 @@ class Queue:
         window: Window | None = None,
         weigh: Weigh | None = None,
         runs: Runs | None = None,
-        max_duration: timedelta | None = None,
     ) -> None:
         self._source = source
         self._hasard = random
         self._fenetre = window if window is not None else Window()
         self._peser = weigh
         self._suites = runs
-        self._plafond = max_duration
         self._avance: Pick | None = None
         if weigh is not None and not hasattr(random, "pick_weighted"):
             # Refuser ici plutôt qu'au premier tirage : une file construite avec
@@ -103,7 +100,7 @@ class Queue:
         if directive is not None and directive.artist is not None:
             candidates = [
                 t
-                for t in broadcastable(self._source.tracks_by(directive.artist), self._plafond)
+                for t in self._source.tracks_by(directive.artist)
                 if t.identifier not in directive.exclude
             ]
             if not candidates:
@@ -115,22 +112,16 @@ class Queue:
                 candidates = self._source.tracks_by(constraint.artist)
             else:
                 candidates = self._source.tracks(constraint.genre if constraint else None)
-            candidates = broadcastable(candidates, self._plafond)
 
             # Une plage — thématique ou d'artiste — sans musique ne fait pas
-            # taire la radio : on revient au tirage libre (SPECS.md §4.4). Une
-            # plage vidée par le plafond de durée suit le même repli.
+            # taire la radio : on revient au tirage libre (SPECS.md §4.4).
             if not candidates and constraint is not None:
                 asked = constraint.artist if constraint.artist is not None else constraint.genre
                 fallbacks.append(f"plage « {asked} » sans musique : tirage libre")
-                candidates = broadcastable(self._source.tracks(None), self._plafond)
+                candidates = self._source.tracks(None)
 
             if not candidates:
-                message = (
-                    "la source a répondu, mais elle n'a aucune piste"
-                    if self._plafond is None
-                    else "la source a répondu, mais rien ne tient sous la durée maximale"
-                )
+                message = "la source a répondu, mais elle n'a aucune piste"
                 raise EmptyQueue(message)
 
             # Une suite d'époque filtre les candidats de la plage : l'époque

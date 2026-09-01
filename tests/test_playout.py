@@ -590,9 +590,9 @@ def test_une_entree_replacee_passe_apres_le_force_et_avant_le_tirage(tmp_path: P
     assert programme.next_entry() == "fake://2"  # l'avance replacée — rien de jeté
 
 
-def test_un_programme_ecarte_les_titres_trop_longs(tmp_path: Path) -> None:
-    """SPECS.md §7 n°32 : une liste est choisie, ses titres trop longs n'en
-    restent pas moins trop longs."""
+def test_un_programme_sert_aussi_ses_titres_longs(tmp_path: Path) -> None:
+    """SPECS.md §7 n°32 révisée : une piste longue se choisit comme les autres —
+    c'est la diffusion qui la coupera au plafond, pas le tirage qui l'écarte."""
     clock = FrozenClock(MIDI)
     liste = [
         track("long", "Nina Simone", secondes=2400),
@@ -610,6 +610,5 @@ def test_un_programme_ecarte_les_titres_trop_longs(tmp_path: Path) -> None:
         jingle_folder=tmp_path,
         on_kind=lambda _n, _p, _e: None,
         programming=Programming([PROG], clock),
-        max_duration=timedelta(minutes=20),
     )
-    assert programme.next_entry() == "fake://ok"
+    assert programme.next_entry() == "fake://long"
