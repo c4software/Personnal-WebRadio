@@ -24,6 +24,7 @@ from webradio.adapters.config.schema import (
     DAYS,
     DEFAULT_ARTIST_RESULTS,
     DEFAULT_CACHE_SECONDS,
+    DEFAULT_GENRE_MIN_TRACKS,
     DEFAULT_JINGLE_EXPIRY_SECONDS,
     DEFAULT_MAX_TRACK_MINUTES,
     DEFAULT_RESUME_FRESH_SECONDS,
@@ -779,3 +780,22 @@ def test_un_plafond_de_duree_negatif_est_refuse_en_le_nommant() -> None:
         _valider(content)
 
     assert "draw.max_track_minutes" in str(refus.value)
+
+
+def test_le_plancher_de_genre_a_un_defaut_declare() -> None:
+    assert _valider(TOML_MINIMAL).draw.genre_min_tracks == DEFAULT_GENRE_MIN_TRACKS
+
+
+def test_un_plancher_de_genre_se_configure() -> None:
+    content = TOML_MINIMAL.replace("artist_gap = 5", "artist_gap = 5\ngenre_min_tracks = 40")
+
+    assert _valider(content).draw.genre_min_tracks == 40
+
+
+def test_un_plancher_de_genre_negatif_est_refuse_en_le_nommant() -> None:
+    content = TOML_MINIMAL.replace("artist_gap = 5", "artist_gap = 5\ngenre_min_tracks = -1")
+
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "draw.genre_min_tracks" in str(refus.value)

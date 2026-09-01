@@ -36,9 +36,14 @@ class FakeSource:
         *,
         injoignable: bool = False,
         listes: dict[str, list[Track]] | None = None,
+        genres_fantomes: tuple[str, ...] = (),
     ) -> None:
         self._catalogue = list(catalogue)
         self._listes = dict(listes or {})
+        # Un genre annoncé sans aucune piste jouable : Navidrome le produit
+        # quand ses statistiques comptent des fichiers disparus
+        # (docs/subsonic.md §2.7.3).
+        self._fantomes = genres_fantomes
         self.injoignable = injoignable
         self.appels = 0
 
@@ -60,7 +65,8 @@ class FakeSource:
 
     def genres(self) -> list[str]:
         self._verifier()
-        return sorted({p.genre for p in self._catalogue if p.genre is not None})
+        reels = {p.genre for p in self._catalogue if p.genre is not None}
+        return sorted(reels | set(self._fantomes))
 
     def tracks_from_playlist(self, name: str) -> list[Track]:
         """Une liste inconnue rend une liste vide, comme une vraie source : le

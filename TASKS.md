@@ -77,7 +77,7 @@ tirage libre, sans essayer les quatre autres genres de la plage.
 - ~~GOAL-049-T02 — Filtrer `tracks(genre)` localement~~ — **abandonnée le
   2026-09-01, sur décision de l'auteur** : le filtrage est le rôle de l'API,
   et la bibliothèque sera purgée de ses fantômes côté Navidrome
-- [ ] GOAL-049-T03 — Tirer le genre « au hasard » parmi ceux que la source
+- [x] GOAL-049-T03 — Tirer le genre « au hasard » parmi ceux que la source
       **rend réellement** : le genre tiré se vérifie sur ses pistes
       (`tracks(genre)`, plancher compris) et se retire s'il ne les a pas
 - [ ] GOAL-049-T04 — Faire porter à `Constraint` les autres genres de la plage
