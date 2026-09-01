@@ -56,7 +56,7 @@ musique.
 20 h, époque à midi, artiste à 15 h dans la grille locale), et la fenêtre de
 non-répétition qui reprend après chaque suite (AGENTS.md §4.1).
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
+**Prochaine tâche** : GOAL-047-T01.
 
 ---
 
@@ -110,7 +110,35 @@ non-répétition qui reprend après chaque suite (AGENTS.md §4.1).
 | GOAL-044 | Les modes d'enchaînement des plages : double dose, époque, artiste | `[x]` — reste l'écoute réelle |
 | GOAL-045 | Une chanson trop longue n'est jamais diffusée | `[x]` |
 | GOAL-046 | Le mode d'une plage se voit dans le Planning | `[x]` |
+| GOAL-047 | Une chanson trop longue se joue, mais se coupe en fondu au plafond | `[ ]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
+
+---
+
+## GOAL-047 — Une chanson trop longue se joue, mais se coupe en fondu au plafond
+
+Révision de la décision n°32 (demande directe de l'auteur, 2026-09-01) : au
+lieu d'écarter du tirage toute piste au-dessus de `draw.max_track_minutes`, la
+laisser se choisir normalement et **couper sa lecture au plafond**, avec une
+transition fondue vers l'entrée suivante. La piste sérieuse est
+`annotate:liq_cue_out` sur l'entrée rendue à Liquidsoap — jamais constaté sur
+un fichier (docs/liquidsoap.md §5 ne l'a vu échouer que sur un flux infini),
+donc relevé d'abord (AGENTS.md §3).
+
+- [x] **GOAL-047-T01** — Relever `annotate:liq_cue_out` contre la maquette
+      v2.3.3 : sur un fichier et sur une URL HTTP, la coupe tombe-t-elle au
+      point dit, le crossfade fond-il la coupe, `liq_fade_out` s'y ajoute-t-il
+      — écouter le résultat, consigner dans docs/liquidsoap.md (et réparer la
+      référence « §7 » de `JINGLE_FADES`, qui ne pointe nulle part)
+- [ ] **GOAL-047-T02** — Retirer le filtre du plafond partout où une piste se
+      choisit : `broadcastable` et les paramètres `max_duration` de
+      queue/control/playout, tests adaptés — une piste longue redevient
+      éligible au tirage, aux suites, à l'encore et aux listes
+- [ ] **GOAL-047-T03** — Couper au plafond dans la charnière : préfixer
+      d'`annotate:liq_cue_out=…` (et du fondu que T01 aura dicté) toute entrée
+      musicale plus longue que le plafond, câbler la config, réviser SPECS
+      (§4.2, §6, §7 n°32) et README — **à écouter réellement : la coupe au
+      plafond et son fondu vers le morceau suivant** (AGENTS.md §4.1)
 

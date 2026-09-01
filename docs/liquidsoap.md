@@ -208,3 +208,26 @@ Liquidsoap demande la piste suivante et annonce ses auditeurs.
       affichent une la récupèrent par un autre canal. Si l'envie reste, la
       piste sérieuse est `StreamUrl` pointant vers notre API — à relever
       contre de vrais lecteurs.
+
+---
+
+## 7. Cinquième relevé — ce qu'`annotate:` porte sur une requête
+
+> Deux origines. Les fondus : GOAL-022, constatés **à l'écoute** sur la vraie
+> radio (cette section manquait, le code y renvoyait déjà). La coupe :
+> GOAL-047-T01, le 2026-09-01 — même image (`v2.3.3`), maquette
+> `request.dynamic` + `normalize` + `crossfade(duration=2., fade_in=1.,
+> fade_out=1.)`, deux MP3 de 8 s (440 et 880 Hz), sortie mesurée au `ffprobe`
+> et à l'enveloppe RMS.
+
+Le préfixe `annotate:cle=valeur,…:<uri>` ajoute des métadonnées que les
+opérateurs lisent. Ce qui a été constaté :
+
+| Question | Constat |
+|---|---|
+| `liq_fade_in`, `liq_fade_out`, `liq_cross_duration` | **Honorés par `crossfade`**, par requête : c'est ce qui donne aux jingles leurs fondus courts (GOAL-022, validé à l'oreille) |
+| `liq_cue_out=<s>` sur un **fichier** | **Coupe au point dit.** `liq_cue_out=4.` sur un MP3 de 8 s : la sortie mesure 10,08 s au lieu de 14,08 s pour le témoin (8 + 8 − 2 s de fondu) — soit 4 + 8 − 2 |
+| `liq_cue_out` sur une **URL HTTP** avec chaîne de requête (`?jeton=…&…`) | **Identique** : 10,08 s, la résolution télécharge puis coupe. La forme des URL Subsonic passe telle quelle |
+| La jonction à la coupe | **Fondue, pas brutale** : le RMS du morceau coupé décroît régulièrement (−22 → −31 dB sur ~0,6 s) et le suivant démarre 2 s avant la coupe — le `crossfade` traite la coupe comme une fin de piste ordinaire |
+| `initial_uri` à l'annonce | **Garde le préfixe `annotate:` entier** — la charnière peut donc l'utiliser comme clé de son registre, ce que `LiquidsoapPlayout` fait déjà pour les jingles |
+| Un direct (flux infini) en `annotate:` + `liq_cue_out` | **Non** — relevé §5 : la résolution expire. Rien de neuf |
