@@ -127,12 +127,13 @@ La sélection est un **tirage** dans la bibliothèque, contraint par :
 - **une règle de non-répétition** : un artiste ne peut pas revenir avant que
   **N autres artistes** soient passés. `N` est configurable (§6), et vaut **5**
   par défaut. La règle compte des *artistes distincts*, pas des morceaux : trois
-  titres d'affilée du même artiste ne comptent que pour un ;
-- **un plafond de durée** (§7 n°32) : au-delà de `draw.max_track_minutes`
-  (20 min par défaut, la limite exacte passe, `0` = sans limite), une piste
-  n'est **jamais** choisie — ni au tirage, ni par une suite (§4.4), ni par un
-  encore, ni depuis la liste d'un programme. Les émissions, elles, ont leur
-  propre durée (§4.11) et ne sont pas concernées.
+  titres d'affilée du même artiste ne comptent que pour un.
+
+Un **plafond de durée** borne la lecture, pas le choix (§7 n°32) : au-delà de
+`draw.max_track_minutes` (20 min par défaut, la limite exacte passe, `0` =
+sans limite), une piste se choisit comme les autres mais sa lecture **se coupe
+au plafond**, fondue vers ce qui suit comme n'importe quelle jonction. Les
+émissions, elles, ont leur propre durée (§4.11) et ne sont pas concernées.
 
 **Quand la règle bloque le tirage.** Sur une petite bibliothèque, ou dans une
 plage thématique étroite, il peut ne pas rester d'artiste autorisé. La radio ne
@@ -802,8 +803,8 @@ Ce que le TOML doit décrire, au minimum :
   thème ;
 - **Le tirage** : `artist_gap`, le nombre d'artistes distincts qui doivent
   passer avant qu'un artiste puisse revenir (§4.2, défaut 5), et
-  `max_track_minutes`, le plafond de durée d'une piste (§4.2, défaut 20,
-  `0` = sans limite) ;
+  `max_track_minutes`, le plafond de durée de lecture d'une piste (§4.2,
+  défaut 20, `0` = sans limite) ;
 - **Les sources** : une section par source, avec son type et ses paramètres
   (§4.10) ;
 - **Les programmes** : une entrée `[[programmes]]` par programme — nom, liste
@@ -1123,15 +1124,18 @@ jonction et la suite y survit, une suite d'artiste suivant son artiste par
 > votes) l'ignore. Les suites d'artiste empruntent le passe-droit de fenêtre
 > de l'encore (§4.6) plutôt qu'une règle nouvelle.
 
-**n°32 — Une piste trop longue ? Jamais diffusée.** Tranchée le 2026-08-31,
-demande directe de l'auteur. Au-delà de `draw.max_track_minutes` (20 min par
-défaut, la limite exacte passe, `0` = sans limite), une piste est écartée
-partout où une piste se choisit — tirage, suites, encore à chaque cran de
-repli, listes des programmes. Les émissions gardent leur propre durée.
-> *Raison* : un DJ set ou un album entier étiqueté « piste » cassent le rythme
-> d'une radio musicale. Le filtre est silencieux piste par piste — seuls les
-> replis qu'il provoque se journalisent, comme les autres — et une bibliothèque
-> entièrement trop longue se refuse en nommant la durée plutôt qu'en se taisant.
+**n°32 — Une piste trop longue ? Coupée au plafond, pas écartée.** Tranchée le
+2026-08-31 (« jamais diffusée »), **révisée le 2026-09-01** sur demande directe
+de l'auteur. Au-delà de `draw.max_track_minutes` (20 min par défaut, la limite
+exacte passe, `0` = sans limite), une piste se choisit comme les autres —
+tirage, suites, encore, listes des programmes — mais sa lecture se coupe au
+plafond, fondue vers l'entrée suivante par la jonction ordinaire. La coupe est
+journalisée. Les émissions gardent leur propre durée.
+> *Raison de la révision* : écarter un DJ set du tirage protégeait le rythme
+> mais rendait une partie de la bibliothèque inaudible à l'antenne. Le couper
+> au plafond garde les deux : tout se joue, rien ne monopolise l'antenne. La
+> coupe vit dans la charnière de diffusion — le noyau ne connaît plus le
+> plafond, c'est une affaire de lecture, pas de choix (docs/liquidsoap.md §7).
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :

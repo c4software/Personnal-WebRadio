@@ -136,7 +136,7 @@ donc relevé d'abord (AGENTS.md §3).
       choisit : `broadcastable` et les paramètres `max_duration` de
       queue/control/playout, tests adaptés — une piste longue redevient
       éligible au tirage, aux suites, à l'encore et aux listes
-- [ ] **GOAL-047-T03** — Couper au plafond dans la charnière : préfixer
+- [x] **GOAL-047-T03** — Couper au plafond dans la charnière : préfixer
       d'`annotate:liq_cue_out=…` (et du fondu que T01 aura dicté) toute entrée
       musicale plus longue que le plafond, câbler la config, réviser SPECS
       (§4.2, §6, §7 n°32) et README — **à écouter réellement : la coupe au

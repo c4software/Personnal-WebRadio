@@ -12,6 +12,7 @@ from webradio.core.bands import Schedule
 from webradio.core.clock import FrozenClock
 from webradio.core.control import Control, Kind
 from webradio.core.jingles import Jingles
+from webradio.core.models import Track
 from webradio.core.queue import Queue
 from webradio.core.rng import ScriptedRandom
 from webradio.core.rotation import Window
@@ -26,10 +27,12 @@ def _playout(
     resume_fresh_after: timedelta | None = None,
     order_requeue: Callable[[], None] | None = None,
     order_skip: Callable[[], None] | None = None,
+    max_duration: timedelta | None = None,
+    catalogue: list[Track] | None = None,
 ) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
     clock = FrozenClock(MIDI)
     random = ScriptedRandom([0] * 100)
-    source = FakeSource(CATALOGUE)
+    source = FakeSource(catalogue if catalogue is not None else CATALOGUE)
     jingles = Jingles(clock)
     counter = ListenerCount()
     radio = LiveRadio(Control(source=source, random=random, jingles=jingles), counter)
@@ -52,6 +55,7 @@ def _playout(
         resume_fresh_after=resume_fresh_after,
         order_requeue=order_requeue,
         order_skip=order_skip,
+        max_duration=max_duration,
     )
     branche.append(playout)
     return playout, radio, clock
@@ -164,6 +168,39 @@ def test_un_jingle_est_une_entree_comme_une_autre(tmp_path: Path) -> None:
     assert entry.endswith(str(tmp_path / "hours" / "13h.mp3"))
     playout.playing(entry)
     assert radio.on_air_now().kind.value == "jingle"  # type: ignore[union-attr]
+
+
+def test_une_piste_au_dessus_du_plafond_s_annote_pour_se_couper(tmp_path: Path) -> None:
+    """SPECS.md §7 n°32 révisée : la piste longue se joue, coupée au plafond
+    par `liq_cue_out` — le crossfade fond la coupe (docs/liquidsoap.md §7)."""
+    longue = [track("long", "Air", genre="électro", secondes=2400)]
+    playout, _, _ = _playout(tmp_path, max_duration=timedelta(minutes=20), catalogue=longue)
+    assert playout.next_entry() == "annotate:liq_cue_out=1200:fake://long"
+
+
+def test_une_piste_sous_le_plafond_passe_sans_annotation(tmp_path: Path) -> None:
+    playout, _, _ = _playout(tmp_path, max_duration=timedelta(minutes=20))
+    assert playout.next_entry() == "fake://1"
+
+
+def test_sans_plafond_une_piste_longue_passe_entiere(tmp_path: Path) -> None:
+    longue = [track("long", "Air", genre="électro", secondes=2400)]
+    playout, _, _ = _playout(tmp_path, catalogue=longue)
+    assert playout.next_entry() == "fake://long"
+
+
+def test_une_entree_replacee_apres_un_encore_ne_s_annote_pas_deux_fois(tmp_path: Path) -> None:
+    """L'avance repart au programme annotée (GOAL-034) : la resservir ne doit
+    pas empiler un second `annotate:`."""
+    longues = [
+        track("long1", "Air", genre="électro", secondes=2400),
+        track("long2", "Bowie", genre="rock", secondes=2400),
+    ]
+    playout, _, _ = _playout(tmp_path, max_duration=timedelta(minutes=20), catalogue=longues)
+    annotee = playout.next_entry()
+    assert annotee == "annotate:liq_cue_out=1200:fake://long1"
+    playout.stash_for_replay()
+    assert playout.next_entry() == annotee
 
 
 def test_sans_auditeur_la_radio_ne_tourne_pas(tmp_path: Path) -> None:

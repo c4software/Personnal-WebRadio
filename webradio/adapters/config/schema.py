@@ -57,7 +57,7 @@ EVERY_DAY = "all"
 # Défauts déclarés au même endroit que la clé qu'ils concernent, faute de quoi
 # ils seraient « en dur » quelque part dans le code (AGENTS.md §2).
 DEFAULT_ARTIST_GAP_KEY = 5
-# Au-delà, une piste n'est jamais choisie (SPECS.md §7 n°32). 0 = sans limite.
+# Au-delà, la lecture se coupe au plafond (SPECS.md §7 n°32). 0 = sans limite.
 DEFAULT_MAX_TRACK_MINUTES = 20
 DEFAULT_VOTE_FLOOR = 0.25
 DEFAULT_VOTE_CEILING = 4.0

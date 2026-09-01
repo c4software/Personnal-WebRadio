@@ -345,6 +345,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
     )
 
     reprise = settings.playout.resume_fresh_seconds
+    minutes = settings.draw.max_track_minutes
     playout = LiquidsoapPlayout(
         programme,
         radio,
@@ -352,6 +353,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         ephemeral_dir=Path(settings.state.database).parent / "cache",
         clock=clock,
         resume_fresh_after=timedelta(seconds=reprise) if reprise > 0 else None,
+        max_duration=timedelta(minutes=minutes) if minutes > 0 else None,
         # La purge ne replace rien, contrairement à `vider_l_avance` : c'est
         # tout son sens — l'avance rassise ne doit pas revenir (§7 n°30).
         order_requeue=lambda: _ordonner("/requeue", "l'avance rassise partira quand même"),

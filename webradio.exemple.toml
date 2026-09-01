@@ -15,7 +15,7 @@
 # Un artiste ne revient pas avant que N autres artistes soient passés.
 # La fenêtre rétrécit plutôt que de bloquer sur une petite bibliothèque.
 artist_gap = 5
-# Au-delà de cette durée, une piste n'est jamais diffusée. 0 = sans limite.
+# Au-delà de cette durée, la lecture se coupe en fondu. 0 = sans limite.
 max_track_minutes = 20
 
 # Pondération par les votes (SPECS.md §4.12).

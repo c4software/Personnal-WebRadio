@@ -34,6 +34,11 @@ PENDING_MAX = 8
 # l'auteur à l'écoute (GOAL-022).
 JINGLE_FADES = "annotate:liq_fade_in=0.2,liq_fade_out=0.2,liq_cross_duration=0.5:"
 
+# Une piste au-dessus du plafond se joue mais se coupe au plafond, fondue vers
+# la suite par le crossfade comme une fin de piste ordinaire (SPECS.md §7
+# n°32 révisée, relevé docs/liquidsoap.md §7).
+CUT_AT = "annotate:liq_cue_out={seconds:g}:"
+
 
 class LiquidsoapPlayout:
     """Le `Playout` de `adapters/web/playout_api.py`, câblé au programme."""
@@ -49,6 +54,7 @@ class LiquidsoapPlayout:
         resume_fresh_after: timedelta | None = None,
         order_requeue: Callable[[], None] | None = None,
         order_skip: Callable[[], None] | None = None,
+        max_duration: timedelta | None = None,
     ) -> None:
         self._programme = programme
         self._radio = radio
@@ -68,6 +74,7 @@ class LiquidsoapPlayout:
         self._reprise_a_neuf = resume_fresh_after
         self._ordonner_requeue = order_requeue
         self._ordonner_skip = order_skip
+        self._plafond = max_duration
         self._pause_depuis: datetime | None = None
 
     def on_kind(self, kind: Kind, track: Track | None, label: str | None) -> None:
@@ -82,12 +89,35 @@ class LiquidsoapPlayout:
                 return None
             if self._derniere[0] is Kind.JINGLE:
                 entry = JINGLE_FADES + entry
+            else:
+                entry = self._couper_au_plafond(entry)
             self._en_attente[entry] = self._derniere
             while len(self._en_attente) > PENDING_MAX:
                 oublie = next(iter(self._en_attente))
                 del self._en_attente[oublie]
             self._programme.prepare()
             return entry
+
+    def _couper_au_plafond(self, entry: str) -> str:
+        """L'entrée, annotée pour se couper au plafond si sa piste le dépasse.
+
+        Seule la musique se coupe : une émission a sa propre durée (SPECS.md
+        §4.11), un jingle est court par construction. Une entrée replacée
+        après un encore revient déjà annotée — on ne la double pas.
+        """
+        kind, track, _ = self._derniere
+        if (
+            self._plafond is None
+            or kind is not Kind.MUSIC
+            or track is None
+            or track.duration <= self._plafond
+            or entry.startswith("annotate:")
+        ):
+            return entry
+        logger.info(
+            "« %s » dure %s : coupé au plafond (%s)", track.title, track.duration, self._plafond
+        )
+        return CUT_AT.format(seconds=self._plafond.total_seconds()) + entry
 
     def playing(self, entry: str, artist: str | None = None, title: str | None = None) -> None:
         with self._verrou:
