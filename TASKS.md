@@ -47,43 +47,17 @@ et son cache (GOAL-039/040), la plage au thème tiré au sort (GOAL-037), la
 reprise à neuf après une longue pause (GOAL-041), la grille de journée et ses
 quinze génériques (GOAL-043).
 
-**Un Goal ouvert : GOAL-050** (le fondu à la prise d'antenne, ci-dessous).
-Décisions restantes de SPECS.md §7 : la **n°9** est une
+**Aucun Goal ouvert.** Décisions restantes de SPECS.md §7 : la **n°9** est une
 conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
 musique.
 
-**Plus rien à écouter.** Les deux dernières écoutes — GOAL-044, les trois
-modes d'enchaînement et la fenêtre de non-répétition qui reprend après chaque
-suite ; GOAL-047, la coupe d'une piste longue au plafond et son fondu — ont
-été **validées par l'auteur le 2026-09-01**.
+**Reste à écouter** (AGENTS.md §4.1) : GOAL-050 — la montée du volume en deux
+secondes au branchement du premier auditeur, y compris quand l'antenne reprend
+au milieu d'un morceau. Les écoutes de GOAL-044 (modes d'enchaînement) et
+GOAL-047 (coupe au plafond) ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : `GOAL-050-T01`.
-
----
-
-## GOAL-050 — Un fondu à la prise d'antenne `[-]`
-
-**Ouvert le 2026-09-01.** Demandé par l'auteur : un auditeur qui se connecte ne
-doit pas prendre le son en pleine face.
-
-Le flux est encodé une seule fois et partagé (`output.harbor`) : un fondu par
-auditeur n'existe pas. Le cas réel est la **prise d'antenne** — quand le
-premier auditeur se branche, le `switch` bascule de `blank()` au programme au
-milieu du morceau, plein volume. C'est cette bascule qu'on fond.
-
-- [x] `GOAL-050-T01` Relevé : les `transitions` de `switch` et `fade.in` en
-      v2.3.3 sur la bascule `blank()` → programme, constaté à l'exécution
-      (enveloppe RMS, conteneur épinglé), consigné dans `docs/liquidsoap.md`
-      §8 — `fade.in` ne fond pas une source entamée, `amplify` armé par la
-      transition fond ; un fondu par auditeur est impossible
-- [x] `GOAL-050-T02` `radio.liq` : le fondu à la prise d'antenne — transition
-      qui arme, `amplify` qui monte en 2 s ; `amplify` constaté accepté sur la
-      structure complète, `input.http` compris ; test du script à jour ;
-      **reste l'écoute réelle** — la montée du volume au branchement du
-      premier auditeur
-- [-] `GOAL-050-T03` SPECS.md, clôture et archive — la carte du dépôt ne
-      change pas
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
 
@@ -140,7 +114,7 @@ milieu du morceau, plein volume. C'est cette bascule qu'on fond.
 | GOAL-047 | Une chanson trop longue se joue, mais se coupe en fondu au plafond | `[x]` — écoute validée le 2026-09-01 |
 | GOAL-048 | Un libellé trop long du Planning se tronque en ellipse | `[x]` |
 | GOAL-049 | Tirage par genre fiable malgré les genres fantômes de Navidrome | `[x]` — clos le 2026-09-01 : diagnostic consigné (T01), le reste abandonné — la bibliothèque a été purgée, T03 annulée par revert |
-| GOAL-050 | Un fondu à la prise d'antenne | `[-]` |
+| GOAL-050 | Un fondu à la prise d'antenne | `[x]` — reste l'écoute réelle |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

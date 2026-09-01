@@ -103,9 +103,14 @@ connectée).
 - Si **personne n'écoutait**, la chaîne démarre : la bibliothèque est interrogée, un
   premier morceau est tiré selon la grille de l'heure, l'encodage commence.
   Un délai d'amorçage est acceptable ; il doit rester **court et silencieux**,
-  jamais un blanc de plusieurs secondes suivi d'un démarrage brutal.
+  jamais un blanc de plusieurs secondes suivi d'un démarrage brutal. La **prise
+  d'antenne se fond** : le volume monte de zéro au niveau nominal en deux
+  secondes, l'auditeur ne prend jamais le son en pleine face — même quand
+  l'antenne reprend au milieu d'un morceau resté en attente.
 - Si **quelqu'un écoutait déjà**, le nouvel auditeur rejoint le flux **en
-  cours** : il tombe au milieu du morceau, exactement comme sur une vraie radio.
+  cours** : il tombe au milieu du morceau, exactement comme sur une vraie radio,
+  au volume du flux — le fondu ne vaut que pour la prise d'antenne, le flux
+  étant encodé une seule fois pour tous.
 
 **Quand cela se passe mal** :
 

@@ -1484,3 +1484,44 @@ fichiers disparus (interface Navidrome) a été faite le 2026-09-01 et constaté
 fantôme réapparaît un jour, le relevé docs/subsonic.md §2.7.3 porte le
 diagnostic complet, et l'historique Git porte l'implémentation annulée
 (commit d30f77a, annulé par son revert).
+
+---
+
+## GOAL-050 — Un fondu à la prise d'antenne
+
+**Terminé le 2026-09-01.** Demandé par l'auteur : un auditeur qui se connecte
+ne doit pas prendre le son en pleine face.
+
+Le flux est encodé une seule fois et partagé (`output.harbor`) : un fondu par
+auditeur n'existe pas. Le cas réel est la **prise d'antenne** — quand le
+premier auditeur se branche, le `switch` bascule de `blank()` au programme au
+milieu du morceau, plein volume. C'est cette bascule qui se fond désormais
+(SPECS.md §4.1).
+
+- [x] `GOAL-050-T01` Relevé : les `transitions` de `switch` et `fade.in` en
+      v2.3.3 sur la bascule `blank()` → programme, constaté à l'exécution
+      (enveloppe RMS, conteneur épinglé), consigné dans `docs/liquidsoap.md`
+      §8 — `fade.in` ne fond pas une source entamée, `amplify` armé par la
+      transition fond ; un fondu par auditeur est impossible
+- [x] `GOAL-050-T02` `radio.liq` : la transition arme un instant, un `amplify`
+      monte le gain de 0 à 1 en deux secondes ; `amplify` constaté **accepté**
+      autour du `switch` contenant `input.http`, là où `normalize`/`crossfade`
+      sont refusés ; test du script à jour
+- [x] `GOAL-050-T03` SPECS.md §4.1 (le fondu à la prise d'antenne, et sa
+      limite : jamais par auditeur), clôture et archive — la carte du dépôt ne
+      change pas
+
+### Décisions prises
+
+- **`amplify` piloté par l'horloge plutôt que `fade.in`** : la transition du
+  `switch` s'exécute bien, mais `fade.in` n'agit qu'aux débuts de piste — une
+  source entamée (retour d'antenne au milieu d'un morceau) ne fond pas. Mesuré
+  au RMS, relevé docs/liquidsoap.md §8.
+- **Deux secondes, rampe linéaire en amplitude** : la courbe (lin/log) reste
+  un point incertain du relevé — seule l'écoute tranchera.
+
+### Reste à écouter (AGENTS.md §4.1)
+
+La montée du volume au branchement du premier auditeur — au démarrage à froid
+et au retour au milieu d'un morceau resté en attente — et la régularité de la
+rampe à l'oreille.
