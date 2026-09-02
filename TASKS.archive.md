@@ -2063,3 +2063,25 @@ le suivant, une chanson qui change fond l'ancienne dans la nouvelle.
       onglets, fondu au changement de chanson dans la scène et la barre —
       désactivées sous `prefers-reduced-motion`.
 - [x] **GOAL-064-T03** — SPECS.md §4.8, la carte du dépôt ; clôture ; push.
+
+**Incident du 2026-09-02** : l'image construite servait des 404 sur la
+feuille de style — `pyproject.toml` n'empaquetait que les `.js` de
+`static/`, et les tests lisent la source, pas le paquet. Corrigé en
+empaquetant tout le dossier, avec un test qui confronte le dossier aux
+motifs.
+
+---
+
+## GOAL-065 — Renvoyer le son vers une enceinte depuis le lecteur
+
+Demandé par l'auteur le 2026-09-02 : « le support du cast, bouton dans le
+player si lecture en cours ».
+
+**Décision : l'API Remote Playback du navigateur, pas le SDK Google Cast.**
+Le SDK se charge depuis `gstatic.com` — la page doit s'afficher sans
+internet — et l'API standard couvre Chromecast (Chrome) comme AirPlay
+(Safari), avec le repli Safari `webkitShowPlaybackTargetPicker`.
+
+- [x] **GOAL-065-T01** — Le bouton de renvoi dans la barre, visible en
+      écoute quand le navigateur voit une cible ; `docs/flux-icy.md` §8 ;
+      SPECS.md §4.8. **Reste à essayer** avec une enceinte réelle.

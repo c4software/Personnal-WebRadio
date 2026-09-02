@@ -27,6 +27,10 @@ include = ["webradio*"]
 webradio = [
     "adapters/web/templates/*.html",
     "adapters/web/static/*.js",
+    "adapters/web/static/*.css",
+    "adapters/web/static/*.svg",
+    "adapters/web/static/*.png",
+    "adapters/web/static/*.webmanifest",
     "adapters/liquidsoap/*.liq",
 ]
 
