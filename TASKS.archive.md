@@ -2035,8 +2035,9 @@ Demandé par l'auteur le 2026-09-02, en validant GOAL-062. Trois ajouts et
 un retrait : la carte « La radio dort » — « c'est con » — disparaît ; la
 barre dit déjà que personne n'écoute.
 
-- [x] **GOAL-063-T01** — Retirer la carte « La radio dort » : sans antenne,
-      l'onglet Antenne ne montre que les votes grisés, la barre dit le reste.
+- [x] **GOAL-063-T01** — Retirer le texte « La radio dort » — la carte
+      de veille reste, rectifiée par l'auteur après un premier retrait
+      complet : elle dit « Rien à l'antenne » et comment démarrer la radio.
 - [x] **GOAL-063-T02** — Une icône (favicon SVG) et un titre de page qui dit
       ce qui passe — titre et artiste dans l'onglet du navigateur, mis à jour
       à chaque rafraîchissement.

@@ -88,7 +88,7 @@ l'antenne est une carte, les votes juste dessous. **Aucun Goal ouvert.**
 
 **GOAL-063 est clos le 2026-09-02** : la page s'installe comme une
 application, porte une icône et dit dans son titre ce qui passe ; la carte
-« La radio dort » est retirée. **Aucun Goal ouvert.** Reste à essayer
+« La radio dort » reste, avec un texte sobre. **Aucun Goal ouvert.** Reste à essayer
 l'installation depuis un téléphone — Android et iOS n'ont pas les mêmes
 critères, et rien ne le constate sans un vrai appareil.
 

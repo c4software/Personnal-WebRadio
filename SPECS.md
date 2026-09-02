@@ -492,8 +492,9 @@ affichage autonome sans barre d'adresse, et les balises que Safari iOS lit à
 la place du manifeste. Rien n'est mis en cache : la page reste ce qu'elle
 est, une vue sur l'API, et une radio hors ligne n'aurait rien à montrer.
 L'onglet du navigateur — ou le nom de la fenêtre installée — dit ce qui
-passe : titre et artiste, le nom de la radio quand personne n'écoute. La
-carte « La radio dort » a été retirée le même jour : la barre le dit déjà.
+passe : titre et artiste, le nom de la radio quand personne n'écoute. Sans
+auditeur, la carte de veille dit « Rien à l'antenne » et comment démarrer la
+radio — le texte « La radio dort » a été retiré le même jour (l'auteur).
 Ce qu'un téléphone fait de l'installation ne se constate qu'en essayant.
 
 L'interface web n'est rien de plus que la mise en page de cela : ce qui passe,

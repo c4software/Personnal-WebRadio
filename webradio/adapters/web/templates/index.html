@@ -97,6 +97,9 @@
       .a-suivre .etiquette { flex: none; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--sourdine); }
       .a-suivre .texte { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .a-suivre .chevron { flex: none; color: var(--sourdine); }
+      .scene.veille { padding-bottom: 1.25rem; }
+      .scene.veille .titre { font-size: 1.4rem; }
+      .scene.veille p { color: var(--sourdine); margin-top: 0.5rem; line-height: 1.45; }
       .votes { display: flex; gap: 0.75rem; margin-top: 0.9rem; }
       .votes button {
         flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
@@ -289,6 +292,14 @@
             <span class="texte">[[ aSuivre.title || aSuivre.kind ]]<span v-if="aSuivre.artist"> — [[ aSuivre.artist ]]</span></span>
             <span class="chevron">›</span>
           </button>
+        </article>
+        <article v-else class="carte scene veille">
+          <header class="entete">
+            <span class="nature">en veille</span>
+            <span class="etat-antenne"><i class="temoin"></i> personne n'écoute</span>
+          </header>
+          <h1 class="titre">Rien à l'antenne</h1>
+          <p>La radio ne tourne que si quelqu'un l'écoute.[[ flux ? " Lancez la lecture pour la démarrer." : "" ]]</p>
         </article>
         <!-- Un jingle, un flash ou une émission refuseraient le vote de toute
              façon (SPECS.md §4.6) : autant griser les boutons plutôt que de

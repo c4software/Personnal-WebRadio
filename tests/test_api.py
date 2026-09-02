@@ -517,12 +517,13 @@ def test_la_page_grise_les_votes_sans_auditeur() -> None:
     assert 'this.antenne === null || this.antenne.kind !== "musique"' in page
 
 
-def test_sans_antenne_la_page_n_affiche_pas_de_carte_de_veille() -> None:
-    """GOAL-063-T01 : la barre dit déjà que personne n'écoute — une carte
-    « La radio dort » en plus était de trop (l'auteur)."""
+def test_sans_antenne_la_page_montre_une_carte_de_veille_sobre() -> None:
+    """GOAL-063-T01, rectifiée par l'auteur : la carte de veille reste, mais
+    sans « La radio dort » — elle dit qu'il n'y a rien à l'antenne."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
-    assert "La radio dort" not in page
     assert "dort" not in page
+    assert 'class="carte scene veille"' in page
+    assert "Rien à l'antenne" in page
 
 
 def test_la_page_a_une_icone_et_nomme_l_onglet_d_apres_ce_qui_passe() -> None:
