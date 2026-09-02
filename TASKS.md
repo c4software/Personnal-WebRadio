@@ -94,7 +94,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
+**Prochaine tâche** : GOAL-060-T02.
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -166,8 +166,34 @@ production que le 2026-09-02 (GOAL-053).
 | GOAL-057 | Retirer au sort le thème d'une plage « au hasard », par l'API et l'interface | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
 | GOAL-058 | Les prochains titres se voient, et se retirent avant de passer | `[x]` — clos le 2026-09-02 ; **reste l'écoute**, et le tiroir à voir |
 | GOAL-059 | « Retirer » vaut aussi pour une suite tirée au sort : décennie ou artiste | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
+| GOAL-060 | Un lecteur dans la page : écouter la radio depuis l'interface | `[-]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
 
 
+
+---
+
+## GOAL-060 — Un lecteur dans la page
+
+Demandé par l'auteur le 2026-09-02 : écouter la radio depuis l'interface,
+sans ouvrir VLC. Un élément `<audio>` sur le flux de Liquidsoap suffit ; le
+bouton vaut le geste que les navigateurs exigent avant tout son.
+
+Ce que ça engage : l'adresse du flux vient du TOML (AGENTS.md §2 — rien en
+dur), la page devient un auditeur (lancer la lecture réveille la radio, la
+couper la rendort si personne d'autre n'écoute), et ce que fait le navigateur
+d'un téléphone — rebranchement, arrière-plan, écran verrouillé — ne se
+constate qu'en écoutant (docs/flux-icy.md).
+
+- [x] **GOAL-060-T01** — `web.stream_url` : l'adresse du flux telle que la
+      page doit l'ouvrir. Absente, pas de lecteur. Une valeur qui commence
+      par `:` — `:8000/flux` — désigne l'hôte de la page : la même
+      configuration vaut depuis tous les postes du réseau.
+- [ ] **GOAL-060-T02** — Le lecteur dans l'onglet « À l'antenne » : un bouton
+      « Écouter » / « Couper », un `<audio preload="none">` qui ne charge rien
+      tant qu'on n'écoute pas, et titre et artiste passés à l'écran de
+      verrouillage par Media Session quand le navigateur le sait.
+- [ ] **GOAL-060-T03** — SPECS.md §4.8 et §6, l'exemple TOML ; **écouter**
+      depuis un téléphone : la prise d'antenne, le rebranchement, l'arrière-plan.

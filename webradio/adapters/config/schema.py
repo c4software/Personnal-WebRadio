@@ -202,6 +202,9 @@ class WebSettings:
     address: str
     port: int
     refresh_seconds: float
+    # L'adresse du flux, pour le lecteur de la page (GOAL-060). Vide : pas de
+    # lecteur. `:8000/flux` désigne l'hôte de la page.
+    stream_url: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -708,7 +711,7 @@ def validate(brut: Mapping[str, Any]) -> Settings:
     state = _table(brut, "state", "")
     _verifier_cles(state, ("database", "timeout_seconds"), "state")
     web = _table_optionnelle(brut, "web", "")
-    _verifier_cles(web, ("address", "port", "refresh_seconds"), "web")
+    _verifier_cles(web, ("address", "port", "refresh_seconds", "stream_url"), "web")
     podcast = _table_optionnelle(brut, "podcast", "")
     _verifier_cles(podcast, ("timeout_seconds",), "podcast")
     playout = _table_optionnelle(brut, "playout", "")
@@ -740,6 +743,7 @@ def validate(brut: Mapping[str, Any]) -> Settings:
                 default=DEFAULT_REFRESH,
                 minimum=0.5,
             ),
+            stream_url=_texte(web, "stream_url", "web", default=""),
         ),
         youtube=YoutubeSettings(
             timeout_seconds=_reel(

@@ -791,3 +791,20 @@ def test_un_plafond_de_duree_negatif_est_refuse_en_le_nommant() -> None:
         _valider(content)
 
     assert "draw.max_track_minutes" in str(refus.value)
+
+
+def test_sans_adresse_de_flux_la_page_n_a_pas_de_lecteur() -> None:
+    """GOAL-060 : absente, la clé ne désigne rien — et rien n'est écrit en
+    dur à sa place."""
+    assert _valider(TOML_MINIMAL).web.stream_url == ""
+
+
+def test_l_adresse_du_flux_se_lit_telle_quelle() -> None:
+    config = _valider(TOML_MINIMAL + '\n[web]\nstream_url = ":8000/flux"\n')
+    assert config.web.stream_url == ":8000/flux"
+
+
+def test_une_adresse_de_flux_vide_est_refusee_en_le_nommant() -> None:
+    with pytest.raises(SettingsError) as refus:
+        _valider(TOML_MINIMAL + '\n[web]\nstream_url = ""\n')
+    assert "web.stream_url" in str(refus.value)
