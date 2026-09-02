@@ -38,7 +38,6 @@ button[disabled] { cursor: default; }
 /* L'en-tête et les onglets restent collés en haut, en verre : on change
    d'onglet sans remonter, et le contenu défile dessous. */
 .haut { position: sticky; top: 0; z-index: 2; margin: -1.25rem -1.25rem 1.25rem; padding: 0.9rem 1.25rem 0.75rem;
-        background: linear-gradient(rgba(11, 15, 26, 0.85), rgba(11, 15, 26, 0.6) 70%, transparent);
         backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
 .marque { display: flex; align-items: center; gap: 0.5rem; margin: 0 0.25rem 0.7rem;
           font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sourdine); }
