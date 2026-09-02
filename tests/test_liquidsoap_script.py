@@ -58,7 +58,17 @@ def test_un_direct_est_une_instruction_de_l_api_pas_du_script() -> None:
     assert 'prefix="live:"' in code
     assert "input.http(" in code
     assert "self_sync=false" in code, "sans lui la rafale initiale avale le morceau en cours"
-    assert "track_sensitive=true" in code, "un direct prend la main à la jonction, jamais au milieu"
+
+
+def test_un_direct_prend_l_antenne_a_une_jonction() -> None:
+    """GOAL-051 : `track_sensitive=true` ne suffit pas — derrière `crossfade`,
+    le `switch` ne reçoit aucune fin de piste et cesse d'évaluer ses prédicats
+    (docs/liquidsoap.md §9). C'est un témoin armé au début d'une piste qui
+    tient la règle de SPECS.md §4.11."""
+    code = _code()
+    assert "direct_arme = ref(false)" in code
+    assert "direct_arme := live_pending()" in code
+    assert re.search(r"direct_arme\(\).*live\.is_ready\(\).*live", code, re.DOTALL)
 
 
 def test_le_saut_est_une_route_que_l_api_ordonne() -> None:

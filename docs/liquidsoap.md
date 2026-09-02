@@ -300,7 +300,12 @@ volume (témoin : −inf → −3,6 dB en une fenêtre). Comment fondre cette ba
       purge (`set_queue([])`). Tant que ce n'est pas établi, l'heure à laquelle
       un direct prend l'antenne n'est pas garantie — et c'est la cause du
       retard entendu à 7 h 51.
-- [ ] Le compromis à trancher pour y remédier : armer la bascule au `on_track`
-      du `request.dynamic` la fait tomber ~2 s **avant** la fin audible du
-      morceau (préchargement du `crossfade`), donc en plein fondu de sortie.
-      Audible ou non : seule l'écoute le dira.
+- [x] ~~Le compromis à trancher pour y remédier.~~ **Arbitré par l'auteur le
+      2026-09-02** (GOAL-051-T06) : `track_sensitive=false` plus un témoin armé
+      par le `on_track` du `request.dynamic`. Mesuré ensuite sur la même
+      maquette : le direct prend l'antenne **1 s après le début de piste** qui
+      l'arme — la jonction, donc — et la rend à l'heure dite. Le flux reçu ne
+      porte **aucun silence** au retour à la musique (`silencedetect`, −50 dB,
+      0,3 s : rien d'autre que les 5,4 s d'attente du tout premier morceau).
+      Reste la question que seule l'oreille tranche : les ~2 s de fondu de
+      sortie écourtées s'entendent-elles ?

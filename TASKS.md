@@ -59,8 +59,8 @@ secondes au branchement du premier auditeur, y compris quand l'antenne reprend
 au milieu d'un morceau. Les écoutes de GOAL-044 (modes d'enchaînement) et
 GOAL-047 (coupe au plafond) ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-051-T06 — elle porte un arbitrage audible et
-attend l'auteur (AGENTS.md §1.2, cas 2). T04 en dépend.
+**Prochaine tâche** : GOAL-051-T04 — l'annonce du direct part de la transition
+du `switch`, maintenant que la bascule est fiable.
 
 ---
 
@@ -181,17 +181,18 @@ ensemble ils mentent.
       reliquat coupé : le premier morceau d'après est tiré à l'heure qu'il est,
       dans la plage qui est réellement ouverte. **(défauts 3 et 4)** — à
       écouter : la reprise à la coupure du direct.
-- [ ] **GOAL-051-T06** — Le direct prend l'antenne **à la première jonction**,
+- [x] **GOAL-051-T06** — Le direct prend l'antenne **à la première jonction**,
       et non au hasard. Constaté en maquette (T01) : derrière `crossfade`, un
       `switch(track_sensitive=true)` n'évalue plus ses prédicats — zéro
       évaluation sur quatre jonctions, le direct n'obtient jamais l'antenne. En
       production le 2026-09-02, une seule bascule, **85 s** après l'instruction.
       **(cinquième défaut, découvert par le relevé)**
-      > **Arbitrage à demander (AGENTS.md §1.2, cas 2)** : la seule bascule
-      > fiable observée est `track_sensitive=false`, qui coupe **au milieu du
-      > morceau** — ce que SPECS.md §4.11 refuse. L'armer au `on_track` du
-      > `request.dynamic` la fait tomber ~2 s avant la fin audible, en plein
-      > fondu de sortie. Le compromis est audible : il ne se tranche pas seul.
+      > **Arbitré par l'auteur le 2026-09-02** : `track_sensitive=false` plus un
+      > témoin armé par le `on_track` du `request.dynamic`. Deux secondes de
+      > fondu de sortie écourtées, deux fois par jour, valent mieux qu'un direct
+      > qui entre à une heure non garantie. Mesuré : la bascule tombe 1 s après
+      > le début de piste qui l'arme, et le retour à la musique ne porte aucun
+      > silence.
 
 **Décidé sans arbitrage** (AGENTS.md §1.2) : la purge de fin de direct est
 ordonnée dans `radio.liq`, par un `ref` posé après la définition de `programme`

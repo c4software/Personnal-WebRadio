@@ -46,7 +46,7 @@ end
 # une requête — la résolution d'un flux infini expire (docs/liquidsoap.md §5) —
 # donc il passe par `input.http`, démarré dès l'instruction (un morceau
 # d'avance, le temps qu'il se remplisse), mis à l'antenne **à la jonction**
-# (`switch` sensible aux pistes), et coupé à l'heure dite. `self_sync=false` :
+# (`direct_arme`, plus bas), et coupé à l'heure dite. `self_sync=false` :
 # sans lui, la rafale initiale du serveur accélère l'horloge de toute la
 # sortie et le morceau en cours est avalé (docs/liquidsoap.md §5).
 live_url = ref("")
@@ -153,8 +153,18 @@ programme = request.dynamic(id="programme", retry_delay=5., prefetch=1, next_ent
 # l'antenne vide alors que ce processus tient un morceau depuis la veille.
 piste_commencee = ref(false)
 
+# Et c'est aussi le **seul signal de jonction** dont dispose le direct. Un
+# `switch(track_sensitive=true)` derrière `crossfade` ne reçoit aucune fin de
+# piste et cesse d'évaluer ses prédicats : en maquette, zéro évaluation sur
+# quatre jonctions, le direct n'obtenait jamais l'antenne ; en production le
+# 2026-09-02, 85 s de retard (docs/liquidsoap.md §9). Le `switch` évalue donc
+# en continu, et c'est ce témoin — armé ici, à un début de piste — qui garantit
+# que le direct n'entre pas au milieu d'un morceau (SPECS.md §4.11).
+direct_arme = ref(false)
+
 def on_track(metadata) =
   piste_commencee := true
+  direct_arme := live_pending()
   body = metadata["initial_uri"] ^ "\n" ^ metadata["artist"] ^ "\n" ^ metadata["title"]
   answer = http.post(timeout=api_timeout, data=body, "#{api}/playout/playing")
   if answer.status_code != 204 then
@@ -208,11 +218,21 @@ programme = normalize(programme)
 programme = crossfade(duration=2., fade_in=1., fade_out=1., programme)
 
 # Le direct prend la main à la jonction, jamais au milieu d'un morceau
-# (SPECS.md §4.11), et la rend dès qu'il s'arrête. APRÈS normalize et
+# (SPECS.md §4.11), et la rend dès qu'il s'arrête — à la seconde, sans
+# attendre de jonction, puisqu'un direct n'en a pas. APRÈS normalize et
 # crossfade : ces opérateurs refusent une source qui contrôle sa propre
 # latence, ce qu'est input.http — et `--check` ne le voit pas, seule
 # l'exécution le dit (docs/liquidsoap.md §5).
-on_air = switch(track_sensitive=true, [({live_pending() and live.is_ready()}, live), ({true}, programme)])
+#
+# `track_sensitive=false` **avec** `direct_arme` plutôt que `true` : voir le
+# témoin plus haut. La jonction ainsi obtenue tombe ~2 s avant la fin audible
+# du morceau — en plein fondu de sortie, qu'elle écourte. Compromis arbitré
+# par l'auteur le 2026-09-02 : deux secondes deux fois par jour valent mieux
+# qu'un direct qui entre à une heure non garantie.
+on_air = switch(
+  track_sensitive=false,
+  [({direct_arme() and live_pending() and live.is_ready()}, live), ({true}, programme)]
+)
 
 # ── Rien n'est décodé ni demandé sans auditeur (SPECS.md §1) ────────────────
 listeners = ref(0)
