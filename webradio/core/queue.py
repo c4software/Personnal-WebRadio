@@ -63,7 +63,9 @@ class Queue:
         self._fenetre = window if window is not None else Window()
         self._peser = weigh
         self._suites = runs
-        self._avance: Pick | None = None
+        # L'avance, et la clé du moment qui l'a tirée (décision n°33) : une
+        # avance dont le moment a fini est rassise, elle ne passe pas.
+        self._avance: tuple[Pick, object] | None = None
         if weigh is not None and not hasattr(random, "pick_weighted"):
             # Refuser ici plutôt qu'au premier tirage : une file construite avec
             # des poids et un hasard qui ne sait pas les honorer tirerait
@@ -77,38 +79,55 @@ class Queue:
 
         Appelée pendant que le courant joue. Une source lente coûte alors du
         temps que personne n'attend, au lieu d'un trou à la jonction.
+
+        Une avance tirée sous un autre moment est **rassise** : elle est
+        remplacée, pas servie. C'est ce qui a fait entendre un cinquième Bob
+        Marley derrière le générique du mystère, le 2026-09-02 à 16 h 07.
         """
-        if self._avance is None:
-            self._avance = self._choisir(constraint)
+        if self._fraiche(constraint) is None:
+            self._avance = (self._choisir(constraint), self._cle_de_suite(constraint))
 
     @property
     def prepared(self) -> Track | None:
         """L'avance déjà résolue, sans la consommer — ou rien.
 
         Elle sert à **dire** ce qui vient (GOAL-054), jamais à décider : c'est
-        exactement le `Pick` que le prochain `next_pick` servira. Une émission
-        ou un « encore » peuvent encore s'intercaler devant lui ; l'annoncer
-        reste plus juste que de ne rien annoncer.
+        exactement le `Pick` que le prochain `next_pick` servira si le moment
+        tient. Une émission ou un « encore » peuvent encore s'intercaler
+        devant lui ; l'annoncer reste plus juste que de ne rien annoncer.
         """
-        return None if self._avance is None else self._avance.track
+        return None if self._avance is None else self._avance[0].track
 
     def forget_prepared(self) -> None:
         """Jette l'avance déjà résolue : le prochain tirage repart à neuf.
 
-        `next_pick` sert l'avance **sans regarder la contrainte** — c'est tout
-        son intérêt, elle a déjà coûté un appel à la source. Mais après une
-        longue pause sans auditeur, cette avance a été tirée des heures plus
-        tôt, sous une plage qui n'est plus ouverte : la servir contredirait le
-        « tirage neuf » de SPECS.md §7 n°30.
+        Le moment ne suffit pas toujours à la juger rassise : après une longue
+        pause sans auditeur, la même plage peut être encore ouverte, et le
+        « tirage neuf » de SPECS.md §7 n°30 vaut quand même.
         """
         self._avance = None
 
     def next_pick(self, constraint: Constraint | None = None) -> Pick:
-        """Le morceau suivant. Sert l'avance si elle existe, la calcule sinon."""
-        pick = self._avance if self._avance is not None else self._choisir(constraint)
+        """Le morceau suivant. Sert l'avance si son moment tient, tire sinon."""
+        pick = self._fraiche(constraint)
+        if pick is None:
+            pick = self._choisir(constraint)
         self._avance = None
         self._fenetre.remember(pick.track)
         return pick
+
+    def _fraiche(self, constraint: Constraint | None) -> Pick | None:
+        """L'avance, si elle a été tirée sous le moment de cette contrainte.
+
+        La clé est celle des suites : l'occurrence de plage — une plage
+        multi-genres retire un genre à chaque jonction sans changer de moment,
+        et son avance survit — ou la contrainte elle-même, ou rien en tirage
+        libre.
+        """
+        if self._avance is None:
+            return None
+        pick, moment = self._avance
+        return pick if moment == self._cle_de_suite(constraint) else None
 
     def _choisir(self, constraint: Constraint | None) -> Pick:
         fallbacks: list[str] = []

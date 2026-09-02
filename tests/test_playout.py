@@ -639,3 +639,22 @@ def test_un_programme_sert_aussi_ses_titres_longs(tmp_path: Path) -> None:
         programming=Programming([PROG], clock),
     )
     assert programme.next_entry() == "fake://long"
+
+
+def test_a_la_jonction_qui_suit_un_changement_de_plage_l_avance_est_retiree(
+    tmp_path: Path,
+) -> None:
+    """Rejoue le 2026-09-02 : à 15 h 59 le programme prend de l'avance sous
+    la plage de 15 h ; à 16 h 03, la plage a changé, et c'est un morceau de
+    la nouvelle plage qui doit sortir — pas l'avance rassise (décision n°33)."""
+    montre = FrozenClock(MIDI.replace(hour=15, minute=59))
+    plages = [
+        Band(start=time(15, 0), end=time(16, 0), genres=("trip-hop",)),
+        Band(start=time(16, 0), end=time(17, 0), genres=("rock",)),
+    ]
+    programme, vues = _programme(tmp_path, bands=plages, clock=montre)
+    assert programme.next_entry() == "fake://3"
+    programme.prepare()
+    montre.advance(timedelta(minutes=4))
+    assert programme.next_entry() == "fake://2"
+    assert vues[-1][1] is not None and vues[-1][1].genre == "rock"

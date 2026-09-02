@@ -296,3 +296,44 @@ def test_une_piste_longue_se_tire_comme_les_autres() -> None:
     catalogue = [track("long", "Air", secondes=2400)]
     f = Queue(FakeSource(catalogue), ScriptedRandom([0]))
     assert f.next_pick().track.identifier == "long"
+
+
+def test_l_avance_tiree_sous_une_plage_ne_passe_pas_sous_la_suivante() -> None:
+    """Le 2026-09-02 à 16 h 07 : le générique annonce un genre mystère, et
+    l'auditeur entend un Bob Marley de plus, tiré d'avance sous la plage de
+    15 h. Une avance dont le moment a fini est rassise (décision n°33)."""
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0, 0]))
+    f.prepare(Constraint(genre="trip-hop", run_key="15 h"))
+    pick = f.next_pick(Constraint(genre="rock", run_key="16 h"))
+    assert pick.track.genre == "rock"
+    assert pick.fallbacks == ()
+
+
+def test_l_avance_survit_au_changement_de_genre_dans_la_meme_plage() -> None:
+    """Une plage multi-genres retire un genre à chaque jonction sans changer
+    de moment : l'avance a déjà coûté un appel, elle sert."""
+    source = FakeSource(CATALOGUE)
+    f = Queue(source, ScriptedRandom([0, 0]))
+    f.prepare(Constraint(genre="trip-hop", run_key="soirée"))
+    appels = source.appels
+    pick = f.next_pick(Constraint(genre="rock", run_key="soirée"))
+    assert pick.track.genre == "trip-hop"
+    assert source.appels == appels
+
+
+def test_preparer_sous_un_autre_moment_remplace_l_avance() -> None:
+    """À la jonction où la plage change, le programme reprépare : l'avance
+    rassise cède la place à un tirage sous la nouvelle plage."""
+    source = FakeSource(CATALOGUE)
+    f = Queue(source, ScriptedRandom([0, 0]))
+    f.prepare(Constraint(genre="trip-hop", run_key="15 h"))
+    f.prepare(Constraint(genre="rock", run_key="16 h"))
+    annonce = f.prepared
+    assert annonce is not None
+    assert annonce.genre == "rock"
+
+
+def test_l_avance_du_tirage_libre_ne_passe_pas_sous_une_plage() -> None:
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0, 0]))
+    f.prepare()
+    assert f.next_pick(Constraint(genre="rock", run_key="16 h")).track.genre == "rock"

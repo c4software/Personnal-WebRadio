@@ -83,7 +83,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-056-T01. Les trois Goals s'enchaînent dans
+**Prochaine tâche** : GOAL-056-T02. Les trois Goals s'enchaînent dans
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -216,7 +216,7 @@ Ce que cela **ne** change pas : la grille n'est toujours consultée qu'au tirage
 (§7 n°5), le morceau **en cours** finit toujours. Ce qui bouge est l'entrée
 d'avance, que personne n'entend encore.
 
-- [ ] **GOAL-056-T01** — La file date son avance : `Queue.prepare()` retient la
+- [x] **GOAL-056-T01** — La file date son avance : `Queue.prepare()` retient la
       clé du moment (`run_key`, ou `None` en tirage libre) avec le `Pick`, et
       `next_pick()` la sert seulement si la contrainte demandée porte la même
       clé — sinon il l'oublie et tire à neuf. Une plage multi-genres retire un
