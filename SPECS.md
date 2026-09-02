@@ -415,7 +415,7 @@ d'une liste et non de la file (§4.13), et l'avance préparée ne passera pas.
 #### Les prochains titres
 
 **Depuis le 2026-09-02** (§7 n°34, GOAL-058), « À suivre » est la tête d'une
-**liste** : la radio tire `draw.lookahead` titres d'avance (§6, trois par
+**liste** : la radio tire `draw.lookahead` titres d'avance (§6, huit par
 défaut), et l'API la rend dans l'ordre de passage (`GET /api/up-next`) — ce
 que le diffuseur a déjà demandé, puis l'avance de la file — avec, pour chaque
 entrée, sa nature, son titre, son artiste, l'**heure estimée** de son début, et
@@ -927,7 +927,7 @@ Ce que le TOML doit décrire, au minimum :
   passer avant qu'un artiste puisse revenir (§4.2, défaut 5), et
   `max_track_minutes`, le plafond de durée de lecture d'une piste (§4.2,
   défaut 20, `0` = sans limite), et `lookahead`, le nombre de titres tirés
-  d'avance — la liste des prochains titres (§4.8, défaut 3, au moins 1) ;
+  d'avance — la liste des prochains titres (§4.8, défaut 8, au moins 1) ;
 - **Les sources** : une section par source, avec son type et ses paramètres
   (§4.10) ;
 - **Les programmes** : une entrée `[[programmes]]` par programme — nom, liste
@@ -1313,7 +1313,8 @@ abandonnés (§4.11) — mais un moment fini compte toujours.
 
 **n°34 — Les prochains titres ? Une avance de N titres, tirés pour leur
 heure, et retirables.** Tranchée le 2026-09-02 par l'auteur. La file tire
-`draw.lookahead` titres d'avance (défaut 3), chacun **sous le moment de son
+`draw.lookahead` titres d'avance (défaut 8, révisé le 2026-09-02 : l'auteur
+voulait voir plus loin), chacun **sous le moment de son
 heure estimée** — le morceau en cours, puis les durées, l'habillage pour zéro —
 et daté par lui (n°33) ; l'estimation se revalide à chaque préparation, et un
 créneau qui a glissé est retiré avec ce qui le suit. La liste se lit par l'API

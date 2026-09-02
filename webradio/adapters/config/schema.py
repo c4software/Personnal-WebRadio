@@ -59,9 +59,10 @@ EVERY_DAY = "all"
 DEFAULT_ARTIST_GAP_KEY = 5
 # Au-delà, la lecture se coupe au plafond (SPECS.md §7 n°32). 0 = sans limite.
 DEFAULT_MAX_TRACK_MINUTES = 20
-# Trois titres d'avance : assez pour voir venir, pas assez pour que la
-# grille change sous une avance entière (GOAL-058).
-DEFAULT_LOOKAHEAD = 3
+# Huit titres d'avance : assez pour voir venir une demi-heure (GOAL-061).
+# Chaque titre est tiré pour son heure, la grille ne change pas sous l'avance ;
+# le coût est un appel à la source par titre, que le cache absorbe.
+DEFAULT_LOOKAHEAD = 8
 DEFAULT_VOTE_FLOOR = 0.25
 DEFAULT_VOTE_CEILING = 4.0
 DEFAULT_VOTE_HALF_LIFE = 90

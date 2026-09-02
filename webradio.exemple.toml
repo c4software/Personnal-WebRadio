@@ -18,7 +18,7 @@ artist_gap = 5
 # Au-delà de cette durée, la lecture se coupe en fondu. 0 = sans limite.
 max_track_minutes = 20
 # Combien de titres la radio tire d'avance : c'est la liste des prochains titres.
-lookahead = 3
+lookahead = 8
 
 # Pondération par les votes (SPECS.md §4.12).
 # Les votes portent sur l'ARTISTE (révision du 2026-08-30, SPECS.md §7 n°16) :
