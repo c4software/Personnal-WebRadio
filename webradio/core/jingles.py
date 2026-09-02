@@ -40,7 +40,7 @@ def jingle_name(instant: datetime) -> str:
     return f"hours/{instant.hour:02d}h.mp3"
 
 
-def _heures_pleines(depuis: datetime, jusqu_a: datetime) -> list[datetime]:
+def full_hours_between(depuis: datetime, jusqu_a: datetime) -> list[datetime]:
     """Les heures pleines de `]depuis, jusqu_a]`, de la plus ancienne à la plus récente."""
     borne = depuis.replace(minute=0, second=0, microsecond=0) + UNE_HEURE
     franchies: list[datetime] = []
@@ -94,7 +94,7 @@ class Jingles:
         explicitement.
         """
         now = self._horloge.now()
-        franchies = _heures_pleines(self._repere, now)
+        franchies = full_hours_between(self._repere, now)
         self._repere = now
 
         encore = self._encore_du

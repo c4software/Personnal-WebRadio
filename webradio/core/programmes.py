@@ -109,7 +109,9 @@ class Programming:
         return self._programmes
 
     def current_programme(self) -> Programme | None:
-        instant = self._horloge.now()
+        return self.programme_at(self._horloge.now())
+
+    def programme_at(self, instant: datetime) -> Programme | None:
         for programme in self._programmes:
             if programme.covers(instant):
                 return programme

@@ -83,7 +83,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-058-T02.
+**Prochaine tâche** : GOAL-058-T03.
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -349,7 +349,7 @@ passe par le chemin de l'encore : `/requeue`, et le reste se replace.
       liste. Tests : cinq tirages d'avance ne répètent pas un artiste dans
       l'écart, une avance rassise se vide d'un coup, une source lente ne
       bloque pas la jonction (la préparation reste hors verrou).
-- [ ] **GOAL-058-T02** — La route de lecture : `GET /api/up-next` rend la
+- [x] **GOAL-058-T02** — La route de lecture : `GET /api/up-next` rend la
       liste dans l'ordre de passage — l'entrée chez le diffuseur d'abord, puis
       l'avance de la file — avec, pour chacune, un identifiant stable (celui de
       la piste), titre, artiste, nature ; jamais l'habillage (règle de

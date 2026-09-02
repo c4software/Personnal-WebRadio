@@ -17,7 +17,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from webradio.app.playout import RadioProgramme
+from webradio.app.playout import RadioProgramme, Upcoming
 from webradio.app.radio import ListenerCount, LiveRadio
 from webradio.core.clock import Clock
 from webradio.core.control import Kind
@@ -90,6 +90,11 @@ class LiquidsoapPlayout:
         # a été lu s'efface dès que la suite commence (GOAL-028).
         self._ephemere = ephemeral_dir
         self._entree_en_cours: str | None = None
+        # Ce qui joue, et depuis quand : c'est ce qui permet d'estimer quand
+        # la jonction suivante tombera, donc l'heure de chaque titre d'avance
+        # (GOAL-058). Inconnu après un redémarrage, et pour un direct.
+        self._en_cours: Pending | None = None
+        self._commence_a: datetime | None = None
         # La reprise à neuf après une longue pause (SPECS.md §7 n°30) : la
         # pause se date au départ du dernier auditeur, et se juge au retour.
         self._horloge = clock
@@ -124,8 +129,37 @@ class LiquidsoapPlayout:
             while len(self._en_attente) > PENDING_MAX:
                 oublie = next(iter(self._en_attente))
                 del self._en_attente[oublie]
-            self._programme.prepare()
+            self._programme.prepare(self._fin_estimee_de_l_avance())
             return entry
+
+    def _fin_estimee_du_courant(self) -> datetime | None:
+        """Quand le morceau en cours finira, si on peut le savoir : son début
+        plus sa durée — coupée au plafond. Rien pour un direct, une entrée
+        inconnue, ou sans horloge."""
+        if self._en_cours is None or self._commence_a is None or self._horloge is None:
+            return None
+        track = self._en_cours.track
+        if self._en_cours.kind is not Kind.MUSIC or track is None:
+            return None
+        duree = track.duration
+        if self._plafond is not None and duree > self._plafond:
+            duree = self._plafond
+        # Jamais dans le passé : après une pause sans auditeur, le morceau
+        # commencé il y a longtemps finira au plus tôt maintenant.
+        return max(self._commence_a + duree, self._horloge.now())
+
+    def _fin_estimee_de_l_avance(self) -> datetime | None:
+        """Quand la file parlera : la fin du courant, puis ce qui attend déjà
+        chez le diffuseur. L'habillage compte pour zéro — une dizaine de
+        secondes, dont la durée n'est pas connue ici."""
+        instant = self._fin_estimee_du_courant()
+        if instant is None:
+            return None
+        with self._verrou:
+            for entry, pending in self._en_attente.items():
+                if entry != self._entree_en_cours and pending.track is not None:
+                    instant = instant + pending.track.duration
+        return instant
 
     def _couper_au_plafond(self, entry: str) -> str:
         """L'entrée, annotée pour se couper au plafond si sa piste le dépasse.
@@ -152,6 +186,8 @@ class LiquidsoapPlayout:
         with self._verrou:
             pending = self._en_attente.pop(entry, None)
             finie, self._entree_en_cours = self._entree_en_cours, entry
+            self._en_cours = pending
+            self._commence_a = None if self._horloge is None else self._horloge.now()
         self._effacer_si_ephemere(finie)
         if pending is None:
             if artist is None and title is None:
@@ -202,17 +238,57 @@ class LiquidsoapPlayout:
         à vider le panneau le temps d'une chanson entière — une quarantaine de
         fois par jour. La file, elle, a déjà tiré la suite.
         """
+        for item in self.upcoming():
+            # Dix secondes d'habillage ne sont pas « à suivre » : on annonce
+            # le premier vrai contenu (demandé par l'auteur).
+            if item.kind is not Kind.JINGLE:
+                return (item.kind, item.track, item.label)
+        return None
+
+    def upcoming(self) -> list[Upcoming]:
+        """La liste des prochains titres (GOAL-058) : ce que le diffuseur a
+        déjà demandé, puis ce que le programme rendrait ensuite — avec l'heure
+        estimée de chaque début quand le morceau en cours permet de l'estimer.
+        """
+        instant = self._fin_estimee_du_courant()
+        items: list[Upcoming] = []
         with self._verrou:
             for entry, pending in self._en_attente.items():
                 if entry == self._entree_en_cours:
                     continue
-                if pending.kind is Kind.JINGLE:
-                    # Dix secondes d'habillage ne sont pas « à suivre » : on
-                    # annonce le premier vrai contenu (demandé par l'auteur).
-                    continue
-                return pending.nature
-        track = self._programme.prepared()
-        return None if track is None else (Kind.MUSIC, track, None)
+                label = pending.label
+                if pending.kind is Kind.JINGLE and label is None:
+                    label = Path(entry.rsplit(":", 1)[-1]).stem
+                items.append(Upcoming(pending.kind, pending.track, label, instant))
+                if pending.track is not None and instant is not None:
+                    instant = instant + pending.track.duration
+        items.extend(self._programme.upcoming(instant))
+        return items
+
+    def withdraw(self, identifier: str) -> bool:
+        """Retire un titre qui attend : chez le diffuseur — l'avance se
+        replace sans lui et le diffuseur redemande — ou dans la file. Faux
+        s'il n'attend plus : il a commencé entre-temps (GOAL-058)."""
+        with self._verrou:
+            chez_le_diffuseur = [
+                entry
+                for entry, pending in self._en_attente.items()
+                if entry != self._entree_en_cours
+                and pending.track is not None
+                and pending.track.identifier == identifier
+            ]
+            for entry in chez_le_diffuseur:
+                del self._en_attente[entry]
+        if chez_le_diffuseur:
+            logger.info("retiré avant diffusion, le diffuseur redemande : %s", identifier)
+            self.stash_for_replay()
+            if self._ordonner_requeue is not None:
+                self._ordonner_requeue()
+            return True
+        if not self._programme.withdraw(identifier):
+            return False
+        self._programme.prepare(self._fin_estimee_de_l_avance())
+        return True
 
     def stash_for_replay(self) -> None:
         """Les entrées demandées mais pas encore à l'antenne repartent au

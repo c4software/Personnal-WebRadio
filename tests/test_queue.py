@@ -112,7 +112,7 @@ def test_l_avance_est_bien_celle_qui_est_servie() -> None:
 
 
 def test_sans_preparation_la_file_n_annonce_rien() -> None:
-    assert Queue(FakeSource(CATALOGUE), ScriptedRandom([0])).prepared() is None
+    assert Queue(FakeSource(CATALOGUE), ScriptedRandom([0])).advance == ()
 
 
 def test_la_file_dit_ce_qu_elle_a_prepare_sans_le_consommer() -> None:
@@ -120,8 +120,7 @@ def test_la_file_dit_ce_qu_elle_a_prepare_sans_le_consommer() -> None:
     seule entrée d'avance du diffuseur était un jingle. La file, elle, sait."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([2, 0]))
     f.prepare()
-    annonce, redite = f.prepared(), f.prepared()
-    assert annonce is not None
+    (annonce,), (redite,) = f.advance, f.advance
     assert annonce.artist == "Portishead"
     assert redite is annonce, "le dire ne le consomme pas"
     assert f.next_pick().track is annonce, "et c'est bien lui qui est servi"
@@ -131,7 +130,7 @@ def test_l_avance_servie_n_est_plus_annoncee() -> None:
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([2, 0]))
     f.prepare()
     f.next_pick()
-    assert f.prepared() is None
+    assert f.advance == ()
 
 
 def test_l_avance_s_oublie_pour_repartir_a_neuf() -> None:
@@ -142,7 +141,7 @@ def test_l_avance_s_oublie_pour_repartir_a_neuf() -> None:
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([2, 0]))
     f.prepare()
     f.forget_prepared()
-    assert f.prepared() is None
+    assert f.advance == ()
 
 
 def test_apres_avoir_servi_l_avance_la_file_recalcule() -> None:
@@ -330,9 +329,8 @@ def test_preparer_sous_un_autre_moment_remplace_l_avance() -> None:
     f.revalidate(["16 h"])
     assert f.advance == ()
     f.prepare(Constraint(genre="rock", run_key="16 h"))
-    annonce = f.prepared("16 h")
-    assert annonce is not None
-    assert annonce.genre == "rock"
+    assert f.dated_advance[0][0].genre == "rock"
+    assert f.dated_advance[0][1] == "16 h"
 
 
 def test_l_avance_du_tirage_libre_ne_passe_pas_sous_une_plage() -> None:
@@ -341,12 +339,14 @@ def test_l_avance_du_tirage_libre_ne_passe_pas_sous_une_plage() -> None:
     assert f.next_pick(Constraint(genre="rock", run_key="16 h")).track.genre == "rock"
 
 
-def test_une_avance_rassise_n_est_pas_annoncee() -> None:
-    """« À suivre » ne promet pas un morceau qui ne passera pas."""
+def test_l_avance_dit_sous_quel_moment_chaque_titre_a_ete_tire() -> None:
+    """« À suivre » ne promet pas un morceau qui ne passera pas : c'est le
+    lecteur qui compare la clé à celle du créneau."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0, 0]))
     f.prepare(Constraint(genre="trip-hop", run_key="15 h"))
-    assert f.prepared("15 h") is not None
-    assert f.prepared("16 h") is None
+    ((track, moment),) = f.dated_advance
+    assert track.genre == "trip-hop"
+    assert moment == "15 h"
 
 
 def test_la_file_tire_plusieurs_titres_d_avance_sans_repeter_un_artiste() -> None:

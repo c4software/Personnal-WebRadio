@@ -30,6 +30,7 @@ def _playout(
     max_duration: timedelta | None = None,
     catalogue: list[Track] | None = None,
     bands: list[Band] | None = None,
+    lookahead: int = 1,
 ) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
     clock = FrozenClock(MIDI)
     random = ScriptedRandom([0] * 100)
@@ -39,7 +40,7 @@ def _playout(
     radio = LiveRadio(Control(source=source, random=random, jingles=jingles), counter)
     branche: list[LiquidsoapPlayout] = []
     programme = RadioProgramme(
-        queue=Queue(source, random, Window(width=1)),
+        queue=Queue(source, random, Window(width=1), lookahead=lookahead),
         source=source,
         grille=Schedule(bands or [], clock),
         jingles=jingles,
@@ -325,7 +326,7 @@ def test_la_file_annonce_ce_qui_suit_et_l_encore_le_replace(tmp_path: Path) -> N
     assert a_suivre[1] is not None  # la piste demandée, connue de la charnière
 
     playout.stash_for_replay()
-    assert playout.up_next() is None  # l'avance est partie se replacer
+    assert playout.up_next() == a_suivre, "replacée, elle reste à suivre"
     # …et le programme la ressert telle quelle au prochain tirage.
     assert playout.next_entry() == deuxieme
 
@@ -503,3 +504,110 @@ def test_un_moment_fini_compte_meme_pendant_une_emission(tmp_path: Path) -> None
     clock.advance(timedelta(hours=1, seconds=10))
     playout.declare_listeners(1)
     assert ordres == ["requeue"]
+
+
+TROIS = [*CATALOGUE, track("3", "Portishead", genre="trip-hop")]
+
+
+def test_la_liste_des_prochains_titres_porte_l_heure_estimee(tmp_path: Path) -> None:
+    """GOAL-058 : le morceau en cours a commencé à 12 h et dure trois
+    minutes ; ce qui attend chez le diffuseur commence à 12 h 03, puis
+    l'avance de la file, durée après durée."""
+    playout, _radio, clock = _playout(tmp_path, catalogue=TROIS, lookahead=2)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    playout.next_entry()  # l'avance du diffuseur, puis la file se remplit
+
+    liste = playout.upcoming()
+    assert [i.kind for i in liste] == [Kind.MUSIC, Kind.MUSIC, Kind.MUSIC]
+    assert [i.at for i in liste] == [
+        clock.now() + timedelta(minutes=3),
+        clock.now() + timedelta(minutes=6),
+        clock.now() + timedelta(minutes=9),
+    ]
+    assert playout.up_next() == (liste[0].kind, liste[0].track, liste[0].label)
+
+
+def test_sans_morceau_en_cours_connu_la_liste_n_a_pas_d_heure(tmp_path: Path) -> None:
+    playout, _radio, _clock = _playout(tmp_path, catalogue=TROIS, lookahead=2)
+    playout.declare_listeners(1)
+    playout.next_entry()
+    assert all(i.at is None for i in playout.upcoming())
+
+
+def test_l_estimation_ne_tombe_jamais_dans_le_passe(tmp_path: Path) -> None:
+    """Après une pause, le morceau commencé il y a longtemps finira au plus
+    tôt maintenant."""
+    playout, _radio, clock = _playout(tmp_path, catalogue=TROIS, lookahead=1)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    playout.next_entry()
+    clock.advance(timedelta(minutes=30))
+    assert playout.upcoming()[0].at == clock.now()
+
+
+def test_un_jingle_qui_attend_chez_le_diffuseur_se_nomme_dans_la_liste(tmp_path: Path) -> None:
+    (tmp_path / "hours").mkdir()
+    (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
+    playout, _radio, clock = _playout(tmp_path, catalogue=TROIS, lookahead=1)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    clock.advance(timedelta(hours=1))
+    playout.next_entry()  # le jingle de 13 h
+    liste = playout.upcoming()
+    assert (liste[0].kind, liste[0].label) == (Kind.JINGLE, "13h")
+    assert liste[1].kind is Kind.MUSIC
+
+
+def test_retirer_le_titre_qui_attend_chez_le_diffuseur_fait_redemander(tmp_path: Path) -> None:
+    ordres: list[str] = []
+    playout, _radio, _clock = _playout(
+        tmp_path, catalogue=TROIS, lookahead=2, order_requeue=lambda: ordres.append("requeue")
+    )
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    playout.next_entry()
+    attendu = playout.upcoming()[0].track
+    assert attendu is not None
+
+    assert playout.withdraw(attendu.identifier)
+
+    assert ordres == ["requeue"]
+    assert attendu not in [i.track for i in playout.upcoming()]
+    assert playout.next_entry() != f"fake://{attendu.identifier}"
+
+
+def test_retirer_un_titre_de_l_avance_de_la_file_le_remplace(tmp_path: Path) -> None:
+    ordres: list[str] = []
+    playout, _radio, _clock = _playout(
+        tmp_path, catalogue=TROIS, lookahead=2, order_requeue=lambda: ordres.append("requeue")
+    )
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    playout.next_entry()
+    avant = playout.upcoming()
+    dans_la_file = avant[1].track
+    assert dans_la_file is not None
+
+    assert playout.withdraw(dans_la_file.identifier)
+
+    assert ordres == [], "la file suffit : le diffuseur n'a rien à redemander"
+    apres = playout.upcoming()
+    assert len(apres) == len(avant), "remplacé, pas seulement retiré"
+    assert dans_la_file not in [i.track for i in apres]
+
+
+def test_retirer_un_titre_qui_n_attend_plus_rend_faux(tmp_path: Path) -> None:
+    playout, _radio, _clock = _playout(tmp_path, catalogue=TROIS, lookahead=2)
+    playout.declare_listeners(1)
+    assert not playout.withdraw("nulle-part")

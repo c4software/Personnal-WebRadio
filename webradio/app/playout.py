@@ -12,13 +12,15 @@ relâché en chemin.
 import logging
 from collections import deque
 from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from webradio.core.bands import Band, Schedule
 from webradio.core.clock import Clock
 from webradio.core.control import Control, Kind
-from webradio.core.jingles import Jingles
+from webradio.core.jingles import Jingles, full_hours_between, jingle_name
 from webradio.core.models import Track
 from webradio.core.programmes import Programme, Programming
 from webradio.core.queue import EmptyQueue, Queue
@@ -30,6 +32,23 @@ if TYPE_CHECKING:
     from webradio.app.show_scheduler import Shows
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class Upcoming:
+    """Une entrée à venir, telle que la liste des prochains titres la montre
+    (GOAL-058) : sa nature, sa piste ou son libellé, et l'heure **estimée** de
+    son début — `None` quand rien ne permet d'estimer.
+
+    L'habillage prévu (un jingle horaire, un générique) y figure sans être
+    encore décidé : `expected` le distingue de ce qui est déjà tiré.
+    """
+
+    kind: Kind
+    track: Track | None
+    label: str | None
+    at: datetime | None
+    expected: bool = False
 
 
 class RadioProgramme:
@@ -121,26 +140,6 @@ class RadioProgramme:
                 return programme
         return self._grille.current_moment()
 
-    def prepared(self) -> Track | None:
-        """Le morceau déjà tiré qui suivra, quand c'est bien la file qui parlera.
-
-        « À suivre » ne voit que l'avance du diffuseur, et celle-ci n'est
-        parfois que de l'habillage — le panneau restait alors vide le temps
-        d'une chanson entière (GOAL-054). La file, elle, a déjà résolu la
-        suite : il suffit de la lire.
-
-        `None` pendant un **programme** : sa musique vient d'une liste, pas de
-        la file (SPECS.md §4.13), et l'avance préparée ne passera pas. Annoncer
-        un morceau qui ne viendra jamais serait pire que de n'annoncer rien.
-        """
-        if self._a_rejouer:
-            # Une avance replacée par un « encore » passe AVANT le tirage
-            # suivant (GOAL-034) : annoncer la file serait annoncer le mauvais.
-            return None
-        if self._programmation is not None and self._programmation.playlist_to_draw() is not None:
-            return None
-        return self._file.prepared(self._grille.current_moment())
-
     def replay_later(self, entry: str, kind: Kind, track: Track | None, label: str | None) -> None:
         """Replace une entrée déjà demandée, à jouer après l'effet d'un encore."""
         self._a_rejouer.append((entry, kind, track, label))
@@ -165,18 +164,115 @@ class RadioProgramme:
         # (SPECS.md §7 n°30). Trouvé le 2026-09-02 en câblant « À suivre ».
         self._file.forget_prepared()
 
-    def prepare(self) -> None:
-        """Résout le morceau suivant pendant que le courant joue.
+    def prepare(self, from_instant: datetime | None = None) -> None:
+        """Résout les morceaux suivants pendant que le courant joue.
 
         Appelée hors verrou par la chaîne : une source lente coûte alors du
         temps que personne n'attend, au lieu d'un trou à la jonction
         (docs/ffmpeg.md §2.2). Elle avale tout — se préparer est une commodité,
         jamais une cause d'arrêt.
+
+        `from_instant` est l'heure **estimée** à laquelle le premier titre de
+        l'avance commencera (GOAL-058) : chaque créneau est tiré sous le moment
+        qu'il trouvera en commençant, durée après durée. Sans estimation, tout
+        se tire sous le moment présent — et l'avance datée (décision n°33)
+        tranche, à la jonction, si l'estimation tenait.
         """
+        depart = self._horloge.now() if from_instant is None else from_instant
+        self._file.revalidate(self._moments_des_creneaux(depart))
+        instant = self._fin_des_creneaux(depart)
         try:
-            self._file.prepare(self._grille.constraint_to_draw(self._hasard))
+            while self._file.wants_more():
+                self._file.prepare(self._grille.constraint_to_draw(self._hasard, at=instant))
+                instant = instant + self._file.advance[-1].duration
         except (SourceUnavailable, EmptyQueue) as echec:
             logger.debug("préparation sans effet : %s", echec)
+
+    def _moments_des_creneaux(self, depart: datetime) -> list[object]:
+        moments: list[object] = []
+        instant = depart
+        for track in self._file.advance:
+            moments.append(self._grille.moment_at(instant))
+            instant = instant + track.duration
+        return moments
+
+    def _fin_des_creneaux(self, depart: datetime) -> datetime:
+        instant = depart
+        for track in self._file.advance:
+            instant = instant + track.duration
+        return instant
+
+    def upcoming(self, from_instant: datetime | None = None) -> list[Upcoming]:
+        """Ce qui vient, dans l'ordre, avec l'heure estimée de chaque début
+        (GOAL-058) — ce qui attend déjà, puis l'avance de la file, et entre
+        les deux l'habillage **prévu** : les jingles horaires dont l'heure
+        tombera avant un titre, les génériques du moment qui changera.
+
+        Rien n'est décidé ici : la liste dit ce que `next_entry` rendrait si
+        les durées estimées tenaient. Pendant un **programme**, l'avance de la
+        file n'y figure pas — sa musique vient d'une liste (SPECS.md §4.13).
+        """
+        instant = from_instant
+        items: list[Upcoming] = []
+        for name in self._en_attente:
+            items.append(Upcoming(Kind.JINGLE, None, Path(name).stem, instant))
+        for _, kind, track, label in self._a_rejouer:
+            items.append(Upcoming(kind, track, label, instant))
+            if track is not None and instant is not None:
+                instant = instant + track.duration
+        if self._programmation is not None and self._programmation.playlist_to_draw() is not None:
+            return items
+        precedent = instant
+        for index, (track, moment) in enumerate(self._file.dated_advance):
+            # Sans rien décider — la lecture est concurrente de la jonction —
+            # on s'arrête à la première entrée rassise, comme `revalidate`.
+            # Sans heure estimée, seule la tête se juge, contre l'instant
+            # présent : la suite a pu être tirée pour un moment à venir.
+            if instant is not None:
+                rassise = moment != self._grille.moment_at(instant)
+            else:
+                rassise = index == 0 and moment != self._grille.current_moment()
+            if rassise:
+                break
+            if instant is not None and precedent is not None:
+                items.extend(self._habillage_prevu(precedent, instant))
+            items.append(Upcoming(Kind.MUSIC, track, None, instant))
+            precedent = instant
+            instant = None if instant is None else instant + track.duration
+        return items
+
+    def _habillage_prevu(self, depuis: datetime, jusqu_a: datetime) -> list[Upcoming]:
+        """Les jingles et génériques que la jonction de `jusqu_a` rendrait,
+        dans l'ordre de `_prochain_jingle` : générique sortant, heures pleines,
+        générique entrant. Seuls les fichiers présents comptent."""
+        prevus: list[Upcoming] = []
+        avant, apres = self._moment_effectif_a(depuis), self._moment_effectif_a(jusqu_a)
+        if avant != apres:
+            sortant = avant.outro if isinstance(avant, Programme | Band) else None
+            if sortant is not None and self._variantes(sortant):
+                prevus.append(Upcoming(Kind.JINGLE, None, Path(sortant).stem, jusqu_a, True))
+        for heure in full_hours_between(depuis, jusqu_a):
+            if self._variantes(jingle_name(heure)):
+                prevus.append(Upcoming(Kind.JINGLE, None, f"{heure:%H} h", jusqu_a, True))
+        entrant = apres.intro if avant != apres and apres is not None else None
+        if entrant is not None and self._variantes(entrant):
+            prevus.append(Upcoming(Kind.JINGLE, None, Path(entrant).stem, jusqu_a, True))
+        return prevus
+
+    def _moment_effectif_a(self, instant: datetime) -> Programme | Band | None:
+        if self._programmation is not None:
+            programme = self._programmation.programme_at(instant)
+            if programme is not None:
+                return programme
+        return self._grille.band_at(instant)
+
+    def withdraw(self, identifier: str) -> bool:
+        """Retire un titre de l'avance de la file : il ne passera pas, un
+        autre sera tiré à sa place (GOAL-058)."""
+        if not self._file.withdraw(identifier):
+            return False
+        logger.info("retiré avant diffusion : %s", identifier)
+        return True
 
     def _prochaine_emission(self) -> str | None:
         """Une émission due l'emporte sur tout le reste.
@@ -223,13 +319,18 @@ class RadioProgramme:
         if entrant is not None:
             self._en_attente.append(entrant)
         while self._en_attente:
-            path = self._dossier / self._en_attente.popleft()
-            candidates = sorted(path.parent.glob(f"{path.stem}-*{path.suffix}"))
-            if path.is_file():
-                candidates.insert(0, path)
+            candidates = self._variantes(self._en_attente.popleft())
             if candidates:
                 return candidates[0] if len(candidates) == 1 else self._hasard.pick(candidates)
         return None
+
+    def _variantes(self, name: str) -> list[Path]:
+        """Les fichiers qui répondent à ce nom : lui-même, puis ses variantes."""
+        path = self._dossier / name
+        candidates = sorted(path.parent.glob(f"{path.stem}-*{path.suffix}"))
+        if path.is_file():
+            candidates.insert(0, path)
+        return candidates
 
     def _generiques_de_transition(self) -> tuple[str | None, str | None]:
         """Le générique de fin du moment qui s'achève, celui d'ouverture du

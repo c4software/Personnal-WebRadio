@@ -174,15 +174,20 @@ class Schedule:
     def current_band(self) -> Band | None:
         return self._band_at(self._horloge.now())
 
+    def band_at(self, instant: datetime) -> Band | None:
+        """La plage qui couvrirait cet instant — pour estimer ce qu'un titre
+        tiré d'avance trouvera en commençant (GOAL-058)."""
+        return self._band_at(instant)
+
     def current_moment(self) -> object:
         """La clé de l'occurrence de plage en cours, `None` hors de toute plage.
 
         C'est la clé des suites (décision n°31) et celle qui date une avance
         (décision n°33) : une entrée tirée sous une autre clé est rassise.
         """
-        return self._moment_at(self._horloge.now())
+        return self.moment_at(self._horloge.now())
 
-    def _moment_at(self, instant: datetime) -> object:
+    def moment_at(self, instant: datetime) -> object:
         band = self._band_at(instant)
         if band is None:
             return None
@@ -218,7 +223,7 @@ class Schedule:
                 return band
         return None
 
-    def constraint_to_draw(self, random: Random) -> Constraint | None:
+    def constraint_to_draw(self, random: Random, at: datetime | None = None) -> Constraint | None:
         """La contrainte à imposer à la source, `None` pour un tirage libre.
 
         Une plage peut déclarer plusieurs genres — ou artistes (SPECS.md §4.4,
@@ -228,8 +233,11 @@ class Schedule:
         L'horloge n'est lue **qu'une fois** : la plage retenue et l'occurrence
         dont on tire le thème doivent parler du même instant, sinon un morceau
         tiré à 22 h 59 min 59 s pourrait chercher le thème de la plage suivante.
+        `at` remplace l'instant présent par celui où le titre **commencera**,
+        estimé (GOAL-058) : la grille est alors consultée pour ce créneau-là,
+        et l'avance datée dira, à la jonction, si l'estimation tenait.
         """
-        instant = self._horloge.now()
+        instant = self._horloge.now() if at is None else at
         band = self._band_at(instant)
         if band is None:
             return None

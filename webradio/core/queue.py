@@ -114,20 +114,16 @@ class Queue:
         """Ce qui attend, dans l'ordre de passage — sans le consommer."""
         return tuple(pick.track for pick, _ in self._avance)
 
-    def prepared(self, moment: object = None) -> Track | None:
-        """Le premier titre de l'avance, sans le consommer — ou rien.
+    @property
+    def dated_advance(self) -> tuple[tuple[Track, object], ...]:
+        """L'avance avec, pour chaque titre, la clé du moment qui l'a tiré.
 
-        Il sert à **dire** ce qui vient (GOAL-054), jamais à décider : c'est
-        exactement le `Pick` que le prochain `next_pick` servira **si le
-        moment tient** — d'où `moment`, la clé courante : une avance rassise
-        n'est pas annoncée, elle ne passera pas. Une émission ou un « encore »
-        peuvent encore s'intercaler devant ; l'annoncer reste plus juste que
-        de ne rien annoncer.
+        Elle sert à **dire** ce qui vient (GOAL-054, GOAL-058), jamais à
+        décider : c'est ce que `next_pick` servira **si les moments
+        tiennent** — celui qui lit compare, et n'annonce pas une avance
+        rassise, qui ne passera pas.
         """
-        if not self._avance:
-            return None
-        pick, tire_sous = self._avance[0]
-        return pick.track if tire_sous == moment else None
+        return tuple((pick.track, moment) for pick, moment in self._avance)
 
     def withdraw(self, identifier: str) -> bool:
         """Retire un titre de l'avance : il ne passera pas (GOAL-058). Faux
@@ -135,6 +131,9 @@ class Queue:
         for index, (pick, _) in enumerate(self._avance):
             if pick.track.identifier == identifier:
                 del self._avance[index]
+                # Retiré vaut passé pour la fenêtre : sinon, sur une petite
+                # bibliothèque, le tirage de remplacement le rendrait aussitôt.
+                self._fenetre.remember(pick.track)
                 return True
         return False
 

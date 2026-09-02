@@ -32,6 +32,7 @@ def _programme(
     source: FakeSource | None = None,
     bands: list[Band] | None = None,
     clock: FrozenClock | None = None,
+    lookahead: int = 1,
 ) -> tuple[RadioProgramme, list[tuple[Kind, Track | None, str | None]]]:
     reelle = source if source is not None else FakeSource(CATALOGUE)
     montre = clock if clock is not None else FrozenClock(MIDI)
@@ -39,7 +40,7 @@ def _programme(
     vues: list[tuple[Kind, Track | None, str | None]] = []
     return (
         RadioProgramme(
-            queue=Queue(reelle, random, Window(width=1)),
+            queue=Queue(reelle, random, Window(width=1), lookahead=lookahead),
             source=reelle,
             grille=Schedule(bands or [], montre),
             jingles=Jingles(montre),
@@ -234,10 +235,10 @@ def test_le_programme_dit_le_morceau_qu_il_a_prepare(tmp_path: Path) -> None:
         tmp_path, clock=clock, listes={"Chloé": LISTE}, programmes=[PROG]
     )
     clock.advance(timedelta(hours=4))  # 16 h, hors du programme : la file parle
-    assert programme.prepared() is None, "rien n'est préparé tant qu'on n'a pas préparé"
+    assert programme.upcoming() == [], "rien n'est préparé tant qu'on n'a pas préparé"
     programme.prepare()
-    annonce = programme.prepared()
-    assert annonce is not None
+    (annonce,) = programme.upcoming()
+    assert annonce.kind is Kind.MUSIC and annonce.track is not None
     assert programme.next_entry() == "fake://1"
 
 
@@ -250,7 +251,7 @@ def test_pendant_un_programme_rien_n_est_annonce(tmp_path: Path) -> None:
         tmp_path, clock=clock, listes={"Chloé": LISTE}, programmes=[PROG]
     )
     programme.prepare()
-    assert programme.prepared() is None
+    assert programme.upcoming() == []
 
 
 def test_hors_des_heures_du_programme_on_revient_au_tirage_libre(tmp_path: Path) -> None:
@@ -658,3 +659,117 @@ def test_a_la_jonction_qui_suit_un_changement_de_plage_l_avance_est_retiree(
     montre.advance(timedelta(minutes=4))
     assert programme.next_entry() == "fake://2"
     assert vues[-1][1] is not None and vues[-1][1].genre == "rock"
+
+
+DEUX_PLAGES = [
+    Band(start=time(12, 0), end=time(13, 0), genres=("trip-hop",)),
+    Band(start=time(13, 0), end=time(14, 0), genres=("rock",), intro="bands/rock.mp3"),
+]
+
+
+def test_chaque_creneau_d_avance_se_tire_sous_le_moment_ou_il_commencera(
+    tmp_path: Path,
+) -> None:
+    """GOAL-058, idée de l'auteur : planifier d'avance, c'est tirer chaque
+    titre sous la plage qu'il trouvera en commençant — durée après durée."""
+    montre = FrozenClock(MIDI.replace(minute=55))
+    programme, _ = _programme(tmp_path, bands=DEUX_PLAGES, clock=montre, lookahead=3)
+    programme.prepare(from_instant=montre.now() + timedelta(minutes=3))  # 12 h 58
+    genres = [item.track.genre for item in programme.upcoming() if item.track is not None]
+    assert genres == ["trip-hop", "rock", "rock"]  # 12 h 58, 13 h 01, 13 h 04
+
+
+def test_sans_estimation_l_avance_se_tire_sous_le_moment_present(tmp_path: Path) -> None:
+    montre = FrozenClock(MIDI.replace(minute=55))
+    programme, _ = _programme(tmp_path, bands=DEUX_PLAGES, clock=montre, lookahead=2)
+    programme.prepare()
+    assert [i.track.genre for i in programme.upcoming() if i.track] == ["trip-hop", "trip-hop"]
+
+
+def test_la_liste_annonce_l_heure_estimee_et_l_habillage_prevu(tmp_path: Path) -> None:
+    """Le jingle de 13 h et le générique de la plage de 13 h figurent dans la
+    liste, à la jonction qui les rendra — prévus, pas encore décidés."""
+    (tmp_path / "hours").mkdir()
+    (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
+    (tmp_path / "bands").mkdir()
+    (tmp_path / "bands" / "rock.mp3").write_bytes(b"generique")
+    montre = FrozenClock(MIDI.replace(minute=55))
+    programme, _ = _programme(tmp_path, bands=DEUX_PLAGES, clock=montre, lookahead=3)
+    depart = MIDI.replace(minute=58)
+    programme.prepare(from_instant=depart)
+    liste = programme.upcoming(depart)
+    assert [(i.kind, i.label, i.expected) for i in liste] == [
+        (Kind.MUSIC, None, False),
+        (Kind.JINGLE, "13 h", True),
+        (Kind.JINGLE, "rock", True),
+        (Kind.MUSIC, None, False),
+        (Kind.MUSIC, None, False),
+    ]
+    assert [i.at for i in liste] == [
+        depart,
+        depart + timedelta(minutes=3),
+        depart + timedelta(minutes=3),
+        depart + timedelta(minutes=3),
+        depart + timedelta(minutes=6),
+    ]
+
+
+def test_un_jingle_absent_n_est_pas_prevu(tmp_path: Path) -> None:
+    montre = FrozenClock(MIDI.replace(minute=55))
+    programme, _ = _programme(tmp_path, bands=DEUX_PLAGES, clock=montre, lookahead=2)
+    depart = MIDI.replace(minute=58)
+    programme.prepare(from_instant=depart)
+    assert all(i.kind is Kind.MUSIC for i in programme.upcoming(depart))
+
+
+def test_un_creneau_qui_a_glisse_fait_retirer_la_suite(tmp_path: Path) -> None:
+    """Tiré pour 12 h 58, 13 h 01, 13 h 04 ; un saut avance tout : le premier
+    créneau tombe à 13 h 10, sous la plage de 13 h — tout est retiré."""
+    montre = FrozenClock(MIDI.replace(minute=55))
+    programme, _ = _programme(tmp_path, bands=DEUX_PLAGES, clock=montre, lookahead=3)
+    programme.prepare(from_instant=MIDI.replace(minute=58))
+    montre.advance(timedelta(minutes=15))
+    programme.prepare(from_instant=MIDI.replace(hour=13, minute=10))
+    assert [i.track.genre for i in programme.upcoming() if i.track] == ["rock", "rock", "rock"]
+
+
+def test_la_liste_ne_montre_pas_une_avance_rassise(tmp_path: Path) -> None:
+    """Entre la jonction et la préparation suivante, la liste lit l'avance
+    telle quelle : elle s'arrête à la première entrée dont le moment a fini."""
+    montre = FrozenClock(MIDI.replace(minute=55))
+    programme, _ = _programme(tmp_path, bands=DEUX_PLAGES, clock=montre, lookahead=2)
+    programme.prepare()
+    montre.advance(timedelta(minutes=10))  # 13 h 05 : la plage de 12 h a fini
+    assert programme.upcoming() == []
+
+
+def test_retirer_un_titre_de_l_avance_du_programme(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    programme, _ = _programme(tmp_path, lookahead=2)
+    programme.prepare()
+    premier = programme.upcoming()[0].track
+    assert premier is not None
+    with caplog.at_level(logging.INFO):
+        assert programme.withdraw(premier.identifier)
+    assert "retiré avant diffusion" in caplog.text
+    assert premier not in [i.track for i in programme.upcoming()]
+    assert not programme.withdraw(premier.identifier)
+
+
+def test_ce_qui_attend_deja_passe_avant_l_avance_dans_la_liste(tmp_path: Path) -> None:
+    """Un jingle dû et une entrée replacée par un encore passent avant la
+    file : la liste les montre dans cet ordre, sans rien décider."""
+    (tmp_path / "hours").mkdir()
+    (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
+    (tmp_path / "hours" / "14h.mp3").write_bytes(b"jingle")
+    montre = FrozenClock(MIDI)
+    programme, _ = _programme(tmp_path, clock=montre, lookahead=1)
+    montre.advance(timedelta(hours=2))
+    assert "13h" in str(programme.next_entry())  # 14h reste en attente
+    programme.replay_later("fake://9", Kind.MUSIC, track("9", "Yamê"), None)
+    programme.prepare()
+    liste = programme.upcoming()
+    assert [(i.kind, i.label) for i in liste][:2] == [(Kind.JINGLE, "14h"), (Kind.MUSIC, None)]
+    assert liste[1].track is not None and liste[1].track.artist == "Yamê"
+    assert liste[2].kind is Kind.MUSIC
