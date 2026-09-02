@@ -1,7 +1,9 @@
 # La CI rejoue LA commande de vérification du dépôt — pas une variante allégée
-# (AGENTS.md §5.2) — puis construit et publie l'image du service `radio`.
-# Le service `liquidsoap`, lui, n'a pas d'image à construire : c'est l'image
-# amont épinglée, avec notre script monté (ARCHITECTURE.md §8.5.2).
+# (AGENTS.md §5.2) — puis construit et publie LES DEUX images : celle du
+# service `radio`, et celle du diffuseur — l'amont épinglée plus notre script.
+# Les publier ensemble est tout l'objet de GOAL-053 : le script était monté
+# depuis l'hôte, un montage n'a pas de version, et il a dérivé de six commits
+# en silence (ARCHITECTURE.md §8.5.2).
 name: ci
 
 on:
@@ -25,10 +27,23 @@ jobs:
         run: ./verifier.sh
 
   image:
-    # L'image ne se construit que sur du vérifié, et ne se publie que depuis
-    # master — une PR construit sans publier.
+    # Les images ne se construisent que sur du vérifié, et ne se publient que
+    # depuis master — une PR construit sans publier.
     needs: verifier
     runs-on: ubuntu-latest
+    strategy:
+      # Les deux se construisent en parallèle et ne dépendent pas l'une de
+      # l'autre. `fail-fast: false` : savoir laquelle casse vaut mieux que
+      # d'arrêter les deux à la première.
+      fail-fast: false
+      matrix:
+        include:
+          - nom: radio
+            dockerfile: Dockerfile
+            image: personnal-webradio
+          - nom: diffuseur
+            dockerfile: Dockerfile.liquidsoap
+            image: personnal-webradio-liquidsoap
     permissions:
       contents: read
       packages: write
@@ -42,13 +57,14 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Construire (et publier depuis master)
+      - name: Construire ${{ matrix.nom }} (et publier depuis master)
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ${{ matrix.dockerfile }}
           push: ${{ github.event_name == 'push' }}
           # `latest` seul, à la demande de l'auteur : une radio personnelle
           # n'a qu'une version qui compte — celle qui tourne.
-          tags: ghcr.io/${{ github.repository_owner }}/personnal-webradio:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: ghcr.io/${{ github.repository_owner }}/${{ matrix.image }}:latest
+          cache-from: type=gha,scope=${{ matrix.nom }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.nom }}

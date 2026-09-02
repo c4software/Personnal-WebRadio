@@ -47,12 +47,12 @@ et son cache (GOAL-039/040), la plage au thème tiré au sort (GOAL-037), la
 reprise à neuf après une longue pause (GOAL-041), la grille de journée et ses
 quinze génériques (GOAL-043).
 
-**Goal ouvert : GOAL-053** — le déploiement du 2026-09-02 a mis à jour l'image
-de `radio` mais pas le script du diffuseur, monté depuis l'hôte et resté six
-commits en arrière. **GOAL-051 et GOAL-052 sont clos le 2026-09-02** : cinq défauts entendus à
-l'antenne le matin même, à la rencontre du direct (GOAL-015) et de la reprise à
-neuf (GOAL-041), plus le journal qui empilait deux journées sous la même heure.
-Décisions restantes de SPECS.md §7 : la **n°9** est une
+**GOAL-051, GOAL-052 et GOAL-053 sont clos le 2026-09-02** : cinq défauts
+entendus à l'antenne le matin même, à la rencontre du direct (GOAL-015) et de
+la reprise à neuf (GOAL-041) ; le journal qui empilait deux journées sous la
+même heure ; et le déploiement en deux moitiés dont une silencieuse — le script
+du diffuseur voyage désormais dans une image. **Aucun Goal ouvert.** Décisions
+restantes de SPECS.md §7 : la **n°9** est une
 conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
 musique.
@@ -69,7 +69,9 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-053-T02 — la CI publie l'image du diffuseur.
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal` — ou de
+l'écoute de GOAL-050 et GOAL-051, qui n'ont jamais atteint la production avant
+GOAL-053.
 
 ---
 
@@ -129,31 +131,7 @@ ont été validées par l'auteur le 2026-09-01.
 | GOAL-050 | Un fondu à la prise d'antenne | `[x]` — reste l'écoute réelle |
 | GOAL-051 | Le direct ne ment plus à l'antenne, et la reprise coupe vraiment le reliquat | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
 | GOAL-052 | L'historique dit quel jour, et ne mélange plus deux 8 h | `[x]` — clos le 2026-09-02 |
-| GOAL-053 | Le script du diffuseur voyage dans une image, plus par un montage | `[ ]` |
+| GOAL-053 | Le script du diffuseur voyage dans une image, plus par un montage | `[x]` — clos le 2026-09-02 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
-
----
-
-## GOAL-053 — Le script du diffuseur voyage dans une image, plus par un montage
-
-Le déploiement du 2026-09-02 a mis à jour l'image de `radio` — qui **contient**
-`radio.liq`, empreinte à l'appui — mais le service `liquidsoap` tourne sur
-l'image amont `savonet/liquidsoap:v2.3.3` et lit le script par un montage
-depuis l'hôte. Ce fichier-là est resté à `85c632d` : **six commits en
-arrière**, dont les quatre correctifs du direct de GOAL-051 et le fondu de
-prise d'antenne de GOAL-050, jamais déployé.
-
-Rien ne le signalait, et rien ne pouvait le signaler : un montage n'a pas de
-version. La décision d'ARCHITECTURE.md §8.5.2 — « le diffuseur n'a pas d'image
-à construire » — économisait une image et coûtait un déploiement en deux
-moitiés dont une silencieuse. **L'auteur la renverse le 2026-09-02.**
-
-- [x] **GOAL-053-T01** — Le diffuseur a son image : `Dockerfile.liquidsoap`
-      part de l'amont épinglée et y copie le script. Le Compose de production
-      la tire, celui de développement la construit, et le montage disparaît.
-      Un test refuse que l'épingle diverge entre le `FROM` et `verifier.sh` :
-      deux endroits nomment la version, ils doivent dire la même chose.
-- [ ] **GOAL-053-T02** — La CI construit et publie l'image du diffuseur à côté
-      de celle de `radio`, sur du vérifié et depuis `master` seulement.

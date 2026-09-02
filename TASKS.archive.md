@@ -1617,3 +1617,27 @@ date, la page groupe deux journées sous la même heure et l'ordre paraît faux.
       SPECS.md §4.8 le dit.
 - [x] **GOAL-052-T02** — La page sépare les journées : une heure d'aujourd'hui
       et la même heure d'hier ne se suivent plus sans le dire.
+
+---
+
+## GOAL-053 — Le script du diffuseur voyage dans une image, plus par un montage
+
+Le déploiement du 2026-09-02 a mis à jour l'image de `radio` — qui **contient**
+`radio.liq`, empreinte à l'appui — mais le service `liquidsoap` tourne sur
+l'image amont `savonet/liquidsoap:v2.3.3` et lit le script par un montage
+depuis l'hôte. Ce fichier-là est resté à `85c632d` : **six commits en
+arrière**, dont les quatre correctifs du direct de GOAL-051 et le fondu de
+prise d'antenne de GOAL-050, jamais déployé.
+
+Rien ne le signalait, et rien ne pouvait le signaler : un montage n'a pas de
+version. La décision d'ARCHITECTURE.md §8.5.2 — « le diffuseur n'a pas d'image
+à construire » — économisait une image et coûtait un déploiement en deux
+moitiés dont une silencieuse. **L'auteur la renverse le 2026-09-02.**
+
+- [x] **GOAL-053-T01** — Le diffuseur a son image : `Dockerfile.liquidsoap`
+      part de l'amont épinglée et y copie le script. Le Compose de production
+      la tire, celui de développement la construit, et le montage disparaît.
+      Un test refuse que l'épingle diverge entre le `FROM` et `verifier.sh` :
+      deux endroits nomment la version, ils doivent dire la même chose.
+- [x] **GOAL-053-T02** — La CI construit et publie l'image du diffuseur à côté
+      de celle de `radio`, sur du vérifié et depuis `master` seulement.

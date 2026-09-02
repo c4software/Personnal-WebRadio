@@ -528,7 +528,7 @@ bibliothèque est hors périmètre).
 | Les **jingles** | volume, en lecture seule | Ce sont les fichiers de l'auteur ; le conteneur ne doit pas pouvoir les modifier |
 | L'**état SQLite** | volume, en écriture | Il survit à une reconstruction (§5.1) |
 | Le **port du flux** (`liquidsoap`) et **du web** (`radio`) | `ports:` | C'est par là qu'on écoute |
-| Le **script** `radio.liq` | volume, en lecture seule | Il est versionné avec le code qui le pilote |
+| Le **script** `radio.liq` | ~~volume~~ **dans l'image** | Il est versionné avec le code qui le pilote, et un volume ne l'est pas : il a dérivé de six commits en silence (§8.5.2, GOAL-053) |
 
 > **Le réseau est le point à ne pas manquer.** Navidrome répond à `http://music`
 > — un nom résolu par le réseau **de l'hôte**. Un conteneur ne le résout pas
@@ -536,9 +536,10 @@ bibliothèque est hors périmètre).
 
 ### 8.5.4 Production tirée, développement construit
 
-**Décidé le 2026-08-31 (GOAL-038)** : le service `radio` de
-`docker-compose.yml` référence l'image que la CI publie sur GHCR — on déploie
-du vérifié, pas ce qui traîne dans la copie de travail. Construire le code en
+**Décidé le 2026-08-31 (GOAL-038)**, et étendu au diffuseur le 2026-09-02
+(GOAL-053) : **les deux** services de `docker-compose.yml` référencent les
+images que la CI publie sur GHCR — on déploie du vérifié, pas ce qui traîne
+dans la copie de travail, et surtout : on déploie **en un seul geste**. Construire le code en
 cours est le geste **explicite** du développement, par une surcharge qui ne
 redéfinit que la provenance de l'image :
 
