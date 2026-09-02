@@ -26,7 +26,7 @@ from webradio.adapters.sources.subsonic import SubsonicSource, UrllibTransport
 from webradio.adapters.state.database import Scope as StateScope
 from webradio.adapters.state.database import SqliteState, StateUnavailable
 from webradio.adapters.web.api import Kind as WebKind
-from webradio.adapters.web.api import OnAir, PlayedEntry, Verdict, VoteScore
+from webradio.adapters.web.api import OnAir, PlayedEntry, UpcomingEntry, Verdict, VoteScore
 from webradio.adapters.web.views import create_app
 from webradio.adapters.youtube.channel import YoutubeChannel
 from webradio.app.learning import Learning
@@ -236,6 +236,24 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             artist=track.artist if track is not None else None,
         )
 
+    def prochains_titres() -> list[UpcomingEntry]:
+        """La liste de la charnière, traduite : l'heure estimée en heure
+        locale, l'identifiant pour retirer — vide pour l'habillage."""
+        return [
+            UpcomingEntry(
+                kind=WebKind(item.kind.value),
+                title=item.track.title if item.track is not None else item.label,
+                artist=item.track.artist if item.track is not None else None,
+                identifier=item.track.identifier if item.track is not None else "",
+                at=None if item.at is None else item.at.astimezone().strftime("%H:%M"),
+                expected=item.expected,
+            )
+            for item in branche[0].upcoming()
+        ]
+
+    def retirer_le_titre(identifier: str) -> bool:
+        return branche[0].withdraw(identifier)
+
     def moment_courant() -> str | None:
         """Programme d'abord — il l'emporte sur la plage (SPECS.md §4.13)."""
         programme = programmation.current_programme()
@@ -317,6 +335,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         lister_l_historique,
         moment_random=moment_au_hasard,
         redraw=retirer_le_theme,
+        upcoming=prochains_titres,
+        withdraw=retirer_le_titre,
     )
     # Le programme déclare la nature de ce qu'il choisit ; la charnière ne la
     # transmet à la façade que lorsque Liquidsoap commence réellement le morceau.
@@ -329,6 +349,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
             Window(settings.draw.artist_gap),
             weigh=learning.weigh,
             runs=Runs(random),
+            lookahead=settings.draw.lookahead,
         ),
         source=source,
         grille=grille,

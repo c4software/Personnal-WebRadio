@@ -25,6 +25,7 @@ from webradio.adapters.config.schema import (
     DEFAULT_ARTIST_RESULTS,
     DEFAULT_CACHE_SECONDS,
     DEFAULT_JINGLE_EXPIRY_SECONDS,
+    DEFAULT_LOOKAHEAD,
     DEFAULT_MAX_TRACK_MINUTES,
     DEFAULT_RESUME_FRESH_SECONDS,
 )
@@ -760,6 +761,17 @@ def test_le_jingle_d_encore_se_configure_et_a_un_defaut() -> None:
     assert _valider(TOML_MINIMAL).jingles.encore == "encore.mp3"
     config = _valider(TOML_MINIMAL.replace("[jingles]", '[jingles]\nencore = "bravo.mp3"'))
     assert config.jingles.encore == "bravo.mp3"
+
+
+def test_l_avance_a_un_defaut_declare() -> None:
+    assert _valider(TOML_MINIMAL).draw.lookahead == DEFAULT_LOOKAHEAD
+
+
+def test_une_avance_nulle_est_refusee_en_le_nommant() -> None:
+    content = TOML_MINIMAL.replace("artist_gap = 5", "artist_gap = 5\nlookahead = 0")
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+    assert "draw.lookahead" in str(refus.value)
 
 
 def test_le_plafond_de_duree_a_un_defaut_declare() -> None:

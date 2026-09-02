@@ -30,6 +30,8 @@ ON_AIR_PATH = "/on-air"
 VOTE_PATH = "/votes/<name>"
 VOTES_PATH = "/votes"
 MOMENT_REDRAW_PATH = "/moment/redraw"
+UP_NEXT_PATH = "/up-next"
+UP_NEXT_ENTRY_PATH = "/up-next/<identifier>"
 
 REFUS = 409
 DEMANDE_INVALIDE = 400
@@ -100,6 +102,24 @@ class PlayedEntry:
     kind: str
     title: str
     artist: str
+
+
+@dataclass(frozen=True, slots=True)
+class UpcomingEntry:
+    """Une ligne de la liste des prochains titres (GOAL-058).
+
+    `identifier` est ce qu'il faut rendre pour retirer le titre — vide pour
+    l'habillage, qui ne se retire pas. `at` est l'heure **estimée** du début,
+    `HH:MM`, ou `None` quand rien ne permet d'estimer ; `expected` distingue
+    l'habillage prévu de ce qui est déjà tiré.
+    """
+
+    kind: Kind
+    title: str | None
+    artist: str | None
+    identifier: str = ""
+    at: str | None = None
+    expected: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -178,6 +198,16 @@ class Radio(Protocol):
     def redraw_moment(self) -> Verdict:
         """Retire le thème du moment en cours, ou refuse en disant pourquoi
         (GOAL-057). Hors d'une plage au hasard, il n'y a rien à retirer."""
+        ...
+
+    def upcoming(self) -> list[UpcomingEntry]:
+        """Les prochains titres dans l'ordre de passage, habillage prévu
+        compris (GOAL-058). Vide quand la chaîne ne tourne pas."""
+        ...
+
+    def withdraw(self, identifier: str) -> bool:
+        """Retire un titre qui attend : il ne passera pas, un autre le
+        remplace. Faux s'il n'attend plus (GOAL-058)."""
         ...
 
 
@@ -285,6 +315,34 @@ def create_api(radio: Radio, planning: dict[str, object] | None = None) -> Bluep
             return jsonify(body)
         logger.info("vote « %s » refusé — %s", vote, verdict.reason)
         return jsonify(body), REFUS
+
+    @api.get(UP_NEXT_PATH)
+    def up_next_list() -> ResponseReturnValue:
+        """La liste des prochains titres, dans l'ordre de passage (GOAL-058)."""
+        return jsonify(
+            {
+                "up_next": [
+                    {
+                        "kind": str(e.kind),
+                        "title": e.title,
+                        "artist": e.artist,
+                        "identifier": e.identifier,
+                        "at": e.at,
+                        "expected": e.expected,
+                    }
+                    for e in radio.upcoming()
+                ]
+            }
+        )
+
+    @api.delete(UP_NEXT_ENTRY_PATH)
+    def withdraw(identifier: str) -> ResponseReturnValue:
+        """Retirer un titre avant qu'il passe. 404 s'il n'attend plus — il a
+        pu commencer entre-temps, et cela arrivera."""
+        if radio.withdraw(identifier):
+            logger.info("retiré avant diffusion : %s", identifier)
+            return jsonify({"withdrawn": True})
+        return jsonify({"withdrawn": False, "reason": "ce titre n'attend plus"}), 404
 
     @api.post(MOMENT_REDRAW_PATH)
     def redraw_moment() -> ResponseReturnValue:

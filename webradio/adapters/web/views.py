@@ -50,6 +50,7 @@ def create_view(*, refresh: timedelta) -> Blueprint:
             url_stop=url_for("api.vote", name=str(Vote.SKIP)),
             url_encore=url_for("api.vote", name=str(Vote.MORE)),
             url_redraw=url_for("api.redraw_moment"),
+            url_up_next=url_for("api.up_next_list"),
             rafraichissement_ms=int(refresh.total_seconds() * MILLISECONDES),
         )
 

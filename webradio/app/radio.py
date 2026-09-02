@@ -14,7 +14,15 @@ import threading
 from collections.abc import Callable
 
 from webradio.adapters.web.api import Kind as NatureWeb
-from webradio.adapters.web.api import OnAir, PlayedEntry, Radio, Verdict, Vote, VoteScore
+from webradio.adapters.web.api import (
+    OnAir,
+    PlayedEntry,
+    Radio,
+    UpcomingEntry,
+    Verdict,
+    Vote,
+    VoteScore,
+)
 from webradio.core.control import Command, Control, Kind
 from webradio.core.models import Track
 
@@ -46,6 +54,8 @@ class LiveRadio(Radio):
         *,
         moment_random: Callable[[], bool] | None = None,
         redraw: Callable[[], Verdict] | None = None,
+        upcoming: Callable[[], list[UpcomingEntry]] | None = None,
+        withdraw: Callable[[str], bool] | None = None,
     ) -> None:
         self._controle = control
         self._station = on_air
@@ -60,6 +70,8 @@ class LiveRadio(Radio):
         self._lister_historique = list_history
         self._moment_au_hasard = moment_random
         self._retirer = redraw
+        self._prochains = upcoming
+        self._ecarter = withdraw
         self._verrou = threading.Lock()
         self._nature = Kind.MUSIC
         self._piste: Track | None = None
@@ -145,6 +157,14 @@ class LiveRadio(Radio):
         if self._moment is None:
             return None
         return self._moment()
+
+    def upcoming(self) -> list[UpcomingEntry]:
+        if self._prochains is None or not self._station.on_air:
+            return []
+        return self._prochains()
+
+    def withdraw(self, identifier: str) -> bool:
+        return self._ecarter is not None and self._ecarter(identifier)
 
     def moment_random(self) -> bool:
         return self._moment_au_hasard is not None and self._moment_au_hasard()

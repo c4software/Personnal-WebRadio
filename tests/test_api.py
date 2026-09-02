@@ -16,7 +16,7 @@ from webradio.adapters.web import (
     create_app,
     create_view,
 )
-from webradio.adapters.web.api import PlayedEntry, VoteScore
+from webradio.adapters.web.api import PlayedEntry, UpcomingEntry, VoteScore
 
 RAFRAICHISSEMENT = timedelta(seconds=5)
 
@@ -45,6 +45,8 @@ class FakeRadio:
         self._up_next: OnAir | None = None
         self._moment_random = False
         self.redraws = 0
+        self._upcoming: list[UpcomingEntry] = []
+        self.withdrawn: list[str] = []
 
     def on_air(self) -> bool:
         return self._antenne is not None
@@ -74,6 +76,13 @@ class FakeRadio:
 
     def moment_random(self) -> bool:
         return self._moment_random
+
+    def upcoming(self) -> list[UpcomingEntry]:
+        return list(self._upcoming)
+
+    def withdraw(self, identifier: str) -> bool:
+        self.withdrawn.append(identifier)
+        return any(e.identifier == identifier for e in self._upcoming)
 
     def redraw_moment(self) -> Verdict:
         self.redraws += 1
@@ -387,3 +396,68 @@ def test_la_page_pointe_vers_la_route_du_retirage() -> None:
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert "/api/moment/redraw" in page
     assert "momentRandom" in page
+
+
+A_VENIR = [
+    UpcomingEntry(
+        kind=Kind.MUSIC, title="Kelly Watch the Stars", artist="Air", identifier="a1", at="16:03"
+    ),
+    UpcomingEntry(kind=Kind.JINGLE, title="16 h", artist=None, at="16:06", expected=True),
+    UpcomingEntry(kind=Kind.MUSIC, title="Heroes", artist="Bowie", identifier="b1", at="16:06"),
+]
+
+
+def test_l_api_liste_les_prochains_titres_dans_l_ordre() -> None:
+    """GOAL-058 : la liste, habillage prévu compris, avec l'heure estimée."""
+    radio = FakeRadio(on_air_now=MORCEAU)
+    radio._upcoming = A_VENIR
+    answer = client(radio).get("/api/up-next")
+    assert answer.status_code == 200
+    assert answer.get_json() == {
+        "up_next": [
+            {
+                "kind": "musique",
+                "title": "Kelly Watch the Stars",
+                "artist": "Air",
+                "identifier": "a1",
+                "at": "16:03",
+                "expected": False,
+            },
+            {
+                "kind": "jingle",
+                "title": "16 h",
+                "artist": None,
+                "identifier": "",
+                "at": "16:06",
+                "expected": True,
+            },
+            {
+                "kind": "musique",
+                "title": "Heroes",
+                "artist": "Bowie",
+                "identifier": "b1",
+                "at": "16:06",
+                "expected": False,
+            },
+        ]
+    }
+
+
+def test_sans_rien_d_avance_la_liste_est_vide_pas_une_erreur() -> None:
+    assert client(FakeRadio()).get("/api/up-next").get_json() == {"up_next": []}
+
+
+def test_retirer_un_titre_qui_attend() -> None:
+    radio = FakeRadio(on_air_now=MORCEAU)
+    radio._upcoming = A_VENIR
+    answer = client(radio).delete("/api/up-next/b1")
+    assert answer.status_code == 200
+    assert answer.get_json() == {"withdrawn": True}
+    assert radio.withdrawn == ["b1"]
+
+
+def test_retirer_un_titre_qui_n_attend_plus_rend_404() -> None:
+    radio = FakeRadio(on_air_now=MORCEAU)
+    answer = client(radio).delete("/api/up-next/parti")
+    assert answer.status_code == 404
+    assert answer.get_json()["withdrawn"] is False

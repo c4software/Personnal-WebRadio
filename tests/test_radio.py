@@ -178,3 +178,20 @@ def test_le_retirage_est_relaye_tel_quel() -> None:
     radio._retirer = lambda: Verdict(accepted=True)
     assert radio.moment_random()
     assert radio.redraw_moment().accepted
+
+
+def test_sans_cablage_rien_n_attend_et_rien_ne_se_retire() -> None:
+    radio, counter = _radio()
+    counter.declare(on_air=True)
+    assert radio.upcoming() == []
+    assert not radio.withdraw("x")
+
+
+def test_la_liste_est_vide_quand_la_chaine_ne_tourne_pas() -> None:
+    from webradio.adapters.web.api import UpcomingEntry
+
+    radio, counter = _radio()
+    radio._prochains = lambda: [UpcomingEntry(kind=NatureWeb.MUSIC, title="t", artist="a")]
+    assert radio.upcoming() == []
+    counter.declare(on_air=True)
+    assert len(radio.upcoming()) == 1

@@ -169,3 +169,12 @@ def test_hors_d_une_plage_au_hasard_l_assemblage_refuse_de_retirer(
     verdict = radio.redraw_moment()
     assert not verdict.accepted
     assert verdict.reason is not None and "rien à retirer" in verdict.reason
+
+
+def test_l_assemblage_cable_la_liste_des_prochains_titres(reglages_dessai: object) -> None:
+    """GOAL-058 : rien n'attend tant que le diffuseur n'a rien demandé, et
+    retirer un inconnu est faux — pas une erreur."""
+    playout, radio = build(reglages_dessai)  # type: ignore[arg-type]
+    playout.declare_listeners(1)
+    assert radio.upcoming() == []
+    assert not radio.withdraw("inconnu")

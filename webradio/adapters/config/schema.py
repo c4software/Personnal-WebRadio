@@ -59,6 +59,9 @@ EVERY_DAY = "all"
 DEFAULT_ARTIST_GAP_KEY = 5
 # Au-delà, la lecture se coupe au plafond (SPECS.md §7 n°32). 0 = sans limite.
 DEFAULT_MAX_TRACK_MINUTES = 20
+# Trois titres d'avance : assez pour voir venir, pas assez pour que la
+# grille change sous une avance entière (GOAL-058).
+DEFAULT_LOOKAHEAD = 3
 DEFAULT_VOTE_FLOOR = 0.25
 DEFAULT_VOTE_CEILING = 4.0
 DEFAULT_VOTE_HALF_LIFE = 90
@@ -119,6 +122,7 @@ class DrawSettings:
     artist_gap: int
     votes: VoteSettings
     max_track_minutes: int = DEFAULT_MAX_TRACK_MINUTES
+    lookahead: int = DEFAULT_LOOKAHEAD
 
 
 @dataclass(frozen=True, slots=True)
@@ -465,7 +469,7 @@ def _liste_tables(parent: Mapping[str, Any], key: str) -> list[Mapping[str, Any]
 
 def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
     table = _table(brut, "draw", "")
-    _verifier_cles(table, ("artist_gap", "votes", "max_track_minutes"), "draw")
+    _verifier_cles(table, ("artist_gap", "votes", "max_track_minutes", "lookahead"), "draw")
     votes = _table_optionnelle(table, "votes", "draw")
     _verifier_cles(
         votes,
@@ -491,6 +495,7 @@ def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
             default=DEFAULT_MAX_TRACK_MINUTES,
             minimum=0,
         ),
+        lookahead=_entier(table, "lookahead", "draw", default=DEFAULT_LOOKAHEAD, minimum=1),
         votes=VoteSettings(
             floor=floor,
             ceiling=ceiling,
