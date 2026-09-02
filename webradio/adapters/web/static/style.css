@@ -245,3 +245,25 @@ button[disabled] { cursor: default; }
   font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.2em;
   color: var(--sourdine); margin: 1.25rem 0.25rem 0.6rem;
 }
+
+/* Les animations (GOAL-064). Les lignes d'une liste entrent l'une après
+   l'autre — `--i` est leur rang, posé par le gabarit — ; un onglet glisse
+   vers le suivant ; une chanson qui change fond l'ancienne dans la nouvelle.
+   Tout s'éteint sous `prefers-reduced-motion`. */
+@keyframes entrer { from { opacity: 0; transform: translateY(0.5rem); } to { opacity: 1; transform: none; } }
+.prochain, .vote, .jour, .ligne-histoire, .evenement {
+  animation: entrer 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 45ms);
+}
+.onglet-enter-active { transition: opacity 0.22s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.onglet-leave-active { transition: opacity 0.14s ease, transform 0.14s ease; }
+.onglet-enter-from { opacity: 0; transform: translateY(0.6rem); }
+.onglet-leave-to { opacity: 0; transform: translateY(-0.4rem); }
+.chanson-enter-active { transition: opacity 0.3s ease, transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.chanson-leave-active { transition: opacity 0.18s ease, transform 0.18s ease; }
+.chanson-enter-from { opacity: 0; transform: translateY(0.4rem); }
+.chanson-leave-to { opacity: 0; transform: translateY(-0.3rem); }
+@media (prefers-reduced-motion: reduce) {
+  .prochain, .vote, .jour, .ligne-histoire, .evenement, .liste, .voile { animation: none; }
+  .onglet-enter-active, .onglet-leave-active, .chanson-enter-active, .chanson-leave-active { transition: none; }
+}

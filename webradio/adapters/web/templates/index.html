@@ -30,14 +30,22 @@
         </nav>
       </div>
 
+      <!-- Un onglet glisse vers le suivant (GOAL-064) : out-in, pour que
+           deux sections ne se chevauchent jamais. -->
+      <Transition name="onglet" mode="out-in">
       <section v-if="onglet === 'antenne'">
         <article v-if="antenne" class="carte scene">
           <header class="entete">
             <span class="nature">[[ antenne.kind ]]</span>
             <span class="etat-antenne"><i class="temoin direct"></i> en direct</span>
           </header>
-          <h1 class="titre">[[ antenne.title || antenne.kind ]]</h1>
-          <p v-if="antenne.artist" class="artiste">[[ antenne.artist ]]</p>
+          <!-- La clé change avec la chanson : l'ancienne fond, la nouvelle monte. -->
+          <Transition name="chanson" mode="out-in">
+            <div :key="(antenne.title || antenne.kind) + '|' + (antenne.artist || '')">
+              <h1 class="titre">[[ antenne.title || antenne.kind ]]</h1>
+              <p v-if="antenne.artist" class="artiste">[[ antenne.artist ]]</p>
+            </div>
+          </Transition>
           <p v-if="moment" class="moment"><span>[[ moment ]]</span>
             <button v-if="momentRandom" type="button" class="retirer" :disabled="occupe" title="Tirer un autre thème au sort" @click="retirer()">Retirer</button>
           </p>
@@ -75,7 +83,7 @@
         <p v-if="votes.length === 0" class="vide">Aucun vote retenu — la radio tire sans préférence.</p>
         <template v-for="groupe in groupes" :key="groupe.scope">
           <h2 v-if="groupe.votes.length" class="groupe">[[ groupe.titre ]]</h2>
-          <article v-for="vote in groupe.votes" :key="vote.scope + vote.target" class="vote">
+          <article v-for="(vote, i) in groupe.votes" :key="vote.scope + vote.target" class="vote" :style="{ '--i': i }">
             <div class="cible">
               <span class="qui">[[ vote.target ]]</span>
               <button type="button" class="oubli" title="Effacer ce vote" @click="oublier(vote)">✕</button>
@@ -96,7 +104,7 @@
           <span>[[ titreDeLaPage ]]</span>
           <button type="button" :disabled="pageHeure <= 0" @click="pageHeure -= 1">›</button>
         </nav>
-        <div v-for="(e, i) in pageHistorique" :key="i" class="ligne-histoire" :class="e.kind === 'musique' ? 'moment-b' : 'emission-b'">
+        <div v-for="(e, i) in pageHistorique" :key="i" class="ligne-histoire" :class="e.kind === 'musique' ? 'moment-b' : 'emission-b'" :style="{ '--i': i }">
           <span class="heure">[[ e.at ]]</span>
           <span class="corps">
             <span class="titre-histoire">[[ e.title ]]</span>
@@ -113,7 +121,7 @@
             <span><i class="pastille programme-c"></i> programme</span>
             <span><i class="pastille emission-c"></i> émission</span>
           </nav>
-          <article v-for="jour in semaine" :key="jour.nom" class="jour" :class="{ aujourdhui: jour.aujourdhui }">
+          <article v-for="(jour, i) in semaine" :key="jour.nom" class="jour" :class="{ aujourdhui: jour.aujourdhui }" :style="{ '--i': i }">
             <h2 class="jour-nom cliquable" @click="basculer(jour)">
               <span class="chevron">[[ estDeplie(jour) ? "▾" : "▸" ]]</span>
               [[ jour.nom ]]<span v-if="jour.aujourdhui" class="badge">aujourd'hui</span>
@@ -121,7 +129,7 @@
             </h2>
             <template v-if="estDeplie(jour)">
               <p v-if="jour.evenements.length === 0" class="jour-vide">tirage libre toute la journée</p>
-              <div v-for="e in jour.evenements" class="evenement" :class="[e.type + '-b', { 'en-cours': e.enCours }]">
+              <div v-for="(e, i) in jour.evenements" class="evenement" :class="[e.type + '-b', { 'en-cours': e.enCours }]" :style="{ '--i': i }">
                 <span class="heure">[[ e.heure ]]</span>
                 <span class="nom"><span class="nom-texte" :title="e.nom">[[ e.nom ]]</span></span>
                 <span class="detail">[[ e.detail ]]</span>
@@ -130,6 +138,7 @@
           </article>
         </template>
       </section>
+      </Transition>
 
       <div v-if="tiroir" class="voile" @click="tiroir = false"></div>
 
@@ -152,7 +161,7 @@
                  ce qui passe, et — pour un titre déjà tiré — le bouton qui le
                  retire. L'habillage prévu (jingle, générique) se voit en
                  italique : il n'est pas encore décidé. -->
-            <div v-for="(e, i) in prochains" :key="e.identifier || (e.title + i)" class="prochain" :class="{ prevu: e.expected }">
+            <div v-for="(e, i) in prochains" :key="e.identifier || (e.title + i)" class="prochain" :class="{ prevu: e.expected }" :style="{ '--i': i }">
               <span class="heure">[[ e.at || "—" ]]</span>
               <div class="corps">
                 <span class="titre-histoire">[[ e.title || e.kind ]]</span>
@@ -171,7 +180,9 @@
             <svg v-else viewBox="0 0 16 16"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h9A1.5 1.5 0 0 1 14 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-7zm2.5 6.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9 7h3v1H9V7zm0 2h3v1H9V9zM4 1.3l7 2.2-.3.9L3.7 2.2 4 1.3z" /></svg>
           </div>
           <div class="ligne">
-            <span class="quoi">[[ ligneDeLaBarre ]]</span>
+            <Transition name="chanson" mode="out-in">
+              <span class="quoi" :key="ligneDeLaBarre">[[ ligneDeLaBarre ]]</span>
+            </Transition>
             <span class="detail">
               <i class="temoin" :class="{ direct: antenne !== null && !attente, attente: attente }"></i>
               <span class="texte">[[ detailDeLaBarre ]]</span>

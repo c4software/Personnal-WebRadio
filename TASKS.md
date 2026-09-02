@@ -96,7 +96,7 @@ critères, et rien ne le constate sans un vrai appareil.
 et la page s'anime — entrée des listes, changement d'onglet, changement de
 chanson.
 
-**Prochaine tâche** : GOAL-064-T02.
+**Prochaine tâche** : GOAL-064-T03.
 
 ---
 
@@ -183,8 +183,8 @@ le suivant, une chanson qui change fond l'ancienne dans la nouvelle.
 
 - [x] **GOAL-064-T01** — La CSS dans `static/style.css`, liée depuis le
       gabarit ; le gabarit n'a plus de `<style>`.
-- [-] **GOAL-064-T02** — Les animations : entrée en cascade des lignes
+- [x] **GOAL-064-T02** — Les animations : entrée en cascade des lignes
       (prochains titres, votes, planning, historique), transition entre
       onglets, fondu au changement de chanson dans la scène et la barre —
       désactivées sous `prefers-reduced-motion`.
-- [ ] **GOAL-064-T03** — SPECS.md §4.8, la carte du dépôt ; clôture ; push.
+- [-] **GOAL-064-T03** — SPECS.md §4.8, la carte du dépôt ; clôture ; push.

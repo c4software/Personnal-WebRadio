@@ -568,3 +568,18 @@ def test_la_feuille_de_style_est_un_fichier_servi_avec_la_page() -> None:
     assert feuille.status_code == 200
     assert feuille.mimetype == "text/css"
     assert ".barre" in feuille.get_data(as_text=True)
+
+
+def test_la_page_anime_les_onglets_les_chansons_et_les_listes() -> None:
+    """GOAL-064-T02 : les transitions sont celles de Vue, les cascades de
+    liste tiennent à un rang posé par le gabarit, et tout s'éteint sous
+    prefers-reduced-motion."""
+    app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT)
+    app.config.update(TESTING=True)
+    page = app.test_client().get("/").get_data(as_text=True)
+    assert '<Transition name="onglet" mode="out-in">' in page
+    assert page.count('<Transition name="chanson" mode="out-in">') == 2
+    assert page.count("'--i': i") == 5
+    feuille = app.test_client().get("/static/style.css").get_data(as_text=True)
+    assert "@keyframes entrer" in feuille
+    assert "prefers-reduced-motion" in feuille
