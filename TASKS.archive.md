@@ -1703,3 +1703,225 @@ tient le reliquat : la transition de `cross`.
       compris. Le témoin vaut aussi pour un direct qui finit sans auditeur.
       Un `on_track` comme signal a été essayé et mesuré trop tôt.
 
+
+---
+
+
+## GOAL-056 — L'avance est datée par son moment
+
+Entendu par l'auteur le 2026-09-02 autour de 16 h : le jingle horaire n'était
+pas à sa place. Le journal du diffuseur (en UTC, deux heures de moins) et
+`/api/history` reconstituent la chronologie à la seconde :
+
+| Heure | Ce qui commence | Ce que `radio` décide à cet instant pour la suite |
+|---|---|---|
+| 15:59:36 | *Ride Natty Ride* (Bob Marley, plage 15 h `artist_fan`) | *Could You Be Loved* — même suite d'artiste ; puis `prepare()` résout d'avance *Get Up, Stand Up*, toujours sous la plage de 15 h |
+| **16:00:00** | — | rien : personne ne regarde l'horloge entre deux jonctions |
+| 16:03:25 | *Could You Be Loved* | la plage a changé → générique `bands/mystere.mp3` mis en attente ; `16h-c.mp3` dû → rendu ; l'avance *Get Up, Stand Up* reste telle quelle |
+| 16:07:19 | `hours/16h-c.mp3` — **7 min après l'heure** | `bands/mystere.mp3` |
+| 16:07:43 | `bands/mystere.mp3` — « une heure d'un genre tiré au sort » | `next_pick()` sert l'avance **sans regarder la contrainte** : *Get Up, Stand Up* |
+| 16:07:48 | *Get Up, Stand Up* — Bob Marley, **derrière le générique du mystère** | premier titre Ragga |
+| 16:11:05 | *Natural* (Les R'tardataires) — la plage de 16 h commence enfin | … |
+
+Deux défauts distincts, une même cause : **une entrée décidée d'avance ne sait
+pas sous quel moment elle a été tirée, et personne ne la remet en question
+quand ce moment finit.**
+
+1. **Le jingle arrive une chanson trop tard.** Le diffuseur demande toujours un
+   morceau d'avance (`prefetch=1`, docs/liquidsoap.md §3) : l'entrée qui
+   commence à la jonction J est décidée à la jonction J−1. Une heure pleine
+   qui tombe entre J−1 et J n'est vue qu'à J, pour l'entrée de J+1. SPECS.md
+   §4.3 promet « la jonction suivante » ; la production livre **la jonction
+   d'après**, systématiquement, depuis la migration Liquidsoap. Ici : 16 h 03
+   promis, 16 h 07 servi. Le même retard frappe la transition de plage (§7
+   n°5) et l'ouverture d'une émission-fichier — c'est ce que docs/liquidsoap.md
+   §5 constatait déjà avec « une case plus courte que deux morceaux ».
+   L'« encore » a déjà réglé ce problème pour lui-même (GOAL-034) : `/requeue`
+   vide l'avance du diffuseur, et `stash_for_replay` la replace derrière le
+   jingle. Il manque un **déclencheur à l'heure pleine**.
+2. **La plage d'avant déborde derrière le générique.** `Queue.prepare()` avait
+   résolu le cinquième titre de la suite Bob Marley à 15 h 59 ; `next_pick()`
+   sert l'avance « sans regarder la contrainte — c'est tout son intérêt »
+   (GOAL-054-T02 avait vu le même trou pour la longue pause, et l'avait bouché
+   pour ce seul cas). À 16 h 07 le générique annonce un genre mystère, et
+   l'auditeur entend un Bob Marley de plus. Le direct avait le même défaut, réglé
+   pour lui seul le matin même (`stop_live` jette « l'avance rassie »,
+   GOAL-051-T05). C'est le **troisième** cas particulier de la même règle
+   absente.
+
+**Choix retenu — une règle, pas un quatrième cas particulier** : toute entrée
+décidée d'avance — l'avance de la file comme l'entrée déjà donnée au diffuseur —
+est **datée par le moment qui l'a tirée** (l'occurrence de plage, le programme,
+ou le tirage libre : la clé de `Constraint.run_key`, déjà là). Une entrée dont
+le moment n'est plus le moment courant est **rassise** : elle ne passe pas,
+elle se retire. Une heure pleine qui sonne pendant qu'une entrée musique attend
+chez le diffuseur la fait remettre en question : rejouée derrière le jingle si
+son moment tient encore, jetée sinon. Cela absorbe la purge de la longue pause
+(§7 n°30), celle de la fin du direct, et les deux défauts de 16 h.
+
+Ce que cela **ne** change pas : la grille n'est toujours consultée qu'au tirage
+(§7 n°5), le morceau **en cours** finit toujours. Ce qui bouge est l'entrée
+d'avance, que personne n'entend encore.
+
+- [x] **GOAL-056-T01** — La file date son avance : `Queue.prepare()` retient la
+      clé du moment (`run_key`, ou `None` en tirage libre) avec le `Pick`, et
+      `next_pick()` la sert seulement si la contrainte demandée porte la même
+      clé — sinon il l'oublie et tire à neuf. Une plage multi-genres retire un
+      genre à chaque jonction sans changer de clé : son avance survit, comme
+      aujourd'hui. Tests : rejouer 15 h 59 → 16 h 03 à horloge injectée et
+      constater que le premier titre servi après le changement de plage est
+      tiré sous la nouvelle contrainte. `forget_prepared()` de GOAL-054-T02
+      devient un cas de cette règle ou disparaît.
+- [x] **GOAL-056-T02** — La charnière date ce qu'elle donne au diffuseur :
+      `LiquidsoapPlayout` retient, avec chaque entrée en attente, sa nature, le
+      moment qui l'a tirée et l'instant de la décision. Pas encore de décision
+      ici, seulement la mémoire — et `stash_for_replay` ne replace que ce dont
+      le moment tient encore ; le reste est jeté en le journalisant.
+- [x] **GOAL-056-T03** — L'heure pleine remet l'avance en question. Le
+      battement d'auditeurs (toutes les 15 s, `declare_listeners`) est
+      l'horloge dont dispose la charnière : quand une heure pleine est passée
+      depuis la décision de l'entrée musique en attente, et que quelqu'un
+      écoute, la charnière la replace (T02) et ordonne `/requeue` — exactement
+      le chemin de l'encore (GOAL-034). Le diffuseur redemande aussitôt : le
+      programme rend le générique sortant, le jingle dû, le générique entrant,
+      puis l'entrée replacée ou un tirage neuf. Rien pendant un direct — le
+      direct purge lui-même à sa fin. Le résidu assumé : une jonction tombée
+      dans les 15 s qui précèdent l'heure garde l'ancien comportement.
+      **Écouter** avant de cocher (AGENTS.md §4.1) : un jingle à 17 h, à la
+      jonction qui suit l'heure, sans blanc ni doublon.
+- [x] **GOAL-056-T04** — Les deux purges existantes **restent**, et la
+      raison est consignée dans SPECS.md §7 n°33 : elles ne jugent pas au
+      moment. La longue pause impose un tirage neuf même sous la même plage
+      (n°30), donc `forget_prepared()` garde son sens ; et le script du
+      diffuseur ne connaît aucun moment — sa purge de fin de direct est la
+      ceinture d'un battement qui n'agit que toutes les quinze secondes. Aucun
+      code retiré : il n'y avait pas de doublon, seulement une règle absente.
+- [x] **GOAL-056-T05** — Documenter : SPECS.md §4.3 (le jingle tombe à la
+      jonction qui suit l'heure, résidu de 15 s compris), §4.4 (la plage
+      d'avant ne déborde pas derrière son générique), §7 — une décision
+      n°33 « l'avance est datée par son moment » qui absorbe la purge de la
+      n°30 ; ARCHITECTURE.md si la charnière change de rôle ;
+      docs/liquidsoap.md §3 si le comportement de `set_queue([])` à
+      auditeurs présents est observé de nouveau.
+
+---
+
+## GOAL-057 — Retirer au sort le thème d'une plage « au hasard »
+
+Demandé par l'auteur le 2026-09-02. Une plage `random = "genre"` ou
+`random = "artist"` tire son thème au début de l'occurrence et s'y tient
+(SPECS.md §4.4, §7 n°28). Quand le genre sorti ne plaît pas — une heure de
+Ragga un mercredi à 16 h —, il n'y a rien à faire d'autre que d'attendre 17 h.
+L'auteur veut pouvoir **retirer** : un bouton dans l'interface, donc une route
+d'API (SPECS.md §4.8 : aucun chemin privilégié).
+
+> **Sur « année »** : il n'existe pas de thème « une année au hasard ».
+> `RANDOM_THEMES` ne connaît que `genre` et `artist` ; les décennies ne vivent
+> que dans le mode `era_fan`, qui pose son ancre par suite et non par
+> occurrence. Retirer s'applique donc à ce qui est tiré aujourd'hui. Un thème
+> `random = "era"` — une décennie tirée au sort pour l'occurrence — serait un
+> Goal à part : `Track.year` est un entier relevé (docs/subsonic.md §4.1) et
+> la bibliothèque est en mémoire (GOAL-039), donc filtrer par décennie est
+> possible côté file ; mais c'est une nouvelle sorte de contrainte, avec ses
+> replis, pas une case de plus dans `RANDOM_THEMES`.
+
+Ce que retirer veut dire, à l'antenne : le morceau en cours finit (§7 n°5) ;
+dès la jonction suivante, la plage joue le **nouveau** thème — donc l'avance
+tirée sous l'ancien est rassise (GOAL-056), et le diffuseur doit la jeter par
+`/requeue`. Le générique de la plage ne repasse pas : il annonce la plage, pas
+le thème. Le nouveau thème est **différent** de l'ancien — retirer le même
+serait un bouton qui ne fait rien —, sauf si la bibliothèque n'en offre qu'un.
+Hors d'une plage au hasard, la demande est **refusée en le disant** (409 et
+un motif, comme un vote pendant un jingle).
+
+- [x] **GOAL-057-T01** — Le noyau sait retirer : `RandomTheme.redraw()`
+      oublie le thème de l'occurrence courante et retire en excluant l'ancien ;
+      la clé de moment d'une plage au hasard inclut le thème sorti, pour que
+      l'avance datée (GOAL-056) et la suite en cours (`Runs`) repartent. Tests
+      à graine fixée : le nouveau thème diffère, l'occurrence suivante retire
+      normalement, une bibliothèque à un seul genre rend le même en le disant.
+- [x] **GOAL-057-T02** — La route : `POST /api/moment/redraw`. Accepté →
+      `{"accepted": true, "moment": "Moment · Jazz (au hasard)"}` après avoir
+      préparé le tirage, pour que la réponse dise déjà ce qui vient ; refusé
+      hors d'une plage au hasard → 409 et un motif. `/api/on-air` gagne un
+      champ `moment_random: true|false` — l'interface ne doit pas deviner sur
+      le libellé. Le `Protocol` `Radio` s'étend d'une question ; `LiveRadio`
+      la traduit et ordonne le `/requeue`.
+- [x] **GOAL-057-T03** — L'interface : un bouton « Retirer » à côté du moment,
+      visible seulement quand `moment_random` est vrai, grisé pendant l'appel,
+      qui affiche le motif d'un refus comme le font « Passer » et « Encore ».
+- [x] **GOAL-057-T04** — Documenter : SPECS.md §4.4 (retirer), §4.8 (la route
+      et le champ), §7 n°28 amendée ; **écouter** une fois : le retirage à la
+      jonction, sans que le générique repasse.
+
+---
+
+## GOAL-058 — Les prochains titres se voient, et se retirent avant de passer
+
+Demandé par l'auteur le 2026-09-02 : « si elle existe, exposer la liste des
+prochains titres pour agir dessus avant diffusion ».
+
+**Elle n'existe pas encore comme liste.** Ce que la radio connaît d'avance
+tient en deux entrées : celle déjà donnée au diffuseur (`prefetch=1`), et
+l'avance de la file (`Queue._avance`, un seul `Pick`, GOAL-054). « À suivre »
+en annonce la première qui soit de la musique. Pour agir sur plusieurs titres,
+il faut d'abord qu'ils soient tirés.
+
+Ce que tirer plusieurs titres d'avance engage, et qui décide du découpage :
+
+- la **non-répétition** doit voir ce qui attend, pas seulement ce qui a joué —
+  sinon la file tire deux fois le même artiste dans son avance ;
+- les **suites** (`Runs`) s'observent au tirage : une avance de cinq titres
+  contient donc une suite entière, c'est cohérent ;
+- l'avance est **rassise** au changement de moment (GOAL-056) : plus elle est
+  profonde, plus cette règle compte — c'est pourquoi GOAL-056 vient avant ;
+- la **pondération** par les votes s'applique au tirage : un vote donné pendant
+  qu'un titre attend ne le déplace pas, et c'est acceptable ;
+- l'**encore** passe toujours devant la liste, et « À suivre » en devient la
+  tête ;
+- la source est appelée plusieurs fois d'affilée à la première préparation :
+  le cache (`subsonic.cache_seconds`) l'absorbe, mais à vérifier au journal.
+
+L'action demandée est **retirer** un titre : il ne passera pas, un autre est
+tiré à sa place, et le retrait est journalisé. Rien de plus tant que l'auteur
+ne l'a pas demandé — ni réordonner, ni forcer un titre (AGENTS.md §2 :
+n'anticipe pas). Retirer la tête de liste — l'entrée déjà chez le diffuseur —
+passe par le chemin de l'encore : `/requeue`, et le reste se replace.
+
+**Redécoupé en cours de route, sur une remarque de l'auteur** : « les
+problèmes d'horaire seront résolus si la planification des titres et des
+jingles est anticipée dans cette liste ». Pas tout à fait — c'est l'avance
+datée (GOAL-056) qui règle l'horaire, à la jonction — mais l'idée a décidé la
+forme de la liste : chaque titre d'avance est **tiré sous le moment de son
+heure estimée**, et l'habillage prévu y figure. Sans cela, une liste de trois
+titres à 15 h 55 aurait montré trois titres de 15 h dont deux rassis.
+
+- [x] **GOAL-058-T01** — La file tire N titres d'avance (`lookahead`, 1 par
+      défaut dans le noyau), chacun daté par son moment ; `revalidate` coupe
+      à la première entrée rassise ; `next_pick` ne sert la tête que si son
+      moment tient et laisse le reste en place ; la fenêtre voit ce qui
+      attend, l'attente s'efface en dernier ; `withdraw` retire un titre et
+      le compte comme passé.
+- [x] **GOAL-058-T02** — Le programme estime l'heure de chaque créneau
+      (`prepare(from_instant)`) et tire chaque titre sous la plage de son
+      heure, durée après durée, en revalidant à chaque préparation ; la
+      charnière fournit l'estimation (début et durée du morceau en cours,
+      jamais dans le passé, habillage pour zéro) et expose `upcoming()` — ce
+      qui attend chez le diffuseur, puis l'avance, avec l'habillage prévu
+      d'après les fichiers présents — et `withdraw()`, par `/requeue` pour
+      l'entrée déjà demandée. « À suivre » devient la tête de la liste ;
+      `prepared()` disparaît.
+- [x] **GOAL-058-T03** — `GET /api/up-next` et `DELETE /api/up-next/<id>`
+      (404 si le titre n'attend plus), la façade, l'assemblage, et
+      `draw.lookahead` (défaut 3, au moins 1).
+- [x] **GOAL-058-T04** — L'interface : « À suivre » ouvre un tiroir, une
+      ligne par entrée avec l'heure estimée, l'habillage prévu en pointillé,
+      un ✕ « Ne passera pas » sur les titres ; rechargé au rythme de
+      l'antenne tant qu'il est ouvert.
+- [x] **GOAL-058-T05** — SPECS.md §4.8, §6, §7 n°34 (et la n°5 précisée) ;
+      ARCHITECTURE.md §4.1.
+
+**Reste** : l'écoute d'une journée — la profondeur ne doit pas se remarquer à
+l'antenne, ni artiste répété, ni titre hors plage après une transition — et
+le tiroir n'a pas été vu dans un navigateur (pas de navigateur dans la
+session qui l'a écrit).
