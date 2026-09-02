@@ -62,7 +62,8 @@ générique « mystère » puis d'un morceau de la plage d'avant — corrigé pa
 règle, l'avance datée par son moment (n°33) ; le thème d'une plage « au
 hasard » se retire depuis l'interface (n°28 amendée) ; les prochains titres
 se voient dans un tiroir, tirés pour leur heure, et se retirent avant de
-passer (n°34). **Aucun Goal ouvert.** Décisions
+passer (n°34). **GOAL-059** étend « Retirer » aux suites tirées au sort —
+« année aléatoire » désignait le mode `era_fan`. **Aucun Goal ouvert.** Décisions
 restantes de SPECS.md §7 : la **n°9** est une
 conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
@@ -85,13 +86,15 @@ musique.
   ni doublon, et la plage suivante derrière son générique.
 - **GOAL-057** — un retirage : le nouveau thème à la jonction suivante, sans
   que le générique repasse.
+- **GOAL-059** — un retirage sur le contretemps de 15 h ou les époques de
+  19 h : une autre suite à la jonction suivante.
 - **GOAL-058** — une journée avec trois titres d'avance : ni artiste répété,
   ni titre hors plage après une transition ; et le tiroir, dans un navigateur.
 
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-059-T02.
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -162,29 +165,9 @@ production que le 2026-09-02 (GOAL-053).
 | GOAL-056 | L'avance est datée par son moment : le jingle horaire tombe à la jonction qui suit l'heure, et la plage d'avant ne déborde plus derrière le générique | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
 | GOAL-057 | Retirer au sort le thème d'une plage « au hasard », par l'API et l'interface | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
 | GOAL-058 | Les prochains titres se voient, et se retirent avant de passer | `[x]` — clos le 2026-09-02 ; **reste l'écoute**, et le tiroir à voir |
-| GOAL-059 | « Retirer » vaut aussi pour une suite tirée au sort : décennie ou artiste | `[-]` |
+| GOAL-059 | « Retirer » vaut aussi pour une suite tirée au sort : décennie ou artiste | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
 
 
----
-
-## GOAL-059 — « Retirer » vaut aussi pour une suite tirée au sort
-
-Précision de l'auteur le 2026-09-02, après GOAL-057 : « année aléatoire »
-désignait le mode `era_fan` — la décennie d'une suite, tirée au sort par
-l'ancre. Retirer doit donc valoir aussi pour une plage dont la **suite** est
-au hasard : `era_fan` (une décennie) et `artist_fan` (un artiste). Retirer,
-c'est **rompre la suite en cours** et en ouvrir une autre dont l'ancre diffère
-de la précédente — sauf si la bibliothèque n'offre rien d'autre, et c'est
-alors dit. L'avance tirée sous l'ancienne suite est jetée sans être replacée ;
-le morceau en cours finit.
-
-- [x] **GOAL-059-T01** — Le noyau : `Runs.break_run()` rompt la suite et
-      retient l'ancre à éviter ; la `Directive` porte cet évitement, que la
-      file applique au tirage suivant, avec repli dit ; `Queue.break_run()`.
-- [x] **GOAL-059-T02** — L'assemblage : « Retirer » s'applique aux plages à
-      suite au hasard — rompre, puis jeter l'avance sans la replacer
-      (`drop_advance`) ; `moment_random` le dit à l'interface. SPECS.md §4.4
-      et §7 n°28.

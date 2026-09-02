@@ -1925,3 +1925,25 @@ titres à 15 h 55 aurait montré trois titres de 15 h dont deux rassis.
 l'antenne, ni artiste répété, ni titre hors plage après une transition — et
 le tiroir n'a pas été vu dans un navigateur (pas de navigateur dans la
 session qui l'a écrit).
+
+---
+
+
+## GOAL-059 — « Retirer » vaut aussi pour une suite tirée au sort
+
+Précision de l'auteur le 2026-09-02, après GOAL-057 : « année aléatoire »
+désignait le mode `era_fan` — la décennie d'une suite, tirée au sort par
+l'ancre. Retirer doit donc valoir aussi pour une plage dont la **suite** est
+au hasard : `era_fan` (une décennie) et `artist_fan` (un artiste). Retirer,
+c'est **rompre la suite en cours** et en ouvrir une autre dont l'ancre diffère
+de la précédente — sauf si la bibliothèque n'offre rien d'autre, et c'est
+alors dit. L'avance tirée sous l'ancienne suite est jetée sans être replacée ;
+le morceau en cours finit.
+
+- [x] **GOAL-059-T01** — Le noyau : `Runs.break_run()` rompt la suite et
+      retient l'ancre à éviter ; la `Directive` porte cet évitement, que la
+      file applique au tirage suivant, avec repli dit ; `Queue.break_run()`.
+- [x] **GOAL-059-T02** — L'assemblage : « Retirer » s'applique aux plages à
+      suite au hasard — rompre, puis jeter l'avance sans la replacer
+      (`drop_advance`) ; `moment_random` le dit à l'interface. SPECS.md §4.4
+      et §7 n°28.
