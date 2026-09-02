@@ -1973,3 +1973,20 @@ constate qu'en écoutant (docs/flux-icy.md).
       verrouillage par Media Session quand le navigateur le sait.
 - [x] **GOAL-060-T03** — SPECS.md §4.8 et §6, l'exemple TOML ; **écouter**
       depuis un téléphone : la prise d'antenne, le rebranchement, l'arrière-plan.
+
+---
+
+## GOAL-061 — Retouches de l'interface
+
+Demandées par l'auteur le 2026-09-02, après avoir vu le tiroir.
+
+- [x] **GOAL-061-T01** — « Passer » et « Encore » sont grisés quand personne
+      n'écoute : un vote sans antenne n'a rien sur quoi porter, et l'API
+      l'aurait accepté sans effet visible.
+- [x] **GOAL-061-T02** — Le tiroir montre plus de titres : `draw.lookahead`
+      passe à 8 par défaut. La borne de la n°34 tenait à la grille qui
+      changerait sous l'avance ; depuis que chaque titre est tiré pour son
+      heure, elle ne tient plus qu'au coût des appels à la source, que le
+      cache absorbe.
+- [x] **GOAL-061-T03** — Le tiroir monte en glissant et le voile apparaît en
+      fondu, à l'ouverture.
