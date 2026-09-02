@@ -497,6 +497,11 @@ auditeur, la carte de veille dit « Rien à l'antenne » et comment démarrer la
 radio — le texte « La radio dort » a été retiré le même jour (l'auteur).
 Ce qu'un téléphone fait de l'installation ne se constate qu'en essayant.
 
+**Depuis le 2026-09-02** (GOAL-064), la page bouge un peu : les lignes d'une
+liste entrent l'une après l'autre, un onglet glisse vers le suivant, une
+chanson qui change fond l'ancienne dans la nouvelle — dans la scène comme
+dans la barre. Tout s'éteint quand le système demande moins de mouvement.
+
 L'interface web n'est rien de plus que la mise en page de cela : ce qui passe,
 ce qui vient, un lecteur, trois boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
 d'entrée des réglages (§6) — et ne touche pas à la bibliothèque (§2).

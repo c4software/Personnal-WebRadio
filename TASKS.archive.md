@@ -2046,3 +2046,20 @@ barre dit déjà que personne n'écoute.
       autonome ; SPECS.md §4.8 ; la carte du dépôt (ARCHITECTURE.md §9) ;
       clôture. Ce qu'un téléphone en fait — l'installation, l'ouverture
       plein écran — ne se constate qu'en essayant.
+
+---
+
+## GOAL-064 — La feuille de style externalisée, et des animations
+
+Demandé par l'auteur le 2026-09-02. Le gabarit portait 250 lignes de CSS en
+tête ; elles partent dans `static/`, servies comme Vue. Et la page bouge :
+les lignes d'une liste entrent l'une après l'autre, un onglet glisse vers
+le suivant, une chanson qui change fond l'ancienne dans la nouvelle.
+
+- [x] **GOAL-064-T01** — La CSS dans `static/style.css`, liée depuis le
+      gabarit ; le gabarit n'a plus de `<style>`.
+- [x] **GOAL-064-T02** — Les animations : entrée en cascade des lignes
+      (prochains titres, votes, planning, historique), transition entre
+      onglets, fondu au changement de chanson dans la scène et la barre —
+      désactivées sous `prefers-reduced-motion`.
+- [x] **GOAL-064-T03** — SPECS.md §4.8, la carte du dépôt ; clôture ; push.

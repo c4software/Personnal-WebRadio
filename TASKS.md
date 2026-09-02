@@ -92,11 +92,11 @@ application, porte une icône et dit dans son titre ce qui passe ; la carte
 l'installation depuis un téléphone — Android et iOS n'ont pas les mêmes
 critères, et rien ne le constate sans un vrai appareil.
 
-**GOAL-064 est ouvert le 2026-09-02** : la feuille de style sort du gabarit,
-et la page s'anime — entrée des listes, changement d'onglet, changement de
-chanson.
+**GOAL-064 est clos le 2026-09-02** : la feuille de style est sortie du
+gabarit, et la page s'anime — entrée des listes, changement d'onglet,
+changement de chanson. **Aucun Goal ouvert.**
 
-**Prochaine tâche** : GOAL-064-T03.
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
 
@@ -167,24 +167,7 @@ chanson.
 | GOAL-061 | Retouches de l'interface : votes grisés sans auditeur, tiroir plus profond et animé | `[x]` — clos le 2026-09-02 |
 | GOAL-062 | L'interface repensée : un lecteur en barre fixe, l'antenne en carte, les votes à portée de pouce | `[x]` — clos le 2026-09-02, écoute validée le même jour |
 | GOAL-063 | Installable en PWA, une icône, un titre qui dit ce qui passe | `[x]` — clos le 2026-09-02 ; **reste à essayer** l'installation depuis un téléphone |
-| GOAL-064 | La feuille de style externalisée, et des animations d'entrée, d'onglet et de chanson | `[-]` |
+| GOAL-064 | La feuille de style externalisée, et des animations d'entrée, d'onglet et de chanson | `[x]` — clos le 2026-09-02 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
-
----
-
-## GOAL-064 — La feuille de style externalisée, et des animations
-
-Demandé par l'auteur le 2026-09-02. Le gabarit portait 250 lignes de CSS en
-tête ; elles partent dans `static/`, servies comme Vue. Et la page bouge :
-les lignes d'une liste entrent l'une après l'autre, un onglet glisse vers
-le suivant, une chanson qui change fond l'ancienne dans la nouvelle.
-
-- [x] **GOAL-064-T01** — La CSS dans `static/style.css`, liée depuis le
-      gabarit ; le gabarit n'a plus de `<style>`.
-- [x] **GOAL-064-T02** — Les animations : entrée en cascade des lignes
-      (prochains titres, votes, planning, historique), transition entre
-      onglets, fondu au changement de chanson dans la scène et la barre —
-      désactivées sous `prefers-reduced-motion`.
-- [-] **GOAL-064-T03** — SPECS.md §4.8, la carte du dépôt ; clôture ; push.
