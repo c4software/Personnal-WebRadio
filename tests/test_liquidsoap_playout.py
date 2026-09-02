@@ -235,6 +235,24 @@ def test_une_entree_inconnue_sans_etiquettes_n_affiche_rien(tmp_path: Path) -> N
     assert radio.on_air_now().title is None  # type: ignore[union-attr]
 
 
+def test_une_entree_inconnue_sans_etiquettes_n_efface_pas_l_antenne(tmp_path: Path) -> None:
+    """GOAL-051 : `input.http` annonce un direct DEUX fois (docs/liquidsoap.md
+    §9). La seconde annonce arrive après que la première a consommé l'entrée,
+    et sans étiquettes : la déclarer effaçait « Matinale franceinfo » de
+    l'antenne pour toute la durée de la case."""
+    playout, radio, _ = _playout(tmp_path)
+    playout.declare_listeners(1)
+    entry = playout.next_entry()
+    assert entry is not None
+    playout.playing(entry)
+    annonce = radio.on_air_now()
+    assert annonce is not None and annonce.title is not None
+
+    playout.playing(entry)  # la seconde annonce, l'entrée déjà consommée
+
+    assert radio.on_air_now() == annonce
+
+
 def test_plus_rien_a_jouer_rend_none(tmp_path: Path) -> None:
     clock = FrozenClock(MIDI)
     random = ScriptedRandom([0] * 10)

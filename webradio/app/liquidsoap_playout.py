@@ -125,6 +125,15 @@ class LiquidsoapPlayout:
             finie, self._entree_en_cours = self._entree_en_cours, entry
         self._effacer_si_ephemere(finie)
         if nature is None:
+            if artist is None and title is None:
+                # Sans étiquettes, il n'y a rien à afficher — et déclarer
+                # « musique, sans titre ni artiste » VIDE l'antenne. C'est ce
+                # qui a effacé « Matinale franceinfo » le 2026-09-02 : le
+                # direct s'annonce deux fois, et la seconde annonce arrive
+                # après que la première a consommé l'entrée
+                # (docs/liquidsoap.md §9).
+                logger.info("entrée inconnue et sans étiquettes : l'antenne reste telle quelle")
+                return
             # Après un redémarrage de `radio`, Liquidsoap joue encore un ou
             # deux morceaux demandés à l'ancien processus. Plutôt que rien,
             # on affiche les étiquettes que le décodeur a lues du fichier.

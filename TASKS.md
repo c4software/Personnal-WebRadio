@@ -59,8 +59,8 @@ secondes au branchement du premier auditeur, y compris quand l'antenne reprend
 au milieu d'un morceau. Les écoutes de GOAL-044 (modes d'enchaînement) et
 GOAL-047 (coupe au plafond) ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-051-T03 — une entrée inconnue et sans étiquettes
-n'efface plus l'antenne.
+**Prochaine tâche** : GOAL-051-T05 — la purge à la fin du direct. T04 et T06
+sont liées et attendent l'arbitrage inscrit en T06.
 
 ---
 
@@ -169,7 +169,7 @@ ensemble ils mentent.
       `on_skip` refuse un saut à vide, et la charnière ordonne toujours le
       `/skip` de la reprise à neuf. `radio` ne peut pas savoir ce que liquidsoap
       tient : redémarré seul, il croit qu'aucun morceau ne passe. **(défaut 1)**
-- [ ] **GOAL-051-T03** — Une entrée inconnue **et sans étiquettes** ne remplace
+- [x] **GOAL-051-T03** — Une entrée inconnue **et sans étiquettes** ne remplace
       plus ce qui est à l'antenne : déclarer « musique, sans titre ni artiste »
       efface l'affichage sans rien apporter. **(défaut 2, moitié Python)**
 - [ ] **GOAL-051-T04** — Le direct s'annonce quand il **prend** l'antenne, une
