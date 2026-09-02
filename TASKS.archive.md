@@ -2179,3 +2179,51 @@ reprend après elle n'annonce que sa fin.
 **Reste à écouter** (AGENTS.md §4.1) : la jonction de 20 h un mercredi, quand
 Hardisk coupe la plage guitares ; et la reprise à la fin du programme du
 vendredi, dont l'avance est désormais tirée pour 20 h et non plus pour 18 h.
+
+---
+
+## GOAL-069 — Le picto de volume est dessiné, comme les autres
+
+Demandé par l'auteur le 2026-09-02 : « le picto volume est une emoji, c'est
+pas top ». `🔈` était le seul caractère pictographique de la page, au milieu de
+huit pictos dessinés en SVG de 16 × 16 qui prennent `currentColor`. Un emoji ne
+suit ni la couleur ni la taille du reste, et change de dessin d'un système à
+l'autre.
+
+Un test refuse désormais tout pictogramme des plans supérieurs d'Unicode dans
+la page servie : c'est la frontière qui sépare les emoji en couleur des flèches
+et des croix typographiques que la page utilise (`✕`, `▾`, `‹`).
+
+- [x] **GOAL-069-T01** — Un haut-parleur en SVG, et le test qui interdit le
+      retour d'un emoji. Constaté sur la page rendue, radio démarrée.
+
+---
+
+## GOAL-070 — La liste des prochains titres ne se coupe plus en silence
+
+Constaté par l'auteur le 2026-09-02, le jour même de GOAL-068 : « dans la
+liste de lecture je ne vois que 4 prochaines chansons », alors que
+`draw.lookahead = 8`.
+
+**Ce que le diagnostic a montré**, en rejouant la journée entière sur la grille
+de l'auteur : l'avance tient bien ses huit titres à toute heure. C'est la
+**lecture** qui coupait. GOAL-068-T04, la veille, avait appris à la préparation
+à reporter un créneau à la fin d'un direct ou d'un programme — la file n'y est
+pas servie ; `upcoming`, lui, estimait sans ce report. Les deux heures
+divergeaient, le moment ne correspondait plus à celui sous lequel le titre
+avait été tiré, et la liste s'arrêtait comme devant une avance rassise, sans
+rien dire.
+
+**Décision : on ne continue qu'après ce qu'on sait nommer ET dater.** Un direct
+déclare sa durée : la liste l'annonce et reprend à l'heure sûre. Un podcast ou
+une chaîne YouTube ne connaissent leur durée qu'une fois le flux ouvert, et un
+programme ne s'annonce pas (SPECS.md §4.8) : là, la liste s'arrête — mais
+jamais en silence.
+
+**La leçon** : un report appliqué d'un seul côté d'une paire
+préparation/lecture se paie en truncation muette. Les deux marchent désormais
+avec la même fonction, `_servi_a_partir_de`.
+
+- [x] **GOAL-070-T01** — La liste estime avec le report de la préparation,
+      nomme le direct qui coupe, reprend après lui ; SPECS.md §4.8. Le test
+      a été vu échouer report retiré.

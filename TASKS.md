@@ -121,49 +121,18 @@ sur conséquences montrées). **Aucun Goal ouvert.** **Reste à écouter**
 (AGENTS.md §4.1) : la jonction de 20 h un mercredi, quand Hardisk coupe les
 guitares, et la reprise à la fin du programme du vendredi.
 
-**GOAL-069 est ouvert le 2026-09-02** : le picto de volume de la barre de
-lecture était un emoji — le seul de toute la page, au milieu de huit pictos
-dessinés en SVG. Un emoji ne suit ni la couleur ni la taille du reste, et
-change de dessin d'un système à l'autre.
+**GOAL-069 est clos le 2026-09-02** : le picto de volume de la barre était un
+emoji — le seul de toute la page, au milieu de huit pictos dessinés en SVG. Il
+est dessiné à son tour, et un test interdit le retour d'un emoji dans la page.
 
-**GOAL-070 est ouvert le 2026-09-02** : l'auteur ne voyait que **quatre**
-titres dans la liste de lecture au lieu des huit de `draw.lookahead`. La
-liste jugeait rassis ce qui avait été tiré pour l'heure d'après un direct —
-le report introduit la veille par GOAL-068-T04 s'appliquait à la préparation
-mais pas à la lecture — et elle se coupait **sans rien dire**.
+**GOAL-070 est clos le 2026-09-02** : l'auteur ne voyait que **quatre** titres
+dans la liste de lecture au lieu des huit de `draw.lookahead`. Le report
+introduit le jour même par GOAL-068-T04 s'appliquait à la préparation mais pas
+à la lecture : la liste jugeait rassis ce qui avait été tiré pour l'heure
+d'après un direct, et se coupait sans rien dire. Elle applique le même report,
+nomme le direct qui coupe et reprend après lui. **Aucun Goal ouvert.**
 
 **Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
-
----
-
-## Goal ouvert
-
-### GOAL-069 — Le picto de volume est dessiné, comme les autres
-
-**Ce qui a été constaté** (auteur) : « le picto volume est une emoji, c'est
-pas top ». `🔈` était le seul caractère pictographique de la page ; tous les
-autres pictos de la barre — pochette, lecture, liste, enceinte — sont des SVG
-en ligne de 16 × 16 qui prennent `currentColor`.
-
-| Tâche | Ce qu'elle livre | État |
-|---|---|---|
-| GOAL-069-T01 | Un haut-parleur en SVG à la place de l'emoji, et un test qui refuse les emoji dans la page | `[x]` |
-
-### GOAL-070 — La liste des prochains titres ne se coupe plus en silence
-
-**Ce qui a été constaté** (auteur, 2026-09-02) : « dans la liste de lecture je
-ne vois que 4 prochaines chansons », alors que `draw.lookahead = 8`.
-
-**Ce qui a été trouvé**, en rejouant la journée sur la vraie grille : l'avance
-tient bien ses huit titres. C'est la **lecture** qui coupait. GOAL-068-T04
-avait appris à la préparation à reporter un créneau à la fin d'un direct ou
-d'un programme ; `upcoming` estimait, lui, sans ce report. Les deux heures
-divergeaient, le moment ne correspondait plus, et la liste s'arrêtait comme
-devant une avance rassise — muette.
-
-| Tâche | Ce qu'elle livre | État |
-|---|---|---|
-| GOAL-070-T01 | La liste estime avec le même report que la préparation, nomme le direct qui coupe et reprend après lui | `[x]` |
 
 ---
 
@@ -239,6 +208,8 @@ devant une avance rassise — muette.
 | GOAL-066 | Le moment courant se nomme toujours, à côté du bouton | `[x]` — clos le 2026-09-02 |
 | GOAL-067 | L'encore vise la chanson entendue au vote, et la liste le montre | `[x]` — clos le 2026-09-02 |
 | GOAL-068 | La grille effective : les périodes fusionnent, la plus courte l'emporte | `[x]` — clos le 2026-09-02 ; **reste à écouter** la jonction de 20 h et la reprise après un programme |
+| GOAL-069 | Le picto de volume est dessiné, comme les autres | `[x]` — clos le 2026-09-02 |
+| GOAL-070 | La liste des prochains titres ne se coupe plus en silence | `[x]` — clos le 2026-09-02 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
