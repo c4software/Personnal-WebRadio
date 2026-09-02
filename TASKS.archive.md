@@ -1947,3 +1947,29 @@ le morceau en cours finit.
       suite au hasard — rompre, puis jeter l'avance sans la replacer
       (`drop_advance`) ; `moment_random` le dit à l'interface. SPECS.md §4.4
       et §7 n°28.
+
+---
+
+
+## GOAL-060 — Un lecteur dans la page
+
+Demandé par l'auteur le 2026-09-02 : écouter la radio depuis l'interface,
+sans ouvrir VLC. Un élément `<audio>` sur le flux de Liquidsoap suffit ; le
+bouton vaut le geste que les navigateurs exigent avant tout son.
+
+Ce que ça engage : l'adresse du flux vient du TOML (AGENTS.md §2 — rien en
+dur), la page devient un auditeur (lancer la lecture réveille la radio, la
+couper la rendort si personne d'autre n'écoute), et ce que fait le navigateur
+d'un téléphone — rebranchement, arrière-plan, écran verrouillé — ne se
+constate qu'en écoutant (docs/flux-icy.md).
+
+- [x] **GOAL-060-T01** — `web.stream_url` : l'adresse du flux telle que la
+      page doit l'ouvrir. Absente, pas de lecteur. Une valeur qui commence
+      par `:` — `:8000/flux` — désigne l'hôte de la page : la même
+      configuration vaut depuis tous les postes du réseau.
+- [x] **GOAL-060-T02** — Le lecteur dans l'onglet « À l'antenne » : un bouton
+      « Écouter » / « Couper », un `<audio preload="none">` qui ne charge rien
+      tant qu'on n'écoute pas, et titre et artiste passés à l'écran de
+      verrouillage par Media Session quand le navigateur le sait.
+- [x] **GOAL-060-T03** — SPECS.md §4.8 et §6, l'exemple TOML ; **écouter**
+      depuis un téléphone : la prise d'antenne, le rebranchement, l'arrière-plan.

@@ -456,8 +456,24 @@ motif, exactement comme un vote pendant un jingle. L'interface montre le bouton
 seulement quand l'API dit qu'il a un sens — elle ne le devine pas sur le
 libellé.
 
+#### Écouter depuis la page
+
+**Depuis le 2026-09-02** (GOAL-060), la page porte un lecteur, si le TOML
+déclare l'adresse du flux (`web.stream_url`, §6) : un bouton « Écouter »,
+qui vaut le geste que les navigateurs exigent avant tout son, et « Couper ».
+La page ouverte **n'écoute pas** tant qu'on n'a pas appuyé — elle ne branche
+aucun auditeur à l'insu de tous, et la radio continue de ne tourner que si
+quelqu'un écoute (§1). Écouter depuis la page, c'est être un auditeur comme
+un autre : la prise d'antenne se fond, couper rendort la radio si personne
+d'autre n'écoute. Couper **décharge** le flux plutôt que de le mettre en
+pause : un direct ne se reprend pas, et une connexion gardée compterait un
+auditeur. Quand le navigateur le sait, titre, artiste et moment s'affichent
+sur l'écran de verrouillage. Ce que fait un téléphone au rebranchement, en
+arrière-plan, écran verrouillé, ne se constate qu'en écoutant
+(docs/flux-icy.md).
+
 L'interface web n'est rien de plus que la mise en page de cela : ce qui passe,
-ce qui vient, trois boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
+ce qui vient, un lecteur, trois boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
 d'entrée des réglages (§6) — et ne touche pas à la bibliothèque (§2).
 
 ### 4.13 Les programmes
@@ -897,7 +913,9 @@ Ce que le TOML doit décrire, au minimum :
   et ne se configurent pas : `hours/00h.mp3` … `hours/23h.mp3` pour les heures
   (§4.3), `encore.mp3` pour le vote (§4.6) ;
 
-- **Le web** : adresse d'écoute et port de l'interface et de l'API ;
+- **Le web** : adresse d'écoute et port de l'interface et de l'API, et
+  `stream_url`, l'adresse du flux que le lecteur de la page ouvre (§4.8) —
+  absente, pas de lecteur ; `:8000/flux` désigne l'hôte de la page ;
 - **Les informations** : à quelles heures un flash est diffusé ;
 - **Les moments thématiques** : plages horaires et genres associés — ou
   artistes, ou `random = "genre"` / `random = "artist"` pour laisser la radio
