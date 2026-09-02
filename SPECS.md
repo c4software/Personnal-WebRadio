@@ -460,10 +460,17 @@ un encore — est retiré avec ce qui le suit, et retiré au sort.
 **remplacera la file** — les émissions et les programmes, et non plus les
 seules plages :
 
-- la liste **s'arrête** à ce qui va couper, et **nomme l'émission** : à
-  19 h 58, elle annonçait un titre pour 20 h alors que l'émission de 20 h
-  allait passer. D'un programme, elle ne dit rien — pendant un programme, la
-  radio n'annonce pas (voir « À suivre » ci-dessus) ;
+- elle **nomme l'émission qui va couper** : à 19 h 58, elle annonçait un titre
+  pour 20 h alors que l'émission de 20 h allait passer. Après un **direct**,
+  dont la fin est déclarée, elle **reprend** à l'heure sûre : le flash de
+  11 h 57 s'y lit entre le titre de 11 h 54 et celui de 12 h 10. Elle
+  **s'arrête**, en revanche, après ce qu'elle ne sait ni nommer ni dater — un
+  podcast ou une chaîne YouTube, dont la durée ne se lit qu'une fois le flux
+  ouvert ; un programme, qui ne s'annonce pas (voir « À suivre » ci-dessus).
+  Elle ne s'arrête **jamais en silence** : le 2026-09-02, l'auteur n'a vu que
+  quatre titres au lieu de huit — la liste jugeait rassis ce qui avait été
+  tiré pour l'heure d'après un direct, et se coupait sans rien dire
+  (GOAL-070) ;
 - un créneau qui tomberait pendant un **programme** ou un **direct** est tiré
   pour l'heure de leur **fin** : la file n'y est pas servie, et un titre tiré
   pour cette heure-là aurait été jeté à la jonction — laissant la file vide au

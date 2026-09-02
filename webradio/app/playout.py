@@ -261,16 +261,30 @@ class RadioProgramme:
             # Sans heure estimée, seule la tête se juge, contre l'instant
             # présent : la suite a pu être tirée pour un moment à venir.
             if instant is not None:
+                # Le créneau commence quand la file est **servie**, le même
+                # report qu'à la préparation : sans lui, la liste jugeait
+                # rassis un titre tiré pour l'heure d'après un direct, et
+                # s'arrêtait sans le dire — quatre titres au lieu de huit
+                # (GOAL-069, constaté par l'auteur).
+                instant = self._servi_a_partir_de(instant)
+                if precedent is not None:
+                    remplacement = self._remplacement_entre(precedent, instant)
+                    if remplacement is not None:
+                        annonce = self._annonce_du_remplacement(remplacement)
+                        items.extend(annonce)
+                        # On ne continue qu'après ce qu'on a su **nommer et
+                        # dater** : un direct annonce sa fin, la file reprend
+                        # à une heure sûre. Ailleurs — un podcast sans durée,
+                        # un programme qui ne s'annonce pas (§4.8) — la suite
+                        # laisserait un trou que rien n'explique.
+                        if not annonce or remplacement.end is None:
+                            break
                 rassise = moment != self._grille.moment_at(instant)
             else:
                 rassise = index == 0 and moment != self._grille.current_moment()
             if rassise:
                 break
             if instant is not None and precedent is not None:
-                remplacement = self._remplacement_entre(precedent, instant)
-                if remplacement is not None:
-                    items.extend(self._annonce_du_remplacement(remplacement))
-                    break
                 items.extend(self._habillage_prevu(precedent, instant))
             items.append(Upcoming(Kind.MUSIC, track, None, instant))
             precedent = instant

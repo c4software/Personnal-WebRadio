@@ -892,3 +892,39 @@ def test_l_avance_n_est_pas_tiree_pour_les_heures_du_programme(tmp_path: Path) -
         "rock",
         "rock",
     ]
+
+
+FLASH = ShowCase(
+    name="Flash franceinfo", days=("all",), hour=time(12, 57), duration=timedelta(minutes=13)
+)
+TABLE = Band(start=time(13), end=time(14, 30), genres=("rock",))
+
+
+def test_la_liste_reprend_apres_un_direct_dont_la_fin_est_connue(tmp_path: Path) -> None:
+    """GOAL-069, constaté par l'auteur : la liste montrait quatre titres au
+    lieu de huit. Elle jugeait rassis ce qui avait été tiré pour l'heure
+    d'après le direct, et s'arrêtait sans le dire."""
+    montre = FrozenClock(MIDI.replace(hour=12, minute=53))
+    programme, _ = _programme(tmp_path, bands=[TABLE], clock=montre, lookahead=3, shows=[FLASH])
+    depart = montre.now()
+
+    programme.prepare(from_instant=depart)
+    liste = programme.upcoming(depart)
+
+    assert [(i.kind, i.label, i.at) for i in liste] == [
+        (Kind.MUSIC, None, depart),
+        (Kind.MUSIC, None, MIDI.replace(hour=12, minute=56)),
+        (Kind.SHOW, "Flash franceinfo", MIDI.replace(hour=12, minute=57)),
+        (Kind.MUSIC, None, MIDI.replace(hour=13, minute=10)),
+    ]
+
+
+def test_la_liste_ne_promet_rien_apres_une_emission_sans_duree(tmp_path: Path) -> None:
+    """Nul ne sait quand elle finit : la suite ne peut être ni datée ni jugée."""
+    montre = FrozenClock(MIDI.replace(hour=19, minute=55))
+    programme, _ = _programme(tmp_path, bands=[SOIREE], clock=montre, lookahead=3, shows=[HARDISK])
+    depart = MIDI.replace(hour=19, minute=58)
+
+    programme.prepare(from_instant=depart)
+
+    assert [i.kind for i in programme.upcoming(depart)] == [Kind.MUSIC, Kind.SHOW]

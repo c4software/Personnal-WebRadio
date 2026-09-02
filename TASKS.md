@@ -132,7 +132,7 @@ liste jugeait rassis ce qui avait été tiré pour l'heure d'après un direct �
 le report introduit la veille par GOAL-068-T04 s'appliquait à la préparation
 mais pas à la lecture — et elle se coupait **sans rien dire**.
 
-**Prochaine tâche** : GOAL-070-T01.
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
 
@@ -163,7 +163,7 @@ devant une avance rassise — muette.
 
 | Tâche | Ce qu'elle livre | État |
 |---|---|---|
-| GOAL-070-T01 | La liste estime avec le même report que la préparation, nomme le direct qui coupe et reprend après lui | `[-]` |
+| GOAL-070-T01 | La liste estime avec le même report que la préparation, nomme le direct qui coupe et reprend après lui | `[x]` |
 
 ---
 
