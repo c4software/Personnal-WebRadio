@@ -126,6 +126,12 @@ class LiveRadio(Radio):
         with self._verrou:
             return self._piste
 
+    def playing_kind(self) -> Kind:
+        """La nature de ce qui passe — ce qui dit si une heure pleine compte :
+        pendant une émission, les jingles sont abandonnés (SPECS.md §4.11)."""
+        with self._verrou:
+            return self._nature
+
     def moment(self) -> str | None:
         if self._moment is None:
             return None

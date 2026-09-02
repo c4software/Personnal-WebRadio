@@ -83,7 +83,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-056-T03. Les trois Goals s'enchaînent dans
+**Prochaine tâche** : GOAL-056-T04. Les trois Goals s'enchaînent dans
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -230,7 +230,7 @@ d'avance, que personne n'entend encore.
       moment qui l'a tirée et l'instant de la décision. Pas encore de décision
       ici, seulement la mémoire — et `stash_for_replay` ne replace que ce dont
       le moment tient encore ; le reste est jeté en le journalisant.
-- [ ] **GOAL-056-T03** — L'heure pleine remet l'avance en question. Le
+- [x] **GOAL-056-T03** — L'heure pleine remet l'avance en question. Le
       battement d'auditeurs (toutes les 15 s, `declare_listeners`) est
       l'horloge dont dispose la charnière : quand une heure pleine est passée
       depuis la décision de l'entrée musique en attente, et que quelqu'un

@@ -360,17 +360,20 @@ DEUX_PLAGES = [
     Band(start=time(12, 0), end=time(13, 0), genres=("électro",)),
     Band(start=time(13, 0), end=time(14, 0), genres=("rock",)),
 ]
+# Deux titres d'électro : l'avance n'est pas la même entrée que le morceau en
+# cours — la charnière range ses entrées par leur adresse.
+DEUX_ELECTRO = [*CATALOGUE, track("3", "Portishead", genre="électro")]
 
 
 def test_l_avance_replacee_ne_rejoue_pas_ce_qu_un_moment_fini_a_tire(tmp_path: Path) -> None:
     """Décision n°33 : l'entrée demandée sous la plage de 12 h ne se replace
     pas sous celle de 13 h — elle est jetée, et la suite est tirée à neuf."""
-    playout, _radio, clock = _playout(tmp_path, bands=DEUX_PLAGES)
+    playout, _radio, clock = _playout(tmp_path, bands=DEUX_PLAGES, catalogue=DEUX_ELECTRO)
     playout.declare_listeners(1)
     premier = playout.next_entry()
     assert premier == "fake://1"
     playout.playing(premier)
-    assert playout.next_entry() == "fake://1"  # l'avance, encore sous 12 h
+    assert playout.next_entry() == "fake://3"  # l'avance, encore sous 12 h
 
     clock.advance(timedelta(hours=1, minutes=1))
     playout.stash_for_replay()
@@ -391,3 +394,112 @@ def test_l_avance_replacee_dans_le_meme_moment_se_ressert_telle_quelle(tmp_path:
     playout.stash_for_replay()
 
     assert playout.next_entry() == deuxieme
+
+
+def _playout_avec_requeue(
+    folder: Path, ordres: list[str], bands: list[Band] | None = None
+) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
+    return _playout(
+        folder,
+        order_requeue=lambda: ordres.append("requeue"),
+        bands=bands,
+        catalogue=DEUX_ELECTRO if bands else None,
+    )
+
+
+def _avance_demandee(playout: LiquidsoapPlayout) -> str:
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    deuxieme = playout.next_entry()
+    assert deuxieme is not None
+    return deuxieme
+
+
+def test_l_heure_pleine_remet_l_avance_en_question(tmp_path: Path) -> None:
+    """Le 2026-09-02, 16h-c.mp3 est passé à 16 h 07 : l'entrée de la jonction
+    de 16 h 03 avait été décidée à 15 h 59. Au battement qui suit l'heure, la
+    charnière replace l'avance et fait redemander : le jingle sort à la
+    jonction qui suit l'heure, et l'avance passe derrière lui."""
+    (tmp_path / "hours").mkdir()
+    (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
+    ordres: list[str] = []
+    playout, _radio, clock = _playout_avec_requeue(tmp_path, ordres)
+    deuxieme = _avance_demandee(playout)
+
+    clock.advance(timedelta(hours=1, seconds=10))
+    playout.declare_listeners(1)
+
+    assert ordres == ["requeue"]
+    jingle = playout.next_entry()
+    assert jingle is not None and "13h.mp3" in jingle
+    assert playout.next_entry() == deuxieme, "replacée derrière le jingle, pas jetée"
+
+
+def test_l_heure_pleine_ne_remet_en_question_qu_une_fois(tmp_path: Path) -> None:
+    ordres: list[str] = []
+    playout, _radio, clock = _playout_avec_requeue(tmp_path, ordres)
+    _avance_demandee(playout)
+    clock.advance(timedelta(hours=1, seconds=10))
+    playout.declare_listeners(1)
+    playout.next_entry()  # le diffuseur a redemandé
+    clock.advance(timedelta(seconds=15))
+    playout.declare_listeners(1)
+    assert ordres == ["requeue"]
+
+
+def test_avant_l_heure_pleine_l_avance_reste(tmp_path: Path) -> None:
+    ordres: list[str] = []
+    playout, _radio, clock = _playout_avec_requeue(tmp_path, ordres)
+    _avance_demandee(playout)
+    clock.advance(timedelta(minutes=40))
+    playout.declare_listeners(1)
+    assert ordres == []
+
+
+def test_sans_auditeur_l_heure_ne_remet_rien_en_question(tmp_path: Path) -> None:
+    """Personne n'écoute : rien n'est décodé ni demandé, et la purge de
+    reprise (SPECS.md §7 n°30) jugera l'avance au retour."""
+    ordres: list[str] = []
+    playout, _radio, clock = _playout_avec_requeue(tmp_path, ordres)
+    _avance_demandee(playout)
+    playout.declare_listeners(0)
+    clock.advance(timedelta(hours=1, seconds=10))
+    playout.declare_listeners(0)
+    assert ordres == []
+
+
+def test_pendant_une_emission_l_heure_pleine_ne_compte_pas(tmp_path: Path) -> None:
+    """Les jingles dus pendant une émission sont abandonnés (SPECS.md §4.11) :
+    il n'y a rien à faire passer devant l'avance."""
+    ordres: list[str] = []
+    playout, radio, clock = _playout_avec_requeue(tmp_path, ordres)
+    _avance_demandee(playout)
+    radio.declare(Kind.SHOW, None, "Matinale franceinfo")
+    clock.advance(timedelta(hours=1, seconds=10))
+    playout.declare_listeners(1)
+    assert ordres == []
+
+
+def test_au_battement_un_moment_fini_jette_l_avance(tmp_path: Path) -> None:
+    """La plage de 13 h a commencé : l'avance tirée sous celle de 12 h ne
+    passera pas derrière son générique — elle est jetée, la suite tirée à
+    neuf sous la plage ouverte."""
+    ordres: list[str] = []
+    playout, _radio, clock = _playout_avec_requeue(tmp_path, ordres, bands=DEUX_PLAGES)
+    assert _avance_demandee(playout) == "fake://3"
+    clock.advance(timedelta(hours=1, seconds=10))
+    playout.declare_listeners(1)
+    assert ordres == ["requeue"]
+    assert playout.next_entry() == "fake://2"
+
+
+def test_un_moment_fini_compte_meme_pendant_une_emission(tmp_path: Path) -> None:
+    ordres: list[str] = []
+    playout, radio, clock = _playout_avec_requeue(tmp_path, ordres, bands=DEUX_PLAGES)
+    _avance_demandee(playout)
+    radio.declare(Kind.SHOW, None, "LEGEND")
+    clock.advance(timedelta(hours=1, seconds=10))
+    playout.declare_listeners(1)
+    assert ordres == ["requeue"]

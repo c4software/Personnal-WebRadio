@@ -259,11 +259,60 @@ class LiquidsoapPlayout:
                 logger.info("dernier auditeur parti : rien ne sera décodé ni demandé")
             return
         pause_depuis, self._pause_depuis = self._pause_depuis, None
-        if pause_depuis is None or self._horloge is None or self._reprise_a_neuf is None:
+        if (
+            pause_depuis is not None
+            and self._horloge is not None
+            and self._reprise_a_neuf is not None
+        ):
+            pause = self._horloge.now() - pause_depuis
+            if pause > self._reprise_a_neuf:
+                self._repartir_a_neuf(pause)
+        self._remettre_l_avance_en_question()
+
+    def _remettre_l_avance_en_question(self) -> None:
+        """L'avance du diffuseur, jugée à l'heure pleine et au moment (n°33).
+
+        Le diffuseur décide l'entrée de chaque jonction à la précédente : une
+        heure pleine tombée entre les deux n'était vue qu'à la jonction
+        d'après, et le jingle arrivait une chanson trop tard — 16 h 07 pour
+        16 h, le 2026-09-02. Le battement d'auditeurs, toutes les quinze
+        secondes, est l'horloge dont dispose la charnière : quand une heure
+        pleine est passée depuis la décision d'une entrée musique, ou que son
+        moment a fini, elle est replacée (`stash_for_replay`, qui jette ce qui
+        est rassi) et le diffuseur redemande — le chemin de l'encore
+        (GOAL-034). Il rend alors le générique, le jingle dû, puis l'entrée
+        replacée ou un tirage neuf.
+
+        Pendant une émission, l'heure ne compte pas — les jingles y sont
+        abandonnés (SPECS.md §4.11) — mais un moment fini compte toujours.
+        """
+        if self._horloge is None or self._ordonner_requeue is None:
             return
-        pause = self._horloge.now() - pause_depuis
-        if pause > self._reprise_a_neuf:
-            self._repartir_a_neuf(pause)
+        with self._verrou:
+            en_avance = [
+                pending
+                for entry, pending in self._en_attente.items()
+                if entry != self._entree_en_cours and pending.kind is Kind.MUSIC
+            ]
+        if not en_avance:
+            return
+        now = self._horloge.now()
+        heure_pleine = now.replace(minute=0, second=0, microsecond=0)
+        moment = self._programme.current_moment()
+        rassise = any(pending.moment != moment for pending in en_avance)
+        heure_passee = any(
+            pending.decided_at is not None and pending.decided_at < heure_pleine
+            for pending in en_avance
+        )
+        en_emission = self._radio.playing_kind() in (Kind.SHOW, Kind.NEWS)
+        if not rassise and (en_emission or not heure_passee):
+            return
+        logger.info(
+            "l'avance est remise en question (%s) : le diffuseur redemande",
+            "son moment a fini" if rassise else "une heure pleine est passée",
+        )
+        self.stash_for_replay()
+        self._ordonner_requeue()
 
     def _repartir_a_neuf(self, pause: timedelta) -> None:
         """Une longue pause a rassis l'avance : tout repart d'un tirage neuf.
