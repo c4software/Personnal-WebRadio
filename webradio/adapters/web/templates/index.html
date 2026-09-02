@@ -5,6 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>local-webradio</title>
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}" />
+    <!-- Installable comme une application (GOAL-063) : le manifeste pour
+         Android et le bureau, les balises que Safari iOS lit à la place. -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}" />
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='apple-touch-icon.png') }}" />
+    <meta name="theme-color" content="#0b0f1a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="local-webradio" />
     <!-- Vue est VENDU avec le paquet, pas tiré d'un CDN : la radio est un
          objet local, elle doit s'afficher sans internet. -->
     <script src="{{ url_for('static', filename='vue.global.prod.js') }}"></script>

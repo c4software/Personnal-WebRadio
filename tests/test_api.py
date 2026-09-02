@@ -536,3 +536,21 @@ def test_la_page_a_une_icone_et_nomme_l_onglet_d_apres_ce_qui_passe() -> None:
     icone = app.test_client().get("/static/favicon.svg")
     assert icone.status_code == 200
     assert icone.mimetype == "image/svg+xml"
+
+
+def test_la_page_s_installe_comme_une_application() -> None:
+    """GOAL-063-T03 : un manifeste servi avec son type, des icônes PNG pour
+    l'écran d'accueil, et les balises qu'iOS lit à la place du manifeste."""
+    app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT)
+    app.config.update(TESTING=True)
+    page = app.test_client().get("/").get_data(as_text=True)
+    assert 'rel="manifest" href="/static/manifest.webmanifest"' in page
+    assert 'rel="apple-touch-icon"' in page
+    assert 'name="apple-mobile-web-app-capable" content="yes"' in page
+    manifeste = app.test_client().get("/static/manifest.webmanifest")
+    assert manifeste.status_code == 200
+    assert manifeste.mimetype == "application/manifest+json"
+    contenu = manifeste.get_json(force=True)
+    assert contenu["display"] == "standalone"
+    for icone in contenu["icons"]:
+        assert app.test_client().get("/static/" + icone["src"]).status_code == 200

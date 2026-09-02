@@ -86,11 +86,13 @@ jusqu'aux votes collés en bas. Le lecteur est une pilule de verre fixe en
 bas, présente sur tous les onglets, et les prochains titres s'y déploient ;
 l'antenne est une carte, les votes juste dessous. **Aucun Goal ouvert.**
 
-**GOAL-063 est ouvert le 2026-09-02** : la page s'installe comme une
+**GOAL-063 est clos le 2026-09-02** : la page s'installe comme une
 application, porte une icône et dit dans son titre ce qui passe ; la carte
-« La radio dort » est retirée.
+« La radio dort » est retirée. **Aucun Goal ouvert.** Reste à essayer
+l'installation depuis un téléphone — Android et iOS n'ont pas les mêmes
+critères, et rien ne le constate sans un vrai appareil.
 
-**Prochaine tâche** : GOAL-063-T03.
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
 
@@ -160,26 +162,7 @@ application, porte une icône et dit dans son titre ce qui passe ; la carte
 | GOAL-060 | Un lecteur dans la page : écouter la radio depuis l'interface | `[x]` — clos le 2026-09-02, écoute validée le même jour |
 | GOAL-061 | Retouches de l'interface : votes grisés sans auditeur, tiroir plus profond et animé | `[x]` — clos le 2026-09-02 |
 | GOAL-062 | L'interface repensée : un lecteur en barre fixe, l'antenne en carte, les votes à portée de pouce | `[x]` — clos le 2026-09-02, écoute validée le même jour |
-| GOAL-063 | Installable en PWA, une icône, un titre qui dit ce qui passe | `[-]` |
+| GOAL-063 | Installable en PWA, une icône, un titre qui dit ce qui passe | `[x]` — clos le 2026-09-02 ; **reste à essayer** l'installation depuis un téléphone |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
-
----
-
-## GOAL-063 — Installable en PWA, une icône, un titre qui dit ce qui passe
-
-Demandé par l'auteur le 2026-09-02, en validant GOAL-062. Trois ajouts et
-un retrait : la carte « La radio dort » — « c'est con » — disparaît ; la
-barre dit déjà que personne n'écoute.
-
-- [x] **GOAL-063-T01** — Retirer la carte « La radio dort » : sans antenne,
-      l'onglet Antenne ne montre que les votes grisés, la barre dit le reste.
-- [x] **GOAL-063-T02** — Une icône (favicon SVG) et un titre de page qui dit
-      ce qui passe — titre et artiste dans l'onglet du navigateur, mis à jour
-      à chaque rafraîchissement.
-- [-] **GOAL-063-T03** — Installable en PWA : un manifeste, des icônes PNG
-      pour l'écran d'accueil, les métadonnées qu'iOS exige, l'affichage
-      autonome ; SPECS.md §4.8 ; la carte du dépôt (ARCHITECTURE.md §9) ;
-      clôture. Ce qu'un téléphone en fait — l'installation, l'ouverture
-      plein écran — ne se constate qu'en essayant.

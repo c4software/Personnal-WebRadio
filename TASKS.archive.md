@@ -2026,3 +2026,22 @@ noir.
 - [x] **GOAL-062-T03** — Un en-tête et des onglets segmentés communs, des
       cartes unifiées sur Votes, Planning, Historique et le tiroir ;
       SPECS.md §4.8 ; clôture.
+
+---
+
+## GOAL-063 — Installable en PWA, une icône, un titre qui dit ce qui passe
+
+Demandé par l'auteur le 2026-09-02, en validant GOAL-062. Trois ajouts et
+un retrait : la carte « La radio dort » — « c'est con » — disparaît ; la
+barre dit déjà que personne n'écoute.
+
+- [x] **GOAL-063-T01** — Retirer la carte « La radio dort » : sans antenne,
+      l'onglet Antenne ne montre que les votes grisés, la barre dit le reste.
+- [x] **GOAL-063-T02** — Une icône (favicon SVG) et un titre de page qui dit
+      ce qui passe — titre et artiste dans l'onglet du navigateur, mis à jour
+      à chaque rafraîchissement.
+- [x] **GOAL-063-T03** — Installable en PWA : un manifeste, des icônes PNG
+      pour l'écran d'accueil, les métadonnées qu'iOS exige, l'affichage
+      autonome ; SPECS.md §4.8 ; la carte du dépôt (ARCHITECTURE.md §9) ;
+      clôture. Ce qu'un téléphone en fait — l'installation, l'ouverture
+      plein écran — ne se constate qu'en essayant.

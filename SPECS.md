@@ -486,6 +486,16 @@ dessous ; sans auditeur, la carte dit que la radio dort et comment la
 réveiller. Le style est celui des surfaces de verre : translucides, floutées,
 sur un fond en dégradé — sans bibliothèque, ni de composants ni de lecteur.
 
+**Depuis le 2026-09-02** (GOAL-063), la page **s'installe comme une
+application** : un manifeste, des icônes pour l'écran d'accueil, un
+affichage autonome sans barre d'adresse, et les balises que Safari iOS lit à
+la place du manifeste. Rien n'est mis en cache : la page reste ce qu'elle
+est, une vue sur l'API, et une radio hors ligne n'aurait rien à montrer.
+L'onglet du navigateur — ou le nom de la fenêtre installée — dit ce qui
+passe : titre et artiste, le nom de la radio quand personne n'écoute. La
+carte « La radio dort » a été retirée le même jour : la barre le dit déjà.
+Ce qu'un téléphone fait de l'installation ne se constate qu'en essayant.
+
 L'interface web n'est rien de plus que la mise en page de cela : ce qui passe,
 ce qui vient, un lecteur, trois boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
 d'entrée des réglages (§6) — et ne touche pas à la bibliothèque (§2).
