@@ -1675,3 +1675,31 @@ règle de GOAL-035 tient — on n'annonce jamais un jingle — et le trou dispar
       reprise n'atteignait pas l'avance de la file, et `next_pick` la sert sans
       regarder la contrainte — un morceau tiré à 19 h serait passé au réveil du
       lendemain. Corrigé dans le même incrément : la purge l'oublie aussi.
+
+---
+
+## GOAL-055 — Le premier auditeur n'entend plus le reliquat du morceau interrompu
+
+Signalé par l'auteur le 2026-09-02 : vers 13 h, un micro-flash de la chanson
+d'avant à la connexion. Le journal du diffuseur le date à la milliseconde :
+purge de reprise à 13:20:14.817, saut à .819, bascule à .863, puis
+`cross: Analysis: -12.9 dB / -nan (1.99 s / 0.00 s)` — deux secondes du
+morceau interrompu à 11 h 03, rien encore du suivant, et le morceau frais
+annoncé 2,1 s après la bascule.
+
+La purge de SPECS.md §7 n°30 fait ce qu'elle promet, à deux secondes près :
+`crossfade` tient en permanence deux secondes déjà lues du morceau en cours,
+et un saut ordonné sans auditeur ne s'exécute qu'au premier tirage — quand
+le premier auditeur écoute déjà. Ces deux secondes deviennent alors le
+`before` de la transition, et partent en fondu de sortie sous son nez.
+
+Mesuré en maquette (docs/liquidsoap.md §10), puis corrigé au seul endroit qui
+tient le reliquat : la transition de `cross`.
+
+- [x] **GOAL-055-T01** — Un saut à antenne vide arme un témoin ; la
+      transition qui remplace `crossfade` jette alors le reliquat et fait
+      entrer le morceau frais seul, sous le fondu de prise d'antenne. Le reste
+      est l'appel même de `crossfade` (`cross.simple`), fondus et étiquettes
+      compris. Le témoin vaut aussi pour un direct qui finit sans auditeur.
+      Un `on_track` comme signal a été essayé et mesuré trop tôt.
+
