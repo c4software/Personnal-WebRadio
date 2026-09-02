@@ -189,7 +189,7 @@
             </span>
           </div>
           <label v-if="flux" class="volume" title="Volume">
-            <span aria-hidden="true">🔈</span>
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8.3 3.1 5.4 5.7H2.6a.95.95 0 0 0-.95.95v2.7a.95.95 0 0 0 .95.95h2.8l2.9 2.6a.55.55 0 0 0 .92-.41V3.51a.55.55 0 0 0-.92-.41z" /><path d="M11.39 5.63A3.1 3.1 0 0 1 11.39 10.37L10.72 9.57A2.05 2.05 0 0 0 10.72 6.43Z" /></svg>
             <input type="range" min="0" max="1" step="0.05" aria-label="Volume" v-model.number="volume" @input="reglerVolume()" />
           </label>
           <button type="button" class="ouvrir-liste" :class="{ actif: tiroir }" title="Prochains titres" aria-label="Prochains titres" @click="ouvrirTiroir()">

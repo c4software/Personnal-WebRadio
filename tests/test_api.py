@@ -623,3 +623,21 @@ def test_tout_le_dossier_static_est_empaquete() -> None:
     for fichier_statique in dossier.iterdir():
         relatif = fichier_statique.relative_to(racine / "webradio").as_posix()
         assert any(fnmatch(relatif, motif) for motif in motifs), relatif
+
+
+def test_les_pictos_de_la_page_sont_dessines_et_non_des_emoji() -> None:
+    """GOAL-069, demandé par l'auteur : « le picto volume est une emoji, c'est
+    pas top ». Un emoji ne suit ni la couleur ni la taille du reste, et change
+    de dessin d'un système à l'autre — les pictos de la barre sont des SVG en
+    ligne qui prennent `currentColor`."""
+    app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT, stream_url=":8000/flux")
+    app.config.update(TESTING=True)
+    page = app.test_client().get("/").get_data(as_text=True)
+
+    assert '<label v-if="flux" class="volume"' in page
+    volume = page[page.index('class="volume"') :]
+    assert volume[: volume.index("</label>")].count("<svg") == 1
+    # Les plans supérieurs d'Unicode, c'est là que vivent les pictogrammes en
+    # couleur ; les flèches et les croix de la page restent en deçà.
+    emoji = sorted({c for c in page if ord(c) > 0x1F000})
+    assert emoji == [], f"pictogramme en couleur dans la page : {emoji}"
