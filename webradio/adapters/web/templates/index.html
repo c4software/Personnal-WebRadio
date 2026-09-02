@@ -195,6 +195,15 @@
           <button type="button" class="ouvrir-liste" :class="{ actif: tiroir }" title="Prochains titres" aria-label="Prochains titres" @click="ouvrirTiroir()">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h12v1.6H2zM2 7.2h12v1.6H2zM2 10.9h8v1.6H2zM12 10v3.2l2.5-1.6z" /></svg>
           </button>
+          <!-- Le renvoi vers une enceinte (GOAL-065) : l'API Remote Playback
+               du navigateur — Chromecast depuis Chrome, l'enceinte d'Apple depuis
+               Safari — sans SDK tiers. Le bouton n'apparaît qu'en écoute,
+               et seulement si le navigateur a trouvé une cible. -->
+          <button v-if="ecoute && castDisponible" type="button" class="cast" :class="{ actif: castActif }"
+                  :title="castActif ? 'Diffusé sur une enceinte' : 'Diffuser sur une enceinte'"
+                  :aria-label="castActif ? 'Diffusé sur une enceinte' : 'Diffuser sur une enceinte'" @click="caster()">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z" /></svg>
+          </button>
           <button v-if="flux" type="button" class="jouer" :title="ecoute || attente ? 'Couper' : 'Écouter'" :aria-label="ecoute || attente ? 'Couper' : 'Écouter'" @click="basculerEcoute()">
             <svg v-if="ecoute || attente" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" /></svg>
             <svg v-else viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.6v10.8a1 1 0 0 0 1.5.86l9-5.4a1 1 0 0 0 0-1.72l-9-5.4a1 1 0 0 0-1.5.86z" /></svg>
@@ -246,6 +255,8 @@
             ecoute: false,
             attente: false,
             volume: 1,
+            castDisponible: false,
+            castActif: false,
             votes: [],
             planning: null,
             maintenant: new Date(),
@@ -506,6 +517,36 @@
           reglerVolume() {
             this.$refs.audio.volume = this.volume;
           },
+          surveillerLesEnceintes() {
+            // Remote Playback (Chrome, Chromecast) : le navigateur dit s'il
+            // voit une cible ; Safari (enceinte d'Apple) passe par son propre
+            // événement. Ni l'un ni l'autre ne charge quoi que ce soit.
+            const audio = this.$refs.audio;
+            if (!audio) { return; }
+            if (audio.remote && audio.remote.watchAvailability) {
+              audio.remote.watchAvailability((disponible) => { this.castDisponible = disponible; })
+                .catch(() => { this.castDisponible = false; });
+              audio.remote.addEventListener("connect", () => { this.castActif = true; });
+              audio.remote.addEventListener("disconnect", () => { this.castActif = false; });
+            } else if (audio.webkitShowPlaybackTargetPicker) {
+              audio.addEventListener("webkitplaybacktargetavailabilitychanged", (e) => {
+                this.castDisponible = e.availability === "available";
+              });
+              audio.addEventListener("webkitcurrentplaybacktargetiswirelesschanged", () => {
+                this.castActif = audio.webkitCurrentPlaybackTargetIsWireless === true;
+              });
+            }
+          },
+          caster() {
+            // Le choix de l'enceinte est une boîte du navigateur, pas de la
+            // page ; un refus ou une fermeture ne sont pas des erreurs.
+            const audio = this.$refs.audio;
+            if (audio.remote && audio.remote.prompt) {
+              audio.remote.prompt().catch(() => {});
+            } else if (audio.webkitShowPlaybackTargetPicker) {
+              audio.webkitShowPlaybackTargetPicker();
+            }
+          },
           erreurDeFlux() {
             if (!this.ecoute && !this.attente) { return; }
             this.ecoute = false;
@@ -607,6 +648,7 @@
             if (nom !== this.onglet) { this.ouvrir(nom); }
           });
           this.rafraichir();
+          this.surveillerLesEnceintes();
           if ("mediaSession" in navigator && this.flux) {
             // Les commandes de l'écran de verrouillage et des écouteurs
             // passent par le même chemin que le bouton : couper décharge.

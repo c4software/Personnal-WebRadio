@@ -96,6 +96,11 @@ critères, et rien ne le constate sans un vrai appareil.
 gabarit, et la page s'anime — entrée des listes, changement d'onglet,
 changement de chanson. **Aucun Goal ouvert.**
 
+**GOAL-065 est clos le 2026-09-02** : le lecteur renvoie le son vers une
+enceinte par l'API Remote Playback du navigateur, sans SDK ; **reste à
+essayer** avec un Chromecast ou un AirPlay (docs/flux-icy.md §8).
+**Aucun Goal ouvert.**
+
 **Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
@@ -168,6 +173,7 @@ changement de chanson. **Aucun Goal ouvert.**
 | GOAL-062 | L'interface repensée : un lecteur en barre fixe, l'antenne en carte, les votes à portée de pouce | `[x]` — clos le 2026-09-02, écoute validée le même jour |
 | GOAL-063 | Installable en PWA, une icône, un titre qui dit ce qui passe | `[x]` — clos le 2026-09-02 ; **reste à essayer** l'installation depuis un téléphone |
 | GOAL-064 | La feuille de style externalisée, et des animations d'entrée, d'onglet et de chanson | `[x]` — clos le 2026-09-02 |
+| GOAL-065 | Renvoyer le son vers une enceinte depuis le lecteur | `[x]` — clos le 2026-09-02 ; **reste à essayer** avec une enceinte |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

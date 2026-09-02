@@ -583,3 +583,32 @@ def test_la_page_anime_les_onglets_les_chansons_et_les_listes() -> None:
     feuille = app.test_client().get("/static/style.css").get_data(as_text=True)
     assert "@keyframes entrer" in feuille
     assert "prefers-reduced-motion" in feuille
+
+
+def test_le_lecteur_propose_une_enceinte_seulement_en_ecoute() -> None:
+    """GOAL-065 : le renvoi vers une enceinte passe par l'API Remote Playback
+    du navigateur, sans SDK tiers ; le bouton n'existe qu'en écoute et
+    quand le navigateur a trouvé une cible."""
+    page = client(FakeRadio()).get("/").get_data(as_text=True)
+    assert '<button v-if="ecoute && castDisponible" type="button" class="cast"' in page
+    assert "audio.remote.watchAvailability(" in page
+    assert "audio.remote.prompt()" in page
+    assert "webkitShowPlaybackTargetPicker" in page
+    assert "gstatic.com" not in page and "cast_sender" not in page
+
+
+def test_tout_le_dossier_static_est_empaquete() -> None:
+    """Les tests lisent la source, pas le paquet installé : une feuille de
+    style ajoutée sans son motif dans pyproject.toml donnait des 404 dans
+    l'image (constaté par l'auteur le 2026-09-02, GOAL-064)."""
+    import tomllib
+    from fnmatch import fnmatch
+    from pathlib import Path
+
+    racine = Path(__file__).resolve().parent.parent
+    with (racine / "pyproject.toml").open("rb") as fichier:
+        motifs = tomllib.load(fichier)["tool"]["setuptools"]["package-data"]["webradio"]
+    dossier = racine / "webradio" / "adapters" / "web" / "static"
+    for fichier_statique in dossier.iterdir():
+        relatif = fichier_statique.relative_to(racine / "webradio").as_posix()
+        assert any(fnmatch(relatif, motif) for motif in motifs), relatif

@@ -149,6 +149,11 @@ construction de la question des changements de format (§1 à 3).
 - [ ] Le placement du tampon pour qu'un auditeur lent ne ralentisse pas les
       autres. La maquette ne l'a pas éprouvé : deux auditeurs, tous deux locaux.
 
+- [ ] **Le renvoi vers une enceinte depuis la page** (§8). L'API existe dans
+      les navigateurs ; ce que fait un Chromecast ou un AirPlay du flux de
+      Liquidsoap — s'il le lit, s'il tient, s'il affiche le titre — n'a pas
+      été essayé.
+
 > **Ce que le relevé ne peut pas faire tout seul.** Brancher une enceinte
 > connectée et un téléphone demande d'être devant la machine. C'est un des quatre
 > angles morts (AGENTS.md §4.1), et il ne se comblera pas depuis une session.
@@ -183,3 +188,32 @@ icy-br: 128
   porte. Toujours ouvert : est-ce attendu par un lecteur ?
 
 **La matrice des vrais lecteurs (§6) reste entière** : `GOAL-016-T12`.
+
+---
+
+## 8. Renvoyer la page vers une enceinte — **relevé documentaire du 2026-09-02** (`GOAL-065`)
+
+Ce qu'un navigateur offre pour envoyer un `<audio>` vers une enceinte, **sans
+charger de SDK** — la radio est un objet local, et le SDK Google Cast se tire
+de `gstatic.com` :
+
+- **Remote Playback API** (`audio.remote`) : `watchAvailability(cb)` dit si
+  une cible est visible, `prompt()` ouvre le choix de l'enceinte, les
+  événements `connect` / `disconnect` disent l'état. Chrome sur Android
+  l'implémente pour Chromecast ; Safari l'implémente pour AirPlay.
+- **Safari, à défaut** : `webkitShowPlaybackTargetPicker()` et l'événement
+  `webkitplaybacktargetavailabilitychanged`.
+
+**Ce que ça implique pour le flux** : c'est l'**enceinte** qui ouvre le flux,
+pas le téléphone. L'adresse de `web.stream_url` doit donc être joignable
+depuis l'enceinte — `:8000/flux` désigne l'hôte de la page, ce qui vaut sur
+un réseau local. Un Chromecast lit un flux MP3 continu ; un flux sans
+`Content-Length` ni fin est le cas normal d'une radio.
+
+**Points incertains, à constater avec un appareil :**
+
+- Chrome sur ordinateur : l'API est présente, mais le bouton n'apparaît que
+  si le navigateur voit une cible — rien n'est promis.
+- Firefox n'implémente pas Remote Playback : pas de bouton, sans erreur.
+- Ce que l'enceinte affiche (titre, artiste), et ce qui se passe quand le
+  téléphone coupe — la page décharge le flux, l'enceinte devrait s'arrêter.

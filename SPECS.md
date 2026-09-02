@@ -502,6 +502,14 @@ liste entrent l'une après l'autre, un onglet glisse vers le suivant, une
 chanson qui change fond l'ancienne dans la nouvelle — dans la scène comme
 dans la barre. Tout s'éteint quand le système demande moins de mouvement.
 
+**Depuis le 2026-09-02** (GOAL-065), le lecteur propose de **renvoyer le son
+vers une enceinte** — Chromecast, AirPlay — par l'API Remote Playback du
+navigateur, sans SDK tiers (docs/flux-icy.md §8). Le bouton n'apparaît qu'en
+écoute, et seulement si le navigateur voit une cible : la page ne promet
+rien qu'elle ne sache tenir. C'est l'enceinte qui ouvre le flux, donc
+`web.stream_url` doit être joignable depuis elle. Ce qu'une enceinte fait
+du flux ne se constate qu'en essayant.
+
 L'interface web n'est rien de plus que la mise en page de cela : ce qui passe,
 ce qui vient, un lecteur, trois boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
 d'entrée des réglages (§6) — et ne touche pas à la bibliothèque (§2).
