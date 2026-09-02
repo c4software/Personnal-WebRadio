@@ -273,3 +273,31 @@ def test_une_plage_a_mode_seul_est_un_tirage_libre_enchaine() -> None:
 def test_une_plage_sans_theme_ni_mode_reste_refusee() -> None:
     with pytest.raises(ValueError, match="exactement un des trois"):
         Band(time(9), time(11))
+
+
+def test_le_moment_d_une_plage_au_hasard_porte_le_theme_sorti() -> None:
+    """GOAL-057 : retirer le thème ouvre un nouveau moment, et l'avance tirée
+    sous l'ancien est rassise (décision n°33). La clé du moment et le
+    `run_key` de la contrainte sont la même chose — c'est ce que la file
+    compare."""
+    au_hasard = Band(start=time(21), end=time(23), random_theme="genre")
+    themes = [Constraint(genre="dub"), Constraint(genre="dub"), Constraint(genre="jazz")]
+
+    def resolveur(_band: Band, _instant: datetime) -> Constraint | None:
+        return themes.pop(0)
+
+    grille = Schedule([au_hasard], a(21, 30), resolve_random_theme=resolveur)
+    moment = grille.current_moment()
+    assert grille.constraint_to_draw(RealRandom(graine=1)).run_key == moment  # type: ignore[union-attr]
+    assert grille.current_moment() != moment, "un autre thème, un autre moment"
+
+
+def test_le_moment_d_une_plage_declaree_est_son_occurrence() -> None:
+    jazz = Band(start=time(21), end=time(23), genres=("jazz", "soul"))
+    grille = Schedule([jazz], a(21, 30))
+    assert grille.current_moment() == (jazz, datetime(2026, 8, 30, 21, 0, tzinfo=UTC))
+    assert grille.constraint_to_draw(RealRandom(graine=1)).run_key == grille.current_moment()  # type: ignore[union-attr]
+
+
+def test_hors_de_toute_plage_le_moment_est_vide() -> None:
+    assert Schedule([], a(21, 30)).current_moment() is None

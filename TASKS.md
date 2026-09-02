@@ -83,7 +83,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-057-T01. GOAL-056 est codé et documenté ; **reste l'écoute** de T03 à une heure pleine en production. Les trois Goals s'enchaînent dans
+**Prochaine tâche** : GOAL-057-T02. GOAL-056 est codé et documenté ; **reste l'écoute** de T03 à une heure pleine en production. Les trois Goals s'enchaînent dans
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -287,7 +287,7 @@ serait un bouton qui ne fait rien —, sauf si la bibliothèque n'en offre qu'un
 Hors d'une plage au hasard, la demande est **refusée en le disant** (409 et
 un motif, comme un vote pendant un jingle).
 
-- [ ] **GOAL-057-T01** — Le noyau sait retirer : `RandomTheme.redraw()`
+- [x] **GOAL-057-T01** — Le noyau sait retirer : `RandomTheme.redraw()`
       oublie le thème de l'occurrence courante et retire en excluant l'ancien ;
       la clé de moment d'une plage au hasard inclut le thème sorti, pour que
       l'avance datée (GOAL-056) et la suite en cours (`Runs`) repartent. Tests

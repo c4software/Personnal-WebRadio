@@ -182,11 +182,35 @@ class Schedule:
         """
         return self._moment_at(self._horloge.now())
 
-    def _moment_at(self, instant: datetime) -> tuple[Band, datetime] | None:
+    def _moment_at(self, instant: datetime) -> object:
         band = self._band_at(instant)
         if band is None:
             return None
-        return (band, band.occurrence_start(instant))
+        return self._moment_key(band, instant, self._resolve(band, instant))
+
+    @staticmethod
+    def _moment_key(band: Band, instant: datetime, resolved: Constraint | None) -> object:
+        """L'occurrence — et, pour une plage au hasard, **le thème sorti** :
+        retirer le thème (GOAL-057) ouvre un nouveau moment, et l'avance tirée
+        sous l'ancien est rassise (décision n°33). Retirer le même thème,
+        faute d'autre, ne change rien."""
+        occurrence = band.occurrence_start(instant)
+        if band.random_theme is None:
+            return (band, occurrence)
+        theme = None if resolved is None else (resolved.genre, resolved.artist)
+        return (band, occurrence, theme)
+
+    def _resolve(self, band: Band, instant: datetime) -> Constraint | None:
+        if band.random_theme is None:
+            return None
+        if self._tirer_theme is None:
+            # Refuser bruyamment plutôt que de tirer librement : une plage
+            # « au hasard » sans résolveur passerait pour une plage sans
+            # musique, et le défaut de câblage ne s'entendrait pas — il
+            # ressemblerait à une bibliothèque mal rangée.
+            message = "une plage demande un thème à tirer, mais aucun résolveur n'est fourni"
+            raise ValueError(message)
+        return self._tirer_theme(band, instant)
 
     def _band_at(self, instant: datetime) -> Band | None:
         for band in self._plages:
@@ -206,22 +230,15 @@ class Schedule:
         tiré à 22 h 59 min 59 s pourrait chercher le thème de la plage suivante.
         """
         instant = self._horloge.now()
+        band = self._band_at(instant)
+        if band is None:
+            return None
         # La clé des suites (décision n°31) : l'occurrence, pas la contrainte —
         # une plage multi-genres retire un genre à chaque jonction, et la suite
         # doit y survivre ; l'occurrence suivante, elle, repart à zéro.
-        key = self._moment_at(instant)
-        if key is None:
-            return None
-        band = key[0]
+        resolved = self._resolve(band, instant)
+        key = self._moment_key(band, instant, resolved)
         if band.random_theme is not None:
-            if self._tirer_theme is None:
-                # Refuser bruyamment plutôt que de tirer librement : une plage
-                # « au hasard » sans résolveur passerait pour une plage sans
-                # musique, et le défaut de câblage ne s'entendrait pas — il
-                # ressemblerait à une bibliothèque mal rangée.
-                message = "une plage demande un thème à tirer, mais aucun résolveur n'est fourni"
-                raise ValueError(message)
-            resolved = self._tirer_theme(band, instant)
             if resolved is None:
                 return Constraint(mode=band.mode, run_key=key) if band.mode is not None else None
             return replace(resolved, mode=band.mode, run_key=key)

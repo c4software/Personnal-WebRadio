@@ -45,19 +45,44 @@ class RandomTheme:
         occurrence = band.occurrence_start(instant)
         if occurrence == self._occurrence:
             return self._constraint
-        constraint = self._draw(band.random_theme, occurrence)
+        return self._retenir(occurrence, self._draw(band.random_theme, occurrence))
+
+    def redraw(self, band: Band, instant: datetime) -> Constraint | None:
+        """Retire le thème de l'occurrence courante — un **autre** (GOAL-057).
+
+        Demandé par l'auteur : une heure de Ragga qui ne plaît pas ne se subit
+        pas jusqu'à l'heure suivante. L'ancien thème est écarté du tirage, sauf
+        si la bibliothèque n'en offre qu'un — retirer le même est alors dit.
+        Sans thème tiré encore, c'est un tirage ordinaire.
+        """
+        if band.random_theme is None:
+            message = f"la plage {band.start:%H:%M} ne demande aucun thème à tirer"
+            raise ValueError(message)
+        occurrence = band.occurrence_start(instant)
+        previous = self._constraint if occurrence == self._occurrence else None
+        exclude = None if previous is None else previous.genre or previous.artist
+        constraint = self._draw(band.random_theme, occurrence, exclude)
+        if constraint is not None and constraint == previous:
+            logger.info("thème retiré : la bibliothèque n'en offre pas d'autre que « %s »", exclude)
+        self._occurrence = None
+        return self._retenir(occurrence, constraint)
+
+    def _retenir(self, occurrence: datetime, constraint: Constraint | None) -> Constraint | None:
         if constraint is None:
             return None
         self._occurrence = occurrence
         self._constraint = constraint
         return constraint
 
-    def _draw(self, theme: str, occurrence: datetime) -> Constraint | None:
+    def _draw(
+        self, theme: str, occurrence: datetime, exclude: str | None = None
+    ) -> Constraint | None:
         try:
             if theme == "genre":
                 genres = self._source.genres()
-                if genres:
-                    return Constraint(genre=self._random.pick(genres))
+                candidates = [g for g in genres if g != exclude] or genres
+                if candidates:
+                    return Constraint(genre=self._random.pick(candidates))
             else:
                 # L'artiste se tire par une piste, et non par une capacité
                 # « lister les artistes » ajoutée au `Protocol` : le réservoir
@@ -65,8 +90,9 @@ class RandomTheme:
                 # déjà un échantillon. Une capacité de plus pour un seul appel
                 # aurait coûté à toutes les sources à venir.
                 tracks = self._source.tracks(None)
-                if tracks:
-                    return Constraint(artist=self._random.pick(tracks).artist)
+                others = [t for t in tracks if t.artist != exclude] or tracks
+                if others:
+                    return Constraint(artist=self._random.pick(others).artist)
         except SourceUnavailable:
             self._report(occurrence, "la source ne répond pas")
             return None

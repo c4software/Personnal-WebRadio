@@ -1,11 +1,12 @@
 """Le thème tiré au sort : figé sur l'occurrence, jamais bloquant (GOAL-037)."""
 
+import logging
 from datetime import UTC, datetime, time
 
 import pytest
 
 from tests.fakes import FakeSource, track
-from webradio.core.bands import Band
+from webradio.core.bands import Band, Constraint
 from webradio.core.mystery import RandomTheme
 from webradio.core.rng import ScriptedRandom
 
@@ -110,3 +111,47 @@ def test_une_plage_qui_ne_demande_aucun_tirage_est_refusee() -> None:
     tirage = RandomTheme(FakeSource(CATALOGUE), ScriptedRandom([0]))
     with pytest.raises(ValueError, match="aucun thème à tirer"):
         tirage.constraint_for(ordinaire, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))
+
+
+def test_retirer_donne_un_autre_theme_et_le_garde() -> None:
+    """GOAL-057 : une heure de Ragga qui ne plaît pas se retire. L'ancien
+    thème est écarté, et le nouveau tient jusqu'à la fin de l'occurrence."""
+    tirage = RandomTheme(FakeSource(CATALOGUE), ScriptedRandom([1, 0]))
+    debut = datetime(2026, 8, 31, 21, 5, tzinfo=UTC)
+    premier = tirage.constraint_for(SOIREE, debut)
+    assert premier is not None and premier.genre == "jazz"
+    retire = tirage.redraw(SOIREE, datetime(2026, 8, 31, 21, 20, tzinfo=UTC))
+    assert retire is not None
+    assert retire.genre == "electro"  # l'indice 0 de [electro, techno] : jazz est écarté
+    assert tirage.constraint_for(SOIREE, datetime(2026, 8, 31, 22, 0, tzinfo=UTC)) == retire
+
+
+def test_retirer_un_artiste_ecarte_l_ancien() -> None:
+    tirage = RandomTheme(FakeSource(CATALOGUE), ScriptedRandom([0, 0]))
+    debut = datetime(2026, 8, 31, 21, 5, tzinfo=UTC)
+    assert tirage.constraint_for(SOIREE_ARTISTE, debut) == Constraint(artist="Air")
+    assert tirage.redraw(SOIREE_ARTISTE, debut) == Constraint(artist="Moderat")
+
+
+def test_retirer_sans_theme_encore_tire_est_un_tirage_ordinaire() -> None:
+    tirage = RandomTheme(FakeSource(CATALOGUE), ScriptedRandom([1]))
+    retire = tirage.redraw(SOIREE, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))
+    assert retire is not None and retire.genre == "jazz"
+
+
+def test_retirer_avec_un_seul_genre_rend_le_meme_en_le_disant(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    tirage = RandomTheme(FakeSource([track("1", "Air", genre="dub")]), ScriptedRandom([0, 0]))
+    debut = datetime(2026, 8, 31, 21, 5, tzinfo=UTC)
+    assert tirage.constraint_for(SOIREE, debut) == Constraint(genre="dub")
+    with caplog.at_level(logging.INFO):
+        assert tirage.redraw(SOIREE, debut) == Constraint(genre="dub")
+    assert "pas d'autre" in caplog.text
+
+
+def test_retirer_hors_d_une_plage_au_hasard_est_refuse() -> None:
+    tirage = RandomTheme(FakeSource(CATALOGUE), ScriptedRandom([0]))
+    declaree = Band(start=time(21), end=time(23), genres=("jazz",))
+    with pytest.raises(ValueError, match="aucun thème"):
+        tirage.redraw(declaree, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))
