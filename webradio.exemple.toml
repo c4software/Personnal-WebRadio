@@ -94,15 +94,16 @@ end    = "17:00"
 genres = ["Soul", "Funk"]
 mode   = "double_dose"
 
-# `eras` borne les décennies où la plage tire. Absente, elle tire dans toutes.
-# Une décennie qui ne compte qu'un ou deux titres rompt une vague `era_fan` à
-# peine ouverte : c'est ce que cette clé évite.
+# `eras` borne les décennies où la plage tire — des multiples de dix. Absente,
+# la plage tire dans toutes.
 [[bands]]
 start  = "12:00"
 end    = "13:30"
-genres = ["Pop"]
+genres = ["Pop", "Folk"]
 mode   = "era_fan"
 eras   = [1990, 2000, 2010]
+intro  = "table-debut.mp3"
+outro  = "table-fin.mp3"
 
 # Une plage peut enfin laisser la radio CHOISIR : `random = "genre"` ou
 # `random = "artist"` dit la sorte de thème voulue, pas sa valeur. La radio tire
