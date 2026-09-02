@@ -1525,3 +1525,79 @@ milieu du morceau, plein volume. C'est cette bascule qui se fond désormais
 La montée du volume au branchement du premier auditeur — au démarrage à froid
 et au retour au milieu d'un morceau resté en attente — et la régularité de la
 rampe à l'oreille.
+
+---
+
+## GOAL-051 — Le direct ne ment plus à l'antenne, et la reprise coupe vraiment le reliquat
+
+Quatre défauts constatés **à l'antenne** le 2026-09-02 au matin, puis retrouvés
+un à un dans les journaux de production (`local-webradio` et
+`local-webradio-liquidsoap` sur `frontal`). Ils naissent de la rencontre de
+GOAL-015 (le direct) et de GOAL-041 (la reprise à neuf) : chacun tient seul,
+ensemble ils mentent.
+
+```
+23:47:22  le conteneur « radio » redémarre seul ; liquidsoap reste debout,
+          figé au milieu d'un morceau depuis 19:11
+07:49:45  premier auditeur — « pause de 8:02:23 : la radio repart à neuf »
+07:49:46  « avance jetée sur ordre de l'API »  … et AUCUN « saut demandé »   ← 1
+07:49:50  /next → live:…franceinfo  « direct demandé pour 609 s »
+07:49:53  /next → le bouche-trou, tiré à 7 h 49 dans un créneau sans plage    ← 3
+07:49:53.371  /playing  ← reconnu : « Matinale franceinfo » s'affiche
+07:49:53.374  /playing  ← MÊME entrée, déjà consommée : « None — None »       ← 2
+07:51:13  le bouche-trou est annoncé et démarre (préchargement du crossfade)
+07:51:15  « Switch to live » — le direct prend l'antenne, rien ne le redit     ← 2
+08:00:00  « le direct se termine » → le bouche-trou GELÉ reprend, 2 min hors
+          de la plage « Chanson française »                                    ← 4
+08:03:05  premier morceau réellement tiré à 8 h
+```
+
+- [x] **GOAL-051-T01** — Relever dans `docs/liquidsoap.md` §9, contre
+      `savonet/liquidsoap:v2.3.3` en Docker : combien de fois `input.http`
+      déclenche `on_track` à son démarrage ; ce que fait `skip()` sur un
+      `request.dynamic` sans piste en cours, et quel témoin le script peut lire
+      pour le savoir ; si l'annonce du direct peut partir d'une **transition**
+      du `switch` qui le met à l'antenne ; ce que devient la source `programme`
+      pendant qu'un direct la recouvre, et l'effet d'un `set_queue([])` +
+      `skip()` à la fin du direct.
+      **Fait le 2026-09-02** — maquette fidèle (le vrai `radio.liq` contre une
+      fausse API, le vrai flux franceinfo), `docs/liquidsoap.md` §9. Le double
+      `on_track` est reproduit sur deux manches, le témoin du saut est validé à
+      froid et à chaud, la transition du `switch` et la purge de fin de direct
+      fonctionnent. **Le relevé a trouvé un cinquième défaut** : un
+      `switch(track_sensitive=true)` derrière `crossfade` cesse d'évaluer ses
+      prédicats — d'où T06.
+- [x] **GOAL-051-T02** — Le témoin de « une piste passe » vit dans `radio.liq` :
+      `on_skip` refuse un saut à vide, et la charnière ordonne toujours le
+      `/skip` de la reprise à neuf. `radio` ne peut pas savoir ce que liquidsoap
+      tient : redémarré seul, il croit qu'aucun morceau ne passe. **(défaut 1)**
+- [x] **GOAL-051-T03** — Une entrée inconnue **et sans étiquettes** ne remplace
+      plus ce qui est à l'antenne : déclarer « musique, sans titre ni artiste »
+      efface l'affichage sans rien apporter. **(défaut 2, moitié Python)**
+- [x] **GOAL-051-T04** — Le direct s'annonce quand il **prend** l'antenne, une
+      seule fois par case, et non dès `live.start()` — un morceau d'avance plus
+      tôt. **(défaut 2, moitié `.liq`)** — à écouter : la jonction musique → direct.
+      **Dépend de T06** : sans prédicat réévalué, la transition ne s'exécute
+      jamais.
+- [x] **GOAL-051-T05** — À la fin du direct, l'avance rassie est jetée et le
+      reliquat coupé : le premier morceau d'après est tiré à l'heure qu'il est,
+      dans la plage qui est réellement ouverte. **(défauts 3 et 4)** — à
+      écouter : la reprise à la coupure du direct.
+- [x] **GOAL-051-T06** — Le direct prend l'antenne **à la première jonction**,
+      et non au hasard. Constaté en maquette (T01) : derrière `crossfade`, un
+      `switch(track_sensitive=true)` n'évalue plus ses prédicats — zéro
+      évaluation sur quatre jonctions, le direct n'obtient jamais l'antenne. En
+      production le 2026-09-02, une seule bascule, **85 s** après l'instruction.
+      **(cinquième défaut, découvert par le relevé)**
+      > **Arbitré par l'auteur le 2026-09-02** : `track_sensitive=false` plus un
+      > témoin armé par le `on_track` du `request.dynamic`. Deux secondes de
+      > fondu de sortie écourtées, deux fois par jour, valent mieux qu'un direct
+      > qui entre à une heure non garantie. Mesuré : la bascule tombe 1 s après
+      > le début de piste qui l'arme, et le retour à la musique ne porte aucun
+      > silence.
+
+**Décidé sans arbitrage** (AGENTS.md §1.2) : la purge de fin de direct est
+ordonnée dans `radio.liq`, par un `ref` posé après la définition de `programme`
+— `stop_live` est défini avant elle. Le script ne décide rien de plus : il
+redemande à l'API. L'alternative — une route de plus, ou un réveil côté Python
+à l'heure de fin — coûterait une surface publique pour un geste mécanique.
