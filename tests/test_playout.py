@@ -901,9 +901,8 @@ TABLE = Band(start=time(13), end=time(14, 30), genres=("rock",))
 
 
 def test_la_liste_reprend_apres_un_direct_dont_la_fin_est_connue(tmp_path: Path) -> None:
-    """GOAL-069, constaté par l'auteur : la liste montrait quatre titres au
-    lieu de huit. Elle jugeait rassis ce qui avait été tiré pour l'heure
-    d'après le direct, et s'arrêtait sans le dire."""
+    """GOAL-070 : la liste jugeait rassis ce qui avait été tiré pour l'heure
+    d'après le direct, et se coupait sans le dire."""
     montre = FrozenClock(MIDI.replace(hour=12, minute=53))
     programme, _ = _programme(tmp_path, bands=[TABLE], clock=montre, lookahead=3, shows=[FLASH])
     depart = montre.now()

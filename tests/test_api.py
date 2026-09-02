@@ -626,10 +626,8 @@ def test_tout_le_dossier_static_est_empaquete() -> None:
 
 
 def test_les_pictos_de_la_page_sont_dessines_et_non_des_emoji() -> None:
-    """GOAL-069, demandé par l'auteur : « le picto volume est une emoji, c'est
-    pas top ». Un emoji ne suit ni la couleur ni la taille du reste, et change
-    de dessin d'un système à l'autre — les pictos de la barre sont des SVG en
-    ligne qui prennent `currentColor`."""
+    """GOAL-069 : un emoji ne suit ni la couleur ni la taille des pictos SVG de
+    la barre, et change de dessin d'un système à l'autre."""
     app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT, stream_url=":8000/flux")
     app.config.update(TESTING=True)
     page = app.test_client().get("/").get_data(as_text=True)

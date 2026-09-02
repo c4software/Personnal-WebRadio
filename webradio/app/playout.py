@@ -89,9 +89,7 @@ class RadioProgramme:
         self._sur_nature = on_kind
         self._programmation = programming
         self._emissions = shows
-        # La grille effective (GOAL-068) : elle sait ce qui remplacera la file
-        # — une émission, un programme — et jusqu'à quand. Sans elle, l'avance
-        # s'estime sur les seules plages, comme avant.
+        # Facultative : sans elle, l'avance s'estime sur les seules plages.
         self._effective = effective
         self._controle = control
         self._a_l_antenne = now_playing
@@ -170,7 +168,7 @@ class RadioProgramme:
         # Et l'avance de la file, que la purge n'atteignait pas : `next_pick`
         # la sert sans regarder la contrainte, donc un morceau tiré à 19 h
         # serait passé à 7 h le lendemain — le contraire du tirage neuf promis
-        # (SPECS.md §7 n°30). Trouvé le 2026-09-02 en câblant « À suivre ».
+        # (SPECS.md §7 n°30).
         self._file.forget_prepared()
 
     def prepare(self, from_instant: datetime | None = None) -> None:
@@ -205,12 +203,9 @@ class RadioProgramme:
             logger.debug("préparation sans effet : %s", echec)
 
     def _servi_a_partir_de(self, instant: datetime) -> datetime:
-        """L'heure où ce créneau commencera vraiment (GOAL-068).
-
-        Sans grille effective câblée, l'estimation reste celle des plages —
-        c'est le comportement d'avant, et il n'a rien de faux : il est
-        seulement aveugle aux programmes et aux directs.
-        """
+        """L'heure où ce créneau commencera vraiment (GOAL-068). Sans grille
+        effective câblée, celle des plages : aveugle aux programmes et aux
+        directs, mais pas fausse."""
         if self._effective is None:
             return instant
         return self._effective.served_from(instant)
@@ -261,22 +256,17 @@ class RadioProgramme:
             # Sans heure estimée, seule la tête se juge, contre l'instant
             # présent : la suite a pu être tirée pour un moment à venir.
             if instant is not None:
-                # Le créneau commence quand la file est **servie**, le même
-                # report qu'à la préparation : sans lui, la liste jugeait
-                # rassis un titre tiré pour l'heure d'après un direct, et
-                # s'arrêtait sans le dire — quatre titres au lieu de huit
-                # (GOAL-069, constaté par l'auteur).
+                # Le même report qu'à la préparation : sans lui, les deux
+                # heures divergent et un titre tiré pour l'heure d'après un
+                # direct est jugé rassis (GOAL-070).
                 instant = self._servi_a_partir_de(instant)
                 if precedent is not None:
                     remplacement = self._remplacement_entre(precedent, instant)
                     if remplacement is not None:
                         annonce = self._annonce_du_remplacement(remplacement)
                         items.extend(annonce)
-                        # On ne continue qu'après ce qu'on a su **nommer et
-                        # dater** : un direct annonce sa fin, la file reprend
-                        # à une heure sûre. Ailleurs — un podcast sans durée,
-                        # un programme qui ne s'annonce pas (§4.8) — la suite
-                        # laisserait un trou que rien n'explique.
+                        # La suite ne se date qu'après ce qui a été nommé et
+                        # dont la fin est déclarée (SPECS.md §4.8).
                         if not annonce or remplacement.end is None:
                             break
                 rassise = moment != self._grille.moment_at(instant)
@@ -292,12 +282,8 @@ class RadioProgramme:
         return items
 
     def _remplacement_entre(self, depuis: datetime, jusqu_a: datetime) -> Segment | None:
-        """Ce qui prendra l'antenne à la place de la file entre ces deux heures.
-
-        Sans cette question, la liste annonçait de la musique pour 20 h alors
-        qu'une émission allait couper — le défaut vu par l'auteur sur le
-        Planning, une couche plus bas (GOAL-068).
-        """
+        """Ce qui prendra l'antenne à la place de la file entre ces deux heures :
+        annoncer un titre pour cette heure-là serait mentir (GOAL-068)."""
         if self._effective is None:
             return None
         return self._effective.next_replacement(depuis, jusqu_a)
