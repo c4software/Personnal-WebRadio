@@ -209,12 +209,15 @@ se rebranche entend une radio neuve (SPECS.md §4.7).
 **Presque aucune, et l'exception est nommée.**
 
 En mémoire, et perdu avec la chaîne : la fenêtre de non-répétition, l'effet en
-cours d'un `encore`, la file. Pas de base, pas de cache sur disque, pas
-d'historique de ce qui est passé à l'antenne.
+cours d'un `encore`, la file, l'avance. Pas de cache sur disque, pas d'archive
+du flux.
 
-**Sur disque, une seule chose** (SPECS.md §4.11.1) :
+**Sur disque, trois choses**, chacune arrivée avec une décision écrite :
 
-> Pour chaque émission, **l'identifiant du dernier épisode diffusé**.
+> Pour chaque émission, **l'identifiant du dernier épisode diffusé**
+> (SPECS.md §4.11.1) ; les **scores de votes** qui pondèrent le tirage
+> (§4.12) ; le **journal des titres** des vingt-quatre dernières heures
+> (§7 n°27).
 
 ### 5.0 Pourquoi cette exception existe, et comment la garder petite
 
@@ -227,13 +230,17 @@ tranché pour « ne pas rediffuser » en sachant ce que cela coûtait.
 **La conduite à tenir maintenant est celle d'un écart assumé** (§9.1) : cet état
 est une exception, pas une porte ouverte.
 
-- Il contient **un identifiant par émission**. Rien d'autre n'a le droit d'y
-  entrer — ni l'historique des morceaux, ni des statistiques, ni une position de
-  lecture. La première chose qu'on y ajoutera « puisqu'il existe déjà » sera
-  celle qui aura transformé une exception en base de données.
+- Il contient **un identifiant par émission**, pas l'historique des épisodes
+  passés. Rien d'autre n'y entre sans décision écrite dans SPECS.md — ni
+  statistiques d'écoute, ni position de lecture, ni profil. Les votes (§5.2) et
+  le journal des titres (§5.2.1) sont entrés par cette porte-là, et par elle
+  seule : ce qu'on ajouterait « puisqu'il existe déjà » serait ce qui aura
+  transformé une exception en base de données.
 - **Le perdre n'est pas une panne** : la radio rediffusera une fois l'épisode le
-  plus récent, puis reprendra son cours. Il n'y a donc rien à sauvegarder, rien
-  à migrer, aucun schéma à faire évoluer.
+  plus récent, repartira avec des poids neutres et un journal vide, puis
+  reprendra son cours. Il n'y a donc rien à sauvegarder. Le schéma se crée seul
+  au démarrage ; la seule migration du projet ajoute une colonne aux votes
+  d'une base d'avant `GOAL-020` (§5.2).
 - Il est **écrit par la radio**, jamais par l'auteur : il ne va ni dans le TOML
   ni dans `.env`, et il n'est pas versionné.
 
@@ -250,19 +257,19 @@ demanderait alors d'écrire soi-même ce que SQLite fait déjà correctement :
 écriture atomique, lecture concurrente cohérente, et pas de fichier tronqué si
 la machine s'éteint pendant l'écriture.
 
-Le schéma tient en une table :
+Le schéma a commencé par une table :
 
 ```sql
 CREATE TABLE IF NOT EXISTS emissions_diffusees (
-    emission   TEXT PRIMARY KEY,   -- le `nom` déclaré au TOML
+    emission   TEXT PRIMARY KEY,   -- le `name` déclaré au TOML
     episode    TEXT NOT NULL,      -- le guid de l'épisode diffusé
-    diffuse_le TEXT NOT NULL       -- ISO 8601, pour le journal et le diagnostic
+    diffuse_le TEXT NOT NULL       -- ISO 8601, pour le diagnostic seulement
 );
 ```
 
 **La garde de §5.0 disait** : *rien d'autre n'a le droit d'entrer, et surtout pas
 « puisqu'on a une base ». Une seconde table n'arrive qu'avec une décision
-écrite.*
+écrite.* Deux tables sont arrivées depuis, chacune avec la sienne.
 
 ### 5.2 La seconde table, et sa décision écrite
 
@@ -276,9 +283,15 @@ CREATE TABLE IF NOT EXISTS votes (
     score_stop   REAL NOT NULL DEFAULT 0,
     score_encore REAL NOT NULL DEFAULT 0,
     vu_le        TEXT NOT NULL,    -- ISO 8601 du dernier écrit
+    libelle      TEXT NOT NULL DEFAULT '',  -- ce que l'interface affiche (GOAL-020)
     PRIMARY KEY (portee, cible)
 );
 ```
+
+La colonne `libelle` est venue après coup : l'interface liste les votes pour
+qu'on puisse en effacer un, et une cible brute (un identifiant Subsonic) ne se
+lit pas. C'est la seule migration du projet, faite au démarrage par un
+`ALTER TABLE` si la colonne manque.
 
 **Des scores décimaux, pas des compteurs entiers** — et ce n'est pas un détail.
 Avec `stops INTEGER` et une seule date, douze `stop` dont le dernier date d'hier
@@ -292,9 +305,11 @@ score ← score × 2^(−Δt / demi_vie) + increment
 vu_le ← maintenant
 ```
 
-où `Δt` est le temps écoulé depuis `vu_le`, et `increment` vaut 1 ou 0,25 selon
-la portée (SPECS.md §4.12). La même décroissance s'applique **à la lecture**,
-entre `vu_le` et l'instant courant.
+où `Δt` est le temps écoulé depuis `vu_le`, et `increment` vaut 1 sur l'artiste
+et 0 sur la piste, pour `stop` comme pour `encore` (SPECS.md §7 n°16, révisée) :
+un poids nul ne s'enregistre pas, la table ne porte donc en pratique que des
+artistes. La même décroissance s'applique **à la lecture**, entre `vu_le` et
+l'instant courant.
 
 C'est exact, incrémental, et cela ne demande de retenir que deux nombres et une
 date par cible. Conserver chaque vote individuellement aurait été la solution
@@ -303,14 +318,34 @@ résumer.
 
 **La garde n'a pas sauté, elle a fonctionné** : c'est parce qu'elle exigeait une
 décision écrite que cet ajout est spécifié, borné et daté, au lieu d'être glissé
-dans un commit d'implémentation. Elle reste en vigueur pour la **troisième**
-table.
+dans un commit d'implémentation. Elle reste en vigueur pour toute table
+suivante.
+
+### 5.2.1 La troisième table : le journal des titres
+
+**Décidée le 2026-08-30** (SPECS.md §7 n°27) : ce qui commence à l'antenne
+avec un titre, musique, émissions et flash, pas les jingles, s'inscrit dans un
+journal que l'interface montre.
+
+```sql
+CREATE TABLE IF NOT EXISTS historique (
+    joue_le TEXT NOT NULL,           -- ISO 8601, jour compris (GOAL-052)
+    nature  TEXT NOT NULL,           -- 'musique', 'emission' ou 'flash'
+    titre   TEXT NOT NULL,
+    artiste TEXT NOT NULL DEFAULT ''
+);
+```
+
+Ce n'est pas l'archive du flux que SPECS.md §2 exclut : un journal des
+**titres**, jamais l'audio, et **borné**. Chaque écriture purge ce qui a plus de
+vingt-quatre heures, la table ne grossit donc pas. La chaîne écrit, le serveur
+web lit : le même argument que §5.1.
 
 ### 5.3 Ce que la pondération impose au noyau
 
-`core/rng.py` ne sait aujourd'hui que **choisir uniformément**
-(`Hasard.choisir(parmi)`). Un tirage pondéré est une capacité **différente**, pas
-un réglage de la première.
+`core/rng.py` sait **choisir uniformément** (`Random.pick`) et **choisir
+pondéré** (`Random.pick_weighted`). Ce sont deux capacités **différentes**, pas
+un réglage de la première : sans poids, la file tire comme avant.
 
 Deux conséquences à ne pas manquer :
 
@@ -323,14 +358,14 @@ Deux conséquences à ne pas manquer :
 
 ### 5.4 Ce que la base ne contiendra toujours pas
 
-Ni l'historique de ce qui est passé à l'antenne, ni de statistiques d'écoute, ni
-de position de lecture, ni de profil. Deux tables : le dernier épisode diffusé de
-chaque émission, et les compteurs de votes.
+Ni archive de l'audio, ni statistiques d'écoute, ni position de lecture, ni
+profil. Trois tables : le dernier épisode diffusé de chaque émission, les
+scores de votes, et le journal des titres borné à vingt-quatre heures.
 
 Le fichier vit à un chemin déclaré au TOML, hors du dépôt. Il n'est pas
 versionné, il n'a pas de sauvegarde, et le perdre n'est pas une panne (§5.0).
 
-### 5.1 Les secrets
+### 5.5 Les secrets
 
 Les identifiants Subsonic vivent dans le `.env` local, **jamais versionné**. Un
 exemple commenté l'est, sans secret.

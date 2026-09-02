@@ -788,7 +788,8 @@ Ce que cela implique, et qui est assumé :
 - **Le fichier n'est pas de la configuration** : il est écrit par la radio, pas
   par l'auteur. Il ne va ni dans le TOML ni dans `.env` — seul **son chemin** y
   est déclaré.
-- Le stockage est une base **SQLite** (ARCHITECTURE.md §5.1), d'une seule table.
+- Le stockage est une base **SQLite** (ARCHITECTURE.md §5.1), partagée avec les
+  votes (§4.12) et le journal des titres (§7 n°27).
 - **Un épisode retiré du flux** ne pose pas de problème : l'identifiant retenu
   ne correspond plus à rien, donc le plus récent est forcément différent, donc
   il est diffusé.
