@@ -432,3 +432,36 @@ def test_une_tete_tiree_pour_plus_tard_reste_en_place() -> None:
 def test_une_avance_nulle_est_refusee() -> None:
     with pytest.raises(ValueError, match="trou"):
         Queue(FakeSource(CATALOGUE), ScriptedRandom([0]), lookahead=0)
+
+
+def test_rompre_la_suite_fait_tirer_une_autre_decennie() -> None:
+    """GOAL-059 : le premier titre ancre les années 1990 ; rompue, la suite
+    suivante s'ouvre sur une autre décennie."""
+    dates = [
+        track("1", "Air", year=1998),
+        track("2", "Bowie", year=1977),
+        track("3", "Massive", year=1991),
+    ]
+    hasard = ScriptedRandom([0] * 20)
+    f = Queue(FakeSource(dates), hasard, Window(width=0), runs=Runs(hasard))
+    suite = Constraint(mode=Mode.ERA_FAN, run_key="soir")
+    assert f.next_pick(suite).track.year == 1998
+    assert f.break_run()
+    pick = f.next_pick(suite)
+    assert pick.track.year == 1977
+    assert pick.fallbacks == ()
+
+
+def test_rompre_sans_autre_decennie_le_dit() -> None:
+    dates = [track("1", "Air", year=1998), track("2", "Bowie", year=1991)]
+    hasard = ScriptedRandom([0] * 20)
+    f = Queue(FakeSource(dates), hasard, Window(width=0), runs=Runs(hasard))
+    suite = Constraint(mode=Mode.ERA_FAN, run_key="soir")
+    f.next_pick(suite)
+    f.break_run()
+    pick = f.next_pick(suite)
+    assert any("rien d'autre" in r for r in pick.fallbacks)
+
+
+def test_sans_suites_rien_ne_se_rompt() -> None:
+    assert not Queue(FakeSource(CATALOGUE), ScriptedRandom([0])).break_run()

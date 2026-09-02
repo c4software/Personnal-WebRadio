@@ -56,6 +56,10 @@ class Directive:
     artist: str | None = None
     era: int | None = None
     exclude: frozenset[str] = frozenset()
+    # L'ancre à ÉVITER pour la suite qui s'ouvre : celle d'une suite rompue
+    # sur demande (GOAL-059) — retirer la même décennie ne retirerait rien.
+    avoid_artist: str | None = None
+    avoid_era: int | None = None
     # Une suite d'artiste répète l'artiste par construction : elle outrepasse
     # la fenêtre de non-répétition, comme l'encore (SPECS.md §4.6). Une suite
     # d'époque, elle, varie les artistes : la fenêtre continue de s'appliquer.
@@ -80,12 +84,30 @@ class Runs:
         self._anchor_era: int | None = None
         self._remaining = 0
         self._played: set[str] = set()
+        self._avoid_artist: str | None = None
+        self._avoid_era: int | None = None
+
+    def break_run(self) -> bool:
+        """Rompt la suite en cours : la prochaine ancre en évitera l'ancre
+        (GOAL-059). Faux si aucune suite au hasard ne peut être rompue —
+        hors mode, ou une double dose, dont l'artiste n'est pas une ancre
+        tirée pour durer."""
+        if self._mode not in (Mode.ERA_FAN, Mode.ARTIST_FAN):
+            return False
+        self._avoid_artist, self._avoid_era = self._anchor_artist, self._anchor_era
+        self._remaining = 0
+        self._played = set()
+        return True
 
     def directive(self, constraint: object, mode: Mode | None) -> Directive | None:
         """Ce que le prochain tirage doit respecter, ou rien : tirage d'ancre."""
         self._rebase(constraint, mode)
-        if self._mode is None or self._remaining <= 0:
+        if self._mode is None:
             return None
+        if self._remaining <= 0:
+            if self._avoid_artist is None and self._avoid_era is None:
+                return None
+            return Directive(avoid_artist=self._avoid_artist, avoid_era=self._avoid_era)
         if self._mode is Mode.ERA_FAN:
             return Directive(era=self._anchor_era, exclude=frozenset(self._played))
         return Directive(
@@ -117,6 +139,8 @@ class Runs:
         self._anchor_era = None
         self._remaining = 0
         self._played = set()
+        self._avoid_artist = None
+        self._avoid_era = None
 
     def _matches(self, track: Track) -> bool:
         if self._mode is Mode.ERA_FAN:
@@ -128,6 +152,8 @@ class Runs:
         self._anchor_era = None
         self._remaining = 0
         self._played = set()
+        self._avoid_artist = None
+        self._avoid_era = None
         if mode is Mode.ERA_FAN:
             era = era_of(track)
             if era is None:

@@ -95,3 +95,36 @@ def test_une_piste_qui_ne_colle_pas_ouvre_la_suite_suivante() -> None:
     assert directive is not None
     assert directive.artist == "Portishead"
     assert directive.exclude == frozenset({"p1"})
+
+
+def test_rompre_une_suite_d_epoque_fait_eviter_sa_decennie() -> None:
+    """GOAL-059 : « retirer » sur une plage `era_fan`, c'est rompre la suite
+    et en ouvrir une autre, d'une autre décennie."""
+    runs = Runs(ScriptedRandom([0, 0]))
+    runs.observe(PLAGE, Mode.ERA_FAN, track("1", "Air", year=1998))
+    assert runs.break_run()
+    assert runs.directive(PLAGE, Mode.ERA_FAN) == Directive(avoid_era=1990)
+    runs.observe(PLAGE, Mode.ERA_FAN, track("2", "Bowie", year=1977))
+    suite = runs.directive(PLAGE, Mode.ERA_FAN)
+    assert suite is not None and suite.era == 1970 and suite.avoid_era is None
+
+
+def test_rompre_une_suite_d_artiste_fait_eviter_son_artiste() -> None:
+    runs = Runs(ScriptedRandom([0, 0]))
+    runs.observe(PLAGE, Mode.ARTIST_FAN, track("b1", "Bowie"))
+    assert runs.break_run()
+    assert runs.directive(PLAGE, Mode.ARTIST_FAN) == Directive(avoid_artist="Bowie")
+
+
+def test_une_double_dose_ou_l_absence_de_mode_ne_se_rompt_pas() -> None:
+    runs = Runs(ScriptedRandom([]))
+    assert not runs.break_run()
+    runs.observe(PLAGE, Mode.DOUBLE_DOSE, track("a1", "Air"))
+    assert not runs.break_run()
+
+
+def test_l_evitement_ne_survit_pas_a_un_changement_de_plage() -> None:
+    runs = Runs(ScriptedRandom([0]))
+    runs.observe(PLAGE, Mode.ARTIST_FAN, track("b1", "Bowie"))
+    runs.break_run()
+    assert runs.directive("jazz", Mode.ARTIST_FAN) is None

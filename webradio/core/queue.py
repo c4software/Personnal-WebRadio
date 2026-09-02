@@ -137,6 +137,11 @@ class Queue:
                 return True
         return False
 
+    def break_run(self) -> bool:
+        """Rompt la suite au hasard en cours : le prochain tirage ouvre une
+        autre suite, d'une autre ancre (GOAL-059). Faux s'il n'y en a pas."""
+        return self._suites is not None and self._suites.break_run()
+
     def forget_prepared(self) -> None:
         """Jette l'avance déjà résolue : le prochain tirage repart à neuf.
 
@@ -223,6 +228,20 @@ class Queue:
                 else:
                     fallbacks.append(f"suite rompue : plus rien des années {directive.era}")
                     directive = None
+
+        if directive is not None and (directive.avoid_artist or directive.avoid_era is not None):
+            # Une suite rompue sur demande (GOAL-059) : la nouvelle ancre
+            # évite l'ancienne — sauf si la bibliothèque n'offre rien d'autre.
+            autres = [
+                t
+                for t in candidates
+                if t.artist != directive.avoid_artist and era_of(t) != directive.avoid_era
+            ]
+            if autres:
+                candidates = autres
+            else:
+                evite = directive.avoid_artist or f"les années {directive.avoid_era}"
+                fallbacks.append(f"suite rompue : rien d'autre que « {evite} »")
 
         if directive is not None and directive.bypass_window:
             # Une suite d'artiste répète l'artiste par construction : elle
