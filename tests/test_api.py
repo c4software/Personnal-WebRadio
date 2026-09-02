@@ -587,6 +587,13 @@ def test_la_page_anime_les_onglets_les_chansons_et_les_listes() -> None:
     feuille = app.test_client().get("/static/style.css").get_data(as_text=True)
     assert "@keyframes entrer" in feuille
     assert "prefers-reduced-motion" in feuille
+    # Les lignes de la liste du lecteur entrent par le haut : vers le bas,
+    # elles agrandissaient la zone défilante le temps de l'animation.
+    assert (
+        "@keyframes entrer-du-haut { from { opacity: 0; transform: translateY(-0.4rem); }"
+        in feuille
+    )
+    assert ".prochain {\n  animation: entrer-du-haut" in feuille
 
 
 def test_le_lecteur_propose_une_enceinte_seulement_en_ecoute() -> None:

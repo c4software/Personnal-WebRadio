@@ -2070,6 +2070,10 @@ le suivant, une chanson qui change fond l'ancienne dans la nouvelle.
       désactivées sous `prefers-reduced-motion`.
 - [x] **GOAL-064-T03** — SPECS.md §4.8, la carte du dépôt ; clôture ; push.
 
+**Retouche du 2026-09-02** : une barre de défilement apparaissait dans la
+liste du lecteur le temps de l'animation — les lignes entraient par le bas
+et dépassaient le conteneur défilant. Elles entrent par le haut.
+
 **Incident du 2026-09-02** : l'image construite servait des 404 sur la
 feuille de style — `pyproject.toml` n'empaquetait que les `.js` de
 `static/`, et les tests lisent la source, pas le paquet. Corrigé en

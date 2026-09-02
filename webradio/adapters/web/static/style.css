@@ -250,10 +250,20 @@ button[disabled] { cursor: default; }
    vers le suivant ; une chanson qui change fond l'ancienne dans la nouvelle.
    Tout s'éteint sous `prefers-reduced-motion`. */
 @keyframes entrer { from { opacity: 0; transform: translateY(0.5rem); } to { opacity: 1; transform: none; } }
-.prochain, .vote, .jour, .ligne-histoire, .evenement {
+/* Dans la liste du lecteur, les lignes entrent par le haut : un décalage
+   vers le bas dépassait le conteneur défilant le temps de l'animation, et
+   une barre de défilement apparaissait (constaté par l'auteur). Un
+   débordement vers le haut n'agrandit jamais la zone défilable. */
+@keyframes entrer-du-haut { from { opacity: 0; transform: translateY(-0.4rem); } to { opacity: 1; transform: none; } }
+.vote, .jour, .ligne-histoire, .evenement {
   animation: entrer 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
   animation-delay: calc(var(--i, 0) * 10ms);
 }
+.prochain {
+  animation: entrer-du-haut 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 10ms);
+}
+.liste .defile { scrollbar-width: thin; scrollbar-color: var(--bord-fort) transparent; overscroll-behavior: contain; }
 .onglet-enter-active { transition: opacity 0.22s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .onglet-leave-active { transition: opacity 0.14s ease, transform 0.14s ease; }
 .onglet-enter-from { opacity: 0; transform: translateY(0.6rem); }
