@@ -88,6 +88,15 @@ def _libelle_de_plage(band: BandSettings) -> list[str]:
     return list(band.artists or band.genres)
 
 
+# Comment l'antenne nomme un enchaînement de plage (SPECS.md §7 n°31) : les
+# mots du Planning, pour qu'une même plage se dise pareil des deux côtés.
+MODES = {
+    Mode.DOUBLE_DOSE: "double dose",
+    Mode.ERA_FAN: "passionné d'époque",
+    Mode.ARTIST_FAN: "passionné d'artiste",
+}
+
+
 def _libelle_du_moment(band: Band, drawn: Constraint | None) -> str:
     """Ce que l'antenne annonce de la plage en cours.
 
@@ -95,12 +104,20 @@ def _libelle_du_moment(band: Band, drawn: Constraint | None) -> str:
     le « au hasard », l'auditeur croirait à une plage déclarée, et ne
     comprendrait pas qu'elle change demain. Tant que le tirage n'a pas abouti,
     la plage tire librement, et l'annonce reste honnête là-dessus.
+
+    Le libellé n'est **jamais vide** (GOAL-066) : une plage à mode seul
+    (SPECS.md §7 n°31) n'a ni genre ni artiste à nommer, et la page l'affichait
+    comme un « Moment · » orphelin à côté du bouton « Autre thème ». Elle dit
+    donc ce qu'elle est — un tirage libre enchaîné — et toute plage à mode
+    suffixe son enchaînement, avec les mots du Planning.
     """
+    enchainement = f" ({MODES[band.mode]})" if band.mode is not None else ""
     if band.random_theme is None:
-        return f"Moment · {', '.join(band.artists or band.genres)}"
+        theme = ", ".join(band.artists or band.genres) or "tirage libre"
+        return f"Moment · {theme}{enchainement}"
     if drawn is None:
-        return "Moment · au hasard"
-    return f"Moment · {drawn.artist or drawn.genre} (au hasard)"
+        return f"Moment · au hasard{enchainement}"
+    return f"Moment · {drawn.artist or drawn.genre} (au hasard){enchainement}"
 
 
 def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:

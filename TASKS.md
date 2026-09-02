@@ -101,6 +101,11 @@ enceinte par l'API Remote Playback du navigateur, sans SDK ; **reste à
 essayer** avec un Chromecast ou un AirPlay (docs/flux-icy.md §8).
 **Aucun Goal ouvert.**
 
+**GOAL-066 est clos le 2026-09-02** : à l'antenne, une plage à mode seul
+— 19 h, `era_fan` sans genres — n'affichait qu'un « Moment · » vide à côté du
+bouton « Autre thème ». Le moment courant se nomme désormais dans tous les
+cas, et dit son enchaînement. **Aucun Goal ouvert.**
+
 **Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
@@ -174,6 +179,7 @@ essayer** avec un Chromecast ou un AirPlay (docs/flux-icy.md §8).
 | GOAL-063 | Installable en PWA, une icône, un titre qui dit ce qui passe | `[x]` — clos le 2026-09-02 ; **reste à essayer** l'installation depuis un téléphone |
 | GOAL-064 | La feuille de style externalisée, et des animations d'entrée, d'onglet et de chanson | `[x]` — clos le 2026-09-02 |
 | GOAL-065 | Renvoyer le son vers une enceinte depuis le lecteur | `[x]` — clos le 2026-09-02 ; **reste à essayer** avec une enceinte |
+| GOAL-066 | Le moment courant se nomme toujours, à côté du bouton | `[x]` — clos le 2026-09-02 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

@@ -21,6 +21,7 @@ from webradio.app.main import (
     version,
 )
 from webradio.core.bands import Band, Constraint
+from webradio.core.runs import Mode
 
 TOML_MINIMAL = """
 [draw]
@@ -147,6 +148,32 @@ def test_un_tirage_qui_n_a_pas_abouti_ne_nomme_rien() -> None:
 def test_une_plage_declaree_s_annonce_comme_avant() -> None:
     band = Band(start=time(8), end=time(10), genres=("jazz", "soul"))
     assert _libelle_du_moment(band, None) == "Moment · jazz, soul"
+
+
+# ── Le moment courant se nomme toujours (GOAL-066) ─────────────────────────
+
+
+def test_une_plage_a_mode_seul_nomme_son_tirage_libre() -> None:
+    """Sans genre ni artiste, la page affichait un « Moment · » orphelin à côté
+    du bouton « Autre thème »."""
+    band = Band(start=time(19), end=time(20), mode=Mode.ERA_FAN)
+    assert _libelle_du_moment(band, None) == "Moment · tirage libre (passionné d'époque)"
+
+
+def test_une_plage_declaree_dit_aussi_son_enchainement() -> None:
+    """Le bouton retire la suite, pas les genres : l'antenne dit laquelle."""
+    band = Band(start=time(15), end=time(16), genres=("reggae", "dub"), mode=Mode.ARTIST_FAN)
+    assert _libelle_du_moment(band, None) == "Moment · reggae, dub (passionné d'artiste)"
+    double = Band(start=time(20), end=time(22), genres=("rock",), mode=Mode.DOUBLE_DOSE)
+    assert _libelle_du_moment(double, None) == "Moment · rock (double dose)"
+
+
+def test_un_theme_tire_au_sort_garde_son_enchainement() -> None:
+    band = Band(start=time(21), end=time(23), random_theme="genre", mode=Mode.ERA_FAN)
+    assert _libelle_du_moment(band, Constraint(genre="dub")) == (
+        "Moment · dub (au hasard) (passionné d'époque)"
+    )
+    assert _libelle_du_moment(band, None) == "Moment · au hasard (passionné d'époque)"
 
 
 def test_le_planning_annonce_la_sorte_d_une_plage_au_hasard() -> None:

@@ -2095,3 +2095,20 @@ internet — et l'API standard couvre Chromecast (Chrome) comme AirPlay
 - [x] **GOAL-065-T01** — Le bouton de renvoi dans la barre, visible en
       écoute quand le navigateur voit une cible ; `docs/flux-icy.md` §8 ;
       SPECS.md §4.8. **Reste à essayer** avec une enceinte réelle.
+
+---
+
+## GOAL-066 — Le moment courant se nomme toujours, à côté du bouton
+
+Demandé par l'auteur le 2026-09-02 : « dans une période moment, il faut que
+l'UI web affiche le "moment" actuel à côté du bouton de changement ».
+
+**Décision : c'est le libellé, pas la page, qui est en cause.** Le gabarit
+affiche déjà le moment à côté du bouton (`<p class="moment">`), mais
+`_libelle_du_moment` joignait des genres inexistants pour une plage à mode
+seul (SPECS.md §7 n°31) — le « · » restait seul. Le libellé nomme désormais
+le repli (« tirage libre ») et suffixe l'enchaînement, avec les mots du
+Planning (GOAL-046).
+
+- [x] **GOAL-066-T01** — Un libellé de moment jamais vide, et qui dit
+      l'enchaînement de la plage ; SPECS.md §4.4.

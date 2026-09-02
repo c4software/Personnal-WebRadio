@@ -217,6 +217,12 @@ jusqu'à la fin de la plage ; l'occurrence suivante retire (§7 n°28).
 - L'antenne nomme le thème sorti et **dit qu'il a été tiré** — « Moment · Air
   (au hasard) ». Le planning, lui, ne peut annoncer d'avance que la sorte : « Au
   hasard · un artiste ».
+- **Le moment courant se nomme toujours** (GOAL-066), puisque l'interface
+  l'affiche à côté du bouton « Autre thème » (§4.8) : une plage à mode seul
+  (§7 n°31) n'a ni genre ni artiste à citer et s'annonce « Moment · tirage
+  libre (passionné d'époque) » — jusqu'au 2026-09-02 elle n'affichait qu'un
+  « Moment · » orphelin. Toute plage à mode suffixe son enchaînement, avec les
+  mêmes mots que le planning (§4.8).
 - Un tirage qui n'aboutit pas — source injoignable, bibliothèque vide — laisse
   la plage en tirage libre et sera **retenté à la jonction suivante** ; il est
   journalisé une fois par occurrence.
