@@ -316,6 +316,9 @@ class LiquidsoapPlayout:
                 continue
             logger.info("l'avance se replace : %s", shown)
             self._programme.replay_later(entry, pending.kind, pending.track, pending.label)
+        # Sans attendre que le diffuseur redemande : la liste des prochains
+        # titres montre le morceau forcé dès le vote (GOAL-067).
+        self._programme.prepare(self._fin_estimee_de_l_avance())
 
     def drop_advance(self) -> None:
         """Jette l'avance sans rien replacer — chez le diffuseur comme dans la

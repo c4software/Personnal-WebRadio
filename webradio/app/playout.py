@@ -88,7 +88,11 @@ class RadioProgramme:
         self._emissions = shows
         self._controle = control
         self._a_l_antenne = now_playing
-        self._derniere_piste: Track | None = None
+        # Le morceau qu'un encore force, résolu dès la préparation pour que la
+        # liste des prochains titres le montre (GOAL-067) ; son ancre reste,
+        # pour en tirer un autre du même artiste si on le retire.
+        self._encore_force: Track | None = None
+        self._encore_ancre: Track | None = None
         # Un programme a sa propre fenêtre de non-répétition : la liste est
         # courte, et partager celle du tirage libre ferait rétrécir l'une à
         # cause de l'autre (SPECS.md §4.13).
@@ -122,8 +126,6 @@ class RadioProgramme:
         if self._a_rejouer:
             entry, kind, track, label = self._a_rejouer.popleft()
             self._sur_nature(kind, track, label)
-            if track is not None:
-                self._derniere_piste = track
             return entry
         return self._prochaine_piste()
 
@@ -178,6 +180,7 @@ class RadioProgramme:
         se tire sous le moment présent — et l'avance datée (décision n°33)
         tranche, à la jonction, si l'estimation tenait.
         """
+        self._resoudre_encore()
         depart = self._horloge.now() if from_instant is None else from_instant
         self._file.revalidate(self._moments_des_creneaux(depart))
         instant = self._fin_des_creneaux(depart)
@@ -216,6 +219,10 @@ class RadioProgramme:
         items: list[Upcoming] = []
         for name in self._en_attente:
             items.append(Upcoming(Kind.JINGLE, None, Path(name).stem, instant))
+        if self._encore_force is not None:
+            items.append(Upcoming(Kind.MUSIC, self._encore_force, None, instant))
+            if instant is not None:
+                instant = instant + self._encore_force.duration
         for _, kind, track, label in self._a_rejouer:
             items.append(Upcoming(kind, track, label, instant))
             if track is not None and instant is not None:
@@ -277,7 +284,18 @@ class RadioProgramme:
 
     def withdraw(self, identifier: str) -> bool:
         """Retire un titre de l'avance de la file : il ne passera pas, un
-        autre sera tiré à sa place (GOAL-058)."""
+        autre sera tiré à sa place (GOAL-058). Le morceau qu'un encore force se
+        retire aussi : un autre du même artiste le remplace (GOAL-067)."""
+        force, ancre = self._encore_force, self._encore_ancre
+        if (
+            force is not None
+            and force.identifier == identifier
+            and ancre is not None
+            and self._controle is not None
+        ):
+            self._encore_force = self._morceau_du_meme(self._controle, ancre)
+            logger.info("retiré avant diffusion, l'encore en force un autre : %s", identifier)
+            return True
         if not self._file.withdraw(identifier):
             return False
         logger.info("retiré avant diffusion : %s", identifier)
@@ -389,43 +407,59 @@ class RadioProgramme:
         for fallback in pick.fallbacks:
             logger.info("repli : %s", fallback)
         self._sur_nature(Kind.MUSIC, pick.track, None)
-        self._derniere_piste = pick.track
         return self._source.entry(pick.track)
 
     def _piste_après_encore(self) -> str | None:
-        """Le morceau forcé par un « encore », ou rien.
+        """Le morceau forcé par un « encore », ou rien."""
+        self._resoudre_encore()
+        track = self._encore_force
+        if track is None:
+            return None
+        self._encore_force, self._encore_ancre = None, None
+        self._sur_nature(Kind.MUSIC, track, None)
+        return self._source.entry(track)
 
-        L'ancre est le morceau **à l'antenne** ; à défaut — un redémarrage l'a
-        oublié — le dernier morceau rendu. Sans ancre du tout, le vote a agi
-        (pondération, jingle) mais n'a rien sur quoi forcer : on le dit.
+    def _resoudre_encore(self) -> None:
+        """Consomme l'encore voté, s'il y en a un, et tire le morceau qu'il force.
+
+        À la préparation plutôt qu'à la jonction (GOAL-067) : la liste des
+        prochains titres le montre, et l'ancre est celle du vote — à la
+        jonction, c'est déjà le jingle d'encore qui passe, et le morceau
+        d'avance n'est pas celui que l'auditeur entendait. Sans ancre du tout,
+        le vote a agi (pondération, jingle) mais n'a rien sur quoi forcer : on
+        le dit.
         """
-        if self._controle is None or not self._controle.take_more():
-            return None
-        courant = self._a_l_antenne() if self._a_l_antenne is not None else None
-        if courant is None:
-            courant = self._derniere_piste
-        if courant is None:
+        if self._controle is None:
+            return
+        more = self._controle.take_more()
+        if more is None:
+            return
+        if more.anchor is None:
             logger.info("encore sans morceau à l'antenne : rien à forcer")
-            return None
-        # Pendant un programme, « encore » cherche DANS la liste et y retombe,
-        # jamais au-dehors (SPECS.md §7 n°20) : sortir de la liste sur un
-        # encore trahirait le choix des morceaux.
+            return
+        self._encore_ancre = more.anchor
+        self._encore_force = self._morceau_du_meme(self._controle, more.anchor)
+
+    def _morceau_du_meme(self, control: Control, courant: Track) -> Track | None:
+        """Ce qu'un encore sur `courant` force : le même artiste, puis ce que le
+        noyau relâche, et chaque repli est dit. Pendant un programme, cherché
+        DANS la liste et jamais au-dehors (SPECS.md §7 n°20) : sortir de la
+        liste sur un encore trahirait le choix des morceaux.
+        """
         if self._programmation is not None:
             liste = self._programmation.playlist_to_draw()
             if liste is not None:
                 return self._encore_dans_la_liste(liste, courant)
         try:
-            pick = self._controle.track_after_more(courant)
+            pick = control.track_after_more(courant)
         except (SourceUnavailable, EmptyQueue) as failure:
             logger.warning("encore sans suite : %s", failure)
             return None
         for fallback in pick.fallbacks:
             logger.info("repli d'encore : %s", fallback)
-        self._sur_nature(Kind.MUSIC, pick.track, None)
-        self._derniere_piste = pick.track
-        return self._source.entry(pick.track)
+        return pick.track
 
-    def _encore_dans_la_liste(self, liste: str, courant: Track) -> str | None:
+    def _encore_dans_la_liste(self, liste: str, courant: Track) -> Track | None:
         """Le même artiste, cherché dans la liste du programme ouvert.
 
         À défaut, `None` : le tirage retombe dans la liste par le chemin
@@ -444,9 +478,7 @@ class RadioProgramme:
             return None
         track = self._hasard.pick(du_meme)
         self._fenetre_programme.remember(track)
-        self._sur_nature(Kind.MUSIC, track, None)
-        self._derniere_piste = track
-        return self._source.entry(track)
+        return track
 
     def _piste_du_programme(self) -> str | None:
         """Un morceau tiré dans la liste du programme ouvert, s'il y en a un.
@@ -477,5 +509,4 @@ class RadioProgramme:
         track = self._hasard.pick(allowed)
         self._fenetre_programme.remember(track)
         self._sur_nature(Kind.MUSIC, track, None)
-        self._derniere_piste = track
         return self._source.entry(track)

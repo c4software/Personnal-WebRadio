@@ -59,6 +59,21 @@ class Answer:
     reason: str = ""
 
 
+@dataclass(frozen=True, slots=True)
+class More:
+    """Un « encore » à honorer, et la chanson qu'il visait.
+
+    L'ancre est ce que l'auditeur **entendait en votant** — pas ce qui passe à
+    la jonction, où c'est déjà `encore.mp3`, ni le morceau d'avance, qui a
+    toujours un titre d'écart (docs/liquidsoap.md §3). Le 2026-09-02 un encore
+    voté sur La Rue Kétanou a forcé le genre de THK, le morceau d'avance :
+    l'ancre lue trop tard désignait la mauvaise chanson (GOAL-067). `None`
+    quand le vote est tombé entre deux morceaux : il agit, sans rien à forcer.
+    """
+
+    anchor: Track | None
+
+
 class Control:
     """L'effet des deux commandes sur ce que la file rendra ensuite."""
 
@@ -74,7 +89,7 @@ class Control:
         self._jingles = jingles
         self._nature = kind
         self._saut_demande = False
-        self._encore_demande = False
+        self._encore: More | None = None
         self._servis: set[str] = set()
 
     @property
@@ -85,15 +100,21 @@ class Control:
         """Ce qui passe maintenant. C'est ce qui rend les refus possibles."""
         self._nature = kind
 
-    def vote(self, command: Command) -> Answer:
-        """Le premier vote reçu s'applique : une voix suffit (SPECS.md §7 n°10)."""
+    def vote(self, command: Command, playing: Track | None = None) -> Answer:
+        """Le premier vote reçu s'applique : une voix suffit (SPECS.md §7 n°10).
+
+        `playing` est la chanson à l'antenne au moment du vote : c'est elle
+        qu'un `encore` vise (GOAL-067). Deux votes avant la même jonction
+        gardent la dernière ancre — c'est la même chanson, ou celle d'après si
+        une jonction est passée entre-temps, et c'est alors elle qu'on entend.
+        """
         reason = REFUSAL_REASONS.get(self._nature)
         if reason is not None:
             return Answer(accepted=False, reason=reason)
         if command is Command.SKIP:
             self._saut_demande = True
         else:
-            self._encore_demande = True
+            self._encore = More(playing)
             self._jingles.mark_more()
         return Answer(accepted=True)
 
@@ -103,14 +124,14 @@ class Control:
         self._saut_demande = False
         return requested
 
-    def take_more(self) -> bool:
-        """Y a-t-il un `encore` à honorer ? L'appel le consomme.
+    def take_more(self) -> More | None:
+        """L'`encore` à honorer, avec son ancre — ou rien. L'appel le consomme.
 
         `encore` porte sur le morceau **suivant**, pas sur toute la suite : il
         n'installe pas un mode (SPECS.md §4.6).
         """
-        requested = self._encore_demande
-        self._encore_demande = False
+        requested = self._encore
+        self._encore = None
         return requested
 
     def track_after_more(self, courant: Track) -> Pick:

@@ -193,7 +193,9 @@ class LiveRadio(Radio):
         s'apprend pas.
         """
         command = Command(vote.value)
-        answer = self._controle.vote(command)
+        with self._verrou:
+            courante = self._piste
+        answer = self._controle.vote(command, playing=courante)
         if answer.accepted and command is Command.SKIP and self._passer is not None:
             # « Passer le morceau en cours. Le suivant démarre à la jonction,
             # sans blanc. » (SPECS.md §4.6) — c'est le diffuseur qui coupe,
@@ -205,11 +207,8 @@ class LiveRadio(Radio):
             # de l'encore — jingle puis même artiste — doit suivre LA chanson
             # en cours, pas celle d'après (SPECS.md §4.6, GOAL-034).
             self._vider_l_avance()
-        if answer.accepted and self._retenir is not None:
-            with self._verrou:
-                courante = self._piste
-            if courante is not None:
-                self._retenir(command, courante)
+        if answer.accepted and self._retenir is not None and courante is not None:
+            self._retenir(command, courante)
         return Verdict(accepted=answer.accepted, reason=answer.reason or None)
 
 

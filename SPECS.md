@@ -336,6 +336,14 @@ s'applique sans s'annoncer.
 > pendant laquelle rien ne confirme que le vote est passé. C'est le prix de la
 > simplicité : une seule mécanique d'insertion pour tous les jingles.
 
+**`encore` vise la chanson que l'auditeur entendait en votant** — pas celle
+que le diffuseur avait prise d'avance, ni le jingle qui passe à la jonction.
+**Depuis le 2026-09-02** (GOAL-067), cette ancre est retenue avec le vote, et
+le morceau forcé est tiré aussitôt : la liste des prochains titres (§4.8) le
+montre, et il se retire comme un autre — un autre du même artiste le
+remplace. Constaté le jour même : un encore voté sur La Rue Kétanou avait
+forcé le genre de THK, le morceau d'avance.
+
 `encore` s'applique au morceau **suivant**, pas à toute la suite : il n'installe
 pas un mode. Il peut en revanche être **enchaîné sans limite** — aucun compteur,
 aucun plafond. Ce qui le borne est la bibliothèque elle-même : quand il ne reste
@@ -441,7 +449,8 @@ un encore — est retiré avec ce qui le suit, et retiré au sort.
 
 Un titre de la liste **se retire** (`DELETE /api/up-next/<identifiant>`) : il
 ne passera pas, un autre est tiré à sa place sous le même moment, et le retrait
-est journalisé. Retirer compte comme passé pour la non-répétition : sur une
+est journalisé. Le morceau qu'un encore force (§4.6) y figure après le jingle,
+et se retire aussi : un autre du même artiste le remplace. Retirer compte comme passé pour la non-répétition : sur une
 petite bibliothèque, le remplacement ne le rendrait pas aussitôt. Un titre qui
 a commencé entre-temps n'attend plus : 404, et la page le dit. L'habillage ne
 se retire pas. La non-répétition **voit ce qui attend** : un artiste tiré

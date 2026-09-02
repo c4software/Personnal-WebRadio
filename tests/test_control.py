@@ -52,6 +52,25 @@ def test_un_encore_accepte_marque_le_jingle_de_vote_comme_du() -> None:
     assert jeu.due_now() == (JINGLE_ENCORE,)
 
 
+def test_l_encore_retient_la_chanson_entendue_au_vote() -> None:
+    """GOAL-067 : l'ancre est ce que l'auditeur entendait en votant — pas ce
+    qui passera à la jonction, ni le morceau d'avance du diffuseur."""
+    c = control()
+    assert c.vote(Command.MORE, playing=BOWIE_1).accepted
+    more = c.take_more()
+    assert more is not None
+    assert more.anchor == BOWIE_1
+
+
+def test_un_encore_entre_deux_morceaux_n_a_pas_d_ancre() -> None:
+    """Le vote agit — jingle, pondération — mais n'a rien sur quoi forcer."""
+    c = control()
+    assert c.vote(Command.MORE).accepted
+    more = c.take_more()
+    assert more is not None
+    assert more.anchor is None
+
+
 def test_encore_ne_porte_que_sur_le_morceau_suivant() -> None:
     """Il n'installe pas un mode (SPECS.md §4.6) : une fois honoré, il s'éteint."""
     c = control()

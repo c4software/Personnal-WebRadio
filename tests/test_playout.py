@@ -443,11 +443,62 @@ def test_un_encore_force_le_prochain_morceau_chez_le_meme_artiste(tmp_path: Path
     programme, control = _programme_pilote(tmp_path, source=source)
     premier = programme.next_entry()
     assert premier == "fake://1"
-    assert control.vote(Command.MORE).accepted
+    assert control.vote(Command.MORE, playing=source.tracks(None)[0]).accepted
 
     suivant = programme.next_entry()
 
     assert suivant == "fake://3"  # l'autre Bowie, jamais Air
+
+
+def test_l_encore_vise_la_chanson_entendue_pas_le_morceau_d_avance(tmp_path: Path) -> None:
+    """GOAL-067, constaté le 2026-09-02 : Bowie à l'antenne, Air pris d'avance
+    par le diffuseur, un vote sur Bowie. À la jonction c'est le jingle qui
+    passe — l'ancre doit rester Bowie, pas l'avance ni rien d'autre."""
+    (tmp_path / "encore.mp3").write_bytes(b"annonce")
+    source = FakeSource(
+        [
+            track("1", "Bowie", genre="rock"),
+            track("2", "Air", genre="électro"),
+            track("3", "Bowie", genre="rock"),
+            track("4", "Air", genre="électro"),
+        ]
+    )
+    programme, control = _programme_pilote(tmp_path, source=source)
+    assert programme.next_entry() == "fake://1"  # Bowie, à l'antenne
+    assert programme.next_entry() == "fake://2"  # Air, l'avance du diffuseur
+    assert control.vote(Command.MORE, playing=source.tracks(None)[0]).accepted
+    programme.replay_later("fake://2", Kind.MUSIC, source.tracks(None)[1], None)
+
+    programme.prepare()
+    a_venir = [u.track.identifier for u in programme.upcoming() if u.track is not None]
+    assert a_venir[:2] == ["3", "2"], "le forcé se voit, puis l'avance replacée"
+
+    assert programme.next_entry() == str(tmp_path / "encore.mp3")
+    assert programme.next_entry() == "fake://3"  # l'autre Bowie
+    assert programme.next_entry() == "fake://2"  # l'avance replacée
+
+
+def test_retirer_le_morceau_force_en_tire_un_autre_du_meme_artiste(tmp_path: Path) -> None:
+    """GOAL-067 : le morceau forcé se retire comme un autre (SPECS.md §4.8), et
+    l'encore tient toujours — un autre du même artiste le remplace."""
+    source = FakeSource(
+        [
+            track("1", "Bowie", genre="rock"),
+            track("2", "Air", genre="électro"),
+            track("3", "Bowie", genre="rock"),
+            track("5", "Bowie", genre="rock"),
+        ]
+    )
+    programme, control = _programme_pilote(tmp_path, source=source)
+    assert programme.next_entry() == "fake://1"
+    assert control.vote(Command.MORE, playing=source.tracks(None)[0]).accepted
+    programme.prepare()
+    assert [u.track.identifier for u in programme.upcoming() if u.track][:1] == ["3"]
+
+    assert programme.withdraw("3")
+    assert [u.track.identifier for u in programme.upcoming() if u.track][:1] == ["5"]
+    assert programme.next_entry() == "fake://5"
+    assert not programme.withdraw("3"), "il n'attend plus"
 
 
 def test_un_encore_pendant_un_programme_reste_dans_la_liste(tmp_path: Path) -> None:
@@ -474,7 +525,7 @@ def test_un_encore_pendant_un_programme_reste_dans_la_liste(tmp_path: Path) -> N
     programme, control = _programme_pilote(tmp_path, source=source, programming=programming)
     premier = programme.next_entry()
     assert premier == "fake://1"  # Bowie, dans la liste
-    assert control.vote(Command.MORE).accepted
+    assert control.vote(Command.MORE, playing=bowie_liste).accepted
 
     suivant = programme.next_entry()
 
@@ -609,7 +660,7 @@ def test_une_entree_replacee_passe_apres_le_force_et_avant_le_tirage(tmp_path: P
     )
     programme, control = _programme_pilote(tmp_path, source=source)
     assert programme.next_entry() == "fake://1"  # Bowie à l'antenne
-    assert control.vote(Command.MORE).accepted
+    assert control.vote(Command.MORE, playing=source.tracks(None)[0]).accepted
     # L'avance (Air) est replacée par la charnière, comme après /requeue.
     programme.replay_later("fake://2", Kind.MUSIC, source.tracks(None)[1], None)
 

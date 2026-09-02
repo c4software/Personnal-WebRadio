@@ -2112,3 +2112,26 @@ Planning (GOAL-046).
 
 - [x] **GOAL-066-T01** — Un libellé de moment jamais vide, et qui dit
       l'enchaînement de la plage ; SPECS.md §4.4.
+
+---
+
+## GOAL-067 — L'encore vise la chanson entendue au vote, et la liste le montre
+
+Constaté à l'antenne le 2026-09-02 à 19 h 50 : un « encore » voté sur La Rue
+Kétanou a forcé un morceau du genre de **THK** — le titre que le diffuseur
+avait pris d'avance. Le journal le dit : `repli d'encore : artiste « THK »
+épuisé`. Et la liste des prochains titres, raccourcie par le vote, ne
+montrait pas le morceau forcé.
+
+**Décision : l'ancre se prend au vote, et le morceau forcé se tire d'avance.**
+`_piste_après_encore` lisait l'ancre à la jonction, quand c'est déjà le jingle
+d'encore qui passe : la piste à l'antenne est alors `None`, et le repli sur
+« le dernier morceau rendu » désignait le morceau **d'avance** — il y a
+toujours un morceau d'écart (docs/liquidsoap.md §3). Le noyau retient
+désormais, avec le vote, la chanson que l'auditeur entendait ; la charnière
+résout le morceau forcé dès qu'elle se prépare, le sert après les jingles, le
+montre dans la liste, et le retire comme un autre — en retirant un autre du
+même artiste.
+
+- [x] **GOAL-067-T01** — L'ancre au vote, le morceau forcé résolu d'avance et
+      visible dans « prochains titres » ; le scénario de production en test.

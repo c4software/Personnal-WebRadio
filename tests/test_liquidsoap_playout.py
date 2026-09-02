@@ -5,6 +5,7 @@ from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
 from tests.fakes import FakeSource, track
+from webradio.adapters.web.api import Vote
 from webradio.app.liquidsoap_playout import LiquidsoapPlayout
 from webradio.app.playout import RadioProgramme
 from webradio.app.radio import ListenerCount, LiveRadio
@@ -37,8 +38,11 @@ def _playout(
     source = FakeSource(catalogue if catalogue is not None else CATALOGUE)
     jingles = Jingles(clock)
     counter = ListenerCount()
-    radio = LiveRadio(Control(source=source, random=random, jingles=jingles), counter)
+    control = Control(source=source, random=random, jingles=jingles)
     branche: list[LiquidsoapPlayout] = []
+    # Câblé comme main.py : un encore replace l'avance du diffuseur, et le
+    # programme sait ce qui passe.
+    radio = LiveRadio(control, counter, requeue=lambda: branche[0].stash_for_replay())
     programme = RadioProgramme(
         queue=Queue(source, random, Window(width=1), lookahead=lookahead),
         source=source,
@@ -48,6 +52,8 @@ def _playout(
         random=random,
         jingle_folder=folder,
         on_kind=lambda kind, piste, e: branche[0].on_kind(kind, piste, e),
+        control=control,
+        now_playing=radio.playing_track,
     )
     playout = LiquidsoapPlayout(
         programme,
@@ -331,6 +337,25 @@ def test_la_file_annonce_ce_qui_suit_et_l_encore_le_replace(tmp_path: Path) -> N
     assert playout.next_entry() == deuxieme
 
 
+def test_la_liste_montre_le_morceau_force_des_le_vote(tmp_path: Path) -> None:
+    """GOAL-067 : sans attendre que le diffuseur redemande, la liste dit ce que
+    l'encore a forcé — du même artiste que la chanson entendue — puis l'avance
+    replacée."""
+    catalogue = [*CATALOGUE, track("3", "Air", genre="électro")]
+    playout, radio, _clock = _playout(tmp_path, catalogue=catalogue)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier == "fake://1"  # Air, à l'antenne
+    playout.playing(premier)
+    assert playout.next_entry() == "fake://2"  # Bowie, l'avance du diffuseur
+
+    assert radio.vote(Vote.MORE).accepted
+
+    a_venir = [u.track.identifier for u in playout.upcoming() if u.track is not None]
+    assert a_venir[:2] == ["3", "2"]
+    assert playout.next_entry() == "fake://3"
+
+
 def test_l_a_suivre_saute_les_jingles(tmp_path: Path) -> None:
     """Dix secondes d'habillage ne sont pas « à suivre » : on annonce la
     musique que la file a déjà tirée derrière (GOAL-054)."""
@@ -379,7 +404,11 @@ def test_l_avance_replacee_ne_rejoue_pas_ce_qu_un_moment_fini_a_tire(tmp_path: P
     clock.advance(timedelta(hours=1, minutes=1))
     playout.stash_for_replay()
 
-    assert playout.up_next() is None
+    # La suite se tire à neuf sans attendre que le diffuseur redemande
+    # (GOAL-067) : ce qui suit est déjà sous la plage de 13 h.
+    a_suivre = playout.up_next()
+    assert a_suivre is not None and a_suivre[1] is not None
+    assert a_suivre[1].identifier == "2"
     assert playout.next_entry() == "fake://2", "tiré sous la plage de 13 h, pas replacé"
 
 

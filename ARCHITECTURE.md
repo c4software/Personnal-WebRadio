@@ -437,6 +437,14 @@ l'**horloge**.
 Conséquence pour le noyau : la file doit savoir qu'**un jingle de vote est dû**
 au même titre qu'un jingle horaire.
 
+**L'ancre de l'encore se prend au vote, pas à la jonction** (GOAL-067). Le
+noyau retient, avec le vote, la chanson que l'auditeur entendait ; la
+charnière (`app/playout.py`) résout le morceau forcé dès qu'elle se prépare,
+le sert après les jingles et le montre dans la liste des prochains titres. À
+la jonction, c'est déjà `encore.mp3` qui passe, et « le dernier morceau
+rendu » est l'avance du diffuseur — il y a toujours un titre d'écart
+(docs/liquidsoap.md §3) : lue là, l'ancre désignait la mauvaise chanson.
+
 **Quand plusieurs jingles sont dus à la même jonction, ils passent tous, à la
 suite** : les jingles horaires d'abord, dans l'ordre chronologique, puis
 `encore.mp3` en dernier — il annonce le morceau qui suit immédiatement et perdrait
