@@ -38,6 +38,12 @@
       .titre { font-size: 1.9rem; line-height: 1.2; margin-bottom: 0.5rem; overflow-wrap: anywhere; }
       .artiste { color: var(--sourdine); font-size: 1.15rem; }
       .moment { color: var(--accent); font-size: 0.9rem; margin-top: 0.8rem; }
+      .retirer {
+        margin-left: 0.6rem; padding: 0.15rem 0.6rem; font-size: 0.8rem;
+        border: 1px solid var(--accent); border-radius: 999px;
+        background: transparent; color: var(--accent);
+      }
+      .retirer[disabled] { opacity: 0.5; }
       .a-suivre { color: var(--sourdine); font-size: 0.9rem; margin-top: 0.4rem;
                   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .etat {
@@ -140,7 +146,9 @@
         <p class="nature">[[ antenne ? antenne.kind : "—" ]]</p>
         <h1 class="titre">[[ antenne ? (antenne.title || antenne.kind) : "Rien à l'antenne" ]]</h1>
         <p class="artiste">[[ antenne ? (antenne.artist || "") : "" ]]</p>
-        <p v-if="antenne && moment" class="moment">[[ moment ]]</p>
+        <p v-if="antenne && moment" class="moment">[[ moment ]]
+          <button v-if="momentRandom" type="button" class="retirer" :disabled="occupe" title="Tirer un autre thème au sort" @click="retirer()">Retirer</button>
+        </p>
         <p v-if="antenne && aSuivre" class="a-suivre">À suivre · [[ aSuivre.title || aSuivre.kind ]]<span v-if="aSuivre.artist"> — [[ aSuivre.artist ]]</span></p>
         <p v-if="message" class="etat" :class="issue">[[ message ]]</p>
         <p v-else-if="!antenne" class="etat">Personne n'écoute : la radio ne tourne pas.</p>
@@ -230,6 +238,7 @@
         history: {{ url_history | tojson }},
         stop: {{ url_stop | tojson }},
         encore: {{ url_encore | tojson }},
+        redraw: {{ url_redraw | tojson }},
       };
       const RAFRAICHISSEMENT_MS = {{ rafraichissement_ms | tojson }};
 
@@ -240,6 +249,7 @@
             onglet: "antenne",
             antenne: null,
             moment: null,
+            momentRandom: false,
             aSuivre: null,
             votes: [],
             planning: null,
@@ -349,6 +359,7 @@
               const donnees = await reponse.json();
               this.antenne = donnees.on_air && donnees.on_air_now ? donnees.on_air_now : null;
               this.moment = donnees.moment || null;
+              this.momentRandom = donnees.moment_random === true;
               this.aSuivre = donnees.up_next || null;
               if (this.issue === "") { this.message = ""; }
             } catch (erreur) {
@@ -449,6 +460,25 @@
             try {
               await fetch(this.urls.votes + "/" + vote.scope + "/" + encodeURIComponent(vote.key), { method: "DELETE" });
             } finally { this.chargerVotes(); }
+          },
+          async retirer() {
+            // Même chemin qu'un vote : l'API décide, la page affiche — et le
+            // moment rendu par la réponse s'affiche sans attendre le
+            // rafraîchissement suivant (GOAL-057).
+            this.occupe = true;
+            try {
+              const reponse = await fetch(this.urls.redraw, { method: "POST", headers: { Accept: "application/json" } });
+              const donnees = await reponse.json();
+              if (donnees.accepted) { this.moment = donnees.moment || this.moment; }
+              this.message = donnees.accepted ? "Retiré : " + (donnees.moment || "tirage libre") : donnees.reason;
+              this.issue = donnees.accepted ? "accepte" : "refus";
+            } catch (erreur) {
+              this.message = "L'API ne répond pas : " + erreur;
+              this.issue = "refus";
+            } finally {
+              this.occupe = false;
+              setTimeout(() => { this.message = ""; this.issue = ""; }, 4000);
+            }
           },
           async voter(url) {
             this.occupe = true;

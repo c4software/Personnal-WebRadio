@@ -380,3 +380,10 @@ def test_l_api_dit_si_le_moment_a_ete_tire_au_sort() -> None:
     radio = FakeRadio(on_air_now=MORCEAU)
     radio._moment_random = True
     assert client(radio).get("/api/on-air").get_json()["moment_random"] is True
+
+
+def test_la_page_pointe_vers_la_route_du_retirage() -> None:
+    """Le bouton « Retirer » passe par l'API, comme tout bouton (SPECS.md §4.8)."""
+    page = client(FakeRadio()).get("/").get_data(as_text=True)
+    assert "/api/moment/redraw" in page
+    assert "momentRandom" in page
