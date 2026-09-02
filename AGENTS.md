@@ -154,9 +154,10 @@ alors ni rejouer une soirée, ni vérifier qu'un jingle tombe à l'heure.
 - ❌ Laisser du code mort, une fonction inutilisée, un paramètre ignoré.
 - ❌ Écrire un `TODO` sans tâche correspondante dans [TASKS.md](./TASKS.md).
 - ❌ Écrire un commentaire qui n'apporte rien : une paraphrase du code, la
-  narration de la ligne suivante, une justification adressée à un relecteur. Un
-  commentaire énonce une contrainte ou un **pourquoi** que le code ne peut pas
-  montrer (§9).
+  narration de la ligne suivante, une justification adressée à un relecteur, une
+  anecdote, une citation, une date. Un commentaire énonce une contrainte ou un
+  **pourquoi** que le code ne peut pas montrer, dans le ton d'un développeur
+  ordinaire (§9).
 - ❌ Introduire une dépendance sans justification écrite dans le message de
   commit.
 - ❌ Anticiper : ne pas créer de structure « pour plus tard ». Une abstraction
@@ -457,6 +458,55 @@ Appliquées par `ruff` (mise en forme et analyse), `mypy` (types) et
   contrainte, une raison. Pas de paraphrase de la signature.
 - Un commentaire explique **pourquoi**, jamais **quoi**.
 
+#### Le ton : celui d'un développeur, pas d'un récit
+
+**Révisé le 2026-09-02.** Les commentaires et les docstrings sont écrits comme
+n'importe quel développeur les écrirait : des phrases courtes, directes,
+factuelles. Le style littéraire qui s'était installé (tirets cadratins, gras,
+majuscules d'insistance, formules imagées, citations de l'auteur, dates de
+découverte, anecdotes) a été réécrit d'un coup, sur tout le code, et ne doit
+pas revenir.
+
+Ce qu'une docstring dit : ce que fait la fonction, et ce qu'il faut savoir pour
+l'appeler (le cas `None`, l'exception levée, l'ordre attendu). Ce qu'un
+commentaire dit : la contrainte ou la raison que le code ne montre pas, avec
+sa référence (`SPECS.md §4.11`, `§7 n°30`, `GOAL-068`, `docs/ffmpeg.md §2.2`).
+
+Ce qui n'y entre pas :
+
+- les citations de l'auteur, les dates, le récit de la découverte d'un défaut,
+  les schémas d'exemple à base de titres de chansons : tout cela vit dans
+  SPECS.md, dans le message de commit ou dans l'archive des tâches, et une
+  référence suffit ;
+- ce que SPECS.md dit déjà en détail : on renvoie, on ne recopie pas ;
+- les tirets cadratins, le gras, les majuscules d'insistance, les points de
+  suspension, les guillemets « » pour mettre un mot en relief (ils ne servent
+  qu'à citer un libellé réel : le nom d'un mode, une chaîne affichée) ;
+- les noms d'identifiants qui n'existent plus : la prose cite les noms réels
+  du code, en backticks.
+
+Un commentaire qui ne dit rien que le code ne montre déjà se supprime. Une
+docstring qui paraphrase la signature d'une fonction privée aussi.
+
+Avant :
+
+```python
+        # `Jingles.dus()` s'épuise en le disant : il rend tout ce qui est dû et
+        # l'oublie. Ne consommer que le premier perdrait les autres — ce qui
+        # est exactement ce que SPECS.md §4.3 refuse quand un morceau long a
+        # enjambé deux heures. On garde donc ceux qu'on n'a pas encore servis.
+        self._en_attente: deque[str] = deque()
+```
+
+Après :
+
+```python
+        # `Jingles.due_now()` rend tous les jingles dus et les oublie. On garde
+        # ceux qui n'ont pas encore été servis, sinon un morceau long qui
+        # enjambe deux heures en perdrait un (SPECS.md §4.3).
+        self._en_attente: deque[str] = deque()
+```
+
 ### La langue : identifiants en anglais, prose en français
 
 **Révisé le 2026-08-30**, et c'est un renversement de la règle précédente
@@ -488,12 +538,12 @@ l'outillage lit et ce qu'un humain lit :
 Un exemple du style attendu :
 
 ```python
-def prochain_morceau(self) -> Piste:
-    """Un artiste ne peut pas revenir avant que trois autres soient passés.
+def next_track(self) -> Track:
+    """Le prochain morceau, en respectant la fenêtre de non-répétition.
 
-    Sans cette contrainte, un tirage uniforme sur une bibliothèque où un
-    artiste pèse lourd le fait réapparaître toutes les deux ou trois pistes,
-    ce qui s'entend immédiatement comme un défaut de la radio.
+    Un artiste ne revient pas avant que trois autres soient passés. Sans cette
+    contrainte, un artiste très présent dans la bibliothèque réapparaît toutes
+    les deux ou trois pistes, et ça s'entend (SPECS.md §4.2).
     """
 ```
 
