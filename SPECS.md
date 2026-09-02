@@ -330,7 +330,10 @@ diffuseur, le reliquat du morceau interrompu, l'habillage en attente de
 jonction, **et le morceau que la file avait déjà tiré** — et la radio repart
 sur un **tirage neuf**, comme à un démarrage. (Ce dernier manquait à l'appel
 jusqu'au 2026-09-02 : la file sert son avance sans regarder la contrainte, et
-un morceau tiré à 19 h serait passé au réveil du lendemain.)
+un morceau tiré à 19 h serait passé au réveil du lendemain. Et le reliquat
+l'était à deux secondes près : le fondu enchaîné du diffuseur les avait déjà
+lues, et les servait au premier auditeur — un micro-flash entendu le même
+jour à 13 h 20, docs/liquidsoap.md §10.)
 Seul un « encore » voté avant la pause survit : c'est une demande explicite
 (§4.6). En deçà du seuil, rien ne change : la reprise se fait sur l'avance,
 telle quelle. C'est cohérent avec « ce qui est passé est perdu » (§2).

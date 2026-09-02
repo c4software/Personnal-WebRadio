@@ -309,3 +309,46 @@ volume (témoin : −inf → −3,6 dB en une fenêtre). Comment fondre cette ba
       0,3 s : rien d'autre que les 5,4 s d'attente du tout premier morceau).
       Reste la question que seule l'oreille tranche : les ~2 s de fondu de
       sortie écourtées s'entendent-elles ?
+
+---
+
+## 10. Huitième relevé — le reliquat d'un saut à antenne vide (GOAL-055-T01, le 2026-09-02)
+
+> Même image (`v2.3.3`). Maquette : la chaîne de radio.liq sans HTTP —
+> `request.dynamic(prefetch=1)` → `normalize` → `crossfade(duration=2.)` →
+> `switch` sur les auditeurs → `amplify` du fondu de prise d'antenne — sur
+> trois tons purs de 20 s (a = 440 Hz, b = 660 Hz, c = 880 Hz). Un auditeur
+> à t=1 (a joue, b est l'avance), parti à t=5, puis à t=9 la purge de
+> reprise dans l'ordre de production : `set_queue([])`, `skip()`, compteur à 1.
+> Sortie WAV mesurée par fenêtres de 0,25 s : RMS, et fréquence dominante par
+> passages à zéro — c'est elle qui dit **quel** morceau passe.
+
+Motif : à 13 h 20, l'auteur a entendu un micro-flash du morceau interrompu à
+11 h 03. Le journal de production est sans ambiguïté — purge à 14.817, saut à
+14.819, bascule à 14.863, puis `cross: Analysis: -12.9 dB / -nan (1.99 s /
+0.00 s)` : deux secondes du morceau coupé, rien encore du suivant, et le
+morceau frais annoncé 2,1 s après la bascule.
+
+| Question | Constat |
+|---|---|
+| Que reste-t-il du morceau coupé après un `skip()` ordonné à antenne vide ? | **Ses deux dernières secondes lues.** `cross` tient `duration` de lecture d'avance ; le saut ne s'exécute qu'au premier tirage — donc après la bascule, quand l'auditeur écoute déjà — et ce tampon devient le `before` de la transition. Mesuré : 440 Hz de 9,0 à 9,75 s après la purge à 9,0, sous la rampe du fondu de prise d'antenne (−51 → −25 dB), puis 880 Hz. Le « reliquat coupé » de §5.bis et de SPECS.md §7 n°30 l'est donc à deux secondes près |
+| `on_track` du morceau frais comme signal pour lever un silence | **Trop tôt.** Il tombe à 9,26 s, quand `cross` commence à lire le suivant d'avance — **avant** que le reliquat soit joué. Un `amplify` muet jusqu'à ce `on_track` laisse passer 440 Hz de 9,25 à 9,5 s : le flash est atténué, pas supprimé. En production, où l'entrée fraîche a mis 0,7 s à se préparer, il serait tombé après ; on ne peut pas s'appuyer sur cet ordre |
+| La transition de `cross` | **Tient le reliquat en main.** `crossfade` est, dans `fades.liq` de la 2.3.3, un `cross(transition, s)` dont la transition appelle `cross.simple(fade_in, fade_out, initial_fade_in_metadata=b.metadata, initial_fade_out_metadata=a.metadata, a.source, b.source)`. Les deux sont publics. Une transition qui rend `b.source` seul quand un témoin le dit, et fait cet appel sinon, **jette le reliquat** : mesuré, aucune trace de 440 Hz après la purge, 880 Hz sous la rampe dès 9,25 s. La transition s'exécute 160 ms après la bascule ; ces 160 ms de reliquat passent sous un gain inférieur à 0,08 (−51 dB mesurés) |
+| Une transition à deux branches — `b.source` ou `cross.simple(...)` | **Acceptée** au typage et à l'exécution, contrairement à `fade.in(...)` contre `fun (_, b) -> b` dans les transitions d'un `switch` (§8) |
+| Des guillemets dans une interpolation `#{...}` | **Erreur d'analyse à position fausse** (« At line 2 »), comme le `def` sans `end` de §9. `"#{m["filename"]}"` refuse ; passer par une variable d'abord |
+
+### Ce que cela change
+
+- Le témoin du reliquat vit dans `radio.liq`, armé par le saut quand
+  `listeners() == 0` — la purge de reprise comme la fin d'un direct sans
+  auditeur — et consommé par la transition de `cross`.
+- `crossfade` cède la place à `cross` avec cette transition : mêmes fondus,
+  mêmes étiquettes `liq_fade_in`/`liq_fade_out` honorées, puisque c'est le
+  même appel.
+
+### Points incertains
+
+- [ ] Le morceau frais entre alors **sans fondu propre**, sous la seule rampe
+      de prise d'antenne (2 s, §8). Une entrée de morceau à froid s'entend
+      différemment d'un fondu enchaîné ; seule l'oreille dira si la rampe
+      suffit.

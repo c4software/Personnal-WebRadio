@@ -114,6 +114,31 @@ def test_la_fin_d_un_direct_jette_l_avance_rassie() -> None:
     assert "programme.set_queue([])" in code.split("vider_l_avance :=", 1)[1]
 
 
+def test_un_saut_a_antenne_vide_ne_laisse_aucun_reliquat_au_premier_auditeur() -> None:
+    """GOAL-055 : `cross` tient deux secondes déjà lues du morceau coupé, et un
+    saut ordonné sans auditeur ne s'exécute qu'au premier tirage — quand le
+    premier auditeur écoute déjà. Le 2026-09-02 à 13 h 20, un micro-flash du
+    morceau de 11 h 03 (docs/liquidsoap.md §10). La transition jette ce
+    reliquat ; le reste est l'appel même de `crossfade`."""
+    code = _code()
+    assert "reliquat_a_taire = ref(false)" in code
+    saut = re.search(r"def sauter\(\).*?\nend\n", code, re.DOTALL)
+    assert saut is not None
+    assert "if listeners() == 0 then reliquat_a_taire := true end" in saut.group()
+    assert "programme.skip()" in saut.group()
+    appels = re.findall(r"(?<!def )sauter\(\)", code)
+    assert len(appels) == 2, "le saut de l'API et celui de fin de direct passent par là"
+    transition = re.search(r"def enchainer\(a, b\).*?\nend\n", code, re.DOTALL)
+    assert transition is not None
+    assert re.search(
+        r"if reliquat_a_taire\(\) then.*?b\.source.*?else.*?cross\.simple\(",
+        transition.group(),
+        re.DOTALL,
+    )
+    assert "cross(duration=2., enchainer, programme)" in code
+    assert "crossfade(" not in code, "crossfade ne laisse pas choisir sa transition"
+
+
 def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
     """GOAL-034 : un encore accepté vide le morceau d'avance."""
     code = _code()

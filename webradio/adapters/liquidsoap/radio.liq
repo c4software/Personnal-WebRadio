@@ -187,11 +187,30 @@ programme.on_track(on_track)
 # fraîche dès son départ — 7 ms constatées, et la cascade avale l'instruction
 # de direct qui suivait (docs/liquidsoap.md §9). D'où le refus ici plutôt
 # qu'un garde-fou chez l'appelant, qui ne sait pas ce que ce processus tient.
+#
+# Le compteur d'auditeurs vit ici, avant le saut, parce que le saut a besoin
+# de savoir si quelqu'un écoute. Il est tenu plus bas, par le harbor.
+listeners = ref(0)
+
+# Un saut à antenne VIDE — la purge de reprise (SPECS.md §7 n°30), ou un
+# direct qui finit sans auditeur — ne s'exécute qu'au premier tirage, c'est
+# à dire quand le premier auditeur écoute déjà. Et `cross` tient en permanence
+# deux secondes déjà lues du morceau coupé : sans rien de plus, elles partent
+# en fondu de sortie sous le nez de cet auditeur. Constaté le 2026-09-02 à
+# 13 h 20 : un micro-flash du morceau de 11 h 03. Ce témoin dit à la
+# transition, plus bas, de jeter ce reliquat (docs/liquidsoap.md §10).
+reliquat_a_taire = ref(false)
+
+def sauter() =
+  if listeners() == 0 then reliquat_a_taire := true end
+  programme.skip()
+end
+
 def on_skip(request, response) =
   ignore(request)
   if piste_commencee() then
     log("saut demandé par l'API")
-    programme.skip()
+    sauter()
   else
     log("saut demandé à vide : rien ne passe, il mangerait le premier morceau")
   end
@@ -216,11 +235,27 @@ harbor.http.register(port=port, method="POST", "/requeue", on_requeue)
 vider_l_avance := fun () -> begin
   log("fin du direct : l'avance rassie est jetée, le reliquat coupé")
   programme.set_queue([])
-  if piste_commencee() then programme.skip() end
+  if piste_commencee() then sauter() end
 end
 
 programme = normalize(programme)
-programme = crossfade(duration=2., fade_in=1., fade_out=1., programme)
+
+# Le fondu enchaîné de `crossfade`, à une exception près : après un saut à
+# antenne vide, le reliquat du morceau coupé (`a`) est jeté et le morceau
+# frais entre seul — sous le fondu de prise d'antenne, plus bas. Le reste est
+# l'appel même que fait `crossfade` (fades.liq de la 2.3.3, docs/liquidsoap.md
+# §10) : mêmes fondus, mêmes étiquettes d'annotation honorées.
+def enchainer(a, b) =
+  if reliquat_a_taire() then
+    reliquat_a_taire := false
+    log("saut à antenne vide : le reliquat est jeté, le morceau frais entre seul")
+    b.source
+  else
+    cross.simple(fade_in=1., fade_out=1., initial_fade_in_metadata=b.metadata,
+                 initial_fade_out_metadata=a.metadata, a.source, b.source)
+  end
+end
+programme = cross(duration=2., enchainer, programme)
 
 # Le direct prend la main à la jonction, jamais au milieu d'un morceau
 # (SPECS.md §4.11), et la rend dès qu'il s'arrête — à la seconde, sans
@@ -253,8 +288,6 @@ on_air = switch(
 )
 
 # ── Rien n'est décodé ni demandé sans auditeur (SPECS.md §1) ────────────────
-listeners = ref(0)
-
 def announce_count(count) =
   answer = http.post(timeout=api_timeout, data="#{count}", "#{api}/playout/listeners")
   if answer.status_code != 204 then
