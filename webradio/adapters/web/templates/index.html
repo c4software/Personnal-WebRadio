@@ -40,7 +40,7 @@
           radial-gradient(50rem 36rem at 100% 25%, rgba(168, 85, 247, 0.3), transparent 60%),
           radial-gradient(46rem 40rem at 40% 110%, rgba(52, 211, 153, 0.18), transparent 60%);
       }
-      main { width: min(40rem, 100%); padding: 1.25rem 1.25rem 7.5rem; }
+      main { width: min(40rem, 100%); padding: 1.25rem 1.25rem 6.75rem; }
       button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
       button[disabled] { cursor: default; }
       .onglets { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
@@ -49,20 +49,51 @@
         background: transparent; color: var(--sourdine); font-size: 1rem;
       }
       .onglets button.actif { background: var(--carte); color: var(--texte); border-color: var(--accent); }
-      .nature {
-        display: inline-block; text-transform: uppercase; letter-spacing: 0.2em;
-        font-size: 0.7rem; color: var(--accent); border: 1px solid var(--bord);
-        border-radius: 999px; padding: 0.3rem 0.8rem; margin-bottom: 1rem;
+      /* La scène (GOAL-062) : ce qui passe, dans une carte de verre, et les
+         votes juste dessous — à portée de pouce, sans écran de vide. */
+      .carte {
+        background: var(--carte); border: 1px solid var(--bord); border-radius: var(--rayon);
+        backdrop-filter: var(--flou); -webkit-backdrop-filter: var(--flou); box-shadow: var(--reflet);
       }
-      .titre { font-size: 1.9rem; line-height: 1.2; margin-bottom: 0.5rem; overflow-wrap: anywhere; }
-      .artiste { color: var(--sourdine); font-size: 1.15rem; }
-      .moment { color: var(--accent); font-size: 0.9rem; margin-top: 0.8rem; }
+      .scene { padding: 1.25rem 1.25rem 0.5rem; }
+      .scene .entete { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
+      .nature {
+        display: inline-block; text-transform: uppercase; letter-spacing: 0.18em;
+        font-size: 0.68rem; font-weight: 600; color: var(--accent); background: rgba(110, 168, 255, 0.14);
+        border-radius: 999px; padding: 0.3rem 0.75rem;
+      }
+      .scene .etat-antenne { display: flex; align-items: center; gap: 0.4rem; color: var(--sourdine); font-size: 0.8rem; }
+      .titre { font-size: 1.9rem; line-height: 1.15; letter-spacing: -0.02em; font-weight: 700; overflow-wrap: anywhere; }
+      .artiste { color: var(--sourdine); font-size: 1.15rem; margin-top: 0.35rem; }
+      .moment { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 1rem; font-size: 0.9rem; color: var(--accent); }
       .retirer {
-        margin-left: 0.6rem; padding: 0.15rem 0.6rem; font-size: 0.8rem;
-        border: 1px solid var(--accent); border-radius: 999px;
-        background: transparent; color: var(--accent);
+        padding: 0.25rem 0.7rem; font-size: 0.8rem; border: 1px solid var(--bord-fort); border-radius: 999px;
+        background: var(--carte-forte); color: var(--texte);
       }
       .retirer[disabled] { opacity: 0.5; }
+      .a-suivre {
+        all: unset; cursor: pointer; display: flex; align-items: center; gap: 0.7rem; width: 100%;
+        margin-top: 1rem; padding: 0.8rem 0; border-top: 1px solid var(--bord); box-sizing: border-box;
+      }
+      .a-suivre .etiquette { flex: none; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--sourdine); }
+      .a-suivre .texte { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .a-suivre .chevron { flex: none; color: var(--sourdine); }
+      .scene.dort { padding-bottom: 1.25rem; }
+      .scene.dort .titre { font-size: 1.4rem; }
+      .scene.dort p { color: var(--sourdine); margin-top: 0.5rem; line-height: 1.45; }
+      .votes { display: flex; gap: 0.75rem; margin-top: 0.9rem; }
+      .votes button {
+        flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+        padding: 1rem; font-size: 1.05rem; font-weight: 600; border-radius: 1rem;
+        border: 1px solid var(--bord-fort); background: var(--carte-forte); color: var(--texte);
+        backdrop-filter: var(--flou); -webkit-backdrop-filter: var(--flou); box-shadow: var(--reflet);
+        transition: transform 0.15s ease;
+      }
+      .votes button svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
+      .votes button:active { transform: scale(0.97); }
+      .votes button[disabled] { opacity: 0.4; }
+      .votes .encore svg { color: var(--encore); }
+      .votes .passer svg { color: var(--stop); }
       /* La barre de lecture (GOAL-062) : fixe en bas, sur tous les onglets,
          sous le pouce — un bouton rond, ce qui passe, le témoin d'antenne.
          Le volume ne se montre que sur un écran large : un téléphone le
@@ -73,7 +104,7 @@
         background: var(--carte-forte); border: 1px solid var(--bord-fort); border-radius: 1.5rem;
         backdrop-filter: var(--flou); -webkit-backdrop-filter: var(--flou);
         box-shadow: var(--reflet), var(--ombre);
-        display: flex; align-items: center; gap: 0.8rem; padding: 0.6rem 0.6rem 0.6rem 0.75rem;
+        display: flex; flex-direction: column; padding: 0.6rem 0.6rem 0.6rem 0.75rem;
       }
       .barre .pochette {
         width: 3.25rem; height: 3.25rem; flex: none; border-radius: 0.9rem; display: grid; place-items: center;
@@ -109,59 +140,39 @@
         .ondes i { animation: none; height: 60%; }
         .temoin.attente { animation: none; }
       }
-      /* Tant que les votes sont fixés en bas, ils se posent au-dessus de la barre. */
-      main:has(.barre) { padding-bottom: 12.5rem; }
-      main:has(.barre) .boutons { bottom: 5.4rem; }
-      .a-suivre { color: var(--sourdine); font-size: 0.9rem; margin-top: 0.4rem;
-                  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      /* « À suivre » ouvre le tiroir des prochains titres (GOAL-058) : un
-         bouton qui ressemble au texte d'avant, avec un chevron. */
-      .a-suivre button { all: unset; cursor: pointer; display: flex; gap: 0.4rem; align-items: baseline;
-                         max-width: 100%; }
-      .a-suivre .texte { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .a-suivre .chevron { flex: none; }
-      .voile { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 5;
-               animation: apparaitre 0.2s ease-out; }
+      /* La liste des prochains titres se déploie depuis le lecteur (GOAL-062,
+         demandé par l'auteur) : la pilule grandit vers le haut, et un voile
+         couvre le reste de la page. */
+      .voile { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 3; animation: apparaitre 0.2s ease-out; }
       @keyframes apparaitre { from { opacity: 0; } to { opacity: 1; } }
-      @keyframes monter { from { transform: translate(-50%, 100%); } to { transform: translate(-50%, 0); } }
-      .tiroir {
-        animation: monter 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
-        position: fixed; inset: auto 0 0 0; z-index: 6; max-height: 75dvh; overflow-y: auto;
-        background: var(--carte); border-top: 1px solid var(--bord); border-radius: 1rem 1rem 0 0;
-        padding: 0.9rem 1.25rem max(1.25rem, env(safe-area-inset-bottom));
-        margin: 0 auto; width: min(40rem, 100%); left: 50%; transform: translateX(-50%);
-      }
-      .tiroir header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
-      .tiroir h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--texte); }
-      .tiroir .fermer { all: unset; cursor: pointer; color: var(--sourdine); padding: 0.4rem 0.6rem; font-size: 1.1rem; }
-      .prochain { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr) auto; gap: 0.6rem;
-                  align-items: center; padding: 0.45rem 0 0.45rem 0.6rem;
-                  border-left: 3px solid var(--bord); margin-bottom: 0.35rem; }
-      .prochain.musique-b { border-left-color: var(--accent); }
-      .prochain.prevu { border-left-style: dashed; }
+      @keyframes deplier { from { opacity: 0; transform: translateY(0.75rem); } to { opacity: 1; transform: none; } }
+      .liste { animation: deplier 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); padding: 0.5rem 0.4rem 0.25rem; }
+      .liste header { display: flex; justify-content: space-between; align-items: center; padding: 0.2rem 0.4rem 0.6rem; }
+      .liste h2 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--sourdine); }
+      .liste .fermer { all: unset; cursor: pointer; color: var(--sourdine); padding: 0.3rem 0.5rem; font-size: 1rem; }
+      .liste .defile { max-height: 50dvh; overflow-y: auto; }
+      .prochain { display: grid; grid-template-columns: 3.2rem minmax(0, 1fr) auto; gap: 0.6rem;
+                  align-items: center; padding: 0.5rem 0.4rem; }
+      .prochain + .prochain { border-top: 1px solid var(--bord); }
       .prochain.prevu .titre-histoire { color: var(--sourdine); font-style: italic; }
-      .prochain .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+      .prochain .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.85rem; }
       .prochain .oubli { all: unset; cursor: pointer; color: var(--sourdine); padding: 0.4rem 0.6rem;
-                         border-radius: 0.4rem; border: 1px solid var(--bord); font-size: 0.9rem; }
+                         border-radius: 0.6rem; border: 1px solid var(--bord); font-size: 0.9rem; }
       .prochain .oubli[disabled] { opacity: 0.4; }
+      .liste .vide { padding: 1rem 0; }
+      .barre .commandes { display: flex; align-items: center; gap: 0.8rem; }
+      .barre .ouvrir-liste {
+        width: 2.6rem; height: 2.6rem; border-radius: 999px; flex: none; border: 1px solid var(--bord);
+        background: var(--carte); color: var(--sourdine); display: grid; place-items: center;
+      }
+      .barre .ouvrir-liste.actif { color: var(--texte); background: var(--carte-forte); border-color: var(--bord-fort); }
+      .barre .ouvrir-liste svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
       .etat {
-        margin-top: 1.25rem; padding: 0.8rem 1rem; border-radius: 0.6rem;
+        margin-top: 0.9rem; padding: 0.8rem 1rem; border-radius: 1rem;
         background: var(--carte); border: 1px solid var(--bord); color: var(--sourdine);
       }
       .etat.refus { border-color: var(--refus); color: var(--texte); }
       .etat.accepte { border-color: var(--accepte); color: var(--texte); }
-      .boutons {
-        position: fixed; inset: auto 0 0 0; display: flex; gap: 0.75rem;
-        padding: 1rem max(1.25rem, env(safe-area-inset-left)) max(1.25rem, env(safe-area-inset-bottom));
-        background: linear-gradient(transparent, var(--fond) 35%);
-        justify-content: center;
-      }
-      .boutons button {
-        flex: 1; max-width: 18rem; padding: 1.1rem; font-size: 1.15rem; font-weight: 600;
-        border-radius: 0.8rem; border: 1px solid var(--bord); background: var(--carte); color: var(--texte);
-      }
-      .boutons button:active { background: #222831; }
-      .boutons button[disabled] { opacity: 0.5; }
       .vote { background: var(--carte); border: 1px solid var(--bord); border-radius: 0.6rem;
               padding: 0.7rem 0.9rem; margin-bottom: 0.6rem; }
       .vote .cible { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.45rem; }
@@ -241,20 +252,44 @@
       </nav>
 
       <section v-if="onglet === 'antenne'">
-        <p class="nature">[[ antenne ? antenne.kind : "—" ]]</p>
-        <h1 class="titre">[[ antenne ? (antenne.title || antenne.kind) : "Rien à l'antenne" ]]</h1>
-        <p class="artiste">[[ antenne ? (antenne.artist || "") : "" ]]</p>
-        <p v-if="antenne && moment" class="moment">[[ moment ]]
-          <button v-if="momentRandom" type="button" class="retirer" :disabled="occupe" title="Tirer un autre thème au sort" @click="retirer()">Retirer</button>
-        </p>
-        <p v-if="antenne && aSuivre" class="a-suivre">
-          <button type="button" title="Voir les prochains titres" @click="ouvrirTiroir()">
-            <span class="texte">À suivre · [[ aSuivre.title || aSuivre.kind ]]<span v-if="aSuivre.artist"> — [[ aSuivre.artist ]]</span></span>
-            <span class="chevron">▴</span>
+        <article v-if="antenne" class="carte scene">
+          <header class="entete">
+            <span class="nature">[[ antenne.kind ]]</span>
+            <span class="etat-antenne"><i class="temoin direct"></i> en direct</span>
+          </header>
+          <h1 class="titre">[[ antenne.title || antenne.kind ]]</h1>
+          <p v-if="antenne.artist" class="artiste">[[ antenne.artist ]]</p>
+          <p v-if="moment" class="moment"><span>[[ moment ]]</span>
+            <button v-if="momentRandom" type="button" class="retirer" :disabled="occupe" title="Tirer un autre thème au sort" @click="retirer()">Retirer</button>
+          </p>
+          <button v-if="aSuivre" type="button" class="a-suivre" title="Voir les prochains titres" @click="ouvrirTiroir()">
+            <span class="etiquette">À suivre</span>
+            <span class="texte">[[ aSuivre.title || aSuivre.kind ]]<span v-if="aSuivre.artist"> — [[ aSuivre.artist ]]</span></span>
+            <span class="chevron">›</span>
           </button>
-        </p>
+        </article>
+        <article v-else class="carte scene dort">
+          <header class="entete">
+            <span class="nature">en veille</span>
+            <span class="etat-antenne"><i class="temoin"></i> personne n'écoute</span>
+          </header>
+          <h1 class="titre">La radio dort</h1>
+          <p>Elle ne tourne que si quelqu'un l'écoute.[[ flux ? " Appuyez sur le bouton de lecture pour la réveiller." : "" ]]</p>
+        </article>
+        <!-- Un jingle, un flash ou une émission refuseraient le vote de toute
+             façon (SPECS.md §4.6) : autant griser les boutons plutôt que de
+             récolter un refus. L'API reste le juge — ceci n'est que du confort. -->
+        <div class="votes">
+          <button type="button" class="passer" :disabled="occupe || voteImpossible" @click="voter(urls.stop)">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.2v9.6a1 1 0 0 0 1.53.85L10.5 9.6v3.2a1 1 0 0 0 1.53.85l1.47-.92V3.27l-1.47-.92A1 1 0 0 0 10.5 3.2v3.2L4.03 2.35A1 1 0 0 0 2.5 3.2z" /></svg>
+            Passer
+          </button>
+          <button type="button" class="encore" :disabled="occupe || voteImpossible" @click="voter(urls.encore)">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.2 2.6 8.9a3.6 3.6 0 0 1 5.1-5.1L8 4.1l.3-.3a3.6 3.6 0 0 1 5.1 5.1L8 14.2z" /></svg>
+            Encore
+          </button>
+        </div>
         <p v-if="message" class="etat" :class="issue">[[ message ]]</p>
-        <p v-else-if="!antenne" class="etat">Personne n'écoute : la radio ne tourne pas.</p>
       </section>
 
       <section v-else-if="onglet === 'votes'">
@@ -318,64 +353,64 @@
       </section>
 
       <div v-if="tiroir" class="voile" @click="tiroir = false"></div>
-      <aside v-if="tiroir" class="tiroir" aria-label="Prochains titres">
-        <header>
-          <h2>Prochains titres</h2>
-          <button type="button" class="fermer" title="Fermer" @click="tiroir = false">✕</button>
-        </header>
-        <p v-if="prochains.length === 0" class="vide">Rien d'annoncé pour l'instant.</p>
-        <!-- Une ligne par entrée, dans l'ordre de passage : l'heure estimée,
-             ce qui passe, et — pour un titre déjà tiré — le bouton qui le
-             retire. L'habillage prévu (jingle, générique) se voit en
-             pointillé : il n'est pas encore décidé. -->
-        <div v-for="(e, i) in prochains" :key="e.identifier || (e.title + i)" class="prochain"
-             :class="[e.kind === 'musique' ? 'musique-b' : 'emission-b', { prevu: e.expected }]">
-          <span class="heure">[[ e.at || "—" ]]</span>
-          <div class="corps">
-            <span class="titre-histoire">[[ e.title || e.kind ]]</span>
-            <span v-if="e.artist" class="sous-titre">[[ e.artist ]]</span>
-            <span v-else class="sous-titre">[[ e.expected ? "prévu · " + e.kind : e.kind ]]</span>
-          </div>
-          <button v-if="e.identifier" type="button" class="oubli" title="Ne passera pas"
-                  :disabled="occupe" @click="ecarter(e)">✕</button>
-          <span v-else></span>
-        </div>
-      </aside>
-
-      <div class="boutons" v-if="onglet === 'antenne'">
-        <!-- Un jingle, un flash ou une émission refuseraient le vote de toute
-             façon (SPECS.md §4.6) : autant griser les boutons plutôt que de
-             récolter un refus. L'API reste le juge — ceci n'est que du confort. -->
-        <button type="button" :disabled="occupe || voteImpossible" @click="voter(urls.stop)">Passer</button>
-        <button type="button" :disabled="occupe || voteImpossible" @click="voter(urls.encore)">Encore</button>
-      </div>
 
       <!-- La barre de lecture (GOAL-062), hors des onglets : elle reste là
-           quand on passe aux votes ou au planning. Le lecteur ne charge rien
-           tant qu'on n'écoute pas (preload="none") : la page ouverte sur un
-           téléphone ne doit pas brancher un auditeur à l'insu de tous — la
-           radio ne tourne que si quelqu'un écoute. -->
-      <footer v-if="flux" class="barre" aria-label="Lecteur">
-        <div class="pochette" aria-hidden="true">
-          <span v-if="ecoute" class="ondes"><i></i><i></i><i></i><i></i></span>
-          <svg v-else viewBox="0 0 16 16"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h9A1.5 1.5 0 0 1 14 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-7zm2.5 6.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9 7h3v1H9V7zm0 2h3v1H9V9zM4 1.3l7 2.2-.3.9L3.7 2.2 4 1.3z" /></svg>
+           quand on passe aux votes ou au planning, et la liste des prochains
+           titres se déploie dedans. Le lecteur lui-même n'existe que si le
+           TOML déclare un flux ; il ne charge rien tant qu'on n'écoute pas
+           (preload="none") : la page ouverte sur un téléphone ne doit pas
+           brancher un auditeur à l'insu de tous — la radio ne tourne que si
+           quelqu'un écoute. -->
+      <footer class="barre" aria-label="Lecteur">
+        <section v-if="tiroir" class="liste" aria-label="Prochains titres">
+          <header>
+            <h2>Prochains titres</h2>
+            <button type="button" class="fermer" title="Fermer" @click="tiroir = false">✕</button>
+          </header>
+          <div class="defile">
+            <p v-if="prochains.length === 0" class="vide">Rien d'annoncé pour l'instant.</p>
+            <!-- Une ligne par entrée, dans l'ordre de passage : l'heure estimée,
+                 ce qui passe, et — pour un titre déjà tiré — le bouton qui le
+                 retire. L'habillage prévu (jingle, générique) se voit en
+                 italique : il n'est pas encore décidé. -->
+            <div v-for="(e, i) in prochains" :key="e.identifier || (e.title + i)" class="prochain" :class="{ prevu: e.expected }">
+              <span class="heure">[[ e.at || "—" ]]</span>
+              <div class="corps">
+                <span class="titre-histoire">[[ e.title || e.kind ]]</span>
+                <span v-if="e.artist" class="sous-titre">[[ e.artist ]]</span>
+                <span v-else class="sous-titre">[[ e.expected ? "prévu · " + e.kind : e.kind ]]</span>
+              </div>
+              <button v-if="e.identifier" type="button" class="oubli" title="Ne passera pas"
+                      :disabled="occupe" @click="ecarter(e)">✕</button>
+              <span v-else></span>
+            </div>
+          </div>
+        </section>
+        <div class="commandes">
+          <div class="pochette" aria-hidden="true">
+            <span v-if="ecoute" class="ondes"><i></i><i></i><i></i><i></i></span>
+            <svg v-else viewBox="0 0 16 16"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h9A1.5 1.5 0 0 1 14 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-7zm2.5 6.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9 7h3v1H9V7zm0 2h3v1H9V9zM4 1.3l7 2.2-.3.9L3.7 2.2 4 1.3z" /></svg>
+          </div>
+          <div class="ligne">
+            <span class="quoi">[[ ligneDeLaBarre ]]</span>
+            <span class="detail">
+              <i class="temoin" :class="{ direct: antenne !== null && !attente, attente: attente }"></i>
+              <span class="texte">[[ detailDeLaBarre ]]</span>
+            </span>
+          </div>
+          <label v-if="flux" class="volume" title="Volume">
+            <span aria-hidden="true">🔈</span>
+            <input type="range" min="0" max="1" step="0.05" aria-label="Volume" v-model.number="volume" @input="reglerVolume()" />
+          </label>
+          <button type="button" class="ouvrir-liste" :class="{ actif: tiroir }" title="Prochains titres" aria-label="Prochains titres" @click="ouvrirTiroir()">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3.5h12v1.6H2zM2 7.2h12v1.6H2zM2 10.9h8v1.6H2zM12 10v3.2l2.5-1.6z" /></svg>
+          </button>
+          <button v-if="flux" type="button" class="jouer" :title="ecoute || attente ? 'Couper' : 'Écouter'" :aria-label="ecoute || attente ? 'Couper' : 'Écouter'" @click="basculerEcoute()">
+            <svg v-if="ecoute || attente" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" /></svg>
+            <svg v-else viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.6v10.8a1 1 0 0 0 1.5.86l9-5.4a1 1 0 0 0 0-1.72l-9-5.4a1 1 0 0 0-1.5.86z" /></svg>
+          </button>
+          <audio v-if="flux" ref="audio" preload="none" :src="flux" @playing="prendreAntenne()" @pause="ecoute = false" @error="erreurDeFlux()"></audio>
         </div>
-        <div class="ligne">
-          <span class="quoi">[[ ligneDeLaBarre ]]</span>
-          <span class="detail">
-            <i class="temoin" :class="{ direct: antenne !== null && !attente, attente: attente }"></i>
-            <span class="texte">[[ detailDeLaBarre ]]</span>
-          </span>
-        </div>
-        <label class="volume" title="Volume">
-          <span aria-hidden="true">🔈</span>
-          <input type="range" min="0" max="1" step="0.05" aria-label="Volume" v-model.number="volume" @input="reglerVolume()" />
-        </label>
-        <button type="button" class="jouer" :title="ecoute || attente ? 'Couper' : 'Écouter'" :aria-label="ecoute || attente ? 'Couper' : 'Écouter'" @click="basculerEcoute()">
-          <svg v-if="ecoute || attente" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" /></svg>
-          <svg v-else viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.6v10.8a1 1 0 0 0 1.5.86l9-5.4a1 1 0 0 0 0-1.72l-9-5.4a1 1 0 0 0-1.5.86z" /></svg>
-        </button>
-        <audio ref="audio" preload="none" :src="flux" @playing="prendreAntenne()" @pause="ecoute = false" @error="erreurDeFlux()"></audio>
       </footer>
     </main>
 
@@ -443,7 +478,7 @@
             // La barre dit ce qui passe, d'où qu'on la regarde ; sans antenne,
             // elle dit ce qu'appuyer ferait.
             if (this.attente) { return "Prise d'antenne…"; }
-            if (this.antenne === null) { return "Écouter la radio"; }
+            if (this.antenne === null) { return this.flux ? "Écouter la radio" : "Personne n'écoute"; }
             const a = this.antenne;
             return (a.title || a.kind) + (a.artist ? " — " + a.artist : "");
           },
@@ -699,8 +734,9 @@
             });
           },
           ouvrirTiroir() {
-            this.tiroir = true;
-            this.chargerProchains();
+            // Le même bouton ouvre et referme : la liste vit dans le lecteur.
+            this.tiroir = !this.tiroir;
+            if (this.tiroir) { this.chargerProchains(); }
           },
           async chargerProchains() {
             try {

@@ -102,7 +102,7 @@ ont été validées par l'auteur le 2026-09-01.
 jusqu'aux votes collés en bas. Le lecteur devient une barre fixe, l'antenne
 une carte, et les votes viennent juste dessous.
 
-**Prochaine tâche** : GOAL-062-T02.
+**Prochaine tâche** : GOAL-062-T03.
 
 **Reste aussi** : l'écoute de GOAL-050 et GOAL-051, qui n'ont atteint la
 production que le 2026-09-02 (GOAL-053).
@@ -207,11 +207,11 @@ noir.
       quand l'écran est assez large. La règle de GOAL-060 ne change pas :
       rien n'est chargé avant le geste, couper décharge. **Écouter** depuis
       un téléphone : la barre reste sous le pouce quand on change d'onglet.
-- [ ] **GOAL-062-T02** — L'onglet « À l'antenne » en carte : nature, titre,
+- [x] **GOAL-062-T02** — L'onglet « À l'antenne » en carte : nature, titre,
       artiste, moment et « Retirer », « À suivre » en ligne ouvrable, et
       « Passer » / « Encore » juste dessous — plus de vide entre le contenu et
       les boutons ; sans auditeur, la carte dit qu'il suffit d'écouter.
-- [ ] **GOAL-062-T03** — Un en-tête et des onglets segmentés communs, des
+- [-] **GOAL-062-T03** — Un en-tête et des onglets segmentés communs, des
       cartes unifiées sur Votes, Planning, Historique et le tiroir ;
       SPECS.md §4.8 ; clôture.
 

@@ -492,10 +492,22 @@ def test_le_lecteur_est_une_barre_hors_des_onglets() -> None:
     rester sous le pouce quand on passe aux votes ou au planning ; et les
     commandes de l'écran de verrouillage passent par le même bouton."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
-    assert '<footer v-if="flux" class="barre"' in page
+    assert '<footer class="barre"' in page
+    assert '<button v-if="flux" type="button" class="jouer"' in page
     assert 'class="lecteur"' not in page
     assert page.index('class="barre"') > page.index("<section v-else>")
     assert "setActionHandler(action, () => this.basculerEcoute())" in page
+
+
+def test_les_prochains_titres_se_deploient_dans_le_lecteur() -> None:
+    """GOAL-062-T02, demandé par l'auteur : la liste vit dans la barre, avec
+    son bouton ; et les votes suivent la scène au lieu d'être fixés en bas."""
+    page = client(FakeRadio()).get("/").get_data(as_text=True)
+    assert 'class="tiroir"' not in page
+    assert page.index('class="liste"') > page.index('<footer class="barre"')
+    assert 'class="ouvrir-liste"' in page
+    assert 'class="boutons"' not in page
+    assert page.index('class="votes"') < page.index("<section v-else-if=\"onglet === 'votes'\">")
 
 
 def test_la_page_grise_les_votes_sans_auditeur() -> None:
