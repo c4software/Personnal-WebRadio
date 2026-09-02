@@ -2227,3 +2227,38 @@ avec la même fonction, `_servi_a_partir_de`.
 - [x] **GOAL-070-T01** — La liste estime avec le report de la préparation,
       nomme le direct qui coupe, reprend après lui ; SPECS.md §4.8. Le test
       a été vu échouer report retiré.
+
+## GOAL-071 — Une plage `era_fan` choisit ses décennies
+
+Ouvert le 2026-09-02 après un audit de la grille de l'auteur confrontée à la
+bibliothèque réelle, plage par plage.
+
+**Ce que l'audit a montré** : la plage de 12 h porte `era_fan`, qui enchaîne
+deux à six titres d'une même décennie. Son vivier — Pop, Pop indé française,
+Folk, Folk Pop — compte **un** titre des années 1970 et sept des années 1990,
+contre 91, 126 et 42 pour les décennies 2000, 2010 et 2020. Une vague ancrée
+sur 1970 se rompait au titre suivant, sans que rien ne le distingue d'un
+tirage ordinaire.
+
+**Décision : le filtre s'applique avant l'ancre, pas après.** Écarter une
+décennie au moment où la suite se poursuit aurait laissé la vague s'ancrer
+hors des décennies déclarées, puis se rompre — exactement le défaut à
+corriger. `core/queue.py` filtre donc les candidats au moment où ils sont
+établis, avant que `core/runs.py` ne pose son ancre.
+
+**Portée** : `eras` borne les candidats de n'importe quelle plage, pas
+seulement d'une plage `era_fan`. Restreindre la clé au mode aurait demandé une
+règle de validation de plus pour interdire un usage qui marche.
+
+Les pistes sans année sont écartées d'une plage bornée, faute d'appartenir à
+une décennie (6,7 % de la bibliothèque). Sans rien dans les décennies
+déclarées, la plage les ignore en le journalisant plutôt que de se taire, comme
+une plage sans musique (SPECS.md §4.4).
+
+- [x] **GOAL-071-T01** — Une plage porte ses décennies et le tirage s'y tient :
+      `Band.eras`, `Constraint.eras`, filtre dans `core/queue.py`, repli
+      journalisé quand la plage n'a rien dans ces décennies ; SPECS.md §4.4.
+      Les quatre tests ont été vus échouer filtre retiré.
+- [x] **GOAL-071-T02** — La clé `eras` du TOML : schéma, chargeur, câblage
+      `app/main.py`, SPECS.md §6, `webradio.exemple.toml`. Le test de câblage a
+      été vu échouer `eras=p.eras` retiré.

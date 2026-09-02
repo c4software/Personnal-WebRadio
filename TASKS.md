@@ -132,19 +132,13 @@ introduit le jour même par GOAL-068-T04 s'appliquait à la préparation mais pa
 d'après un direct, et se coupait sans rien dire. Elle applique le même report,
 nomme le direct qui coupe et reprend après lui. **Aucun Goal ouvert.**
 
-**GOAL-071 est ouvert le 2026-09-02**, après un audit de la grille contre la
-bibliothèque réelle : la plage de 12 h porte `era_fan`, mais son vivier ne
-compte qu'**un** titre des années 1970 et sept des années 1990, quand une vague
-en demande deux à six. La plage se rompt à peine ouverte, sans que rien ne le
-dise. Une plage pourra déclarer les décennies dans lesquelles elle tire.
-
-- [x] **GOAL-071-T01** — Une plage porte ses décennies et le tirage s'y tient :
-      `Band.eras`, `Constraint.eras`, filtre dans `core/queue.py`, repli
-      journalisé quand la plage n'a rien dans ces décennies ; SPECS.md §4.4.
-      Les quatre tests ont été vus échouer filtre retiré.
-- [x] **GOAL-071-T02** — La clé `eras` du TOML : schéma, chargeur, câblage
-      `app/main.py`, SPECS.md §6, `webradio.exemple.toml`. Le test de câblage a
-      été vu échouer `eras=p.eras` retiré.
+**GOAL-071 est clos le 2026-09-02** : une plage déclare les décennies où elle
+tire (`eras`), et le filtre s'applique avant que l'ancre d'une vague ne se
+tire. Ouvert après un audit de la grille contre la bibliothèque réelle, qui
+avait montré une plage `era_fan` dont le vivier ne compte qu'un titre d'une
+décennie quand une vague en demande deux à six. **Aucun Goal ouvert.**
+**Reste à écouter** (AGENTS.md §4.1) la plage de 12 h : qu'une vague bornée
+s'entende comme une vague, et non comme un vivier rétréci.
 
 **Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
@@ -224,7 +218,7 @@ dise. Une plage pourra déclarer les décennies dans lesquelles elle tire.
 | GOAL-068 | La grille effective : les périodes fusionnent, la plus courte l'emporte | `[x]` — clos le 2026-09-02 ; **reste à écouter** la jonction de 20 h et la reprise après un programme |
 | GOAL-069 | Le picto de volume est dessiné, comme les autres | `[x]` — clos le 2026-09-02 |
 | GOAL-070 | La liste des prochains titres ne se coupe plus en silence | `[x]` — clos le 2026-09-02 |
-| GOAL-071 | Une plage `era_fan` choisit ses décennies | `[-]` — ouvert le 2026-09-02 |
+| GOAL-071 | Une plage `era_fan` choisit ses décennies | `[x]` — clos le 2026-09-02 ; **reste à écouter** la plage de 12 h |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
