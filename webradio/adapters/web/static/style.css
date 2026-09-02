@@ -252,7 +252,7 @@ button[disabled] { cursor: default; }
 @keyframes entrer { from { opacity: 0; transform: translateY(0.5rem); } to { opacity: 1; transform: none; } }
 .prochain, .vote, .jour, .ligne-histoire, .evenement {
   animation: entrer 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-  animation-delay: calc(var(--i, 0) * 45ms);
+  animation-delay: calc(var(--i, 0) * 10ms);
 }
 .onglet-enter-active { transition: opacity 0.22s ease, transform 0.28s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .onglet-leave-active { transition: opacity 0.14s ease, transform 0.14s ease; }
