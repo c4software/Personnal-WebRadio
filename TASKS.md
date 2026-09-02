@@ -144,5 +144,5 @@ date, la page groupe deux journées sous la même heure et l'ordre paraît faux.
 - [x] **GOAL-052-T01** — L'entrée du journal porte sa date, pas seulement son
       heure : `PlayedEntry` gagne le jour, l'API le rend, et le contrat de
       SPECS.md §4.8 le dit.
-- [ ] **GOAL-052-T02** — La page sépare les journées : une heure d'aujourd'hui
+- [x] **GOAL-052-T02** — La page sépare les journées : une heure d'aujourd'hui
       et la même heure d'hier ne se suivent plus sans le dire.

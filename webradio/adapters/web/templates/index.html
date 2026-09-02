@@ -166,9 +166,9 @@
 
       <section v-else-if="onglet === 'historique'">
         <p v-if="historique.length === 0" class="vide">Rien encore : le journal commence maintenant.</p>
-        <nav v-if="heures.length > 1" class="pagination">
-          <button type="button" :disabled="pageHeure >= heures.length - 1" @click="pageHeure += 1">‹</button>
-          <span>[[ heures[pageHeure] ]] h</span>
+        <nav v-if="pagesHistorique.length > 1" class="pagination">
+          <button type="button" :disabled="pageHeure >= pagesHistorique.length - 1" @click="pageHeure += 1">‹</button>
+          <span>[[ titreDeLaPage ]]</span>
           <button type="button" :disabled="pageHeure <= 0" @click="pageHeure -= 1">›</button>
         </nav>
         <div v-for="(e, i) in pageHistorique" :key="i" class="ligne-histoire" :class="e.kind === 'musique' ? 'moment-b' : 'emission-b'">
@@ -257,15 +257,30 @@
           voteImpossible() {
             return this.antenne !== null && this.antenne.kind !== "musique";
           },
-          heures() {
-            // Les heures présentes au journal, de la plus récente à la plus
+          pagesHistorique() {
+            // Une page par JOUR et par heure, de la plus récente à la plus
             // ancienne — le journal est borné à 24 h, la page l'offre heure
-            // par heure (demandé par l'auteur).
-            return [...new Set(this.historique.map((e) => e.at.slice(0, 2)))];
+            // par heure (demandé par l'auteur). Le jour n'est pas un détail :
+            // vingt-quatre heures contiennent deux fois la même heure, et
+            // grouper sur l'heure seule empilait hier sous aujourd'hui.
+            const pages = [];
+            for (const e of this.historique) {
+              const jour = e.on, heure = e.at.slice(0, 2);
+              if (!pages.some((p) => p.jour === jour && p.heure === heure)) {
+                pages.push({ jour, heure });
+              }
+            }
+            return pages;
           },
           pageHistorique() {
-            const heure = this.heures[this.pageHeure];
-            return this.historique.filter((e) => e.at.slice(0, 2) === heure);
+            const page = this.pagesHistorique[this.pageHeure];
+            if (page === undefined) { return []; }
+            return this.historique.filter((e) => e.on === page.jour && e.at.slice(0, 2) === page.heure);
+          },
+          titreDeLaPage() {
+            const page = this.pagesHistorique[this.pageHeure];
+            if (page === undefined) { return ""; }
+            return page.heure + " h" + this.suffixeDuJour(page.jour);
           },
           semaine() {
             // La récurrence se lit par JOUR, pas par type : chaque jour de la
@@ -358,6 +373,20 @@
             if (nom === "votes") { this.chargerVotes(); }
             if (nom === "planning") { this.chargerPlanning(); }
             if (nom === "historique") { this.ouvrirHistorique(); }
+          },
+          jourDe(date) {
+            const deuxChiffres = (n) => String(n).padStart(2, "0");
+            return date.getFullYear() + "-" + deuxChiffres(date.getMonth() + 1) + "-" + deuxChiffres(date.getDate());
+          },
+          suffixeDuJour(jour) {
+            // Aujourd'hui ne se nomme pas — c'est le cas courant, et le dire
+            // alourdirait chaque page. Hier se nomme, sinon on croit lire
+            // deux fois la même heure.
+            if (jour === this.jourDe(this.maintenant)) { return ""; }
+            const veille = new Date(this.maintenant);
+            veille.setDate(veille.getDate() - 1);
+            if (jour === this.jourDe(veille)) { return " · hier"; }
+            return " · " + jour.slice(8, 10) + "/" + jour.slice(5, 7);
           },
           ouvrirVotes() { this.onglet = "votes"; this.chargerVotes(); },
           async ouvrirHistorique() {

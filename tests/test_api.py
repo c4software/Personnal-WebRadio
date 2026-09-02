@@ -313,6 +313,16 @@ def test_l_historique_se_lit_du_plus_recent_au_plus_ancien() -> None:
     }
 
 
+def test_la_page_range_le_journal_par_jour_et_par_heure() -> None:
+    """GOAL-052 : le journal couvre 24 h, donc deux fois la même heure. Grouper
+    sur l'heure seule empilait le 08 h d'hier sous celui d'aujourd'hui, et
+    l'ordre paraissait faux alors qu'il ne l'était pas."""
+    page = client(FakeRadio()).get("/").data
+    assert b"pagesHistorique" in page
+    assert b"p.jour === jour && p.heure === heure" in page
+    assert b"suffixeDuJour" in page
+
+
 def test_sans_historique_la_liste_est_vide_pas_une_erreur() -> None:
     assert client(FakeRadio()).get("/api/history").get_json() == {"history": []}
 
