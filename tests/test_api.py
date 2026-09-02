@@ -515,3 +515,11 @@ def test_la_page_grise_les_votes_sans_auditeur() -> None:
     dont l'effet serait invisible — sans antenne, rien sur quoi voter."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert 'this.antenne === null || this.antenne.kind !== "musique"' in page
+
+
+def test_sans_antenne_la_page_n_affiche_pas_de_carte_de_veille() -> None:
+    """GOAL-063-T01 : la barre dit déjà que personne n'écoute — une carte
+    « La radio dort » en plus était de trop (l'auteur)."""
+    page = client(FakeRadio()).get("/").get_data(as_text=True)
+    assert "La radio dort" not in page
+    assert "dort" not in page

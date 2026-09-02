@@ -90,7 +90,7 @@ l'antenne est une carte, les votes juste dessous. **Aucun Goal ouvert.**
 application, porte une icône et dit dans son titre ce qui passe ; la carte
 « La radio dort » est retirée.
 
-**Prochaine tâche** : GOAL-063-T01.
+**Prochaine tâche** : GOAL-063-T02.
 
 ---
 
@@ -173,9 +173,9 @@ Demandé par l'auteur le 2026-09-02, en validant GOAL-062. Trois ajouts et
 un retrait : la carte « La radio dort » — « c'est con » — disparaît ; la
 barre dit déjà que personne n'écoute.
 
-- [ ] **GOAL-063-T01** — Retirer la carte « La radio dort » : sans antenne,
+- [x] **GOAL-063-T01** — Retirer la carte « La radio dort » : sans antenne,
       l'onglet Antenne ne montre que les votes grisés, la barre dit le reste.
-- [ ] **GOAL-063-T02** — Une icône (favicon SVG) et un titre de page qui dit
+- [-] **GOAL-063-T02** — Une icône (favicon SVG) et un titre de page qui dit
       ce qui passe — titre et artiste dans l'onglet du navigateur, mis à jour
       à chaque rafraîchissement.
 - [ ] **GOAL-063-T03** — Installable en PWA : un manifeste, des icônes PNG
