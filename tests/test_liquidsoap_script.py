@@ -11,6 +11,9 @@ from pathlib import Path
 import pytest
 
 SCRIPT = Path("webradio/adapters/liquidsoap/radio.liq")
+DOCKERFILE = Path("Dockerfile.liquidsoap")
+COMPOSE = Path("docker-compose.yml")
+VERIFIER = Path("verifier.sh")
 
 DECISIONS_INTERDITES = {
     r"\bplaylist\(": "une liste de lecture — c'est le noyau qui choisit",
@@ -136,3 +139,25 @@ def test_le_branchement_s_annonce_avant_de_rendre_l_antenne() -> None:
     annonce = connect.index("announce_count(listeners() + 1)")
     bascule = connect.index("listeners := listeners() + 1")
     assert annonce < bascule, "la bascule avant l'annonce rendrait l'antenne avant la purge"
+
+
+# ── Le script voyage dans l'image (GOAL-053) ────────────────────────────────
+
+
+def test_le_script_voyage_dans_l_image_du_diffuseur() -> None:
+    """Monté depuis l'hôte, il n'avait pas de version : il a dérivé de six
+    commits en silence, et le déploiement du 2026-09-02 a mis à jour `radio`
+    en laissant le diffuseur à la veille."""
+    assert f"COPY {SCRIPT} /etc/local-webradio/radio.liq" in DOCKERFILE.read_text()
+    assert str(SCRIPT) not in COMPOSE.read_text(), "le script ne se monte plus, il est dans l'image"
+
+
+def test_l_epingle_de_liquidsoap_ne_diverge_pas() -> None:
+    """Deux fichiers nomment la version : l'image du diffuseur, et la
+    vérification qui valide la syntaxe contre elle (docs/liquidsoap.md §1.7).
+    Elles doivent dire la même chose, ou l'on validerait contre une version
+    qu'on ne déploie pas."""
+    depuis = re.search(r"^FROM (savonet/liquidsoap:\S+)", DOCKERFILE.read_text(), re.M)
+    validee = re.search(r"LIQUIDSOAP_IMAGE:-(savonet/liquidsoap:\S+?)\}", VERIFIER.read_text())
+    assert depuis is not None and validee is not None
+    assert depuis.group(1) == validee.group(1)

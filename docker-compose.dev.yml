@@ -13,3 +13,9 @@ services:
   radio:
     build: .
     image: local-webradio:dev
+
+  liquidsoap:
+    build:
+      context: .
+      dockerfile: Dockerfile.liquidsoap
+    image: local-webradio-liquidsoap:dev

@@ -1,0 +1,21 @@
+# syntax=docker/dockerfile:1
+
+# ── Le diffuseur ───────────────────────────────────────────────────────────
+# L'image amont, plus notre script. Rien d'autre : Liquidsoap ne décide de
+# rien (ARCHITECTURE.md §4), et cette image n'existe que pour que le script
+# voyage AVEC elle.
+#
+# Elle est née d'une panne (GOAL-053) : le script était monté depuis l'hôte, un
+# montage n'a pas de version, et il a dérivé de six commits sans que rien ne le
+# dise — le déploiement du 2026-09-02 a mis à jour `radio` et laissé le
+# diffuseur à la veille.
+#
+# La version est épinglée ici ET dans verifier.sh, qui valide la syntaxe contre
+# elle : un test refuse qu'elles divergent. La syntaxe de Liquidsoap change de
+# version en version (docs/liquidsoap.md §1.7) ; l'épingle ne bouge qu'avec un
+# relevé.
+FROM savonet/liquidsoap:v2.3.3
+
+COPY webradio/adapters/liquidsoap/radio.liq /etc/local-webradio/radio.liq
+
+CMD ["liquidsoap", "/etc/local-webradio/radio.liq"]

@@ -3,7 +3,8 @@
 #   radio       — Python : le noyau, l'API, l'interface, et les deux routes que
 #                 Liquidsoap appelle (« quoi jouer ? », « combien écoutent ? »).
 #   liquidsoap  — décode, enchaîne, fond, encode et sert le flux. Il ne décide
-#                 de rien : tout ce qu'il joue, il l'a demandé à `radio`.
+#                 de rien : tout ce qu'il joue, il l'a demandé à `radio`. Son
+#                 image est l'amont épinglée PLUS notre script (GOAL-053).
 #
 # Navidrome n'est PAS ici : il existe déjà, il appartient à l'auteur, et le
 # déployer serait hors périmètre (SPECS.md §2).
@@ -57,10 +58,10 @@ services:
       start_period: 15s
 
   liquidsoap:
-    # La version contre laquelle docs/liquidsoap.md a été établi. La syntaxe du
-    # script change de version en version : verifier.sh le valide contre CETTE
-    # image, et l'épingle ne se change qu'avec un nouveau relevé.
-    image: savonet/liquidsoap:v2.3.3
+    # Notre image : l'amont épinglée (Dockerfile.liquidsoap) PLUS le script.
+    # Il y voyage désormais — monté depuis l'hôte, il n'avait pas de version et
+    # a dérivé de six commits en silence (GOAL-053).
+    image: ghcr.io/c4software/personnal-webradio-liquidsoap:latest
     container_name: local-webradio-liquidsoap
     # Le script s'arrête de lui-même quand la radio n'a plus rien à jouer ou
     # que l'API ne répond plus (« couper en le disant », SPECS.md §5.1) ; le
@@ -70,8 +71,6 @@ services:
     depends_on:
       radio:
         condition: service_healthy
-
-    command: ["liquidsoap", "/etc/local-webradio/radio.liq"]
 
     environment:
       RADIO_API: http://radio:8080
@@ -84,7 +83,6 @@ services:
       - "8000:8000"   # le flux : http://<la-machine>:8000/flux
 
     volumes:
-      - ./webradio/adapters/liquidsoap/radio.liq:/etc/local-webradio/radio.liq:ro
       # Le cache des vidéos YouTube, téléchargées par `radio` : le diffuseur
       # les LIT au même chemin — c'est ce qui supprime le blanc
       # (docs/youtube.md §5). Lecture seule : il ne télécharge rien.

@@ -494,13 +494,26 @@ ffmpeg avant la migration, et pour la même raison.
 ```
 services:
   radio:       Python — le noyau, l'API, l'interface, les routes de Liquidsoap
-  liquidsoap:  l'image épinglée, le script monté en lecture seule, le port du flux
+  liquidsoap:  l'amont épinglée PLUS notre script, et le port du flux
 ```
 
 **Deux, pas un**, parce que le second est un binaire tiers qui n'a rien à faire
 dans l'image Python ; et **pas davantage**, parce que le protocole entre eux
 tient en trois routes de texte brut. Les jingles sont montés **au même chemin**
 dans les deux : `radio` rend des chemins, `liquidsoap` les ouvre.
+
+**Deux images, donc, et c'est une révision du 2026-09-02** (GOAL-053). Le
+diffuseur tournait sur l'image amont, avec `radio.liq` monté depuis l'hôte : une
+image de moins à construire, et le script au plus près du dépôt. Mais **un
+montage n'a pas de version.** Le fichier de production a dérivé de six commits
+sans que rien ne le signale, et le déploiement du 2026-09-02 a mis à jour
+`radio` en laissant le diffuseur à la veille — les quatre correctifs du direct
+(GOAL-051) et le fondu de prise d'antenne (GOAL-050) sont restés à quai. Le
+script voyage désormais **dans une image** (`Dockerfile.liquidsoap`), publiée
+par la CI à côté de celle de `radio` : déployer redevient un seul geste, et la
+dérive devient impossible. L'épingle est nommée à deux endroits — le `FROM` et
+`verifier.sh`, qui valide la syntaxe contre elle — et un test refuse qu'elles
+divergent.
 
 Navidrome n'est **pas** dans le Compose : il existe déjà, il appartient à
 l'auteur, et le projet n'a pas à le déployer (SPECS.md §2 — gérer la
