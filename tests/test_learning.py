@@ -28,13 +28,13 @@ def _apprentissage(tmp_path: Path, clock: FrozenClock | None = None) -> Learning
 
 
 def test_les_deux_vocabulaires_de_portee_coincident() -> None:
-    """Le noyau et la base ont chacun leur `Scope`. Le jour où elles
-    divergeront, ce test cassera ici plutôt qu'en base."""
+    """Le noyau et la base ont chacun leur `Scope` ; s'ils divergent, ce test
+    casse avant la base."""
     assert {p.value for p in Scope} == {p.value for p in PorteeBase}
 
 
 def test_une_piste_inconnue_pese_neutre(tmp_path: Path) -> None:
-    """Une base vide se comporte comme « personne n'a jamais voté »."""
+    """Une base vide pèse comme si personne n'avait voté."""
     assert _apprentissage(tmp_path).weigh(track("1", "Bowie")) == pytest.approx(1.0)
 
 
@@ -53,8 +53,8 @@ def test_un_encore_fait_avancer_l_artiste(tmp_path: Path) -> None:
 
 
 def test_le_vote_porte_sur_l_artiste_seul_et_egalement(tmp_path: Path) -> None:
-    """Révision n°16 : la double portée surpondérait. Un `stop` pèse pareil
-    sur tous les titres de l'artiste — la piste visée n'écope pas double."""
+    """Un `stop` pèse pareil sur tous les titres de l'artiste : la piste visée
+    n'écope pas double (révision n°16)."""
     a = _apprentissage(tmp_path)
     visee = track("1", "Bowie")
     voisine = track("2", "Bowie")
@@ -65,8 +65,7 @@ def test_le_vote_porte_sur_l_artiste_seul_et_egalement(tmp_path: Path) -> None:
 
 
 def test_le_poids_ne_descend_jamais_a_zero(tmp_path: Path) -> None:
-    """Rien n'est jamais supprimé : le plancher est 0,25 fois, pas 0
-    (SPECS.md §7 n°17)."""
+    """Rien n'est jamais supprimé : le plancher est 0,25, pas 0 (SPECS.md §7 n°17)."""
     a = _apprentissage(tmp_path)
     p = track("1", "Bowie")
     for _ in range(50):
@@ -83,8 +82,7 @@ def test_le_poids_ne_depasse_jamais_le_plafond(tmp_path: Path) -> None:
 
 
 def test_les_votes_s_oublient_avec_le_temps(tmp_path: Path) -> None:
-    """Sans oubli, la radio se figerait sur ce qu'on a cliqué le premier mois
-    (SPECS.md §7 n°18)."""
+    """Sans oubli, la radio se figerait sur les premiers votes (SPECS.md §7 n°18)."""
     clock = FrozenClock(MIDI)
     a = _apprentissage(tmp_path, clock)
     p = track("1", "Bowie")
@@ -99,13 +97,12 @@ def test_les_votes_s_oublient_avec_le_temps(tmp_path: Path) -> None:
 def test_une_base_devenue_injoignable_rend_un_poids_neutre(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Un tirage sans mémoire vaut infiniment mieux qu'un tirage qui n'a pas
-    lieu : la radio ne se tait pas (SPECS.md §5.1).
+    """Une base injoignable en cours de diffusion rend un poids neutre : la radio
+    ne se tait pas (SPECS.md §5.1).
 
-    La base est construite normalement, **puis** rendue inaccessible — c'est le
-    régime « en cours de diffusion ». Une base injoignable **au démarrage**,
-    elle, échoue bruyamment, et c'est voulu : les deux régimes d'erreur de
-    SPECS.md §5 sont bien distincts.
+    La base est construite normalement puis rendue inaccessible. Une base
+    injoignable au démarrage échoue bruyamment : les deux régimes d'erreur de
+    SPECS.md §5 sont distincts.
     """
     folder = tmp_path / "etat"
     folder.mkdir()
@@ -128,7 +125,7 @@ def test_une_base_devenue_injoignable_rend_un_poids_neutre(
 def test_un_vote_non_retenu_ne_fait_pas_taire_la_radio(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """Perdre un vote est regrettable ; couper la radio pour cela serait pire."""
+    """Perdre un vote ne doit pas couper la radio."""
     folder = tmp_path / "etat"
     folder.mkdir()
     a = _apprentissage(folder)
@@ -143,8 +140,8 @@ def test_un_vote_non_retenu_ne_fait_pas_taire_la_radio(
 
 
 def test_le_vote_s_affiche_par_le_nom_de_l_artiste(tmp_path: Path) -> None:
-    """GOAL-020, révisé avec n°16 : seule l'entrée artiste existe, et elle se
-    lit par son nom — jamais d'identifiant opaque, jamais de ligne à zéro."""
+    """Seule l'entrée artiste existe et elle se lit par son nom, sans identifiant
+    opaque ni ligne à zéro (GOAL-020, révision n°16)."""
     learning = _apprentissage(tmp_path)
     learning.remember(Command.SKIP, track("1", "Air"))
 

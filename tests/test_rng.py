@@ -8,8 +8,8 @@ PISTES = ["a", "b", "c", "d", "e"]
 
 
 def test_une_meme_graine_rejoue_la_meme_emission() -> None:
-    """C'est la raison d'être de ce module : une soirée dont l'enchaînement
-    déplaît doit pouvoir être rejouée à l'identique pour comprendre pourquoi."""
+    """Une soirée doit pouvoir être rejouée à l'identique pour comprendre un
+    enchaînement."""
     un = [RealRandom(graine=42).pick(PISTES) for _ in range(1)]
     premier = RealRandom(graine=42)
     second = RealRandom(graine=42)
@@ -34,8 +34,8 @@ def test_le_tirage_reste_dans_la_suite_proposee() -> None:
 
 
 def test_tirer_dans_une_suite_vide_est_refuse() -> None:
-    """Le repli — plage thématique sans musique, fenêtre trop étroite — se
-    décide au-dessus, avec le contexte. Ici, on refuse plutôt que d'inventer."""
+    """Le repli (plage sans musique, fenêtre trop étroite) se décide au-dessus,
+    avec le contexte ; ici on refuse."""
     with pytest.raises(ValueError, match="suite vide"):
         RealRandom(graine=1).pick([])
     with pytest.raises(ValueError, match="suite vide"):
@@ -48,14 +48,13 @@ def test_le_hasard_scripte_sort_ce_que_le_test_a_ecrit() -> None:
 
 
 def test_le_hasard_scripte_ramene_un_indice_trop_grand_dans_la_suite() -> None:
-    """Un test qui écrit `[7]` sur trois pistes veut la deuxième, pas une
-    erreur : le script décrit une intention, pas une adresse mémoire."""
+    """Un script `[7]` sur trois pistes veut la deuxième, pas une erreur."""
     assert ScriptedRandom([7]).pick(["a", "b", "c"]) == "b"
 
 
 def test_un_script_epuise_echoue_bruyamment() -> None:
-    """Un script trop court signale un test qui tire plus qu'il ne croyait —
-    le laisser boucler masquerait l'écart."""
+    """Un script trop court signale un test qui tire plus que prévu ; boucler
+    masquerait l'écart."""
     tireur = ScriptedRandom([0])
     tireur.pick(PISTES)
     with pytest.raises(ValueError, match="épuisé"):
@@ -66,8 +65,7 @@ UNIFORMES = [1.0] * len(PISTES)
 
 
 def test_le_tirage_pondere_reste_rejouable_a_graine_et_poids_fixes() -> None:
-    """Sans cela, on perdrait ce que l'injection du hasard avait acheté : une
-    émission pondérée qui déplaît doit se rejouer à l'identique."""
+    """Une émission pondérée doit se rejouer à l'identique, comme le tirage simple."""
     weight = [1.0, 0.25, 4.0, 1.0, 2.0]
     premier = RealRandom(graine=42)
     second = RealRandom(graine=42)
@@ -83,8 +81,7 @@ def test_le_tirage_pondere_reste_dans_la_suite_proposee() -> None:
 
 
 def test_un_poids_lourd_sort_plus_souvent_qu_un_poids_leger() -> None:
-    """C'est tout ce que la pondération promet : la chance change, elle ne
-    s'annule pas (SPECS.md §4.12)."""
+    """La pondération change la chance, elle ne l'annule pas (SPECS.md §4.12)."""
     tireur = RealRandom(graine=3)
     weight = [16.0, 1.0, 1.0, 1.0, 1.0]
     tirages = [tireur.pick_weighted(PISTES, weight) for _ in range(400)]
@@ -129,7 +126,7 @@ def test_le_hasard_scripte_pondere_sort_ce_que_le_test_a_ecrit() -> None:
 
 
 def test_le_hasard_scripte_verifie_les_poids_comme_le_hasard_reel() -> None:
-    """Un double plus indulgent que la production transforme la suite de tests
-    en décor (AGENTS.md §4.1)."""
+    """Un double plus indulgent que la production rendrait les tests inutiles
+    (AGENTS.md §4.1)."""
     with pytest.raises(ValueError, match="la correspondance est perdue"):
         ScriptedRandom([0]).pick_weighted(PISTES, [1.0])

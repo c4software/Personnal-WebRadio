@@ -1,7 +1,7 @@
 """Les flux de podcast des émissions (SPECS.md §4.11).
 
 Le format RSS, ses `enclosure` et ses redirections restent confinés ici
-(ARCHITECTURE.md §2.1) : au-dessus, le noyau ne connaît qu'un `Episode`.
+(ARCHITECTURE.md §2.1). Le noyau ne connaît qu'un `Episode`.
 """
 
 from webradio.adapters.podcast.feed import (

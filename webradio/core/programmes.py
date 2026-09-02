@@ -1,18 +1,15 @@
 """Les programmes : quels jours, quelles heures, quelle liste de lecture.
 
-Un programme puise dans une **sélection faite à la main** (SPECS.md §4.13), là
-où une plage thématique (`core/bands.py`) contraint un genre dans toute la
-bibliothèque. Les deux répondent à la même question et coexistent
-provisoirement (SPECS.md §7 n°19) ; ce module n'en sait rien et ne tranche pas
-la priorité — c'est du câblage.
+Un programme puise dans une liste de lecture (SPECS.md §4.13), là où une plage
+thématique (`core/bands.py`) contraint un genre dans toute la bibliothèque. Les
+deux coexistent (SPECS.md §7 n°19) ; la priorité entre eux se règle au câblage,
+pas ici.
 
-**Ce module ne va chercher aucune piste.** Il dit *quel programme est ouvert*,
-et rien d'autre : le noyau ne parle à personne (AGENTS.md §2), et c'est ce qui
-permet de dérouler une semaine entière de programmation en une boucle, sans
-source ni réseau.
+Ce module ne va chercher aucune piste : il dit quel programme est ouvert, sans
+source ni réseau (AGENTS.md §2).
 
-Le nom de la liste est transporté tel quel jusqu'à la source : le noyau ne
-connaît que des noms, jamais l'identifiant opaque que la source leur donne.
+Le nom de la liste est transmis tel quel à la source : le noyau ne connaît pas
+l'identifiant que la source lui donne.
 """
 
 from collections.abc import Sequence
@@ -21,14 +18,12 @@ from datetime import date, datetime, time, timedelta
 
 from webradio.core.clock import Clock
 
-# Les sept jours, dans l'ordre de `datetime.weekday()` — lundi vaut 0. C'est la
-# même convention que celle qu'`adapters/config/schema.py` impose aux émissions,
-# volontairement recopiée plutôt qu'importée : le noyau ne dépend d'aucun
-# adaptateur (ARCHITECTURE.md §2.1).
+# Dans l'ordre de `datetime.weekday()`, lundi vaut 0. Même convention que
+# `adapters/config/schema.py`, recopiée plutôt qu'importée : le noyau ne dépend
+# d'aucun adaptateur (ARCHITECTURE.md §2.1).
 DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")
 
-# Le raccourci d'un programme quotidien. L'écrire évite d'avoir à énumérer les
-# sept jours pour dire « tous les jours », ce qu'un TOML ferait mal.
+# Raccourci d'un programme quotidien, pour ne pas énumérer les sept jours.
 EVERY_DAY = "all"
 
 
@@ -36,13 +31,10 @@ EVERY_DAY = "all"
 class Programme:
     """Un créneau nommé, et la liste de lecture dans laquelle on y tire.
 
-    Un programme dont la fin précède le début enjambe minuit : « 22 h → 02 h »
-    est une soirée, pas une erreur de saisie — comme pour une `Plage`.
+    Un programme dont la fin précède le début enjambe minuit, comme une `Band`.
 
-    **Les jours nomment le jour où le programme commence.** Un programme du
-    vendredi 22 h → 02 h couvre donc la nuit du vendredi au samedi : c'est ce
-    que l'auteur a voulu dire en écrivant « le vendredi », et compter le samedi
-    01 h comme un samedi ferait démarrer le programme une nuit trop tôt.
+    Les jours désignent le jour où le programme commence : un programme du
+    vendredi 22 h à 02 h couvre la nuit du vendredi au samedi.
     """
 
     name: str
@@ -77,10 +69,9 @@ class Programme:
     def length(self) -> timedelta:
         """La durée déclarée du programme, minuit enjambé compris.
 
-        C'est elle qui tranche un recouvrement : le plus court l'emporte. Le
-        calcul est recopié de `core/bands.py` plutôt qu'importé — les deux
-        modules répondent à la même question sans se connaître, comme `DAYS`
-        l'est de `core/shows.py`.
+        Elle tranche un recouvrement : le plus court l'emporte. Le calcul est
+        recopié de `core/bands.py` plutôt qu'importé, pour que les deux modules
+        restent indépendants.
         """
         jour = date.min
         return (datetime.combine(jour, self.end) - datetime.combine(jour, self.start)) % timedelta(
@@ -104,20 +95,19 @@ class Programme:
 class Programming:
     """Le programme ouvert maintenant, ou aucun.
 
-    L'horloge est injectée (ARCHITECTURE.md §3.1) : une semaine entière se
-    déroule alors en une boucle, et se rejoue à l'identique.
+    L'horloge est injectée (ARCHITECTURE.md §3.1) : une semaine de programmation
+    se rejoue à l'identique.
 
-    Deux programmes qui se recouvrent ne sont pas refusés — la spécification ne
-    réserve ce refus qu'aux émissions (SPECS.md §4.11) : c'est **le plus
-    court** qui l'emporte, exactement comme les plages de `core/bands.py`
-    (révisé le 2026-09-02, GOAL-068). À durée égale, le premier déclaré
-    tranche : le résultat reste déterministe.
+    Deux programmes qui se recouvrent ne sont pas refusés, seules les émissions
+    le sont (SPECS.md §4.11) : le plus court l'emporte, comme pour les plages de
+    `core/bands.py` (GOAL-068). À durée égale, le premier déclaré gagne, le
+    résultat reste déterministe.
     """
 
     def __init__(self, programmes: Sequence[Programme], clock: Clock) -> None:
         self._programmes = tuple(programmes)
-        # L'ordre de l'arbitrage, figé une fois : `sorted` est stable, donc
-        # deux programmes de même durée restent dans l'ordre du TOML.
+        # `sorted` est stable : deux programmes de même durée restent dans
+        # l'ordre du TOML.
         self._par_duree = tuple(sorted(self._programmes, key=lambda p: p.length))
         self._horloge = clock
 
@@ -137,8 +127,8 @@ class Programming:
     def playlist_to_draw(self) -> str | None:
         """Le nom de la liste où tirer maintenant, `None` hors de tout programme.
 
-        C'est un nom, pas un identifiant : la résolution appartient à la source,
-        seule à savoir ce que le serveur appelle une liste (SPECS.md §4.13).
+        Un nom, pas un identifiant : la résolution appartient à la source
+        (SPECS.md §4.13).
         """
         programme = self.current_programme()
         return None if programme is None else programme.playlist

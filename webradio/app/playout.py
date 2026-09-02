@@ -1,12 +1,11 @@
-"""Ce qui décide de la piste suivante, vu par la chaîne de diffusion.
+"""La piste suivante, vue par la chaîne de diffusion.
 
-C'est la charnière du projet : d'un côté le noyau, qui rend des `Choix` et des
-`Piste` ; de l'autre la chaîne, qui ne veut qu'une chaîne de caractères que
-Liquidsoap sait ouvrir (`app/liquidsoap_playout.py`, `Programme`).
+Ce module fait le lien entre le noyau, qui rend des `Pick` et des `Track`, et
+la chaîne (`app/liquidsoap_playout.py`), qui n'attend qu'une chaîne de
+caractères que Liquidsoap sait ouvrir.
 
-Rien ici ne décide : la grille, le tirage, la non-répétition, les jingles et le
-contrôle ont déjà tranché. Ce module traduit, et journalise ce qui a été
-relâché en chemin.
+Il ne décide rien : la grille, le tirage, la non-répétition, les jingles et le
+contrôle ont déjà tranché. Il traduit, et journalise les replis.
 """
 
 import logging
@@ -38,12 +37,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True, slots=True)
 class Upcoming:
-    """Une entrée à venir, telle que la liste des prochains titres la montre
-    (GOAL-058) : sa nature, sa piste ou son libellé, et l'heure **estimée** de
-    son début — `None` quand rien ne permet d'estimer.
+    """Une entrée de la liste des prochains titres (GOAL-058).
 
-    L'habillage prévu (un jingle horaire, un générique) y figure sans être
-    encore décidé : `expected` le distingue de ce qui est déjà tiré.
+    `at` est l'heure estimée du début, `None` si rien ne permet de l'estimer.
+    `expected` marque l'habillage prévu (jingle horaire, générique) qui n'est
+    pas encore décidé, par opposition à ce qui est déjà tiré.
     """
 
     kind: Kind
@@ -56,9 +54,9 @@ class Upcoming:
 class RadioProgramme:
     """La suite des entrées à diffuser, une par une.
 
-    `suivante()` ne lève jamais : une source injoignable est contournée
-    (SPECS.md §5.1), et `None` signifie « il n'y a plus rien », ce qui fait
-    couper la radio **en le disant** plutôt que servir du silence.
+    `next_entry()` ne lève jamais : une source injoignable est contournée
+    (SPECS.md §5.1). `None` signifie qu'il n'y a plus rien à diffuser, et la
+    radio coupe en le journalisant plutôt que de servir du silence.
     """
 
     def __init__(
@@ -93,28 +91,25 @@ class RadioProgramme:
         self._effective = effective
         self._controle = control
         self._a_l_antenne = now_playing
-        # Le morceau qu'un encore force, résolu dès la préparation pour que la
-        # liste des prochains titres le montre (GOAL-067) ; son ancre reste,
+        # Le morceau forcé par un encore, résolu dès la préparation pour que la
+        # liste des prochains titres le montre (GOAL-067). L'ancre est gardée
         # pour en tirer un autre du même artiste si on le retire.
         self._encore_force: Track | None = None
         self._encore_ancre: Track | None = None
-        # Un programme a sa propre fenêtre de non-répétition : la liste est
+        # Un programme a sa propre fenêtre de non-répétition : sa liste est
         # courte, et partager celle du tirage libre ferait rétrécir l'une à
         # cause de l'autre (SPECS.md §4.13).
         self._fenetre_programme = programme_window if programme_window is not None else Window()
-        # `Jingles.dus()` s'épuise en le disant : il rend tout ce qui est dû et
-        # l'oublie. Ne consommer que le premier perdrait les autres — ce qui
-        # est exactement ce que SPECS.md §4.3 refuse quand un morceau long a
-        # enjambé deux heures. On garde donc ceux qu'on n'a pas encore servis.
+        # `Jingles.due_now()` rend tous les jingles dus et les oublie. On garde
+        # ceux qui n'ont pas encore été servis, sinon un morceau long qui
+        # enjambe deux heures en perdrait un (SPECS.md §4.3).
         self._en_attente: deque[str] = deque()
-        # Ce qui avait été demandé d'avance et qu'un encore a écarté : rejoué
-        # tel quel APRÈS le jingle et le titre forcé — rien n'est jeté
-        # (GOAL-034, schéma de l'auteur : Yamê → encore.mp3 → Yamê-2 → Tryo).
+        # L'avance écartée par un encore, rejouée telle quelle après le jingle
+        # et le titre forcé (GOAL-034).
         self._a_rejouer: deque[tuple[str, Kind, Track | None, str | None]] = deque()
-        # Le moment effectif — programme d'abord, sinon plage — vu à la
-        # dernière jonction. `...` tant qu'aucune jonction n'a eu lieu : une
-        # chaîne qui démarre AU MILIEU d'un moment ne rejoue pas son
-        # générique (GOAL-029).
+        # Le moment effectif (programme, sinon plage) vu à la dernière
+        # jonction. `...` tant qu'aucune jonction n'a eu lieu : une chaîne qui
+        # démarre au milieu d'un moment ne rejoue pas son générique (GOAL-029).
         self._moment_vu: object = ...
 
     def next_entry(self) -> str | None:
@@ -136,10 +131,10 @@ class RadioProgramme:
 
     def current_moment(self) -> object:
         """Ce qui tire la musique en ce moment : le programme ouvert, sinon
-        l'occurrence de plage, sinon rien — le tirage libre.
+        l'occurrence de plage, sinon `None` (tirage libre).
 
-        C'est la clé qui date une entrée d'avance (décision n°33) : la
-        charnière la retient avec chaque entrée demandée, et compare.
+        Sert de clé pour dater une entrée d'avance (décision n°33) : la chaîne
+        la retient avec chaque entrée demandée, puis compare à la jonction.
         """
         if self._programmation is not None:
             programme = self._programmation.current_programme()
@@ -152,43 +147,38 @@ class RadioProgramme:
         self._a_rejouer.append((entry, kind, track, label))
 
     def forget_pending(self) -> None:
-        """Oublie ce qui attendait une jonction : la reprise se fait à neuf.
+        """Oublie ce qui attendait une jonction, pour reprendre à neuf.
 
-        Après une longue pause sans auditeur (SPECS.md §7 n°30), ce qui
-        attendait ment : les génériques annoncent un moment fini, l'avance
-        qu'un encore d'avant la pause avait replacée n'a plus son contexte.
-        Le repère des moments repart comme au démarrage — une chaîne qui
-        reprend au milieu d'un moment ne rejoue pas son générique (GOAL-029).
-        L'encore lui-même n'est pas touché : un vote est une demande
-        explicite, il survit à la pause.
+        Après une longue pause sans auditeur (SPECS.md §7 n°30), les jingles
+        en attente et l'avance replacée par un encore n'ont plus de contexte
+        valable. Le repère des moments repart comme au démarrage : une chaîne
+        qui reprend au milieu d'un moment ne rejoue pas son générique
+        (GOAL-029). L'encore voté n'est pas touché, il survit à la pause.
         """
         self._en_attente.clear()
         self._a_rejouer.clear()
         self._moment_vu = ...
-        # Et l'avance de la file, que la purge n'atteignait pas : `next_pick`
-        # la sert sans regarder la contrainte, donc un morceau tiré à 19 h
-        # serait passé à 7 h le lendemain — le contraire du tirage neuf promis
-        # (SPECS.md §7 n°30).
+        # `next_pick` sert l'avance sans regarder la contrainte : un morceau
+        # tiré à 19 h passerait à 7 h le lendemain (SPECS.md §7 n°30).
         self._file.forget_prepared()
 
     def prepare(self, from_instant: datetime | None = None) -> None:
         """Résout les morceaux suivants pendant que le courant joue.
 
-        Appelée hors verrou par la chaîne : une source lente coûte alors du
-        temps que personne n'attend, au lieu d'un trou à la jonction
-        (docs/ffmpeg.md §2.2). Elle avale tout — se préparer est une commodité,
-        jamais une cause d'arrêt.
+        Appelée hors verrou par la chaîne, pour qu'une source lente ne creuse
+        pas un trou à la jonction (docs/ffmpeg.md §2.2). Ne lève jamais : la
+        préparation est une commodité, pas une cause d'arrêt.
 
-        `from_instant` est l'heure **estimée** à laquelle le premier titre de
-        l'avance commencera (GOAL-058) : chaque créneau est tiré sous le moment
-        qu'il trouvera en commençant, durée après durée. Sans estimation, tout
-        se tire sous le moment présent — et l'avance datée (décision n°33)
-        tranche, à la jonction, si l'estimation tenait.
+        `from_instant` est l'heure estimée du début du premier titre de
+        l'avance (GOAL-058) : chaque créneau est tiré sous le moment qu'il
+        trouvera en commençant, durée après durée. Sans estimation, tout se
+        tire sous le moment présent, et l'avance datée (décision n°33) tranche
+        à la jonction.
 
-        Un créneau qui tomberait pendant un **programme** ou un **direct** est
-        reporté à leur fin (GOAL-068) : la file n'y est pas servie, et un
-        titre tiré pour cette heure-là serait jeté à la jonction — laissant la
-        file vide au moment même de reprendre.
+        Un créneau qui tomberait pendant un programme ou un direct est reporté
+        à leur fin (GOAL-068) : la file n'y est pas servie, et un titre tiré
+        pour cette heure-là serait jeté à la jonction, laissant la file vide à
+        la reprise.
         """
         self._resoudre_encore()
         depart = self._horloge.now() if from_instant is None else from_instant
@@ -203,9 +193,9 @@ class RadioProgramme:
             logger.debug("préparation sans effet : %s", echec)
 
     def _servi_a_partir_de(self, instant: datetime) -> datetime:
-        """L'heure où ce créneau commencera vraiment (GOAL-068). Sans grille
-        effective câblée, celle des plages : aveugle aux programmes et aux
-        directs, mais pas fausse."""
+        """L'heure réelle du début de ce créneau (GOAL-068). Sans grille
+        effective, `instant` tel quel : les programmes et les directs sont
+        alors ignorés."""
         if self._effective is None:
             return instant
         return self._effective.served_from(instant)
@@ -226,14 +216,13 @@ class RadioProgramme:
         return instant
 
     def upcoming(self, from_instant: datetime | None = None) -> list[Upcoming]:
-        """Ce qui vient, dans l'ordre, avec l'heure estimée de chaque début
-        (GOAL-058) — ce qui attend déjà, puis l'avance de la file, et entre
-        les deux l'habillage **prévu** : les jingles horaires dont l'heure
-        tombera avant un titre, les génériques du moment qui changera.
+        """Les entrées à venir, dans l'ordre, avec l'heure estimée de chaque
+        début (GOAL-058) : ce qui attend déjà, puis l'avance de la file, avec
+        entre les deux l'habillage prévu (jingles horaires, génériques).
 
         Rien n'est décidé ici : la liste dit ce que `next_entry` rendrait si
-        les durées estimées tenaient. Pendant un **programme**, l'avance de la
-        file n'y figure pas — sa musique vient d'une liste (SPECS.md §4.13).
+        les durées estimées tenaient. Pendant un programme, l'avance de la
+        file n'y figure pas, sa musique vient d'une liste (SPECS.md §4.13).
         """
         instant = from_instant
         items: list[Upcoming] = []
@@ -251,21 +240,21 @@ class RadioProgramme:
             return items
         precedent = instant
         for index, (track, moment) in enumerate(self._file.dated_advance):
-            # Sans rien décider — la lecture est concurrente de la jonction —
+            # La lecture est concurrente de la jonction : on ne décide rien et
             # on s'arrête à la première entrée rassise, comme `revalidate`.
             # Sans heure estimée, seule la tête se juge, contre l'instant
             # présent : la suite a pu être tirée pour un moment à venir.
             if instant is not None:
-                # Le même report qu'à la préparation : sans lui, les deux
-                # heures divergent et un titre tiré pour l'heure d'après un
-                # direct est jugé rassis (GOAL-070).
+                # Le même report qu'à la préparation, sinon les deux heures
+                # divergent et un titre tiré pour l'heure d'après un direct
+                # est jugé rassis (GOAL-070).
                 instant = self._servi_a_partir_de(instant)
                 if precedent is not None:
                     remplacement = self._remplacement_entre(precedent, instant)
                     if remplacement is not None:
                         annonce = self._annonce_du_remplacement(remplacement)
                         items.extend(annonce)
-                        # La suite ne se date qu'après ce qui a été nommé et
+                        # La suite ne se date qu'après une émission nommée
                         # dont la fin est déclarée (SPECS.md §4.8).
                         if not annonce or remplacement.end is None:
                             break
@@ -282,16 +271,16 @@ class RadioProgramme:
         return items
 
     def _remplacement_entre(self, depuis: datetime, jusqu_a: datetime) -> Segment | None:
-        """Ce qui prendra l'antenne à la place de la file entre ces deux heures :
-        annoncer un titre pour cette heure-là serait mentir (GOAL-068)."""
+        """L'émission ou le programme qui remplacera la file entre ces deux
+        heures, ou `None`. Sans grille effective, toujours `None` (GOAL-068)."""
         if self._effective is None:
             return None
         return self._effective.next_replacement(depuis, jusqu_a)
 
     @staticmethod
     def _annonce_du_remplacement(remplacement: Segment) -> list[Upcoming]:
-        """Ce qu'on dit de ce qui coupe : le nom d'une émission, rien d'un
-        programme — pendant un programme, la radio n'annonce pas (§4.8)."""
+        """L'annonce du remplacement : le nom d'une émission, rien pour un
+        programme, que la radio n'annonce pas (SPECS.md §4.8)."""
         if not isinstance(remplacement.content, Show):
             return []
         nom = remplacement.content.name
@@ -300,7 +289,7 @@ class RadioProgramme:
     def _habillage_prevu(self, depuis: datetime, jusqu_a: datetime) -> list[Upcoming]:
         """Les jingles et génériques que la jonction de `jusqu_a` rendrait,
         dans l'ordre de `_prochain_jingle` : générique sortant, heures pleines,
-        générique entrant. Seuls les fichiers présents comptent."""
+        générique entrant. Seuls les fichiers présents sont listés."""
         prevus: list[Upcoming] = []
         avant, apres = self._moment_effectif_a(depuis), self._moment_effectif_a(jusqu_a)
         if avant != apres:
@@ -327,14 +316,15 @@ class RadioProgramme:
         return self._file.break_run()
 
     def forget_advance(self) -> None:
-        """Jette l'avance de la file, et elle seule : ce qui attendait un
-        générique ou un encore reste dû (GOAL-059)."""
+        """Jette l'avance de la file, et elle seule : les jingles en attente
+        et l'encore restent dus (GOAL-059)."""
         self._file.forget_prepared()
 
     def withdraw(self, identifier: str) -> bool:
-        """Retire un titre de l'avance de la file : il ne passera pas, un
-        autre sera tiré à sa place (GOAL-058). Le morceau qu'un encore force se
-        retire aussi : un autre du même artiste le remplace (GOAL-067)."""
+        """Retire un titre de l'avance de la file, un autre sera tiré à sa
+        place (GOAL-058). Le morceau forcé par un encore se retire aussi, un
+        autre du même artiste le remplace (GOAL-067). Rend `False` si
+        l'identifiant n'est pas dans l'avance."""
         force, ancre = self._encore_force, self._encore_ancre
         if (
             force is not None
@@ -351,19 +341,18 @@ class RadioProgramme:
         return True
 
     def _prochaine_emission(self) -> str | None:
-        """Une émission due l'emporte sur tout le reste.
+        """L'émission due, ou `None`. Elle l'emporte sur tout le reste.
 
-        Elle **remplace** la programmation, habillage compris : ni grille, ni
-        non-répétition, ni jingle (SPECS.md §4.11). Les jingles dus pendant sa
-        durée sont abandonnés, ce dont `core/jingles.py` se charge — on lui dit
-        simplement qu'une émission passe.
+        Elle remplace la programmation, habillage compris (SPECS.md §4.11).
+        Les jingles dus pendant sa durée sont abandonnés par `core/jingles.py`,
+        à qui on signale simplement qu'une émission passe.
         """
         if self._emissions is None:
             return None
         due = self._emissions.due()
-        # `due_now()` consomme : ce qu'il rend ici doit être gardé, sinon les
-        # jingles dus sont avalés à chaque jonction et ne sortent jamais
-        # (GOAL-014-T01). Pendant une émission, il rend () et c'est voulu.
+        # `due_now()` consomme : garder ce qu'il rend, sinon les jingles dus
+        # sont perdus à chaque jonction (GOAL-014-T01). Pendant une émission,
+        # il rend () et c'est voulu.
         self._en_attente.extend(self._jingles.due_now(during_show=due is not None))
         if due is None:
             return None
@@ -374,19 +363,16 @@ class RadioProgramme:
         return audio
 
     def _prochain_jingle(self) -> Path | None:
-        """Le prochain jingle dû dont le fichier existe réellement.
+        """Le prochain jingle dû dont le fichier existe, ou `None`.
 
-        Le noyau dit **quels noms** sont dus ; savoir si le fichier est là est
-        une question de système de fichiers, donc elle se règle ici. Un jingle
-        absent ne signale rien : c'est le mode d'emploi (SPECS.md §4.3).
+        Le noyau dit quels noms sont dus ; l'existence du fichier se vérifie
+        ici. Un jingle absent est ignoré sans message (SPECS.md §4.3). Les
+        jingles restants sont gardés pour les jonctions suivantes, dans l'ordre
+        où le noyau les a rendus.
 
-        Les jingles restants sont conservés pour les jonctions suivantes : ils
-        passent tous, à la suite, dans l'ordre où le noyau les a rendus.
-
-        Un nom peut avoir des **variantes** — `14h.mp3`, `14h-a.mp3`,
-        `14h-b.mp3`… — et l'une d'elles est tirée au hasard injecté, pour que
-        la radio ne serine pas le même jingle (GOAL-033). Le fichier de base
-        est lui-même optionnel dès qu'une variante existe.
+        Un nom peut avoir des variantes (`14h.mp3`, `14h-a.mp3`, `14h-b.mp3`),
+        et l'une d'elles est tirée au hasard injecté (GOAL-033). Le fichier de
+        base est optionnel dès qu'une variante existe.
         """
         sortant, entrant = self._generiques_de_transition()
         if sortant is not None:
@@ -409,12 +395,12 @@ class RadioProgramme:
         return candidates
 
     def _generiques_de_transition(self) -> tuple[str | None, str | None]:
-        """Le générique de fin du moment qui s'achève, celui d'ouverture du
-        moment qui commence — comme une radio classique (GOAL-029).
+        """Le générique de fin du moment qui s'achève et celui d'ouverture du
+        moment qui commence (GOAL-029), chacun `None` s'il n'y a rien à jouer.
 
         Le moment effectif suit la règle de la musique : le programme
-        l'emporte sur la plage. Les génériques sont optionnels, et un fichier
-        absent sera ignoré comme tout jingle (SPECS.md §4.3).
+        l'emporte sur la plage. Un générique absent est ignoré comme tout
+        jingle (SPECS.md §4.3).
         """
         courant: Programme | Band | None = None
         if self._programmation is not None:
@@ -429,19 +415,13 @@ class RadioProgramme:
         return sortant, entrant
 
     def _prochaine_piste(self) -> str | None:
-        """La piste suivante, en respectant l'ordre de priorité.
+        """La piste suivante : celle du programme ouvert, sinon celle de la
+        file. `None` si la source est injoignable ou la file vide.
 
-        **Une émission l'emporte sur un programme, un programme sur une plage
-        thématique.** L'émission remplace toute la programmation (SPECS.md
-        §4.11) ; le programme est plus précis qu'une plage puisqu'il nomme des
-        morceaux plutôt qu'un genre (SPECS.md §4.13).
-
-        La priorité programme/plage est **provisoire** : SPECS.md §7 n°19 n'est
-        pas tranchée, et la coexistence des deux mécanismes reste en question.
+        Un programme l'emporte sur une plage, car il nomme des morceaux plutôt
+        qu'un genre (SPECS.md §4.13). Cette priorité est provisoire, SPECS.md
+        §7 n°19 n'est pas tranchée.
         """
-        # Un « encore » accepté force le prochain morceau chez le même artiste
-        # (SPECS.md §4.6) — le noyau descend seul vers le genre puis le tirage
-        # libre si l'artiste est épuisé, et chaque repli est dit.
         depuis_le_programme = self._piste_du_programme()
         if depuis_le_programme is not None:
             return depuis_le_programme
@@ -459,7 +439,7 @@ class RadioProgramme:
         return self._source.entry(pick.track)
 
     def _piste_après_encore(self) -> str | None:
-        """Le morceau forcé par un « encore », ou rien."""
+        """Le morceau forcé par un encore, ou `None`."""
         self._resoudre_encore()
         track = self._encore_force
         if track is None:
@@ -471,12 +451,11 @@ class RadioProgramme:
     def _resoudre_encore(self) -> None:
         """Consomme l'encore voté, s'il y en a un, et tire le morceau qu'il force.
 
-        À la préparation plutôt qu'à la jonction (GOAL-067) : la liste des
-        prochains titres le montre, et l'ancre est celle du vote — à la
-        jonction, c'est déjà le jingle d'encore qui passe, et le morceau
-        d'avance n'est pas celui que l'auditeur entendait. Sans ancre du tout,
-        le vote a agi (pondération, jingle) mais n'a rien sur quoi forcer : on
-        le dit.
+        Fait à la préparation plutôt qu'à la jonction (GOAL-067) : la liste
+        des prochains titres le montre, et l'ancre est bien le morceau du vote.
+        À la jonction, c'est déjà le jingle d'encore qui passe. Sans ancre, le
+        vote a agi (pondération, jingle) mais ne force rien, et on le
+        journalise.
         """
         if self._controle is None:
             return
@@ -490,10 +469,9 @@ class RadioProgramme:
         self._encore_force = self._morceau_du_meme(self._controle, more.anchor)
 
     def _morceau_du_meme(self, control: Control, courant: Track) -> Track | None:
-        """Ce qu'un encore sur `courant` force : le même artiste, puis ce que le
-        noyau relâche, et chaque repli est dit. Pendant un programme, cherché
-        DANS la liste et jamais au-dehors (SPECS.md §7 n°20) : sortir de la
-        liste sur un encore trahirait le choix des morceaux.
+        """Le morceau qu'un encore sur `courant` force : le même artiste, puis
+        les replis du noyau, chacun journalisé. Pendant un programme, cherché
+        dans la liste et jamais au-dehors (SPECS.md §7 n°20).
         """
         if self._programmation is not None:
             liste = self._programmation.playlist_to_draw()
@@ -509,10 +487,10 @@ class RadioProgramme:
         return pick.track
 
     def _encore_dans_la_liste(self, liste: str, courant: Track) -> Track | None:
-        """Le même artiste, cherché dans la liste du programme ouvert.
+        """Un autre morceau du même artiste dans la liste du programme ouvert.
 
         À défaut, `None` : le tirage retombe dans la liste par le chemin
-        normal du programme — jamais au-dehors (SPECS.md §7 n°20).
+        normal du programme, jamais au-dehors (SPECS.md §7 n°20).
         """
         try:
             tracks = self._source.tracks_from_playlist(liste)
@@ -532,11 +510,10 @@ class RadioProgramme:
     def _piste_du_programme(self) -> str | None:
         """Un morceau tiré dans la liste du programme ouvert, s'il y en a un.
 
-        Rend `None` quand aucun programme n'est ouvert **et** quand la liste ne
-        donne rien : une liste introuvable, vidée ou renommée ne fait pas taire
-        la radio, elle se replie sur le tirage libre (SPECS.md §7 n°21). Le
-        repli est journalisé, parce qu'une liste qui ne répond plus est presque
-        toujours une faute de frappe qu'on veut voir.
+        Rend `None` sans programme ouvert, et aussi quand la liste est
+        introuvable, vide ou illisible : la radio se replie alors sur le
+        tirage libre (SPECS.md §7 n°21). Le repli est journalisé, une liste
+        qui ne répond plus est souvent une faute de frappe.
         """
         if self._programmation is None:
             return None

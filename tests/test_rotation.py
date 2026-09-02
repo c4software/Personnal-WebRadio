@@ -30,8 +30,9 @@ def test_un_artiste_ressort_de_la_fenetre_apres_n_autres() -> None:
 def test_la_regle_compte_des_artistes_pas_des_morceaux() -> None:
     """Trois titres d'affilée du même artiste ne comptent que pour un.
 
-    Sans cela, un enchaînement `encore` ferait sortir un artiste de plus à
-    chaque titre et viderait la fenêtre — l'inverse de ce qu'elle protège."""
+    Sinon un enchaînement `encore` ferait sortir un artiste de plus à chaque
+    titre et viderait la fenêtre.
+    """
     f = Window(width=3)
     f.remember(track("1", "Air"))
     f.remember(track("2", "Bowie"))
@@ -60,8 +61,7 @@ def test_une_largeur_negative_est_refusee() -> None:
 
 
 def test_retrecir_relache_le_plus_ancien_d_abord() -> None:
-    """C'est le sens du rétrécissement : on rend d'abord ce qu'on a le moins
-    récemment entendu."""
+    """On relâche d'abord l'artiste entendu le moins récemment."""
     f = Window(width=3)
     for i, a in enumerate(["Air", "Bowie", "Portishead"], start=1):
         f.remember(track(str(i), a))
@@ -72,16 +72,15 @@ def test_retrecir_relache_le_plus_ancien_d_abord() -> None:
 
 
 def test_retrecir_une_fenetre_vide_rend_faux() -> None:
-    """L'appelant doit pouvoir distinguer « j'ai relâché » de « je n'ai plus
-    rien à relâcher » : sans cela, une bibliothèque vide ferait boucler la
-    file indéfiniment."""
+    """L'appelant doit distinguer un relâchement d'une fenêtre déjà vide, sinon
+    une bibliothèque vide ferait boucler la file indéfiniment."""
     f = Window(width=3)
     assert not f.shrink()
 
 
 def test_une_bibliotheque_de_trois_artistes_ne_bloque_pas() -> None:
-    """Le cas que SPECS.md §4.2 nomme : elle joue en alternant trois artistes,
-    elle ne s'arrête pas."""
+    """Le cas nommé par SPECS.md §4.2 : la radio alterne trois artistes, elle ne
+    s'arrête pas."""
     catalogue = [track("1", "Air"), track("2", "Bowie"), track("3", "Portishead")]
     f = Window(width=5)
     for p in catalogue:

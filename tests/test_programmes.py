@@ -54,8 +54,7 @@ def test_le_meme_creneau_un_autre_jour_n_ouvre_rien() -> None:
 
 
 def test_le_debut_est_inclus_et_la_fin_exclue() -> None:
-    """Sans cette convention, deux programmes qui se touchent se recouvriraient
-    d'une minute — et le second n'aurait jamais son heure pleine."""
+    """Sans cette convention, deux programmes qui se touchent se recouvriraient d'une minute."""
     assert Programming([CHLOE], a(VENDREDI, 18)).current_programme() is CHLOE
     assert Programming([CHLOE], a(VENDREDI, 19, 59)).current_programme() is CHLOE
     assert Programming([CHLOE], a(VENDREDI, 20)).current_programme() is None
@@ -68,8 +67,8 @@ def test_tous_ouvre_les_sept_jours() -> None:
 
 
 def test_un_programme_qui_enjambe_minuit_appartient_au_jour_ou_il_commence() -> None:
-    """« Le vendredi, 22 h → 02 h » est la nuit du vendredi au samedi : compter
-    le samedi 01 h comme un samedi le ferait démarrer une nuit trop tôt."""
+    """Un programme du vendredi 22 h-02 h est la nuit du vendredi au samedi : le
+    samedi 01 h en fait partie, pas le samedi 23 h."""
     nuit = Programme(
         name="La nuit du vendredi",
         playlist="Nuit",
@@ -86,8 +85,8 @@ def test_un_programme_qui_enjambe_minuit_appartient_au_jour_ou_il_commence() -> 
 
 
 def test_une_nuit_du_dimanche_se_prolonge_le_lundi_matin() -> None:
-    """Le lundi est le seul jour dont la veille change de semaine : c'est là
-    que le calcul du jour précédent se casserait s'il ne bouclait pas."""
+    """Le lundi est le seul jour dont la veille change de semaine : le calcul du
+    jour précédent doit boucler."""
     nuit = Programme(
         name="La nuit du dimanche",
         playlist="Nuit",
@@ -102,7 +101,7 @@ def test_une_nuit_du_dimanche_se_prolonge_le_lundi_matin() -> None:
 
 
 def test_le_programme_le_plus_court_l_emporte_sur_celui_qui_le_contient() -> None:
-    """GOAL-068 : la même règle que pour les plages (`core/bands.py`)."""
+    """La même règle que pour les plages (`core/bands.py`, GOAL-068)."""
     longue = Programme(
         name="La soirée", playlist="A", days=(EVERY_DAY,), start=time(20), end=time(23)
     )

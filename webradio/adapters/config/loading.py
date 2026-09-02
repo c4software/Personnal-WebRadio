@@ -1,13 +1,12 @@
-"""Lire les deux fichiers : le TOML, et le `.env` qui porte les secrets.
+"""Lit les deux fichiers de configuration : le TOML et le `.env` des secrets.
 
-`tomllib` est dans la bibliothèque standard depuis Python 3.11, et le format du
-`.env` — des lignes `CLÉ=valeur` — tient en vingt lignes : aucune dépendance
-n'est justifiée ici, et une dépendance non justifiée est interdite
-(AGENTS.md §2).
+`tomllib` est dans la bibliothèque standard depuis Python 3.11 et le format du
+`.env` (des lignes `CLÉ=valeur`) se lit en quelques lignes : aucune dépendance
+n'est justifiée (AGENTS.md §2).
 
-Les valeurs déjà présentes dans l'environnement du processus **priment** sur le
-fichier : c'est ce qui permet de passer les identifiants à un conteneur sans y
-copier de fichier (ARCHITECTURE.md §8.5.3).
+Les variables déjà présentes dans l'environnement du processus priment sur le
+fichier, ce qui permet de passer les identifiants à un conteneur sans y copier
+de fichier (ARCHITECTURE.md §8.5.3).
 """
 
 import logging
@@ -37,9 +36,8 @@ def read_env(path: Path) -> dict[str, str]:
     """Lit un fichier `clé=valeur`, sans rien journaliser de ce qu'il contient.
 
     Un fichier absent n'est pas une erreur : les variables peuvent venir de
-    l'environnement du processus. Une ligne mal formée en est une, et elle est
-    signalée avec son numéro — c'est la seule façon de la retrouver sans ouvrir
-    le fichier, ce qu'on évite justement de faire avec un fichier de secrets.
+    l'environnement du processus. Une ligne mal formée lève `SettingsError`
+    avec son numéro de ligne, jamais son contenu.
     """
     if not path.is_file():
         journal.debug(
@@ -77,10 +75,9 @@ def _sans_guillemets(value: str) -> str:
 
 
 def credentials_from(variables: Mapping[str, str]) -> SubsonicCredentials:
-    """Extrait les trois identifiants, ou refuse le démarrage en nommant celui qui manque.
+    """Extrait les trois identifiants, ou lève `SettingsError` en nommant ceux qui manquent.
 
-    Le message nomme la **variable**, jamais une valeur : dire ce qui manque
-    n'oblige pas à dire ce qui est présent.
+    Le message nomme la variable, jamais une valeur.
     """
     manquantes = [
         name
@@ -118,11 +115,10 @@ def load(
     env_path: Path,
     environment: Mapping[str, str] | None = None,
 ) -> Config:
-    """Réunit les deux moitiés de la configuration : le TOML et les secrets.
+    """Réunit le TOML et les secrets en une `Config`.
 
-    `environnement` est injecté pour que les tests n'aient pas à toucher aux
-    variables du processus — les toucher rendrait deux tests dépendants de leur
-    ordre d'exécution.
+    `environment` est injectable pour que les tests ne touchent pas aux
+    variables du processus, ce qui les rendrait dépendants de leur ordre.
     """
     processes = os.environ if environment is None else environment
     variables = read_env(env_path)

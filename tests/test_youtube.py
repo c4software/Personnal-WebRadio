@@ -27,7 +27,7 @@ PAGE = '<html><link rel="canonical" href="https://www.youtube.com/channel/UCexem
 
 
 class FakeReseau:
-    """Les pages et flux que le test décide, et le journal des résolutions."""
+    """Pages et flux fixés par le test, avec le journal des lectures et des résolutions."""
 
     def __init__(self, *, page: str = PAGE, flux: str = ATOM) -> None:
         self._page = page

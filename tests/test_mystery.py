@@ -114,8 +114,8 @@ def test_une_plage_qui_ne_demande_aucun_tirage_est_refusee() -> None:
 
 
 def test_retirer_donne_un_autre_theme_et_le_garde() -> None:
-    """GOAL-057 : une heure de Ragga qui ne plaît pas se retire. L'ancien
-    thème est écarté, et le nouveau tient jusqu'à la fin de l'occurrence."""
+    """Le retirage écarte l'ancien thème ; le nouveau tient jusqu'à la fin de
+    l'occurrence (GOAL-057)."""
     tirage = RandomTheme(FakeSource(CATALOGUE), ScriptedRandom([1, 0]))
     debut = datetime(2026, 8, 31, 21, 5, tzinfo=UTC)
     premier = tirage.constraint_for(SOIREE, debut)

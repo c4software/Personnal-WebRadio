@@ -19,7 +19,7 @@ def test_sans_mode_aucune_suite_ne_s_ouvre() -> None:
 
 
 def test_la_double_dose_impose_le_meme_artiste_une_fois_sans_le_meme_titre() -> None:
-    """Longueur fixe : le hasard n'est pas consommé — le script vide le prouve."""
+    """Longueur fixe : le hasard n'est pas consommé, le script vide le prouve."""
     runs = Runs(ScriptedRandom([]))
     runs.observe(PLAGE, Mode.DOUBLE_DOSE, track("a1", "Air"))
     assert runs.directive(PLAGE, Mode.DOUBLE_DOSE) == Directive(
@@ -30,7 +30,7 @@ def test_la_double_dose_impose_le_meme_artiste_une_fois_sans_le_meme_titre() -> 
 
 
 def test_le_passionne_d_artiste_tire_sa_longueur_entre_3_et_6() -> None:
-    """ScriptedRandom([1]) sur [3, 4, 5, 6] → 4 titres : l'ancre puis trois."""
+    """`ScriptedRandom([1])` sur [3, 4, 5, 6] donne 4 titres : l'ancre puis trois."""
     runs = Runs(ScriptedRandom([1]))
     runs.observe(PLAGE, Mode.ARTIST_FAN, track("b1", "Bowie"))
     for identifier in ("b2", "b3", "b4"):
@@ -41,7 +41,7 @@ def test_le_passionne_d_artiste_tire_sa_longueur_entre_3_et_6() -> None:
 
 
 def test_les_titres_deja_servis_sont_exclus_de_la_suite() -> None:
-    runs = Runs(ScriptedRandom([3]))  # [3, 4, 5, 6] → 6 titres
+    runs = Runs(ScriptedRandom([3]))  # [3, 4, 5, 6] : 6 titres
     runs.observe(PLAGE, Mode.ARTIST_FAN, track("b1", "Bowie"))
     runs.observe(PLAGE, Mode.ARTIST_FAN, track("b2", "Bowie"))
     directive = runs.directive(PLAGE, Mode.ARTIST_FAN)
@@ -50,7 +50,7 @@ def test_les_titres_deja_servis_sont_exclus_de_la_suite() -> None:
 
 
 def test_le_passionne_d_epoque_ancre_la_decennie_et_laisse_la_fenetre_agir() -> None:
-    """ScriptedRandom([0]) sur [2, 3, 4, 5, 6] → 2 titres d'une même décennie."""
+    """`ScriptedRandom([0])` sur [2, 3, 4, 5, 6] donne 2 titres d'une même décennie."""
     runs = Runs(ScriptedRandom([0]))
     runs.observe(PLAGE, Mode.ERA_FAN, track("c1", "Air", year=1977))
     directive = runs.directive(PLAGE, Mode.ERA_FAN)
@@ -61,8 +61,8 @@ def test_le_passionne_d_epoque_ancre_la_decennie_et_laisse_la_fenetre_agir() -> 
 
 
 def test_une_ancre_sans_annee_n_ouvre_pas_de_suite_d_epoque() -> None:
-    """Le script vide le prouve aussi : le hasard n'est pas consommé, la
-    soirée se rejoue à l'identique avec ou sans ce cas."""
+    """Le hasard n'est pas consommé (script vide) : la soirée se rejoue à
+    l'identique avec ou sans ce cas."""
     runs = Runs(ScriptedRandom([]))
     runs.observe(PLAGE, Mode.ERA_FAN, track("c1", "Air"))
     assert runs.directive(PLAGE, Mode.ERA_FAN) is None
@@ -86,8 +86,8 @@ def test_le_tirage_libre_remet_la_suite_a_zero() -> None:
 
 
 def test_une_piste_qui_ne_colle_pas_ouvre_la_suite_suivante() -> None:
-    """La rupture — plus de candidats, le tirage a relâché l'ancre — n'arrête
-    pas le mode : le morceau tiré devient l'ancre d'une nouvelle suite."""
+    """La rupture (plus de candidats, ancre relâchée) n'arrête pas le mode : le
+    morceau tiré devient l'ancre d'une nouvelle suite."""
     runs = Runs(ScriptedRandom([1, 1]))
     runs.observe(PLAGE, Mode.ARTIST_FAN, track("b1", "Bowie"))
     runs.observe(PLAGE, Mode.ARTIST_FAN, track("p1", "Portishead"))
@@ -98,8 +98,8 @@ def test_une_piste_qui_ne_colle_pas_ouvre_la_suite_suivante() -> None:
 
 
 def test_rompre_une_suite_d_epoque_fait_eviter_sa_decennie() -> None:
-    """GOAL-059 : « retirer » sur une plage `era_fan`, c'est rompre la suite
-    et en ouvrir une autre, d'une autre décennie."""
+    """Le retirage sur une plage `era_fan` rompt la suite et en ouvre une autre,
+    d'une autre décennie (GOAL-059)."""
     runs = Runs(ScriptedRandom([0, 0]))
     runs.observe(PLAGE, Mode.ERA_FAN, track("1", "Air", year=1998))
     assert runs.break_run()

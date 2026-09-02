@@ -1,17 +1,12 @@
 """Ce que la radio retient des votes, et ce qu'elle en fait au tirage.
 
-C'est la seconde charnière du projet, symétrique de `playout.py` : d'un côté
-le noyau, qui sait *combien pèse* un vote et *comment* les scores deviennent un
-multiplicateur ; de l'autre la base, qui sait les *conserver*.
+Le noyau sait combien pèse un vote et comment les scores deviennent un
+multiplicateur ; la base sait les conserver. Le noyau ne va jamais chercher un
+poids (ARCHITECTURE.md §5.3) : ce module les lui fournit.
 
-**Le noyau ne va jamais chercher un poids** (ARCHITECTURE.md §5.3) : c'est ce
-module qui les lui fournit, comme on lui fournit des pistes.
-
-Le noyau et la base ont chacun leur `Scope` et leurs `Scores`. Ce n'est **pas**
-une duplication à supprimer : c'est ce qui permet à `adapters/state/` de ne rien
-importer du noyau et de se tester sans lui. La traduction tient en deux lignes,
-et un test vérifie que les valeurs coïncident — le jour où elles divergeront, il
-cassera ici plutôt qu'en base.
+Le noyau et la base ont chacun leur `Scope` et leurs `Scores`. Ce n'est pas une
+duplication : c'est ce qui permet à `adapters/state/` de ne rien importer du
+noyau. La traduction tient ici, et un test vérifie que les valeurs coïncident.
 """
 
 import logging
@@ -45,8 +40,7 @@ class Learning:
         """Le multiplicateur de chance d'une piste, borné.
 
         Une base injoignable ne fait pas taire la radio : on rend un poids
-        neutre et l'on journalise. Un tirage sans mémoire vaut infiniment mieux
-        qu'un tirage qui n'a pas lieu (SPECS.md §5).
+        neutre et on journalise (SPECS.md §5).
         """
         try:
             piste_brute = self._base.scores(PorteeBase.TRACK, track.identifier)
@@ -63,19 +57,16 @@ class Learning:
         )
 
     def remember(self, command: Command, track: Track) -> None:
-        """Enregistre un vote **accepté**, sur la piste et sur son artiste.
+        """Enregistre un vote accepté, sur la piste et sur son artiste.
 
-        À n'appeler que lorsque le vote a produit un effet : un vote refusé
-        pendant un jingle ou une émission ne doit **rien** enregistrer
-        (SPECS.md §4.6). Sinon la radio apprendrait de gestes qui n'ont rien
-        changé, et l'auditeur pondérerait sans le savoir.
+        À n'appeler que si le vote a produit un effet : un vote refusé pendant
+        un jingle ou une émission ne doit rien enregistrer (SPECS.md §4.6).
         """
         sur_la_piste = vote_weight(command, Scope.TRACK)
         sur_l_artiste = vote_weight(command, Scope.ARTIST)
         try:
-            # Le libellé humain est retenu AU MOMENT du vote : l'identifiant
-            # Subsonic est opaque, et personne ne veut lire « CpW34RBmv… »
-            # sur la page des votes (GOAL-020).
+            # Le libellé est retenu au moment du vote : l'identifiant Subsonic
+            # est opaque et illisible sur la page des votes (GOAL-020).
             self._ecrire(
                 PorteeBase.TRACK,
                 track.identifier,

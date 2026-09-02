@@ -1,23 +1,19 @@
 """Quel jingle est dû à cette jonction, et dans quel ordre.
 
-Ce module calcule **des noms de fichiers**, jamais leur existence : un jingle
-absent n'est pas une erreur, c'est le mode d'emploi (SPECS.md §4.3), et c'est un
-adaptateur qui le constatera au moment de le lire. Le noyau ne regarde aucun
-disque (ARCHITECTURE.md §1.1).
+Ce module calcule des noms de fichiers, jamais leur existence : un jingle absent
+n'est pas une erreur (SPECS.md §4.3), c'est l'adaptateur qui le constate à la
+lecture. Le noyau ne regarde aucun disque (ARCHITECTURE.md §1.1).
 
-Trois règles commandent tout le reste :
+Trois règles :
 
-- **un jingle horaire en retard passe quand même**, dans la limite de sa
-  péremption (SPECS.md §7 n°4, amendée par la n°29) : un morceau long qui
-  enjambe une heure pleine n'abandonne pas le jingle, c'est un cas nominal ;
-- **mais pas au-delà** : à plus du délai de péremption de son heure pleine, un
-  jingle horaire est abandonné — un `19h.mp3` entendu à 22 h 28, après une
-  longue pause sans auditeur, sonne comme une horloge cassée (constaté le
-  2026-08-31). Le jingle d'« encore » ne périme jamais : il répond à un vote,
-  pas à l'horloge ;
-- **rien ne passe pendant une émission**, qui remplace la programmation,
-  habillage compris (SPECS.md §7 n°15). Cette exception-là ne tient pas au
-  retard mais à la nature de l'émission.
+- un jingle horaire en retard passe quand même, dans la limite de sa péremption
+  (SPECS.md §7 n°4, amendée par la n°29) : un morceau long qui enjambe une heure
+  pleine est un cas nominal ;
+- au-delà du délai de péremption, il est abandonné : un jingle de 19 h entendu
+  après 22 h sonne comme une horloge cassée. Le jingle d'encore ne périme
+  jamais, il répond à un vote et non à l'horloge ;
+- rien ne passe pendant une émission, qui remplace la programmation, habillage
+  compris (SPECS.md §7 n°15).
 """
 
 from datetime import datetime, timedelta
@@ -29,13 +25,12 @@ UNE_HEURE = timedelta(hours=1)
 
 
 def jingle_name(instant: datetime) -> str:
-    """`hours/14h.mp3` pour 14 h. Le nom du fichier *est* la programmation.
+    """`hours/14h.mp3` pour 14 h. Le nom du fichier est la programmation.
 
-    Seule exception à « rien en dur » (AGENTS.md §2) : il n'y a pas de table de
-    correspondance à tenir à jour, on ajoute un jingle en déposant un fichier.
-    Les horaires vivent dans `hours/` (GOAL-032) : vingt-quatre fichiers
-    potentiels méritaient leur tiroir — l'« encore » et les génériques restent
-    à la racine, ou où leur nom le dit.
+    Seule exception à la règle d'AGENTS.md §2 sur les valeurs en dur : pas de
+    table à tenir à jour, on ajoute un jingle en déposant un fichier. Les
+    horaires vivent dans `hours/` (GOAL-032), l'encore et les génériques à la
+    racine.
     """
     return f"hours/{instant.hour:02d}h.mp3"
 
@@ -51,11 +46,10 @@ def full_hours_between(depuis: datetime, jusqu_a: datetime) -> list[datetime]:
 
 
 class Jingles:
-    """Ce qui est dû à la prochaine jonction, et qui s'épuise en le disant.
+    """Les jingles dus à la prochaine jonction ; `due_now` les rend et les oublie.
 
-    L'instant de construction sert de repère de départ : la radio ne rattrape
-    pas les heures d'avant son démarrage — elle n'existe que lorsqu'on l'écoute
-    (SPECS.md §1).
+    L'instant de construction sert de repère : la radio ne rattrape pas les
+    heures d'avant son démarrage (SPECS.md §1).
     """
 
     def __init__(
@@ -67,10 +61,10 @@ class Jingles:
         self._horloge = clock
         self._repere = clock.now()
         self._encore_du = False
-        # Le nom du jingle d'« encore » se configure (GOAL-031) : les jingles
-        # horaires restent nommés par leur heure, c'est leur programmation.
+        # Le nom du jingle d'encore est configurable (GOAL-031). Les jingles
+        # horaires sont nommés par leur heure.
         self._nom_encore = encore_name
-        # `None` : aucun jingle horaire ne périme — l'ancienne règle n°4.
+        # `None` : aucun jingle horaire ne périme (règle n°4 avant la n°29).
         self._peremption = expiry
 
     @property
@@ -80,18 +74,17 @@ class Jingles:
     def mark_more(self) -> None:
         """Un `encore` accepté s'annonce à la jonction suivante (SPECS.md §4.6).
 
-        Deux votes avant la même jonction ne font pas deux jingles : l'accusé de
-        réception porte sur le morceau qui suit, et il n'y en a qu'un.
+        Deux votes avant la même jonction ne font qu'un jingle : l'annonce porte
+        sur le morceau qui suit, et il n'y en a qu'un.
         """
         self._encore_du = True
 
     def due_now(self, *, during_show: bool = False) -> tuple[str, ...]:
-        """Les jingles à diffuser ici, dans l'ordre, `encore.mp3` en dernier.
+        """Les jingles à diffuser maintenant, dans l'ordre, l'encore en dernier.
 
-        L'appel **consomme** : ce qui a été rendu ne le sera pas deux fois. Le
-        repère avance même pendant une émission, sans quoi les heures abandonnées
-        ressortiraient à la fin de l'épisode — ce que la décision n°15 refuse
-        explicitement.
+        L'appel consomme : ce qui a été rendu ne le sera pas deux fois. Le repère
+        avance même pendant une émission, sinon les heures abandonnées
+        ressortiraient à la fin de l'épisode (décision n°15).
         """
         now = self._horloge.now()
         franchies = full_hours_between(self._repere, now)

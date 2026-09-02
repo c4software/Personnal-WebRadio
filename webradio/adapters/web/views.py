@@ -1,19 +1,15 @@
 """L'interface : une page, ce qui passe, et deux boutons (SPECS.md §4.8).
 
-Faite pour **un téléphone posé à côté de l'enceinte, utilisable à une main** :
-son ergonomie compte davantage que sa conformité formelle (SPECS.md §3).
+Faite pour un téléphone utilisable à une main (SPECS.md §3).
 
-Le gabarit ne reçoit **aucune donnée d'antenne**. Il reçoit trois adresses et un
-intervalle, et va tout chercher lui-même sur l'API. Ce n'est pas une coquetterie
-technique : c'est ce qui rend l'interdit d'AGENTS.md §2 constatable plutôt que
-promis. Une vue qui pré-remplirait la page avec l'état de la radio aurait un
-second chemin d'accès au noyau, qui divergerait du premier.
+Le gabarit ne reçoit aucune donnée d'antenne, seulement les adresses de l'API
+et un intervalle ; il va tout chercher sur l'API. Une vue qui pré-remplirait la
+page avec l'état de la radio créerait un second chemin vers le noyau
+(AGENTS.md §2). Le gabarit ne décide rien non plus : il affiche `accepted` et
+`reason` tels que l'API les rend.
 
-Aucune décision dans le gabarit non plus : il affiche `accepte` et `motif` tels
-que l'API les rend. Ce n'est pas lui qui calcule s'il faut refuser un vote.
-
-**Rien ne se configure depuis le web** : le TOML reste le seul point d'entrée
-des réglages (SPECS.md §6).
+Rien ne se configure depuis le web : le TOML est le seul point d'entrée des
+réglages (SPECS.md §6).
 """
 
 from datetime import timedelta
@@ -30,9 +26,9 @@ MILLISECONDES = 1000
 def create_view(*, refresh: timedelta, stream_url: str = "") -> Blueprint:
     """La page unique.
 
-    `rafraichissement` vient du TOML : c'est une durée, et aucune durée ne
-    s'écrit dans le code (AGENTS.md §2). `stream_url` aussi : l'adresse que
-    le lecteur de la page ouvre (GOAL-060) — vide, la page n'a pas de lecteur.
+    `refresh` vient du TOML, aucune durée n'est écrite dans le code
+    (AGENTS.md §2). `stream_url` est l'adresse que le lecteur de la page
+    ouvre (GOAL-060) ; vide, la page n'a pas de lecteur.
     """
     if refresh <= timedelta(0):
         message = "un rafraîchissement nul ferait boucler la page sans reprendre son souffle"
@@ -67,11 +63,8 @@ def create_app(
     planning: dict[str, object] | None = None,
     stream_url: str = "",
 ) -> Flask:
-    """L'application complète : l'API, puis la page qui s'en sert.
-
-    Les deux sont montées ensemble parce que la page ne sait rien faire sans
-    l'API — c'est exactement ce qu'on veut vérifier.
-    """
+    """L'application complète : l'API, la page qui s'en sert, et les routes de
+    Liquidsoap si `playout` est fourni."""
     app = Flask(__name__)
     app.register_blueprint(create_api(radio, planning=planning))
     app.register_blueprint(create_view(refresh=refresh, stream_url=stream_url))

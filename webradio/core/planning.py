@@ -1,22 +1,21 @@
 """La grille effective : ce qui passera vraiment, période par période.
 
-Le TOML déclare des périodes qui se recouvrent — une émission dans une plage,
-un programme par-dessus une plage, une plage dans une autre. La radio les
-arbitre à chaque jonction (`app/playout.py`), une seule à la fois ; ce module
-fait le même arbitrage **sur une journée entière**, d'avance, pour qu'on
-puisse montrer ce qui passera au lieu de ce qui a été déclaré (GOAL-068).
+Le TOML déclare des périodes qui se recouvrent (une émission dans une plage,
+un programme par-dessus une plage). La radio les arbitre à chaque jonction
+(`app/playout.py`) ; ce module fait le même arbitrage sur une journée entière,
+d'avance, pour montrer ce qui passera plutôt que ce qui a été déclaré
+(GOAL-068).
 
-**Aucune règle n'est réécrite ici.** Les périodes sont interrogées avec leurs
-propres prédicats — `Programming.programme_at`, `Schedule.band_at`,
-`Show.a_lieu_le` — et l'ordre des natures est celui de la diffusion : émission
-(SPECS.md §4.11), puis programme (§4.13), puis plage (§4.4). C'est ce qui
-interdit à la grille annoncée et à la radio de diverger : elles posent la même
-question aux mêmes objets.
+Aucune règle n'est réécrite ici. Les périodes sont interrogées avec leurs
+propres prédicats (`Programming.programme_at`, `Schedule.band_at`,
+`Show.a_lieu_le`), dans l'ordre de la diffusion : émission (SPECS.md §4.11),
+puis programme (§4.13), puis plage (§4.4). La grille annoncée et la radio
+posent ainsi la même question aux mêmes objets.
 
-La journée se balaie par **frontières**, pas minute par minute : les seuls
-instants où l'occupant peut changer sont les heures déclarées, projetées sur
-les dates de la fenêtre. Deux intervalles voisins de même occupant sont
-recollés — c'est ce qui rend une plage qui enjambe minuit à sa vraie longueur.
+La journée se balaie par frontières, pas minute par minute : l'occupant ne
+peut changer qu'aux heures déclarées, projetées sur les dates de la fenêtre.
+Deux intervalles voisins de même occupant sont recollés, ce qui rend à une
+plage qui enjambe minuit sa vraie longueur.
 """
 
 from dataclasses import dataclass, replace
@@ -28,7 +27,7 @@ from webradio.core.programmes import Programme, Programming
 from webradio.core.shows import Show, ShowSchedule
 
 # Ce qui peut occuper une période. Une émission n'est pas de la musique, mais
-# elle occupe l'antenne, et c'est ce dont une grille parle.
+# elle occupe l'antenne.
 Content = Band | Programme | Show
 
 
@@ -36,13 +35,11 @@ Content = Band | Programme | Show
 class Segment:
     """Une période telle qu'elle passera, et ce qui l'occupe.
 
-    `end` vaut `None` pour une émission dont la durée n'est pas déclarée — un
-    podcast, une chaîne YouTube : elle ne se connaît qu'une fois le flux lu, et
-    l'annoncer serait inventer.
+    `end` vaut `None` pour une émission sans durée déclarée (podcast, chaîne
+    YouTube) : sa durée n'est connue qu'une fois le flux lu.
 
-    `after_show` marque la musique qui **reprend après** une telle émission :
-    son début est celui de l'émission, faute de mieux, et rien ne dit à quelle
-    heure elle recommencera vraiment. Seule sa fin est sûre.
+    `after_show` marque la musique qui reprend après une telle émission : son
+    `start` est celui de l'émission, faute de mieux, et seule sa fin est sûre.
     """
 
     content: Content
@@ -53,11 +50,10 @@ class Segment:
 
 @dataclass(frozen=True, slots=True)
 class _Music:
-    """Un morceau de journée occupé par de la musique, bornes connues.
+    """Une période occupée par de la musique, bornes connues.
 
-    Un type à part de `Segment` pour une seule raison : une période musicale a
-    toujours une fin, et le dire au typeur évite un garde-fou qui ne se
-    déclencherait jamais.
+    Distinct de `Segment` parce qu'une période musicale a toujours une fin :
+    le typeur le sait, et on évite un garde-fou sur `end is None`.
     """
 
     content: Programme | Band
@@ -82,11 +78,10 @@ class EffectiveSchedule:
     def day(self, midnight: datetime) -> list[Segment]:
         """Les périodes de la journée qui commence à `midnight`, dans l'ordre.
 
-        Une période appartient au jour où elle **commence** : la fin de soirée
-        du samedi qui court jusqu'à 02 h se lit au samedi, et le dimanche ne la
-        reliste pas — c'est la règle de `Band.covers`, et celle qu'attend un
-        lecteur de grille. La fenêtre balayée déborde donc d'un jour de chaque
-        côté, pour qu'une période à cheval soit vue entière.
+        Une période appartient au jour où elle commence, comme dans
+        `Band.covers` : une plage du samedi soir qui finit à 02 h se lit au
+        samedi, pas au dimanche. La fenêtre balayée déborde d'un jour de chaque
+        côté pour voir entière une période à cheval sur minuit.
 
         Les trous sont volontaires : hors de toute plage, le tirage est libre
         (SPECS.md §4.4) et rien n'est annoncé.
@@ -100,37 +95,37 @@ class EffectiveSchedule:
         periodes = [
             Segment(m.content, m.start, m.end, after_show=m.after_show) for m in musique
         ] + emissions
-        # À début égal, l'émission passe devant : c'est elle qui interrompt.
+        # À début égal, l'émission passe devant, c'est elle qui interrompt.
         periodes.sort(key=lambda p: (p.start, 0 if isinstance(p.content, Show) else 1))
         fin = midnight + timedelta(days=1)
         return [p for p in periodes if midnight <= p.start < fin]
 
     def next_replacement(self, depuis: datetime, jusqu_a: datetime) -> Segment | None:
-        """La première période qui **remplacera la file** entre ces deux instants.
+        """La première période qui remplacera la file entre ces deux instants,
+        ou `None`.
 
         Une émission remplace toute la programmation (SPECS.md §4.11) ; un
-        programme puise sa musique dans une liste, et non dans la file
-        (§4.13). Dans les deux cas, ce que la file a préparé pour cette
-        heure-là ne passera pas — et l'annoncer serait mentir.
+        programme puise sa musique dans une liste, pas dans la file (§4.13).
+        Dans les deux cas, ce que la file a préparé pour cette heure ne
+        passera pas.
         """
         candidates = self._emissions_de(depuis, jusqu_a)
         candidates += self._programmes_de(depuis, jusqu_a)
         return min(candidates, key=lambda p: p.start, default=None)
 
     def served_from(self, instant: datetime) -> datetime:
-        """Le premier instant, à partir de celui-ci, où la file sera servie.
+        """Le premier instant, à partir de `instant`, où la file sera servie.
 
-        Un titre tiré pour une heure que couvriront un programme ou un direct
-        ne passera pas alors : il sera jeté à la jonction, et la file se
-        retrouvera vide au moment de reprendre. On tire donc pour l'heure où
-        le créneau commencera **vraiment** (GOAL-068).
+        Un titre tiré pour une heure couverte par un programme ou un direct
+        serait jeté à la jonction, et la file serait vide à la reprise. On
+        tire donc pour l'heure où le créneau commencera vraiment (GOAL-068).
 
-        Une émission dont la durée n'est pas déclarée ne se saute pas : nul ne
-        sait quand elle finit, et le deviner serait inventer.
+        Une émission sans durée déclarée ne se saute pas : sa fin est
+        inconnue.
         """
-        # Autant de sauts que de périodes déclarées, pas un de plus : un
-        # programme quotidien couvrant presque toute la journée se
-        # rattraperait lui-même le lendemain, et la boucle ne finirait jamais.
+        # Borner à une itération par période déclarée : un programme quotidien
+        # qui couvre presque toute la journée se rattraperait lui-même le
+        # lendemain, et la boucle ne finirait jamais.
         for _ in range(len(self._emissions.shows) + len(self._programmes.programmes)):
             fin = self._fin_de_ce_qui_remplace(instant)
             if fin is None:
@@ -139,7 +134,7 @@ class EffectiveSchedule:
         return instant
 
     def _fin_de_ce_qui_remplace(self, instant: datetime) -> datetime | None:
-        """La fin de l'émission ou du programme qui occupe cet instant."""
+        """La fin de l'émission ou du programme qui occupe cet instant, sinon `None`."""
         for emission in self._emissions.shows:
             if emission.duration is None:
                 continue
@@ -152,10 +147,10 @@ class EffectiveSchedule:
         return self._fin_du_programme(programme, instant)
 
     def _programmes_de(self, depuis: datetime, jusqu_a: datetime) -> list[Segment]:
-        """Les programmes qui s'ouvrent dans la fenêtre, et eux seuls.
+        """Les programmes qui s'ouvrent dans la fenêtre.
 
         Un programme recouvert par un plus court ne s'ouvre pas : c'est
-        `Programming` qui le dit, avec la règle de la diffusion (§4.13).
+        `Programming` qui tranche, avec la règle de la diffusion (§4.13).
         """
         ouvertures: list[Segment] = []
         jour = depuis.date()
@@ -172,12 +167,12 @@ class EffectiveSchedule:
 
     @staticmethod
     def _fin_du_programme(programme: Programme, instant: datetime) -> datetime:
-        """La fin de l'occurrence en cours — minuit enjambé compris."""
+        """La fin de l'occurrence en cours, le lendemain si elle enjambe minuit."""
         fin = datetime.combine(instant.date(), programme.end, tzinfo=instant.tzinfo)
         return fin if fin > instant else fin + timedelta(days=1)
 
     def _musique(self, depuis: datetime, jusqu_a: datetime) -> list[_Music]:
-        """La musique de la fenêtre, l'occupant recollé d'une frontière à l'autre."""
+        """La musique de la fenêtre, les intervalles de même occupant recollés."""
         frontieres = self._frontieres(depuis, jusqu_a)
         periodes: list[_Music] = []
         for debut, suite in pairwise(frontieres):
@@ -198,8 +193,7 @@ class EffectiveSchedule:
     def _musique_a(self, instant: datetime) -> Programme | Band | None:
         """Ce qui tire la musique à cet instant : le programme, sinon la plage.
 
-        Le même ordre qu'à la jonction (`app/playout.py`) : un programme est
-        plus précis qu'une plage puisqu'il nomme des morceaux (SPECS.md §4.13).
+        Le même ordre qu'à la jonction (`app/playout.py`, SPECS.md §4.13).
         """
         programme = self._programmes.programme_at(instant)
         if programme is not None:
@@ -209,9 +203,9 @@ class EffectiveSchedule:
     def _frontieres(self, depuis: datetime, jusqu_a: datetime) -> list[datetime]:
         """Les instants où l'occupant peut changer : les heures déclarées.
 
-        Projetées sur chaque date de la fenêtre sans regarder les jours : une
-        heure de trop ne fait que couper une période que le recollage répare,
-        là où une heure oubliée en inventerait une.
+        Projetées sur chaque date de la fenêtre sans filtrer par jour : une
+        heure de trop coupe une période que le recollage répare, alors qu'une
+        heure oubliée fausserait la grille.
         """
         heures: set[time] = set()
         for plage in self._plages.bands:
@@ -229,10 +223,10 @@ class EffectiveSchedule:
         return sorted(instants)
 
     def _emissions_de(self, depuis: datetime, jusqu_a: datetime) -> list[Segment]:
-        """Les cases d'émission de la fenêtre, telles qu'elles sont déclarées.
+        """Les cases d'émission de la fenêtre, telles que déclarées.
 
-        Seul un direct connaît sa fin d'avance (SPECS.md §4.11) : ailleurs, la
-        durée vient du flux, et la case reste ouverte sans borne annonçable.
+        Seul un direct connaît sa fin d'avance (SPECS.md §4.11) ; sinon la
+        durée vient du flux et `end` reste `None`.
         """
         cases: list[Segment] = []
         jour = depuis.date()
@@ -249,12 +243,11 @@ class EffectiveSchedule:
         return cases
 
     def _interrompre(self, musique: list[_Music], emission: Segment) -> list[_Music]:
-        """Ce que la musique devient une fois l'émission passée devant elle.
+        """La musique une fois l'émission passée devant elle.
 
-        Une émission **remplace** la programmation (SPECS.md §4.11) : le temps
+        Une émission remplace la programmation (SPECS.md §4.11) : le temps
         qu'elle occupe est retiré à la musique. Sans durée déclarée, elle
-        n'occupe rien de mesurable — elle coupe donc la période en deux, et ce
-        qui suit est marqué comme reprenant après elle.
+        coupe la période en deux et la suite est marquée `after_show`.
         """
         if emission.end is None:
             return self._couper(musique, emission.start)
@@ -282,7 +275,7 @@ class EffectiveSchedule:
             if periode.start < debut:
                 restantes.append(replace(periode, end=debut))
             if fin < periode.end:
-                # Ce qui reprend après un direct reprend à une heure connue :
-                # sa fin est déclarée, contrairement à celle d'un podcast.
+                # Après un direct, la reprise a une heure connue : sa fin est
+                # déclarée, contrairement à celle d'un podcast.
                 restantes.append(replace(periode, start=fin, after_show=False))
         return restantes

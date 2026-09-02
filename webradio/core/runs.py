@@ -1,20 +1,18 @@
 """Les suites d'une plage : double dose, passionné d'époque, passionné d'artiste.
 
 Une plage peut demander que ses tirages s'enchaînent (SPECS.md §4.4, décision
-n°31) : le premier morceau tiré pose une **ancre** — son artiste, ou sa
-décennie — et les tirages suivants s'y tiennent, le temps d'une suite dont la
-longueur est tirée par le hasard injecté. Rien ici ne va chercher de musique :
-ce module dit au tirage **ce que la suite en cours impose**, et observe ce qui
-a été tiré. C'est `core/queue.py` qui filtre, journalise les ruptures, et tire.
+n°31) : le premier morceau tiré pose une ancre, son artiste ou sa décennie, et
+les tirages suivants s'y tiennent pendant une suite dont la longueur est tirée
+par le hasard injecté. Ce module ne cherche aucune musique : il dit au tirage ce
+que la suite en cours impose et observe ce qui a été tiré. `core/queue.py`
+filtre, journalise les ruptures et tire.
 
-Deux règles venues du réel :
+Deux cas limites :
 
-- une piste **sans année** ne pose pas d'ancre d'époque — 6,7 % de la
-  bibliothèque n'est pas datée (docs/subsonic.md §4.1) — et le tirage reste
-  alors un tirage simple ;
-- le **même titre ne repasse jamais** dans une même suite : une décennie
-  maigre croisée avec une plage étroite s'épuise en deux titres, et la suite
-  se rompt plutôt que de boucler.
+- une piste sans année ne pose pas d'ancre d'époque (docs/subsonic.md §4.1) et
+  le tirage reste un tirage simple ;
+- le même titre ne repasse jamais dans une même suite : une décennie maigre
+  croisée avec une plage étroite se rompt plutôt que de boucler.
 """
 
 from dataclasses import dataclass
@@ -32,9 +30,9 @@ class Mode(Enum):
     ARTIST_FAN = "artist_fan"
 
 
-# Bornes INCLUSIVES des longueurs de suite, mode par mode (décision n°31).
-# La longueur se tire par `pick` sur l'étendue : aucune capacité de plus n'est
-# demandée au hasard, et une suite se rejoue à graine fixée.
+# Bornes inclusives des longueurs de suite (décision n°31). La longueur se tire
+# par `pick` sur l'étendue : rien de plus n'est demandé au hasard, et une suite
+# se rejoue à graine fixée.
 RUN_SPANS: dict[Mode, tuple[int, int]] = {
     Mode.DOUBLE_DOSE: (2, 2),
     Mode.ERA_FAN: (2, 6),
@@ -43,7 +41,7 @@ RUN_SPANS: dict[Mode, tuple[int, int]] = {
 
 
 def era_of(track: Track) -> int | None:
-    """La décennie d'une piste datée : 1977 → 1970. Sans année, pas d'époque."""
+    """La décennie d'une piste datée (1977 donne 1970), `None` sans année."""
     if track.year is None:
         return None
     return track.year // 10 * 10
@@ -56,24 +54,23 @@ class Directive:
     artist: str | None = None
     era: int | None = None
     exclude: frozenset[str] = frozenset()
-    # L'ancre à ÉVITER pour la suite qui s'ouvre : celle d'une suite rompue
-    # sur demande (GOAL-059) — retirer la même décennie ne retirerait rien.
+    # L'ancre à éviter pour la suite qui s'ouvre, après une rupture sur demande
+    # (GOAL-059).
     avoid_artist: str | None = None
     avoid_era: int | None = None
-    # Une suite d'artiste répète l'artiste par construction : elle outrepasse
-    # la fenêtre de non-répétition, comme l'encore (SPECS.md §4.6). Une suite
-    # d'époque, elle, varie les artistes : la fenêtre continue de s'appliquer.
+    # Une suite d'artiste répète l'artiste par construction : elle outrepasse la
+    # fenêtre de non-répétition, comme l'encore (SPECS.md §4.6). Une suite
+    # d'époque varie les artistes, la fenêtre s'applique.
     bypass_window: bool = False
 
 
 class Runs:
-    """La suite en cours, et ce qu'elle impose — remise à zéro quand la
-    contrainte de plage change.
+    """La suite en cours, et ce qu'elle impose.
 
-    La clé de remise à zéro est la contrainte elle-même : deux tirages de la
-    même plage la partagent, un changement de plage — ou le tirage libre — la
-    change. Un thème « au hasard » est figé sur l'occurrence (`core/mystery.py`)
-    et donne donc la même contrainte toute la soirée.
+    Remise à zéro quand la contrainte de plage change : deux tirages de la même
+    plage la partagent, un changement de plage ou le tirage libre la change. Un
+    thème au hasard est figé sur l'occurrence (`core/mystery.py`) et donne la
+    même contrainte toute la soirée.
     """
 
     def __init__(self, random: Random) -> None:
@@ -88,10 +85,11 @@ class Runs:
         self._avoid_era: int | None = None
 
     def break_run(self) -> bool:
-        """Rompt la suite en cours : la prochaine ancre en évitera l'ancre
-        (GOAL-059). Faux si aucune suite au hasard ne peut être rompue —
-        hors mode, ou une double dose, dont l'artiste n'est pas une ancre
-        tirée pour durer."""
+        """Rompt la suite en cours ; la prochaine ancre évitera la sienne (GOAL-059).
+
+        Rend `False` hors mode ou en double dose, dont l'artiste n'est pas une
+        ancre tirée pour durer.
+        """
         if self._mode not in (Mode.ERA_FAN, Mode.ARTIST_FAN):
             return False
         self._avoid_artist, self._avoid_era = self._anchor_artist, self._anchor_era
@@ -100,7 +98,7 @@ class Runs:
         return True
 
     def directive(self, constraint: object, mode: Mode | None) -> Directive | None:
-        """Ce que le prochain tirage doit respecter, ou rien : tirage d'ancre."""
+        """Ce que le prochain tirage doit respecter, ou `None` pour un tirage d'ancre."""
         self._rebase(constraint, mode)
         if self._mode is None:
             return None
@@ -115,11 +113,10 @@ class Runs:
         )
 
     def observe(self, constraint: object, mode: Mode | None, track: Track) -> None:
-        """Le tirage a eu lieu : la suite avance, ou une nouvelle s'ouvre.
+        """Enregistre le tirage : la suite avance, ou une nouvelle s'ouvre.
 
-        Un morceau qui ne colle pas à l'ancre — le tirage a dû rompre la suite,
-        faute de candidats — ouvre la suite suivante : lui-même est la nouvelle
-        ancre.
+        Un morceau qui ne colle pas à l'ancre (le tirage a dû rompre la suite,
+        faute de candidats) devient la nouvelle ancre.
         """
         self._rebase(constraint, mode)
         if self._mode is None:
@@ -157,8 +154,8 @@ class Runs:
         if mode is Mode.ERA_FAN:
             era = era_of(track)
             if era is None:
-                # Pas d'ancre sans année : ce tirage reste un tirage simple,
-                # et le hasard n'est pas consommé — la soirée se rejoue.
+                # Pas d'ancre sans année : tirage simple, et le hasard n'est
+                # pas consommé pour que la soirée se rejoue.
                 return
             self._anchor_era = era
         else:

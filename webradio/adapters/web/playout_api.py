@@ -1,13 +1,12 @@
-"""Les deux routes que Liquidsoap appelle, et rien d'autre (ARCHITECTURE.md §4).
+"""Les routes que Liquidsoap appelle (ARCHITECTURE.md §4).
 
 Liquidsoap encode, enchaîne et sert ; il ne décide de rien. À chaque jonction
-il demande ici **quoi jouer**, et à chaque branchement ou débranchement il dit
-**combien écoutent**. C'est le même régime que l'interface web : aucun chemin
-privilégié, tout passe par une route, et la route se teste contre un Fake.
+il demande ici quoi jouer, à chaque branchement ou débranchement il dit combien
+écoutent, et à chaque démarrage de morceau il dit ce qu'il joue. Comme pour
+l'interface web, tout passe par une route, testée contre un Fake.
 
-Le contrat est volontairement pauvre — du texte brut, pas du JSON — parce que
-c'est ce qu'un script `.liq` lit sans effort, et qu'un contrat riche serait une
-décision prise ici.
+Le contrat est en texte brut, pas en JSON : c'est ce qu'un script `.liq` lit
+sans effort.
 """
 
 import logging
@@ -28,27 +27,27 @@ BAD_REQUEST = 400
 
 
 class Playout(Protocol):
-    """Ce que Liquidsoap a le droit de demander à la radio."""
+    """Ce que Liquidsoap peut demander à la radio."""
 
     def next_entry(self) -> str | None:
-        """Le chemin ou l'URL à jouer ensuite, ou `None` : la radio n'a plus rien.
+        """Le chemin ou l'URL à jouer ensuite, ou `None` quand il n'y a plus rien.
 
-        `None` n'est pas « réessaie » mais « c'est fini » (SPECS.md §5.1) : le
-        script qui le reçoit doit arrêter de servir, pas encoder du silence.
+        `None` signifie que la diffusion s'arrête, pas qu'il faut réessayer
+        (SPECS.md §5.1).
         """
         ...
 
     def declare_listeners(self, count: int) -> None:
-        """Combien écoutent, d'après celui qui tient les connexions."""
+        """Le nombre d'auditeurs, d'après celui qui tient les connexions."""
         ...
 
     def playing(self, entry: str, artist: str | None, title: str | None) -> None:
-        """Ce que Liquidsoap vient de **commencer** — pas ce qu'il a demandé.
+        """Ce que Liquidsoap vient de commencer, pas ce qu'il a demandé.
 
-        Un morceau est toujours demandé d'avance (docs/liquidsoap.md §3) :
-        « à l'antenne » ne se déduit pas de `next_entry`, il se constate ici.
-        `artist` et `title` sont les étiquettes lues par le décodeur — le filet
-        quand l'entrée n'est pas reconnue, après un redémarrage.
+        Un morceau est toujours demandé d'avance (docs/liquidsoap.md §3) : ce
+        qui est à l'antenne se constate ici, pas dans `next_entry`. `artist`
+        et `title` sont les étiquettes lues par le décodeur, utiles quand
+        l'entrée n'est pas reconnue, après un redémarrage.
         """
         ...
 
@@ -68,7 +67,7 @@ def create_playout_api(playout: Playout) -> Blueprint:
 
     @api.post(LISTENERS_PATH)
     def listeners() -> ResponseReturnValue:
-        """Le nombre d'auditeurs, en texte brut dans le corps : `0`, `1`, `2`…"""
+        """Le nombre d'auditeurs, en entier décimal dans le corps."""
         body = request.get_data(as_text=True).strip()
         if not body.isdigit():
             reason = f"nombre d'auditeurs invalide : « {body} »"
@@ -79,8 +78,8 @@ def create_playout_api(playout: Playout) -> Blueprint:
 
     @api.post(PLAYING_PATH)
     def playing() -> ResponseReturnValue:
-        """Le morceau que Liquidsoap commence : l'entrée reçue de `/next`,
-        puis, sur les lignes suivantes, l'artiste et le titre lus du fichier."""
+        """Le morceau que Liquidsoap commence : l'entrée reçue de `/next`, puis
+        l'artiste et le titre lus du fichier, une ligne chacun."""
         lines = request.get_data(as_text=True).splitlines()
         entry = lines[0].strip() if lines else ""
         if not entry:

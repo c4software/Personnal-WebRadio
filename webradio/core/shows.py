@@ -1,19 +1,17 @@
 """Quelle émission est due, et quel épisode elle diffuse.
 
-Le noyau ne va chercher aucun flux RSS : les épisodes lui sont **fournis**, comme
-les pistes (ARCHITECTURE.md §1.1). Ce module répond à deux questions, et à
-aucune autre :
+Le noyau ne lit aucun flux RSS : les épisodes lui sont fournis, comme les pistes
+(ARCHITECTURE.md §1.1). Ce module répond à deux questions :
 
-- **une case est-elle ouverte maintenant ?** Une émission manquée est rattrapée
-  dans la limite de sa propre durée, depuis le début (SPECS.md §7 n°13) — d'où
-  le fait que la durée soit un paramètre : elle n'est connue qu'après lecture du
-  flux, et c'est assumé ;
-- **quel épisode retenir ?** Le `full` le plus récent non encore diffusé ; s'il a
-  déjà été diffusé, la case est **sautée** (SPECS.md §7 n°14).
+- une case est-elle ouverte maintenant ? Une émission manquée est rattrapée dans
+  la limite de sa propre durée, depuis le début (SPECS.md §7 n°13). La durée est
+  un paramètre, car elle n'est connue qu'après lecture du flux ;
+- quel épisode retenir ? Le `full` le plus récent non encore diffusé ; s'il l'a
+  déjà été, la case est sautée (SPECS.md §7 n°14).
 
-Une émission **suspend** la grille, la non-répétition et les jingles : pour le
-noyau, cela ne se traduit par aucun code ici, mais par l'absence de tirage
-pendant sa durée (ARCHITECTURE.md §5.2).
+Une émission suspend la grille, la non-répétition et les jingles : cela se
+traduit par l'absence de tirage pendant sa durée, sans code ici
+(ARCHITECTURE.md §5.2).
 """
 
 from collections.abc import Mapping, Sequence
@@ -37,26 +35,24 @@ WEEKDAYS = {
 class ConflictingShows(Exception):
     """Deux émissions à la même heure le même jour.
 
-    La radio refuse de démarrer en les nommant toutes les deux (SPECS.md §4.11) :
-    elle ne choisit pas à votre place, et elle ne joue pas la première venue.
+    La radio refuse de démarrer et nomme les deux (SPECS.md §4.11).
     """
 
 
 @dataclass(frozen=True, slots=True)
 class Show:
-    """Une case déclarée : des jours, une heure. Rien de plus.
+    """Une case déclarée : des jours, une heure.
 
-    Ce dénuement est délibéré (SPECS.md §4.11) : des champs déclaratifs
-    n'exigent aucun analyseur syntaxique et couvrent les deux cas demandés. Une
-    grammaire de récurrence n'arrivera qu'avec son deuxième cas d'usage.
+    Des champs déclaratifs suffisent aux cas demandés (SPECS.md §4.11) ; pas de
+    grammaire de récurrence tant qu'un second cas d'usage ne l'exige pas.
     """
 
     name: str
     days: tuple[str, ...]
     hour: time
-    # Un direct n'a pas d'épisode qui se termine de lui-même : sa durée est
-    # déclarée, et c'est ce qui borne sa case (SPECS.md §4.11, §7 n°22). `None`
-    # pour un podcast, dont la durée se lit dans le flux.
+    # Un direct ne se termine pas de lui-même : sa durée déclarée borne sa case
+    # (SPECS.md §4.11, §7 n°22). `None` pour un podcast, dont la durée se lit
+    # dans le flux.
     duration: timedelta | None = None
 
     @property
@@ -86,10 +82,9 @@ class Show:
 
 @dataclass(frozen=True, slots=True)
 class Episode:
-    """Un épisode tel que le noyau a besoin de le connaître.
+    """Un épisode, réduit à ce que le noyau doit en connaître.
 
-    `nature` porte l'`itunes:episodeType` du flux : c'est ce qui permet
-    d'écarter un `bonus` d'une minute trente à l'heure de l'émission.
+    `kind` porte l'`itunes:episodeType` du flux, pour écarter les `bonus`.
     """
 
     guid: str
@@ -102,8 +97,8 @@ class Episode:
 class Slot:
     """Une émission due, et l'heure à laquelle elle aurait dû commencer.
 
-    Le début sert au rattrapage : l'épisode démarre **depuis le début**, donc
-    une émission rattrapée décale sa propre fin (SPECS.md §7 n°13).
+    L'épisode démarre depuis le début, donc une émission rattrapée décale sa
+    propre fin (SPECS.md §7 n°13).
     """
 
     show: Show
@@ -113,11 +108,10 @@ class Slot:
 
 
 def episode_to_air(episodes: Sequence[Episode], already_aired: str | None = None) -> Episode | None:
-    """Le `full` le plus récent, sauf s'il a déjà été diffusé — alors la case est sautée.
+    """Le `full` le plus récent, ou `None` s'il a déjà été diffusé.
 
-    On ne redescend **pas** à l'avant-dernier : « une émission qui n'a rien de
-    neuf est une émission qui n'a pas lieu » (SPECS.md §4.11). Rejouer l'épisode
-    d'avant serait une rediffusion de plus, pas moins.
+    On ne redescend pas à l'avant-dernier : une émission sans épisode neuf n'a
+    pas lieu (SPECS.md §4.11).
     """
     complets = [e for e in episodes if e.kind == EPISODE_COMPLET]
     if not complets:
@@ -129,15 +123,12 @@ def episode_to_air(episodes: Sequence[Episode], already_aired: str | None = None
 
 
 class ShowSchedule:
-    # Nommée « GrilleDesEmissions » et non « Programme » : depuis SPECS.md §4.13,
-    # un *programme* est une plage de temps alimentée par une liste de lecture
-    # (`core/programmes.py`). Deux classes du même nom pour deux choses
-    # différentes, c'est une collision que le câblage a révélée.
+    # Pas nommée `Programme` : depuis SPECS.md §4.13, un programme est une plage
+    # alimentée par une liste de lecture (`core/programmes.py`).
     """Les cases déclarées, et celle qui est ouverte maintenant.
 
-    Le conflit est refusé **à la construction**, pas au moment de diffuser : une
-    configuration fautive empêche le démarrage plutôt que de produire une
-    surprise trois jours plus tard (SPECS.md §6).
+    Le conflit est refusé à la construction, pas au moment de diffuser : une
+    configuration fautive empêche le démarrage (SPECS.md §6).
     """
 
     def __init__(self, shows: Sequence[Show]) -> None:
@@ -167,9 +158,8 @@ class ShowSchedule:
     def slot_start(self, show: Show, instant: datetime) -> datetime | None:
         """Le début de la case la plus récente déjà commencée, ou `None`.
 
-        La veille est examinée aussi : une case de 23 h 30 est encore en cours à
-        00 h 15, et l'oublier aurait fait disparaître les émissions de fin de
-        soirée.
+        La veille est examinée aussi : une case de 23 h 30 est encore en cours
+        à 00 h 15.
         """
         for recul in (0, 1):
             jour = (instant - timedelta(days=recul)).date()
@@ -186,24 +176,25 @@ class ShowSchedule:
         duration: timedelta,
         instant: datetime,
     ) -> Slot | None:
-        """Une case n'est ouverte que pendant la durée de son propre épisode."""
+        """La case si elle est ouverte à cet instant, `None` sinon.
+
+        Une case n'est ouverte que pendant la durée de son épisode.
+        """
         start = self.slot_start(show, instant)
         if start is None or instant >= start + duration:
             return None
         return Slot(show, start, start + duration if show.is_live else None)
 
     def due(self, durations: Mapping[str, timedelta], instant: datetime) -> Slot | None:
-        """La case ouverte maintenant, s'il y en a une.
+        """La case ouverte à cet instant, ou `None`.
 
-        `durees` associe un nom d'émission à la durée de son épisode. Une
-        émission absente de la table — flux injoignable au branchement — n'est
-        pas rattrapée : la radio reste sur la musique (SPECS.md §4.11). Un
-        **direct** porte sa durée lui-même : sa case est ouverte tant qu'il en
-        reste, et il n'y a rien à rattraper (§7 n°22).
+        `durations` associe un nom d'émission à la durée de son épisode. Une
+        émission absente de la table (flux injoignable) n'est pas rattrapée : la
+        radio reste sur la musique (SPECS.md §4.11). Un direct porte sa propre
+        durée, il n'y a rien à rattraper (§7 n°22).
 
-        Si deux cases se recouvrent par la durée de leurs épisodes, c'est **la
-        première commencée** qui l'emporte : c'est la même règle que « la
-        première finit » (SPECS.md §4.11), et elle ne coupe rien.
+        Si deux cases se recouvrent, la première commencée l'emporte : elle
+        finit avant que l'autre ne passe (SPECS.md §4.11).
         """
         ouvertes: list[Slot] = []
         for show in self._emissions:

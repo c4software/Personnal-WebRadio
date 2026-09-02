@@ -1,7 +1,6 @@
-"""La grille effective : ce qui passera, une fois les périodes fusionnées.
+"""Tests de la grille effective, une fois plages, programmes et émissions fusionnés.
 
-Aucune infrastructure : l'horloge est figée, la semaine se déroule en une
-boucle, et deux exécutions donnent le même résultat (AGENTS.md §4).
+L'horloge est figée : deux exécutions donnent le même résultat (AGENTS.md §4).
 """
 
 from datetime import UTC, datetime, time, timedelta
@@ -12,7 +11,7 @@ from webradio.core.planning import EffectiveSchedule, Segment
 from webradio.core.programmes import EVERY_DAY, Programme, Programming
 from webradio.core.shows import Show, ShowSchedule
 
-# Le 2026-09-02 est un mercredi ; les journées d'essai partent de son minuit.
+# Les journées d'essai partent de minuit.
 MERCREDI = datetime(2026, 9, 2, tzinfo=UTC)
 SAMEDI = datetime(2026, 9, 5, tzinfo=UTC)
 DIMANCHE = datetime(2026, 9, 6, tzinfo=UTC)
@@ -44,10 +43,10 @@ def _grille(
 
 
 def _lu(segments: list[Segment]) -> list[tuple[str, str, str]]:
-    """La grille telle qu'un lecteur la lirait : les bornes, et l'occupant.
+    """Résume chaque segment en (début, fin, occupant).
 
-    Une fin inconnue se lit « ? » ; un début qui n'est sûr qu'après une
-    émission se lit « → » devant la fin, la seule borne certaine.
+    Une fin inconnue se lit « ? » ; un segment qui reprend après une émission
+    porte « → » devant sa fin, seule borne certaine.
     """
     lues = []
     for segment in segments:
@@ -68,15 +67,15 @@ def test_une_journee_sans_rien_de_declare_est_vide() -> None:
 
 
 def test_hors_de_toute_plage_rien_n_est_annonce() -> None:
-    """Les trous sont volontaires : le tirage y est libre (SPECS.md §4.4)."""
+    """Hors plage, le tirage est libre et rien n'est listé (SPECS.md §4.4)."""
     jour = _grille(bands=[GUITARES]).day(MERCREDI)
 
     assert _lu(jour) == [("20:00", "22:00", "Rock")]
 
 
 def test_une_emission_sans_duree_coupe_la_plage_qui_la_contient() -> None:
-    """Le défaut de la capture de l'auteur : « Hardisk » et la plage guitares
-    s'affichaient côte à côte, comme deux créneaux indépendants."""
+    """L'émission et la plage qu'elle coupe ne s'affichent pas comme deux
+    créneaux indépendants : la plage reprend après elle."""
     jour = _grille(bands=[GUITARES], shows=[HARDISK]).day(MERCREDI)
 
     assert _lu(jour) == [("20:00", "?", "Hardisk"), ("20:00", "→22:00", "Rock")]
@@ -94,8 +93,8 @@ def test_une_emission_sans_duree_coupe_une_plage_en_deux() -> None:
 
 
 def test_un_direct_rogne_le_debut_de_la_plage_qu_il_recouvre() -> None:
-    """Le flash de 11 h 57 dure treize minutes : la plage de midi commence à
-    12 h 10, et c'est une heure sûre — un direct connaît sa fin."""
+    """Un direct connaît sa durée : la plage qu'il recouvre commence à sa fin,
+    et cette heure est certaine."""
     jour = _grille(bands=[TABLE], shows=[FLASH]).day(MERCREDI)
 
     assert _lu(jour) == [("11:57", "12:10", "Flash franceinfo"), ("12:10", "13:30", "Pop")]
@@ -126,8 +125,8 @@ def test_une_emission_hors_de_son_jour_ne_coupe_rien() -> None:
 
 
 def test_un_programme_l_emporte_sur_les_plages_qu_il_recouvre() -> None:
-    """La priorité de la diffusion, telle quelle : le programme est plus
-    précis qu'une plage (SPECS.md §4.13)."""
+    """Même priorité qu'à la diffusion : un programme l'emporte sur une plage
+    (SPECS.md §4.13)."""
     chloe = Programme(
         name="Le vendredi de Chloé",
         playlist="Chloé",
@@ -145,7 +144,7 @@ def test_un_programme_l_emporte_sur_les_plages_qu_il_recouvre() -> None:
 
 
 def test_la_plage_la_plus_courte_decoupe_celle_qui_la_contient() -> None:
-    """La règle de GOAL-068-T01, vue de la grille : la soirée reprend après."""
+    """La plage la plus courte l'emporte, et la longue reprend après (GOAL-068-T01)."""
     soiree = Band(start=time(20), end=time(23), genres=("Soirée",))
     heure = Band(start=time(21), end=time(22), genres=("Heure",))
     jour = _grille(bands=[soiree, heure]).day(MERCREDI)
@@ -173,8 +172,8 @@ def test_le_lendemain_ne_reliste_pas_la_fin_de_la_veille() -> None:
 
 
 def test_une_plage_du_seul_samedi_ne_deborde_pas_sur_le_dimanche() -> None:
-    """Une soirée du samedi qui court jusqu'à 02 h se lit tout entière au
-    samedi ; le dimanche n'en montre pas la queue."""
+    """Une plage du samedi qui passe minuit se lit entière au samedi ; le
+    dimanche n'en montre pas la fin."""
     soiree = Band(start=time(21), end=time(2), days=("saturday",), genres=("House",))
 
     assert _lu(_grille(bands=[soiree]).day(SAMEDI)) == [("21:00", "02:00", "House")]
@@ -185,8 +184,8 @@ def test_une_plage_du_seul_samedi_ne_deborde_pas_sur_le_dimanche() -> None:
 
 
 def test_la_prochaine_coupure_nomme_l_emission_qui_vient() -> None:
-    """« À suivre » annonçait de la musique à 20 h alors que Hardisk allait
-    couper : la grille sait le dire une heure à l'avance."""
+    """La grille annonce l'émission qui va couper la file, pour que « À suivre »
+    n'annonce pas de la musique à cette heure-là."""
     grille = _grille(bands=[GUITARES], shows=[HARDISK])
 
     coupure = grille.next_replacement(
@@ -216,8 +215,8 @@ def test_un_programme_qui_s_ouvre_est_une_coupure() -> None:
 
 
 def test_la_file_n_est_servie_qu_a_la_fin_du_programme() -> None:
-    """Un titre tiré pour 18 h 30 ne passerait pas : il serait jeté, et la
-    file se retrouverait vide à 20 h — au moment même de reprendre."""
+    """Pendant un programme, un titre tiré serait jeté et la file se
+    retrouverait vide à la reprise : `served_from` reporte à la fin."""
     chloe = Programme(
         name="Chloé", playlist="Chloé", days=(EVERY_DAY,), start=time(18), end=time(20)
     )
@@ -234,7 +233,7 @@ def test_la_file_n_est_servie_qu_a_la_fin_d_un_direct() -> None:
 
 
 def test_une_emission_sans_duree_ne_se_saute_pas() -> None:
-    """Nul ne sait quand elle finit : deviner reviendrait à inventer."""
+    """Sa fin est inconnue, on ne peut pas reporter le créneau après elle."""
     grille = _grille(shows=[HARDISK])
 
     assert grille.served_from(MERCREDI.replace(hour=20)) == MERCREDI.replace(hour=20)
@@ -252,8 +251,8 @@ def test_un_programme_puis_un_direct_se_sautent_l_un_apres_l_autre() -> None:
 
 
 def test_un_programme_recouvert_par_un_plus_court_ne_coupe_rien() -> None:
-    """Il ne s'ouvre pas : ce n'est pas lui qui prendra l'antenne, et
-    l'annoncer ferait attendre une émission qui n'aura pas lieu."""
+    """Le programme recouvert ne prendra pas l'antenne : l'annoncer ferait
+    attendre une émission qui n'aura pas lieu."""
     longue = Programme(
         name="La soirée", playlist="A", days=(EVERY_DAY,), start=time(18), end=time(22)
     )

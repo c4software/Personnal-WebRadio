@@ -1,20 +1,17 @@
 """Des scores de votes au multiplicateur de chance.
 
-Le noyau **reçoit** les scores, il ne lit aucune base (ARCHITECTURE.md §5.3) :
-un adaptateur les charge, la frontière tient sans exception.
+Le noyau reçoit les scores, il ne lit aucune base (ARCHITECTURE.md §5.3) : un
+adaptateur les charge.
 
-Trois décisions tranchées le 2026-08-30 tiennent dans ce fichier :
+Trois décisions portent ce module (SPECS.md §7) :
 
-- **n°16** — un `stop` compte 1 sur la piste et 0,25 sur l'artiste ; un `encore`
-  l'inverse. Chaque geste garde le sens qu'il a, et un signal répété finit tout
-  de même par porter ;
-- **n°18** — les votes s'oublient, demi-vie de trois mois. C'est la seule des
-  trois qui **corrige** le biais de SPECS.md §4.12 au lieu de l'amplifier :
-  sans oubli, la radio pénalise durablement ce qu'on aime le plus, puisque c'est
-  ce qu'elle joue le plus, donc ce qu'on passe le plus ;
-- **n°17** — le multiplicateur est borné à [0,25 ; 4]. **Le plancher n'est jamais
-  zéro** : c'est la différence entre une radio qui apprend et une radio qui se
-  rétrécit.
+- n°16 : le poids d'un vote dépend de sa portée, piste ou artiste (voir
+  `vote_weight`) ;
+- n°18 : les votes s'oublient, demi-vie de trois mois. Sans oubli, la radio
+  pénaliserait durablement ce qu'elle joue le plus, donc ce qu'on passe le plus
+  (SPECS.md §4.12) ;
+- n°17 : le multiplicateur est borné à [0,25 ; 4]. Le plancher n'est jamais
+  zéro, un morceau ne sort jamais du tirage.
 """
 
 from dataclasses import dataclass
@@ -28,15 +25,14 @@ DEFAULT_FLOOR = 0.25
 DEFAULT_CEILING = 4.0
 POIDS_DIRECT = 1.0
 
-# Choisie pour retrouver les ordres de grandeur annoncés par SPECS.md §4.12 :
-# un vote donne 1,5 ou 0,67 fois la chance normale, trois donnent 2,5 ou 0,4.
-# La même pente des deux côtés garde `stop` et `encore` symétriques, ce qui est
-# ce que l'auteur décrit.
+# Retrouve les ordres de grandeur de SPECS.md §4.12 : un vote donne 1,5 ou 0,67
+# fois la chance normale, trois votes 2,5 ou 0,4. La même pente des deux côtés
+# garde `stop` et `encore` symétriques.
 SLOPE_PER_VOTE = 0.5
 
 
 class Scope(Enum):
-    """Sur quoi un vote pèse. Les deux, mais pas également (SPECS.md §7 n°16)."""
+    """La portée d'un vote : la piste ou son artiste (SPECS.md §7 n°16)."""
 
     TRACK = "piste"
     ARTIST = "artiste"
@@ -44,11 +40,10 @@ class Scope(Enum):
 
 @dataclass(frozen=True, slots=True)
 class Scores:
-    """Ce qu'une cible a accumulé, décroissance déjà appliquée.
+    """Les scores accumulés par une cible, décroissance déjà appliquée.
 
-    Deux nombres et pas une liste de votes : conserver chaque vote aurait fait
-    grossir la base indéfiniment pour une information qui se résume
-    (ARCHITECTURE.md §5.2).
+    Deux nombres plutôt qu'une liste de votes : conserver chaque vote ferait
+    grossir la base sans fin (ARCHITECTURE.md §5.2).
     """
 
     stop: float = 0.0
@@ -61,13 +56,11 @@ class Scores:
 
 
 def vote_weight(command: Command, scope: Scope) -> float:
-    """1 sur l'artiste, 0 sur la piste — `stop` comme `encore`.
+    """Le poids d'un vote sur une portée : 1 sur l'artiste, 0 sur la piste.
 
-    Révisé par l'auteur le 2026-08-30, à l'écoute (SPECS.md §7 n°16) : la
-    double portée surpondérait — un vote comptait une fois sur la piste ET une
-    fois sur son artiste, et un artiste très présent finissait par écraser le
-    tirage. Le geste ne porte plus que sur l'artiste ; un poids nul ne
-    s'enregistre pas.
+    Le barème est le même pour `stop` et `encore`. Compter aussi sur la piste
+    surpondérait : un artiste très présent finissait par écraser le tirage
+    (SPECS.md §7 n°16). Un poids nul ne s'enregistre pas.
     """
     del command  # le barème est le même pour les deux gestes
     return POIDS_DIRECT if scope is Scope.ARTIST else 0.0
@@ -78,7 +71,7 @@ def decay(
     ecoule: timedelta,
     half_life: timedelta = DEFAULT_HALF_LIFE,
 ) -> float:
-    """`score * 2 ** (-ecoule / demi_vie)`. Un vote d'il y a un an ne pèse plus que 6 %."""
+    """`score * 2 ** (-ecoule / half_life)`. Un vote d'il y a un an pèse encore 6 %."""
     if ecoule < timedelta(0):
         message = "le temps ne recule pas : une décroissance négative ferait grossir un vote"
         raise ValueError(message)
@@ -94,11 +87,10 @@ def record(
     increment: float,
     half_life: timedelta = DEFAULT_HALF_LIFE,
 ) -> float:
-    """La décroissance s'applique **avant** d'ajouter le vote nouveau.
+    """Applique la décroissance, puis ajoute le vote nouveau.
 
-    L'ordre n'est pas un détail : ajouter d'abord ferait vieillir le vote qu'on
-    vient de recevoir, et douze `stop` dont un seul est récent compteraient tous
-    comme frais (ARCHITECTURE.md §5.2).
+    L'ordre compte : ajouter d'abord ferait vieillir le vote qu'on vient de
+    recevoir (ARCHITECTURE.md §5.2).
     """
     if increment < 0:
         message = f"un vote n'enlève rien : incrément non valable ({increment})"
@@ -113,12 +105,11 @@ def multiplier(
     ceiling: float = DEFAULT_CEILING,
     slope: float = SLOPE_PER_VOTE,
 ) -> float:
-    """La chance d'être tiré, en multiple de la normale, bornée des deux côtés.
+    """Le multiplicateur de chance d'une cible, borné entre `floor` et `ceiling`.
 
-    La forme `(1 + pente * encore) / (1 + pente * stop)` est retenue parce qu'elle
-    rend exactement les ordres de grandeur de SPECS.md §4.12 et qu'elle ne peut
-    jamais atteindre zéro par elle-même : le plancher est un garde-fou, pas la
-    règle.
+    La forme `(1 + slope * encore) / (1 + slope * stop)` rend les ordres de
+    grandeur de SPECS.md §4.12 et ne peut pas atteindre zéro par elle-même : le
+    plancher est un garde-fou.
     """
     if floor <= 0:
         message = "un plancher nul supprimerait un morceau : SPECS.md §4.12 l'interdit"
@@ -138,11 +129,10 @@ def track_weight(
     ceiling: float = DEFAULT_CEILING,
     slope: float = SLOPE_PER_VOTE,
 ) -> float:
-    """Les deux portées s'additionnent avant d'être bornées, jamais après.
+    """Le multiplicateur d'une piste, scores de la piste et de l'artiste additionnés.
 
-    Multiplier deux multiplicateurs déjà bornés aurait donné [0,0625 ; 16] —
-    quatre fois plus loin que ce que la décision n°17 autorise, et le plancher
-    aurait cessé d'être celui qu'elle nomme.
+    L'addition précède le bornage. Multiplier deux multiplicateurs déjà bornés
+    donnerait [0,0625 ; 16], hors des bornes de la décision n°17.
     """
     total = Scores(stop=track.stop + artist.stop, encore=track.encore + artist.encore)
     return multiplier(total, floor=floor, ceiling=ceiling, slope=slope)

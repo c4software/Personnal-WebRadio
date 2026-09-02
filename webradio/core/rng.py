@@ -1,15 +1,13 @@
 """La seule source de hasard du projet.
 
-Aucun autre fichier n'a le droit d'importer `random` ou `secrets` — ruff le
-bannit à l'import, et `verifier.sh` le vérifie aussi (AGENTS.md §2).
-
-La raison est symétrique de celle de l'horloge (ARCHITECTURE.md §3.1) : une
-radio *est* un tirage. Si le hasard se puise n'importe où, aucune émission ne se
-rejoue, et « le tirage évite-t-il de répéter un artiste ? » devient une question
-sans réponse vérifiable.
+Aucun autre fichier n'importe `random` ou `secrets` : ruff le bannit et
+`verifier.sh` le vérifie (AGENTS.md §2). Même raison que pour l'horloge
+(ARCHITECTURE.md §3.1) : si le hasard se puise n'importe où, aucune émission ne
+se rejoue et le tirage n'est pas vérifiable.
 """
 
-import random  # noqa: TID251 — le seul endroit autorisé ; voir l'en-tête
+# Seul import autorisé, voir la docstring du module.
+import random  # noqa: TID251
 from typing import Protocol, TypeVar
 
 T = TypeVar("T")
@@ -22,19 +20,18 @@ class Random(Protocol):
 
 
 class WeightedRandom(Random, Protocol):
-    """Le tirage pondéré est une capacité **différente**, pas un réglage de la première.
+    """Le tirage pondéré, déclaré à part du tirage uniforme.
 
-    Elle est déclarée à part (ARCHITECTURE.md §5.3) pour que tout ce qui n'a
-    besoin que d'un tirage uniforme continue de ne dépendre que de `Hasard` :
-    les poids viennent des votes (SPECS.md §4.12), et la file n'en a pas
-    toujours.
+    Ce qui n'a besoin que d'un tirage uniforme ne dépend que de `Random`
+    (ARCHITECTURE.md §5.3) : les poids viennent des votes (SPECS.md §4.12), et
+    la file n'en a pas toujours.
     """
 
     def pick_weighted(self, parmi: list[T], weight: list[float]) -> T: ...
 
 
 def _verifier(parmi: list[T], weight: list[float]) -> None:
-    """Les poids sont fournis au noyau : c'est ici qu'on refuse ce qui n'a pas de sens."""
+    """Vérifie les poids reçus avant un tirage pondéré."""
     if not parmi:
         message = "tirer dans une suite vide n'a pas de résultat : le repli se décide au-dessus"
         raise ValueError(message)
@@ -52,9 +49,7 @@ def _verifier(parmi: list[T], weight: list[float]) -> None:
 class RealRandom:
     """Le tirage réel, semé explicitement.
 
-    La graine est un paramètre et non une valeur cachée : une émission dont on
-    n'aime pas l'enchaînement peut être rejouée à l'identique pour comprendre
-    pourquoi.
+    La graine est un paramètre : une émission peut être rejouée à l'identique.
     """
 
     def __init__(self, graine: int | None = None) -> None:
@@ -69,9 +64,9 @@ class RealRandom:
     def pick_weighted(self, parmi: list[T], weight: list[float]) -> T:
         """Un seul tirage uniforme, ramené sur les poids cumulés.
 
-        Passer par `random()` plutôt que par une commodité de la bibliothèque
-        garde la propriété qui compte : à graine et poids fixés, la même
-        émission se rejoue à l'identique (ARCHITECTURE.md §5.3).
+        On passe par `random()` plutôt que par une commodité de la bibliothèque
+        standard pour qu'à graine et poids fixés la même émission se rejoue à
+        l'identique (ARCHITECTURE.md §5.3).
         """
         _verifier(parmi, weight)
         seuil = self._alea.random() * sum(weight)
@@ -86,9 +81,8 @@ class RealRandom:
 class ScriptedRandom:
     """Un hasard dont le test écrit la suite à l'avance.
 
-    Plus lisible qu'une graine quand le test porte sur *quel* morceau sort, et
-    non sur la distribution : `HasardScripte([0, 2, 1])` dit exactement ce qui
-    va être choisi.
+    Plus lisible qu'une graine quand le test porte sur quel morceau sort :
+    `ScriptedRandom([0, 2, 1])` dit ce qui sera choisi.
     """
 
     def __init__(self, indices: list[int]) -> None:
@@ -107,11 +101,10 @@ class ScriptedRandom:
         return parmi[i]
 
     def pick_weighted(self, parmi: list[T], weight: list[float]) -> T:
-        """Le script dit *quel* élément sort ; les poids restent vérifiés.
+        """Le script dit quel élément sort ; les poids restent vérifiés.
 
-        Un test qui écrit sa suite ne teste pas la distribution — mais il ne
-        doit pas pour autant laisser passer des poids incohérents, sinon le
-        double serait plus indulgent que la production (AGENTS.md §4.1).
+        Le double ne doit pas être plus indulgent que la production
+        (AGENTS.md §4.1).
         """
         _verifier(parmi, weight)
         return self.pick(parmi)

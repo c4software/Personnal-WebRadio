@@ -1,25 +1,19 @@
-"""Lire un flux de podcast, et n'en retenir que ce qui se diffuse.
+"""Lire un flux de podcast et n'en retenir que les épisodes diffusables.
 
-Tout ce qui suit vient du relevé [docs/podcast.md](../../../docs/podcast.md),
-établi contre les deux flux réellement déclarés. Rien n'y est déduit d'une
-norme : « RSS avec des `<enclosure>` » est une convention, pas un standard
-respecté (AGENTS.md §3).
+Le comportement vient du relevé docs/podcast.md, établi contre les flux
+réellement déclarés, pas d'une norme (AGENTS.md §3). Trois constats pilotent
+ce module :
 
-Trois constats du relevé pilotent ce module :
+- Seuls les épisodes `itunes:episodeType` = `full` passent : les flux exposent
+  aussi des `bonus` et des `trailer`, qu'on ne diffuse pas à l'heure de
+  l'émission (SPECS.md §4.11, docs/podcast.md §3.4).
+- `enclosure/length` est faux à cause de la publicité insérée à la volée. Il
+  n'est lu nulle part ici, volontairement (docs/podcast.md §2.1).
+- Le serveur accepte les `Range` : ffmpeg lit l'URL directement, ce module ne
+  rapatrie que le XML (docs/podcast.md §2.2).
 
-- **`itunes:episodeType` : `full` seulement.** *A la French* expose un `bonus`
-  en tête de flux et *LEGEND* un `trailer`. Diffuser une bande-annonce d'une
-  minute trente à l'heure de l'émission serait un défaut audible
-  (SPECS.md §4.11, docs/podcast.md §3.4).
-- **`enclosure/length` ment.** Acast insère de la publicité à la volée
-  (`livestitches`) : +2 Mo sur LEGEND, +350 octets sur *A la French*. Le champ
-  décrit un fichier qui n'est pas celui qu'on reçoit — il n'est lu nulle part
-  ici, et ce n'est pas un oubli (docs/podcast.md §2.1).
-- **`Accept-Ranges: bytes`** : ffmpeg consomme l'URL directement, il n'y a rien
-  à télécharger (docs/podcast.md §2.2). Ce module ne rapatrie que le XML.
-
-`xml.etree.ElementTree` de la bibliothèque standard suffit : `feedparser`
-ajouterait une dépendance pour lire quatre balises.
+`xml.etree.ElementTree` suffit ; `feedparser` ajouterait une dépendance pour
+lire quatre balises.
 """
 
 import logging
@@ -41,26 +35,23 @@ ALLOWED_SCHEMES = frozenset({"http", "https"})
 
 
 class PodcastUnavailable(Exception):
-    """Le flux ne répond pas, ou répond ce qu'on ne sait pas lire.
+    """Le flux ne répond pas, ou répond quelque chose d'illisible.
 
-    Ce n'est pas une panne de la radio (SPECS.md §5) : la case est sautée, la
-    musique continue, et l'appelant journalise. L'exception existe pour que ce
-    soit une décision prise en haut, pas un silence pris ici.
+    Ce n'est pas une panne de la radio (SPECS.md §5) : l'appelant saute la
+    case, journalise, et la musique continue. La décision lui revient.
     """
 
 
 @dataclass(frozen=True, slots=True)
 class Episode:
-    """Un épisode diffusable, tel que la radio a besoin de le connaître.
+    """Un épisode diffusable.
 
-    `duree` est facultative parce que `itunes:duration` est une extension : les
-    deux flux relevés l'exposent toujours, un troisième pourrait ne pas le
-    faire. Sans elle, la fenêtre de rattrapage (SPECS.md §4.11) n'est pas
-    calculable — c'est à l'appelant de le décider, pas à cet adaptateur de le
-    supposer.
+    `duration` est facultative : `itunes:duration` est une extension qu'un
+    flux peut ne pas exposer. Sans elle, la fenêtre de rattrapage
+    (SPECS.md §4.11) n'est pas calculable ; l'appelant décide.
 
-    La durée annoncée est par ailleurs **optimiste d'environ 2 %** : elle ne
-    compte pas la publicité insérée à la volée (docs/podcast.md §2.1).
+    La durée annoncée est sous-estimée d'environ 2 % : elle ne compte pas la
+    publicité insérée à la volée (docs/podcast.md §2.1).
     """
 
     identifier: str
@@ -71,25 +62,25 @@ class Episode:
 
 
 class HttpReader(Protocol):
-    """Ce dont la lecture d'un flux a besoin du réseau, et rien de plus.
+    """L'accès réseau dont la lecture d'un flux a besoin.
 
-    Un `Protocol` plutôt qu'un appel direct : c'est ce qui rend les cas du
-    relevé — flux injoignable, XML malformé, page HTML en 200 — testables sans
-    réseau, contre des réponses littérales (AGENTS.md §4).
+    Un `Protocol` pour tester sans réseau les cas du relevé (flux injoignable,
+    XML malformé, page HTML en 200) contre des réponses littérales
+    (AGENTS.md §4).
     """
 
     def read(self, url: str) -> bytes: ...
 
 
 class UrllibReader:
-    """Le lecteur réel, sur `urllib` de la bibliothèque standard.
+    """Le lecteur réel, sur `urllib`.
 
-    Le flux fait 3,5 Mo et se lit d'un bloc, une fois par branchement : rien
-    n'y justifie une dépendance HTTP supplémentaire.
+    Le flux se lit d'un bloc, une fois par branchement : pas besoin d'une
+    dépendance HTTP supplémentaire.
     """
 
     def __init__(self, *, lock_timeout: timedelta) -> None:
-        """`delai_attente` vient du TOML : aucune durée ne s'écrit dans le code."""
+        """`lock_timeout` vient du TOML : aucune durée n'est écrite dans le code."""
         if lock_timeout <= timedelta(0):
             message = "un délai d'attente nul rendrait tout flux injoignable"
             raise ValueError(message)
@@ -109,10 +100,10 @@ class UrllibReader:
 
 
 def _duree(texte: str | None) -> timedelta | None:
-    """`itunes:duration` s'écrit en secondes, en `MM:SS` ou en `HH:MM:SS`.
+    """Lit `itunes:duration` en secondes, en `MM:SS` ou en `HH:MM:SS`.
 
-    Les trois formes circulent ; une durée qu'on ne sait pas lire vaut mieux
-    absente que fausse, puisqu'elle bornerait le rattrapage.
+    Une durée illisible rend `None` plutôt qu'une valeur fausse, car elle
+    borne le rattrapage.
     """
     if texte is None:
         return None
@@ -128,10 +119,10 @@ def _duree(texte: str | None) -> timedelta | None:
 
 
 def _publie_le(texte: str | None) -> datetime | None:
-    """`pubDate` au format RFC 2822. Une date illisible rend l'épisode inclassable.
+    """Lit `pubDate` (RFC 2822). `None` si la date est illisible.
 
-    Sans date, « le plus récent » (SPECS.md §7 n°14) n'a pas de sens : l'épisode
-    est écarté plutôt que placé au hasard dans l'ordre.
+    Sans date, l'épisode ne peut pas être classé du plus récent au plus ancien
+    (SPECS.md §7 n°14) : l'appelant l'écarte.
     """
     if texte is None:
         return None
@@ -159,11 +150,11 @@ class PodcastFeed:
         self._lecteur = reader
 
     def episodes(self, url: str) -> list[Episode]:
-        """Les épisodes `full` du flux, triés du plus récent au plus ancien.
+        """Les épisodes `full` du flux, du plus récent au plus ancien.
 
-        Un flux vide, ou dont aucun épisode n'est diffusable, rend une liste
-        vide : ce n'est pas une erreur, c'est une émission qui n'a pas lieu
-        (SPECS.md §4.11). Un flux injoignable ou illisible, lui, lève.
+        Un flux sans épisode diffusable rend une liste vide : l'émission n'a
+        pas lieu (SPECS.md §4.11). Un flux injoignable ou illisible lève
+        `PodcastUnavailable`.
         """
         root = self._analyser(self._lecteur.read(url), url)
         episodes = sorted(self._extraire(root, url), key=lambda e: e.published_at, reverse=True)
@@ -171,11 +162,10 @@ class PodcastFeed:
         return episodes
 
     def _analyser(self, content: bytes, url: str) -> ElementTree.Element:
-        """Un XML malformé, ou une page HTML servie en 200, ne sont pas des flux.
+        """Analyse le XML et vérifie que la racine est `rss`.
 
-        Le second cas est le piège du relevé (docs/podcast.md §5) : un portail
-        captif ou une page d'erreur répond `200`, et se lit parfois comme du
-        XML. Contrôler la racine `rss` est ce qui les sépare.
+        Un portail captif ou une page d'erreur répond 200 et se lit parfois
+        comme du XML (docs/podcast.md §5) ; le contrôle de la racine l'écarte.
         """
         try:
             root = ElementTree.fromstring(content)
@@ -194,11 +184,10 @@ class PodcastFeed:
                 yield episode
 
     def _episode(self, item: ElementTree.Element, url: str) -> Episode | None:
-        """Un épisode incomplet est écarté, jamais deviné.
+        """L'épisode d'un `<item>`, ou `None` s'il est incomplet.
 
         `episodeType` absent vaut `full` : c'est une extension iTunes, et un
-        flux qui ne la porte pas n'expose que des épisodes ordinaires. Le
-        contraire viderait un tel flux de tous ses épisodes.
+        flux qui ne la porte pas serait sinon vidé de tous ses épisodes.
         """
         type_episode = _texte(item, f"{{{ITUNES}}}episodeType")
         if type_episode is not None and type_episode.lower() != AIRABLE_KIND:
@@ -215,9 +204,9 @@ class PodcastFeed:
             logger.info("épisode sans date exploitable écarté dans %s", url)
             return None
 
-        # Le `guid` est facultatif en RSS. L'URL de l'enclosure est le
-        # moins mauvais substitut : c'est elle que le flux publie, et c'est ce
-        # que la base retiendra comme « déjà diffusé » (SPECS.md §4.11.1).
+        # Le `guid` est facultatif en RSS. À défaut, l'URL de l'enclosure sert
+        # d'identifiant, et c'est elle que la base retiendra comme déjà
+        # diffusée (SPECS.md §4.11.1).
         identifier = _texte(item, "guid") or audio
 
         return Episode(

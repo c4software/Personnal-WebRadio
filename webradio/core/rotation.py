@@ -1,11 +1,7 @@
 """La règle de non-répétition, et ce qu'elle fait quand elle bloque.
 
-SPECS.md §4.2 : un artiste ne revient pas avant que N **autres artistes** soient
-passés. La règle compte des artistes distincts, pas des morceaux — trois titres
-d'affilée du même artiste ne comptent que pour un.
-
-Elle est audible, donc elle est de la spécification et non de l'implémentation :
-un artiste qui réapparaît toutes les deux pistes s'entend comme un défaut.
+SPECS.md §4.2 : un artiste ne revient pas avant que N autres artistes soient
+passés. La règle compte des artistes distincts, pas des morceaux.
 """
 
 from dataclasses import dataclass, field
@@ -19,7 +15,7 @@ DEFAULT_ARTIST_GAP = 5
 class Window:
     """Les derniers artistes joués, du plus récent au plus ancien.
 
-    `largeur` est le N de SPECS.md §4.2. Une largeur de 0 désactive la règle.
+    `width` est le N de SPECS.md §4.2. Une largeur de 0 désactive la règle.
     """
 
     width: int = DEFAULT_ARTIST_GAP
@@ -38,8 +34,8 @@ class Window:
         """Enregistre un passage.
 
         Rejouer le même artiste ne l'enfonce pas dans la fenêtre : il est déjà
-        le plus récent, et l'y remettre deux fois ferait sortir un artiste de
-        plus à chaque titre — la règle compte des artistes, pas des morceaux.
+        le plus récent. L'y remettre ferait sortir un artiste de plus à chaque
+        titre, alors que la règle compte des artistes, pas des morceaux.
         """
         if track.artist in self._recents:
             self._recents.remove(track.artist)
@@ -53,11 +49,11 @@ class Window:
         return [p for p in tracks if self.allows(p)]
 
     def shrink(self) -> bool:
-        """Rétrécit la fenêtre d'un cran. Rend False si elle est déjà vide.
+        """Rétrécit la fenêtre d'un cran. Rend `False` si elle est déjà vide.
 
-        SPECS.md §4.2 : sur une petite bibliothèque ou dans une plage thématique
-        étroite, il peut ne rester aucun artiste autorisé. **La radio ne se tait
-        pas** — elle relâche la contrainte plutôt que de s'arrêter.
+        Sur une petite bibliothèque ou une plage étroite, il peut ne rester
+        aucun artiste autorisé : la radio relâche la contrainte plutôt que de
+        se taire (SPECS.md §4.2).
         """
         if not self._recents:
             return False

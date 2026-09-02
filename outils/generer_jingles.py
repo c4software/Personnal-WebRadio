@@ -1,21 +1,17 @@
 #!/usr/bin/env python3
 """Fabrique les génériques de plage : une voix de synthèse sur un lit musical.
 
-**Cet outil ne fait pas partie de la radio.** Il produit des fichiers, une fois,
-et le programme ne l'importe jamais : les jingles sont des données, pas du code
-(SPECS.md §4.3). Il vit ici pour qu'on puisse refaire la série après avoir changé
-un texte, plutôt que de la retrouver un an plus tard sans savoir comment elle a
-été faite.
+Cet outil ne fait pas partie de la radio et n'est jamais importé par elle : il
+produit des fichiers une fois, les jingles sont des données (SPECS.md §4.3). Il
+est conservé pour pouvoir refaire la série après un changement de texte.
 
-**Il tourne dans un conteneur**, lancé par `outils/generer-jingles.sh` : ses deux
-dépendances — `ffmpeg` et `edge-tts` — vivent dans l'image `outils/Dockerfile`
-et nulle part sur la machine. Rien n'oblige à faire autrement, mais rien ne
-l'empêche non plus : les deux chemins qu'il écrit se règlent par
-l'environnement.
+Il tourne dans un conteneur, lancé par `outils/generer-jingles.sh` : `ffmpeg` et
+`edge-tts` vivent dans l'image `outils/Dockerfile`. Les deux chemins écrits se
+règlent par l'environnement.
 
-Le lit musical est **synthétisé** par ffmpeg, note par note (`aevalsrc`) : rien
-n'est téléchargé, rien n'est sous licence. C'est aussi pourquoi il sonne
-« électronique » — c'est un habillage de station, pas de la musique.
+Le lit musical est synthétisé par ffmpeg note par note (`aevalsrc`) : rien n'est
+téléchargé, rien n'est sous licence. C'est un habillage de station, pas de la
+musique, d'où le son électronique.
 """
 
 from __future__ import annotations
@@ -29,32 +25,31 @@ from pathlib import Path
 
 # ── Ce qui se règle ────────────────────────────────────────────────────────
 VOICE = "fr-FR-HenriNeural"  # `edge-tts --list-voices | grep fr-FR` pour les autres
-RATE = "-4%"  # un rien plus lent que la vitesse par défaut : on est à l'antenne
-# Les deux seuls chemins écrits, et le conteneur les fournit tous les deux :
-# `/sortie` est le volume monté sur `jingles/bands/`, le montage reste dans le
-# `/tmp` du conteneur et meurt avec lui.
+RATE = "-4%"  # un peu plus lent que la vitesse par défaut
+# Les deux seuls chemins écrits. Dans le conteneur, `/sortie` est le volume
+# monté sur `jingles/bands/` et le montage reste dans son `/tmp`.
 OUTPUT = Path(os.environ.get("JINGLES_OUTPUT", "jingles/bands"))
 WORK = Path(os.environ.get("JINGLES_WORK", "/tmp/jingles-montage"))
 LEAD_IN = 0.9  # le lit attaque seul avant la voix
 TAIL = 1.4  # et se termine seul après elle
 LOUDNESS = "I=-16:TP=-1.5:LRA=11"  # le niveau habituel d'une webradio
 
-# Une note tenue est ajoutée sous chaque générique pour que le lit ne meure pas
-# avant la voix : les habillages ci-dessous n'ont donc pas à couvrir la durée.
+# Une note tenue est ajoutée sous chaque générique pour que le lit dure autant
+# que la voix : les habillages ci-dessous n'ont pas à couvrir toute la durée.
 NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 
 def frequency(note: str) -> float:
-    """« A4 » → 440 Hz. Le tempérament égal, rien de plus."""
+    """Fréquence d'une note en tempérament égal (« A4 » donne 440 Hz)."""
     name, octave = note[:-1], int(note[-1])
     return 440.0 * (2 ** ((NOTES.index(name) + 12 * (octave - 4) - 9) / 12))
 
 
 def waveform(kind: str, note: str, decay: float) -> str:
-    """L'expression `aevalsrc` d'une note : un timbre, une enveloppe.
+    """L'expression `aevalsrc` d'une note : timbre et enveloppe.
 
-    L'attaque (`1-exp(-t*80)`) évite le clic de début que produirait une onde
-    démarrant à pleine amplitude ; la décroissance fait le reste du caractère.
+    L'attaque (`1-exp(-t*80)`) évite le clic d'une onde qui démarrerait à pleine
+    amplitude.
     """
     if kind == "kick":
         return "(sin(2*PI*t*(55+70*exp(-t*28)))*exp(-t*9))"
@@ -69,7 +64,7 @@ def waveform(kind: str, note: str, decay: float) -> str:
         "saw": f"(2*({f:.3f}*t-floor(0.5+{f:.3f}*t)))",
         # `tanh` plutôt qu'un vrai carré : ffmpeg refuse `if(gt(...))` dans aevalsrc.
         "square": f"(tanh(6*sin(2*PI*{f:.3f}*t)))",
-        # Un battement volontaire (2,01 au lieu de 2) : la nappe respire.
+        # Léger désaccord (2,01 au lieu de 2) pour obtenir un battement lent.
         "pad": (
             f"(sin(2*PI*{f:.3f}*t)+0.4*sin(2*PI*{f * 2.01:.3f}*t)+0.2*sin(2*PI*{f * 0.5:.3f}*t))"
         ),
@@ -91,7 +86,7 @@ def arpeggio(
     decay: float = 3.0,
     volume: float = 0.5,
 ) -> list[Note]:
-    """Des notes égrenées : chacune part `step` après la précédente."""
+    """Notes jouées l'une après l'autre, chacune `step` après la précédente."""
     return [(start + i * step, length, kind, p, decay, volume) for i, p in enumerate(pitches)]
 
 
@@ -103,7 +98,7 @@ def chord(
     decay: float = 1.6,
     volume: float = 0.34,
 ) -> list[Note]:
-    """Des notes ensemble."""
+    """Notes jouées ensemble."""
     return [(start, length, kind, p, decay, volume) for p in pitches]
 
 
@@ -122,11 +117,10 @@ def duration(path: Path) -> float:
 
 
 def render_bed(name: str, notes: Sequence[Note], length: float, lowpass: int | None) -> Path:
-    """Le lit musical seul, rendu en WAV à la longueur exacte du générique.
+    """Rend le lit musical seul, en WAV, à la longueur exacte du générique.
 
-    Une entrée `lavfi` par note, puis un `amix` : c'est verbeux, mais chaque note
-    garde son timbre, son enveloppe et son volume — ce qu'une expression unique
-    ne permettrait pas de relire.
+    Une entrée `lavfi` par note puis un `amix` : verbeux, mais chaque note garde
+    son timbre, son enveloppe et son volume, et le tout reste relisible.
     """
     inputs: list[str] = []
     chains: list[str] = []
@@ -154,14 +148,13 @@ def render_bed(name: str, notes: Sequence[Note], length: float, lowpass: int | N
 def render_jingle(
     name: str, text: str, notes: Sequence[Note], drone: str, lowpass: int | None
 ) -> Path:
-    """La voix, le lit, et le lit qui s'efface sous la voix."""
+    """Rend la voix sur le lit, le lit baissant pendant que la voix parle."""
     voice = WORK / f"{name}-voix.mp3"
     run("edge-tts", "--voice", VOICE, f"--rate={RATE}", "--text", text, "--write-media", str(voice))
     length = duration(voice) + LEAD_IN + TAIL
     bed = render_bed(name, [*notes, (0.0, length, "pad", drone, 0.30, 0.13)], length, lowpass)
     delay = int(LEAD_IN * 1000)
-    # `sidechaincompress` : le lit baisse tout seul quand la voix parle, et
-    # remonte quand elle s'arrête. C'est le geste de base d'un habillage radio.
+    # `sidechaincompress` : le lit baisse quand la voix parle et remonte ensuite.
     graph = (
         f"[1:a]adelay={delay}|{delay},aformat=channel_layouts=stereo,highpass=f=90,"
         "acompressor=threshold=0.1:ratio=3:attack=15:release=250,volume=3.0[v];"
@@ -177,9 +170,9 @@ def render_jingle(
 
 
 # ── La série ───────────────────────────────────────────────────────────────
-# Un nom de fichier → le texte dit, le lit musical, la note tenue dessous, et
-# la coupure du haut du spectre si le lit est agressif. Les noms sont ceux que
-# `webradio.toml` déclare en `intro` : les changer ici oblige à les y changer.
+# Par nom de fichier : le texte dit, le lit musical, la note tenue dessous et la
+# fréquence de coupure du haut du spectre (None si inutile). Les noms sont ceux
+# que `webradio.toml` déclare en `intro` : les changer ici oblige à les y changer.
 JINGLES: dict[str, tuple[str, list[Note], str, int | None]] = {
     "aube": (
         "Il est cinq heures. La nuit se retire.",
@@ -341,7 +334,7 @@ JINGLES: dict[str, tuple[str, list[Note], str, int | None]] = {
 
 
 def main(wanted: Sequence[str]) -> int:
-    """Toute la série, ou seulement les génériques nommés en argument."""
+    """Rend toute la série, ou seulement les génériques nommés en argument."""
     unknown = [name for name in wanted if name not in JINGLES]
     if unknown:
         print(f"générique inconnu : {', '.join(unknown)}", file=sys.stderr)

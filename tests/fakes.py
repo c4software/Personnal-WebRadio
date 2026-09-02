@@ -1,7 +1,7 @@
 """Doubles versionnés.
 
-Des Fakes, jamais des mocks générés à la volée (AGENTS.md §4) : un Fake se lit,
-se pas-à-pas, et son comportement est écrit une fois pour toutes.
+Des Fakes, jamais des mocks générés à la volée (AGENTS.md §4) : un Fake se lit
+et son comportement est écrit une fois pour toutes.
 """
 
 from datetime import timedelta
@@ -63,15 +63,15 @@ class FakeSource:
         return sorted({p.genre for p in self._catalogue if p.genre is not None})
 
     def tracks_from_playlist(self, name: str) -> list[Track]:
-        """Une liste inconnue rend une liste vide, comme une vraie source : le
-        repli se décide au-dessus, avec le contexte."""
+        """Une liste inconnue rend une liste vide, comme une vraie source ; le
+        repli se décide au-dessus."""
         self._verifier()
         return list(self._listes.get(name, []))
 
     def entry(self, track: Track) -> str:
         """Une entrée factice mais reconnaissable.
 
-        Elle ne consulte pas le catalogue : une source réelle non plus — elle
-        construit une adresse depuis l'identifiant, sans vérifier qu'il existe.
+        Elle ne consulte pas le catalogue, comme une source réelle qui construit
+        l'adresse depuis l'identifiant sans vérifier qu'il existe.
         """
         return f"fake://{track.identifier}"

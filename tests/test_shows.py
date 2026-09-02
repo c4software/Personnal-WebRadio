@@ -32,8 +32,8 @@ def test_une_emission_declaree_a_ses_jours_et_pas_aux_autres() -> None:
 
 
 def test_deux_emissions_a_la_meme_heure_le_meme_jour_refusent_le_demarrage() -> None:
-    """La radio ne choisit pas à votre place et ne joue pas la première venue
-    (SPECS.md §4.11) : elle les nomme toutes les deux."""
+    """La radio ne choisit pas à la place de l'utilisateur (SPECS.md §4.11) : le
+    message nomme les deux émissions."""
     jumelle = Show(name="Doublon", days=("friday", "saturday"), hour=time(20))
     with pytest.raises(ConflictingShows) as leve:
         ShowSchedule([FRENCH, jumelle])
@@ -67,7 +67,7 @@ def test_une_emission_est_due_a_son_heure() -> None:
 
 def test_une_emission_manquee_est_rattrapee_depuis_le_debut() -> None:
     """Branché à 20 h 40, l'épisode d'une heure démarre au début et finit à
-    21 h 40 : le rattrapage décale sa propre fin (SPECS.md §7 n°13)."""
+    21 h 40 : le rattrapage décale la fin (SPECS.md §7 n°13)."""
     case = ShowSchedule([FRENCH]).due({"A la French": UNE_HEURE}, le_vendredi(20, 40))
     assert case is not None
     assert case.start == le_vendredi(20)
@@ -79,7 +79,7 @@ def test_une_emission_manquee_au_dela_de_sa_duree_est_perdue() -> None:
 
 def test_une_emission_dont_le_flux_est_injoignable_n_est_pas_rattrapee() -> None:
     """La durée n'est connue qu'après lecture du flux : sans elle, pas de
-    rattrapage — la radio démarre sur la musique."""
+    rattrapage, la radio démarre sur la musique."""
     assert ShowSchedule([FRENCH]).due({}, le_vendredi(20, 10)) is None
 
 
@@ -145,8 +145,8 @@ def test_l_episode_le_plus_recent_est_retenu() -> None:
 
 
 def test_un_bonus_ou_un_trailer_n_est_pas_l_emission() -> None:
-    """Un podcast qui publie une bande-annonce d'une minute trente ne doit pas
-    la voir passer à l'heure de son émission (SPECS.md §7 n°14)."""
+    """Une bande-annonce d'une minute trente ne doit pas passer à l'heure de
+    l'émission (SPECS.md §7 n°14)."""
     retenu = episode_to_air(
         [
             episode("complet", 10),
@@ -159,15 +159,15 @@ def test_un_bonus_ou_un_trailer_n_est_pas_l_emission() -> None:
 
 
 def test_un_episode_deja_diffuse_fait_sauter_la_case() -> None:
-    """Une émission qui n'a rien de neuf est une émission qui n'a pas lieu —
-    et on ne redescend pas à l'avant-dernier, ce serait une rediffusion de plus."""
+    """Une émission sans épisode neuf n'a pas lieu ; on ne redescend pas à
+    l'avant-dernier, ce serait une rediffusion."""
     episodes = [episode("vieux", 1), episode("neuf", 20)]
     assert episode_to_air(episodes, already_aired="neuf") is None
 
 
 def test_un_episode_retire_du_flux_ne_bloque_rien() -> None:
-    """L'identifiant retenu ne correspond plus à rien, donc le plus récent est
-    forcément différent, donc il est diffusé (SPECS.md §4.11.1)."""
+    """L'identifiant retenu ne correspond plus à rien : le plus récent est
+    différent, donc diffusé (SPECS.md §4.11.1)."""
     retenu = episode_to_air([episode("neuf", 20)], already_aired="disparu")
     assert retenu is not None
     assert retenu.guid == "neuf"
@@ -179,7 +179,7 @@ def test_un_flux_sans_aucun_episode_complet_ne_diffuse_rien() -> None:
 
 
 def test_une_semaine_entiere_se_deroule_en_une_boucle_et_se_rejoue() -> None:
-    """Horloge figée : sept jours de programmation en quelques millisecondes."""
+    """Horloge figée : sept jours se rejouent à l'identique."""
 
     def semaine() -> list[str]:
         programme = ShowSchedule([FRENCH, LEGEND, QUOTIDIENNE])

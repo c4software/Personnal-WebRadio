@@ -1,14 +1,13 @@
 """Le thème qu'une plage n'a pas voulu choisir elle-même.
 
 Une plage peut déclarer `random = "genre"` ou `random = "artist"` plutôt que
-d'énumérer ses valeurs (SPECS.md §4.4) : la radio tire alors dans **toute la
-bibliothèque**. Ce tirage ne pouvait pas rester dans `core/bands.py` — il a
-besoin de la source, alors qu'une plage n'est qu'une tranche d'horloge.
+d'énumérer ses valeurs (SPECS.md §4.4) : la radio tire alors dans toute la
+bibliothèque. Ce tirage a besoin de la source, d'où un module distinct de
+`core/bands.py`.
 
-Le tirage est **figé sur l'occurrence** : une soirée entière garde le genre
-sorti à 21 h, et c'est ce qui distingue une plage « au hasard » d'un tirage
-libre. La mémoire tient donc en une seule entrée — l'occurrence courante, et
-elle seule : rien n'est persisté, une radio qui redémarre retire.
+Le tirage est figé sur l'occurrence : une soirée entière garde le thème tiré au
+début. La mémoire tient en une seule entrée, l'occurrence courante ; rien n'est
+persisté, une radio qui redémarre retire.
 """
 
 import logging
@@ -32,12 +31,11 @@ class RandomTheme:
         self._reported: datetime | None = None
 
     def constraint_for(self, band: Band, instant: datetime) -> Constraint | None:
-        """La contrainte de cette occurrence, `None` s'il n'a pas été possible de tirer.
+        """La contrainte de cette occurrence, `None` si le tirage n'a pas été possible.
 
-        `None` n'est pas une panne : c'est le tirage libre, exactement comme une
-        plage thématique sans musique (`core/queue.py`). Rien n'est mémorisé
-        dans ce cas, pour que la jonction suivante retente — une source qui
-        revient au bout de deux minutes ne condamne pas la soirée entière.
+        `None` vaut tirage libre, comme une plage thématique sans musique
+        (`core/queue.py`). Rien n'est mémorisé dans ce cas, pour que la jonction
+        suivante retente.
         """
         if band.random_theme is None:
             message = f"la plage {band.start:%H:%M} ne demande aucun thème à tirer"
@@ -48,12 +46,11 @@ class RandomTheme:
         return self._retenir(occurrence, self._draw(band.random_theme, occurrence))
 
     def redraw(self, band: Band, instant: datetime) -> Constraint | None:
-        """Retire le thème de l'occurrence courante — un **autre** (GOAL-057).
+        """Retire un autre thème pour l'occurrence courante (GOAL-057).
 
-        Demandé par l'auteur : une heure de Ragga qui ne plaît pas ne se subit
-        pas jusqu'à l'heure suivante. L'ancien thème est écarté du tirage, sauf
-        si la bibliothèque n'en offre qu'un — retirer le même est alors dit.
-        Sans thème tiré encore, c'est un tirage ordinaire.
+        L'ancien thème est écarté du tirage, sauf si la bibliothèque n'en offre
+        qu'un ; ce cas est journalisé. Sans thème déjà tiré, c'est un tirage
+        ordinaire.
         """
         if band.random_theme is None:
             message = f"la plage {band.start:%H:%M} ne demande aucun thème à tirer"
@@ -84,11 +81,10 @@ class RandomTheme:
                 if candidates:
                     return Constraint(genre=self._random.pick(candidates))
             else:
-                # L'artiste se tire par une piste, et non par une capacité
-                # « lister les artistes » ajoutée au `Protocol` : le réservoir
-                # voulu est la bibliothèque, et une piste tirée librement en est
-                # déjà un échantillon. Une capacité de plus pour un seul appel
-                # aurait coûté à toutes les sources à venir.
+                # L'artiste se tire par une piste plutôt que par une méthode de
+                # listage des artistes ajoutée au `Protocol` : une piste tirée
+                # librement est déjà un échantillon de la bibliothèque, et une
+                # méthode de plus aurait coûté à toutes les sources.
                 tracks = self._source.tracks(None)
                 others = [t for t in tracks if t.artist != exclude] or tracks
                 if others:
@@ -100,12 +96,10 @@ class RandomTheme:
         return None
 
     def _report(self, occurrence: datetime, reason: str) -> None:
-        """Une fois par occurrence, pas une fois par morceau.
+        """Journalise une fois par occurrence, pas une fois par morceau.
 
-        Le tirage est retenté à chaque jonction tant qu'il échoue — c'est voulu.
-        Le journaliser autant de fois noierait tout le reste sous une plage
-        entière de la même ligne, et SPECS.md §5 demande un journal qu'on puisse
-        lire.
+        Le tirage est retenté à chaque jonction tant qu'il échoue. Le journaliser
+        à chaque fois rendrait le journal illisible (SPECS.md §5).
         """
         if self._reported == occurrence:
             return

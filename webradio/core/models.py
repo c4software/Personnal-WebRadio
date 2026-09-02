@@ -1,9 +1,8 @@
 """Ce que le noyau manipule.
 
-Rien ici ne connaît Navidrome, Subsonic, HTTP ni ffmpeg : ces détails restent
-confinés dans leurs adaptateurs (ARCHITECTURE.md §2.1). Une piste est ce qu'il
-faut pour décider — un artiste, un genre, une durée — plus un identifiant que
-seule la source sait résoudre.
+Rien ici ne connaît Navidrome, Subsonic, HTTP ni ffmpeg (ARCHITECTURE.md §2.1).
+Une piste est ce qu'il faut pour décider, plus un identifiant que seule la
+source sait résoudre.
 """
 
 from dataclasses import dataclass
@@ -14,9 +13,8 @@ from datetime import timedelta
 class Track:
     """Un morceau, tel que le noyau a besoin de le connaître.
 
-    `identifiant` est opaque : le noyau ne l'interprète jamais, il le rend à la
-    source qui l'a produit. C'est ce qui permet à une source d'utiliser des
-    identifiants Subsonic hexadécimaux sans que rien au-dessus ne le sache.
+    `identifier` est opaque : le noyau ne l'interprète jamais, il le rend à la
+    source qui l'a produit.
     """
 
     identifier: str
@@ -24,9 +22,9 @@ class Track:
     artist: str
     genre: str | None
     duration: timedelta
-    # L'année de la piste, quand la bibliothèque la connaît : 6,7 % des pistes
-    # réelles n'en ont pas (docs/subsonic.md §4.1), et elles restent valables —
-    # elles ne participent simplement pas aux suites d'époque (GOAL-044).
+    # L'année, quand la bibliothèque la connaît (docs/subsonic.md §4.1). Une
+    # piste sans année reste valable, elle ne participe pas aux suites d'époque
+    # (GOAL-044).
     year: int | None = None
 
     def __post_init__(self) -> None:

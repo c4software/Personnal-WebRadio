@@ -1,18 +1,16 @@
 """La dernière vidéo d'une chaîne, présentée comme un épisode de podcast.
 
-Le planificateur d'émissions (`app/show_scheduler.py`) ne fait pas la
-différence : il reçoit des épisodes — identifiant, date, durée, adresse
-audio — et applique les mêmes règles qu'aux podcasts (le plus récent non
-diffusé, la case bornée par la durée).
+Le planificateur d'émissions (`app/show_scheduler.py`) reçoit des épisodes
+(identifiant, date, durée, adresse audio) et leur applique les règles des
+podcasts : le plus récent non diffusé, la case bornée par la durée.
 
-Trois choses viennent du relevé [docs/youtube.md](../../../docs/youtube.md),
-et il ne faut pas les rediscuter ici :
+Trois points viennent du relevé [docs/youtube.md](../../../docs/youtube.md) :
 
-- le `channel_id` se lit dans le lien **canonique** de la page de chaîne ;
-- le flux Atom ne porte **pas** de durée : `yt-dlp` la donne, avec l'URL
-  audio directe que ffmpeg sait ouvrir ;
-- cette URL expire (~6 h) : on résout **au moment de diffuser**, et seule la
-  vidéo candidate est résolue — pas les quinze du flux.
+- le `channel_id` se lit dans le lien canonique de la page de chaîne ;
+- le flux Atom ne porte pas de durée : `yt-dlp` la donne, avec l'URL audio
+  directe que ffmpeg sait ouvrir ;
+- cette URL expire (environ 6 h) : on résout au moment de diffuser, et seule
+  la vidéo candidate est résolue.
 """
 
 import logging
@@ -36,12 +34,12 @@ CANONIQUE = re.compile(r'<link rel="canonical" href="https://www\.youtube\.com/c
 
 
 class YoutubeUnavailable(Exception):
-    """La chaîne, son flux ou `yt-dlp` ne répond pas. Cas nominal : musique."""
+    """La chaîne, son flux ou `yt-dlp` ne répond pas. La radio reste en musique."""
 
 
 @dataclass(frozen=True, slots=True)
 class Resolved:
-    """Ce que `yt-dlp` sait d'une vidéo : sa durée, et où est l'audio."""
+    """Ce que `yt-dlp` donne d'une vidéo : sa durée et l'URL audio directe."""
 
     duration: timedelta
     audio: str
@@ -56,7 +54,7 @@ def _resoudre_par_ytdlp(video_url: str, timeout: float) -> Resolved:
                 "-g",
                 "-f",
                 # m4a d'abord : son mime (audio/mp4) est connu du diffuseur,
-                # celui du webm ne l'était pas (docs/youtube.md §3).
+                # pas celui du webm (docs/youtube.md §3).
                 "bestaudio[ext=m4a]/bestaudio",
                 "--print",
                 "duration",
@@ -87,8 +85,11 @@ def _resoudre_par_ytdlp(video_url: str, timeout: float) -> Resolved:
 
 
 def _telecharger_par_ytdlp(video_url: str, destination: str, timeout: float) -> None:
-    """`yt-dlp -o` : l'audio complet, écrit à côté puis renommé — jamais un
-    fichier à moitié plein sous le nom final."""
+    """Télécharge l'audio complet dans `destination` avec `yt-dlp -o`.
+
+    Le fichier est écrit en `.part` puis renommé, pour ne jamais laisser un
+    fichier incomplet sous le nom final.
+    """
     part = destination + ".part"
     try:
         subprocess.run(
@@ -122,10 +123,10 @@ def _telecharger_par_ytdlp(video_url: str, destination: str, timeout: float) -> 
 
 
 class YoutubeChannel:
-    """Le même contrat que `PodcastFeed` : des épisodes, du plus récent au reste.
+    """Le même contrat que `PodcastFeed` : des épisodes, du plus récent au plus ancien.
 
-    Seule la vidéo la plus récente est résolue par `yt-dlp` — c'est la seule
-    candidate (SPECS.md §7 n°14), et chaque résolution coûte un appel réseau.
+    Seule la vidéo la plus récente est résolue par `yt-dlp` : c'est la seule
+    candidate (SPECS.md §7 n°14) et chaque résolution coûte un appel réseau.
     """
 
     def __init__(
@@ -140,13 +141,12 @@ class YoutubeChannel:
         self._chaines: dict[str, str] = {}
 
     def download(self, video_url: str, destination: str) -> None:
-        """L'audio complet, dans un fichier local que le diffuseur ouvrira.
+        """Télécharge l'audio complet dans un fichier local pour le diffuseur.
 
-        C'est ce qui supprime le blanc (docs/youtube.md §5) : la résolution
-        d'un fichier local est instantanée, le téléchargement a eu lieu
-        pendant que la musique jouait. Dix fois le délai de résolution : un
-        téléchargement est long par nature, l'abandonner trop tôt recrée le
-        problème qu'il corrige.
+        Un fichier local s'ouvre sans blanc, le téléchargement ayant eu lieu
+        pendant la musique (docs/youtube.md §5). Le délai vaut dix fois celui
+        de la résolution : un téléchargement abandonné trop tôt recréerait le
+        blanc.
         """
         _telecharger_par_ytdlp(video_url, destination, self._delai * 10)
 
@@ -160,10 +160,10 @@ class YoutubeChannel:
             raise YoutubeUnavailable(message) from failure
 
     def _channel_id(self, channel_url: str) -> str:
-        """Depuis n'importe quelle forme d'adresse — handle compris.
+        """L'identifiant de chaîne, depuis toute forme d'adresse, handle compris.
 
-        Le lien canonique de la page fait foi (docs/youtube.md §1). Le
-        résultat est retenu : une chaîne ne change pas d'identifiant.
+        Le lien canonique de la page fait foi (docs/youtube.md §1). Le résultat
+        est mis en cache : une chaîne ne change pas d'identifiant.
         """
         if "/channel/" in channel_url:
             return channel_url.rstrip("/").rsplit("/", 1)[-1]
@@ -181,8 +181,8 @@ class YoutubeChannel:
     def episodes(self, channel_url: str) -> list[Episode]:
         """Les vidéos du flux Atom, la plus récente résolue par `yt-dlp`.
 
-        Les suivantes n'ont ni durée ni audio : elles ne servent qu'à dater —
-        le planificateur ne diffuse jamais que la plus récente non diffusée.
+        Les suivantes n'ont ni durée ni audio : elles ne servent qu'à dater, le
+        planificateur ne diffusant que la plus récente non diffusée.
         """
         flux = self._lire(FEED.format(channel=self._channel_id(channel_url)), self._delai)
         try:

@@ -1,10 +1,8 @@
-"""L'adaptateur Subsonic, contre des réponses HTTP **littérales**.
+"""L'adaptateur Subsonic, contre des réponses HTTP littérales.
 
-Les corps de réponse sont recopiés de [docs/subsonic.md](../docs/subsonic.md),
-qui les a relevés contre une instance réelle. Aucun test ne touche au réseau :
-le transport est un Fake versionné, pas un mock généré (AGENTS.md §4).
-
-Les identifiants employés ici sont **fictifs**.
+Les corps de réponse sont recopiés de docs/subsonic.md, relevés contre une
+instance réelle. Aucun test ne touche au réseau : le transport est un Fake
+versionné (AGENTS.md §4). Les identifiants sont fictifs.
 """
 
 import hashlib
@@ -122,7 +120,7 @@ class ScriptedTransport:
 
 
 class UnreachableTransport:
-    """Le serveur ne répond pas du tout : aucune réponse, une erreur système."""
+    """Un transport dont le serveur ne répond pas : erreur système à chaque appel."""
 
     def fetch(self, url: str) -> HttpResponse:
         message = f"connexion refusée pour {url}"
@@ -238,8 +236,7 @@ def test_le_jeton_est_l_empreinte_du_mot_de_passe_et_du_sel() -> None:
 
 
 # ── Le piège n°2 : la bibliothèque entière, page par page ──────────────────
-# Les pages pleines sont générées : recopier 500 chansons littérales
-# n'apprendrait rien de plus que leur forme, déjà relevée (docs/subsonic.md).
+# Les pages pleines sont générées : leur forme est déjà relevée dans docs/subsonic.md.
 
 
 def _page(container: str, identifiers: list[str]) -> str:
@@ -276,8 +273,8 @@ def test_la_bibliotheque_est_reunie_page_par_page_jusqu_a_une_page_courte() -> N
 def test_un_serveur_qui_ignore_l_offset_ne_fait_pas_boucler_le_parcours(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    # §2.6.2 : un paramètre inconnu est ignoré en silence. Un serveur qui
-    # ignorerait l'offset resservirait la même page pleine indéfiniment.
+    # Un paramètre inconnu est ignoré en silence (§2.6.2) : un serveur qui
+    # ignore l'offset ressert la même page pleine indéfiniment.
     page = HttpResponse(200, _page("searchResult3", [f"p{index}" for index in range(PAGE_SIZE)]))
     transport = ScriptedTransport([page, page])
 
@@ -400,8 +397,8 @@ def test_une_piste_sans_genre_est_conservee() -> None:
 
 
 def test_l_annee_est_mappee_et_son_absence_vaut_sans_annee() -> None:
-    """docs/subsonic.md §4.1 : `year` est un entier, absent sur 6,7 % des
-    pistes ; toute autre forme vaut « sans année », jamais un rejet."""
+    """`year` est un entier, parfois absent (docs/subsonic.md §4.1). Toute autre
+    forme vaut `None`, jamais un rejet."""
     reponse = """
 {"subsonic-response": {"status": "ok", "version": "1.16.1", "searchResult3": {"song": [
   {"id": "a1", "title": "Datée", "artist": "Un artiste", "duration": 200, "year": 1977},
@@ -580,15 +577,15 @@ def test_le_transport_traduit_une_panne_de_connexion() -> None:
 
 
 def test_le_transport_par_defaut_existe_sans_etre_appele() -> None:
-    """Construire le transport réel ne touche à rien : rien n'est ouvert avant un appel."""
+    """Construire le transport réel n'ouvre aucune connexion."""
     transport = UrllibTransport(timeout_seconds=1.0)
 
     assert transport is not None
 
 
 def test_entree_rend_une_url_de_flux_portant_le_jeton() -> None:
-    """La chaîne de diffusion ouvre cette URL telle quelle : c'est le seul
-    endroit du projet où l'identifiant opaque redevient lisible."""
+    """La chaîne de diffusion ouvre cette URL telle quelle : elle porte le jeton,
+    jamais le mot de passe."""
     source = _source()
     track = Track(
         identifier="piste-1",
@@ -626,8 +623,7 @@ AUCUNE_LISTE = """
 {"subsonic-response": {"status": "ok", "version": "1.16.1", "playlists": {}}}
 """
 
-# `songCount` annonce 67 là où deux entrées seulement sont rendues : c'est le
-# constat du relevé §2.6.1, recopié tel quel.
+# `songCount` annonce 67 pour deux entrées rendues : relevé §2.6.1, recopié tel quel.
 LISTE_CHLOE = """
 {"subsonic-response": {"status": "ok", "version": "1.16.1", "playlist": {
  "id": "pl-1", "name": "Chloé", "songCount": 67, "entry": [
@@ -674,8 +670,7 @@ def test_une_liste_de_lecture_est_resolue_par_son_nom() -> None:
 
 
 def test_le_song_count_annonce_n_est_pas_ce_qui_est_rendu() -> None:
-    """67 annoncés, deux entrées rendues : une liste se juge sur ses entrées
-    (docs/subsonic.md §2.6.1)."""
+    """Une liste se juge sur ses entrées, pas sur `songCount` (docs/subsonic.md §2.6.1)."""
     source = _source(
         transport=ScriptedTransport([HttpResponse(200, LISTES), HttpResponse(200, LISTE_CHLOE)])
     )
@@ -753,9 +748,8 @@ def test_les_entrees_abimees_d_une_liste_sont_ecartees_et_les_autres_gardees() -
 
 
 def test_une_liste_disparue_entre_les_deux_appels_leve_une_source_indisponible() -> None:
-    """La liste existait à l'instant de `getPlaylists` et plus à celui de
-    `getPlaylist` : HTTP 200, code 70. C'est une panne de source, et le repli
-    est celui que la charnière applique déjà à toutes les pannes."""
+    """La liste a disparu entre `getPlaylists` et `getPlaylist` : HTTP 200 avec le
+    code 70. C'est une panne de source, traitée comme les autres."""
     source = _source(
         transport=ScriptedTransport(
             [HttpResponse(200, LISTES), HttpResponse(200, LISTE_INTROUVABLE)]
@@ -779,8 +773,8 @@ def test_une_page_html_en_200_a_la_place_des_listes_leve_une_source_indisponible
 
 
 def test_des_listes_sans_enveloppe_attendue_rendent_une_liste_vide() -> None:
-    """Un contenant absent ou d'un type inattendu n'est pas une panne : c'est
-    une bibliothèque sans liste de lecture."""
+    """Un contenant absent ou d'un type inattendu n'est pas une panne : la
+    bibliothèque n'a pas de liste de lecture."""
     sans_contenant = '{"subsonic-response": {"status": "ok", "playlists": {"playlist": "rien"}}}'
     source = _source(transport=ScriptedTransport([HttpResponse(200, sans_contenant)]))
 
@@ -799,7 +793,7 @@ def test_une_liste_dont_les_entrees_ont_un_type_inattendu_rend_une_liste_vide() 
 def test_aucun_secret_ne_parait_dans_les_journaux_d_une_liste_de_lecture(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Les URL portent le jeton : elles n'ont leur place dans aucun journal."""
+    """Les URL portent le jeton : aucune ne doit être journalisée."""
     source = _source(transport=ScriptedTransport([HttpResponse(200, LISTES)]))
 
     with caplog.at_level(logging.DEBUG):

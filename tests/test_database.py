@@ -1,7 +1,7 @@
-"""L'état durable : ce qu'il retient, ce qu'il oublie, et ce qu'il refuse.
+"""Tests de l'état durable `SqliteState`.
 
-Chaque test travaille sur **son propre fichier temporaire** : une base partagée
-entre tests ferait dépendre l'un de l'ordre d'exécution de l'autre.
+Chaque test a son propre fichier temporaire, pour ne pas dépendre de l'ordre
+d'exécution.
 """
 
 from datetime import UTC, datetime, timedelta
@@ -22,7 +22,7 @@ def state(path: Path, clock: FrozenClock) -> SqliteState:
 
 
 def test_une_base_absente_se_cree_toute_seule(tmp_path: Path) -> None:
-    """Perdre la base n'est pas une panne (ARCHITECTURE.md §5.0)."""
+    """Une base absente est recréée, ce n'est pas une panne (ARCHITECTURE.md §5.0)."""
     path = tmp_path / "sous-dossier" / "etat.sqlite"
     state(path, FrozenClock(DEPART))
     assert path.exists()
@@ -43,7 +43,7 @@ def test_le_dernier_episode_diffuse_se_relit(tmp_path: Path) -> None:
 
 
 def test_une_nouvelle_diffusion_remplace_la_precedente(tmp_path: Path) -> None:
-    """Un identifiant par émission, jamais un historique (ARCHITECTURE.md §5.0)."""
+    """La base retient un identifiant par émission, pas un historique (ARCHITECTURE.md §5.0)."""
     clock = FrozenClock(DEPART)
     e = state(tmp_path / "etat.sqlite", clock)
     e.record_airing("LEGEND", "guid-1")
@@ -66,7 +66,7 @@ def test_deux_emissions_ne_se_melangent_pas(tmp_path: Path) -> None:
 
 
 def test_l_etat_survit_a_la_fermeture_du_programme(tmp_path: Path) -> None:
-    """Deux processus vivants lisent la même base (ARCHITECTURE.md §5.1)."""
+    """Deux processus peuvent lire la même base (ARCHITECTURE.md §5.1)."""
     path = tmp_path / "etat.sqlite"
     state(path, FrozenClock(DEPART)).record_airing("LEGEND", "guid-42")
     relu = state(path, FrozenClock(DEPART)).last_airing("LEGEND")
@@ -88,7 +88,7 @@ def test_un_vote_s_ajoute_au_score_de_sa_cible(tmp_path: Path) -> None:
 
 
 def test_un_vote_porte_sur_la_piste_et_sur_l_artiste_separement(tmp_path: Path) -> None:
-    """SPECS.md §4.12 : le barème est décidé au-dessus, la base additionne."""
+    """Le barème est décidé au-dessus ; la base additionne (SPECS.md §4.12)."""
     e = state(tmp_path / "etat.sqlite", FrozenClock(DEPART))
     e.record_vote(Scope.TRACK, "piste-1", stop=1.0)
     e.record_vote(Scope.ARTIST, "Bowie", stop=0.25)
@@ -103,7 +103,7 @@ def test_deux_portees_de_meme_nom_ne_se_confondent_pas(tmp_path: Path) -> None:
 
 
 def test_un_score_perd_la_moitie_de_son_poids_en_une_demi_vie(tmp_path: Path) -> None:
-    """La décroissance vaut **à la lecture** (ARCHITECTURE.md §5.2)."""
+    """La décroissance s'applique à la lecture (ARCHITECTURE.md §5.2)."""
     clock = FrozenClock(DEPART)
     e = state(tmp_path / "etat.sqlite", clock)
     e.record_vote(Scope.TRACK, "piste-1", stop=1.0)
@@ -114,10 +114,10 @@ def test_un_score_perd_la_moitie_de_son_poids_en_une_demi_vie(tmp_path: Path) ->
 def test_un_vote_ancien_ne_repasse_pas_pour_frais_quand_un_nouveau_arrive(
     tmp_path: Path,
 ) -> None:
-    """Le piège que les compteurs entiers auraient laissé passer.
+    """Le score est décru avant d'ajouter le nouveau vote.
 
-    Avec `stops INTEGER` et une seule date, deux `stop` à trois mois d'écart
-    compteraient tous les deux comme frais : 2 au lieu de 1,5.
+    Avec un compteur entier et une seule date, deux `stop` à une demi-vie
+    d'écart compteraient tous les deux comme frais : 2 au lieu de 1,5.
     """
     clock = FrozenClock(DEPART)
     e = state(tmp_path / "etat.sqlite", clock)
@@ -129,7 +129,7 @@ def test_un_vote_ancien_ne_repasse_pas_pour_frais_quand_un_nouveau_arrive(
 
 
 def test_un_score_ne_grossit_pas_si_l_horloge_recule(tmp_path: Path) -> None:
-    """Une base recopiée d'une autre machine ne doit pas amplifier un vote."""
+    """Une base recopiée depuis une machine en avance ne doit pas amplifier un vote."""
     path = tmp_path / "etat.sqlite"
     futur = state(path, FrozenClock(DEPART + timedelta(days=365)))
     futur.record_vote(Scope.TRACK, "piste-1", encore=1.0)
@@ -158,7 +158,7 @@ def test_une_demi_vie_nulle_est_refusee(tmp_path: Path) -> None:
 
 
 def test_un_fichier_qui_n_est_pas_une_base_est_signale(tmp_path: Path) -> None:
-    """Une erreur technique devient une erreur métier (ARCHITECTURE.md §7)."""
+    """L'erreur sqlite est traduite en `StateUnavailable` (ARCHITECTURE.md §7)."""
     path = tmp_path / "etat.sqlite"
     path.write_bytes(b"ceci n'est pas une base de donnees")
     with pytest.raises(StateUnavailable, match="illisible"):
@@ -202,12 +202,12 @@ def test_le_libelle_est_retenu_au_vote_et_rendu_a_la_lecture(tmp_path: Path) -> 
 
     tout = e.all_scores()
 
-    assert tout[0][1] == "id-opaque"  # la clé brute, pour l'effacement
+    assert tout[0][1] == "id-opaque"  # clé brute, utilisée pour l'effacement
     assert tout[0][2] == "Sexy Boy — Air"
 
 
 def test_un_vote_d_avant_la_migration_garde_sa_cible_brute(tmp_path: Path) -> None:
-    """La colonne arrive par migration : sans libellé, la cible reste lisible."""
+    """Sans libellé, la cible brute est rendue à la place."""
     e = state(tmp_path / "etat.sqlite", FrozenClock(DEPART))
     e.record_vote(Scope.TRACK, "id-opaque", stop=1.0)
     assert e.all_scores()[0][2] == "id-opaque"
@@ -234,7 +234,7 @@ def test_la_migration_ajoute_la_colonne_a_une_base_d_avant(tmp_path: Path) -> No
 
 
 def test_un_vote_efface_disparait_et_le_dit(tmp_path: Path) -> None:
-    """GOAL-021 : un vote donné par erreur s'efface — et une cible inconnue le dit."""
+    """`delete_vote` rend `True` si un vote a été effacé, `False` sinon (GOAL-021)."""
     e = state(tmp_path / "etat.sqlite", FrozenClock(DEPART))
     e.record_vote(Scope.TRACK, "t1", stop=1.0)
     assert e.delete_vote(Scope.TRACK, "t1") is True
@@ -261,7 +261,7 @@ def test_le_journal_rend_le_plus_recent_d_abord(tmp_path: Path) -> None:
 
 
 def test_le_journal_oublie_au_dela_d_un_jour(tmp_path: Path) -> None:
-    """Un journal, pas une archive (SPECS.md §2 tient toujours) — 24 h."""
+    """Le journal ne garde que 24 h : ce n'est pas une archive (SPECS.md §2)."""
     clock = FrozenClock(DEPART)
     e = state(tmp_path / "etat.sqlite", clock)
     e.record_play("musique", "avant-hier")

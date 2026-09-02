@@ -1,7 +1,7 @@
 """La configuration se lit, ou le démarrage n'a pas lieu.
 
-Toutes les valeurs de ces tests sont **fictives** : aucun secret ne figure dans
-un test, pas plus que dans le TOML (AGENTS.md §2).
+Toutes les valeurs sont fictives : aucun secret dans un test ni dans le TOML
+(AGENTS.md §2).
 """
 
 import tomllib
@@ -220,7 +220,7 @@ def test_une_cle_inconnue_de_playout_est_nommee() -> None:
 
 def test_l_ancienne_taille_d_echantillon_est_refusee_en_la_nommant() -> None:
     # La clé a disparu avec l'échantillonnage (GOAL-039) : une configuration
-    # qui la porte encore doit le dire, pas l'ignorer en silence.
+    # qui la porte encore doit échouer en la nommant.
     content = TOML_MINIMAL + "\n[subsonic]\nsample_size = 500\n"
 
     with pytest.raises(SettingsError) as refus:
@@ -527,8 +527,7 @@ def test_une_variable_du_processus_prime_sur_le_fichier_env(tmp_path: Path) -> N
 
 
 def test_le_raccourci_tous_les_jours_est_accepte() -> None:
-    """SPECS.md §4.11 l'autorise depuis l'origine, mais rien ne l'acceptait :
-    `jours = "all"` échouait avec « une liste est attendue »."""
+    """`days = "all"` vaut tous les jours (SPECS.md §4.11)."""
     brut = tomllib.loads(
         TOML_MINIMAL + '\n[[shows]]\nname = "E"\nfeed = "https://x.test/f.xml"\n'
         'days = "all"\ntime = "20:00"\n'
@@ -794,8 +793,7 @@ def test_un_plafond_de_duree_negatif_est_refuse_en_le_nommant() -> None:
 
 
 def test_sans_adresse_de_flux_la_page_n_a_pas_de_lecteur() -> None:
-    """GOAL-060 : absente, la clé ne désigne rien — et rien n'est écrit en
-    dur à sa place."""
+    """Sans `stream_url`, aucune adresse n'est écrite en dur à sa place (GOAL-060)."""
     assert _valider(TOML_MINIMAL).web.stream_url == ""
 
 

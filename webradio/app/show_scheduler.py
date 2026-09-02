@@ -1,15 +1,12 @@
-"""Décider si une émission est due, et laquelle — la troisième charnière.
+"""Décider si une émission est due, et laquelle.
 
-Elle relie trois choses qui ne se connaissent pas : le noyau qui sait *quelle
-case est ouverte* (`core/shows.py`), le flux de podcast qui sait *quels
-épisodes existent* (`adapters/podcast/`), et la base qui sait *lequel a déjà été
-diffusé* (`adapters/state/`).
+Ce module relie le noyau, qui sait quelle case est ouverte (`core/shows.py`),
+le flux de podcast, qui sait quels épisodes existent (`adapters/podcast/`), et
+la base, qui sait lequel a déjà été diffusé (`adapters/state/`).
 
-**C'est le seul endroit du projet où une décision exige un appel réseau qui peut
-ne servir à rien** (ARCHITECTURE.md §5.2) : le rattrapage est borné par la durée
-de l'épisode, et cette durée n'est connue qu'après avoir lu le flux. Il faut donc
-interroger le podcast pour savoir s'il y a lieu de rattraper — avant même de
-savoir si l'on s'en servira.
+C'est le seul endroit où une décision exige un appel réseau qui peut ne servir
+à rien (ARCHITECTURE.md §5.2) : le rattrapage est borné par la durée de
+l'épisode, connue seulement après lecture du flux.
 """
 
 import logging
@@ -29,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 class Shows:
-    """Ce qui est dû à l'antenne, et l'URL audio à ouvrir pour le diffuser."""
+    """L'émission due à l'antenne, et l'adresse audio à ouvrir pour la diffuser."""
 
     def __init__(
         self,
@@ -48,30 +45,29 @@ class Shows:
         self._etat = state
         self._horloge = clock
         self._adresses = addresses
-        # Les directs : nom → URL. Ils ne passent ni par le podcast ni par la
-        # base ; une case n'est rendue qu'une fois, et ce registre suffit
-        # (SPECS.md §7 n°22 : « elle se produit à chaque occurrence de sa case »).
+        # Les directs (nom vers URL) ne passent ni par le podcast ni par la
+        # base : chaque occurrence de la case est diffusée (SPECS.md §7 n°22),
+        # et `_cases_rendues` suffit pour ne la rendre qu'une fois.
         self._directs = streams or {}
-        # Les chaînes YouTube : même mécanique que les podcasts — la dernière
-        # vidéo non diffusée, la case bornée par sa durée (docs/youtube.md §2).
+        # Les chaînes YouTube suivent la mécanique des podcasts : dernière
+        # vidéo non diffusée, case bornée par sa durée (docs/youtube.md §2).
         self._youtube = youtube_channels or {}
         self._youtube_adapter = youtube
         self._youtube_cache = youtube_cache
-        # Les téléchargements en cours, par vidéo : un seul à la fois chacun.
+        # Les identifiants des vidéos en cours de téléchargement.
         self._telechargements: set[str] = set()
         self._verrou_telechargements = threading.Lock()
         self._cases_rendues: set[tuple[str, datetime]] = set()
 
     def due(self) -> tuple[Show, str, str | None] | None:
-        """L'émission due, l'adresse de son épisode, et son **titre** s'il en a un.
+        """L'émission due, l'adresse de son épisode, et le titre de l'épisode.
 
-        Le titre — celui de la vidéo ou de l'épisode — sert à l'antenne et au
-        journal (GOAL-027) : « Hardisk · L'évasion la plus folle… » dit plus
-        que « Hardisk » (demandé par l'auteur).
+        Le titre (vidéo ou épisode) sert à l'antenne et au journal (GOAL-027) ;
+        il vaut `None` s'il n'y en a pas.
 
-        Rend `None` dans tous les cas où « il n'y a pas d'émission » — aucune
-        case ouverte, flux injoignable, épisode déjà diffusé. Aucun n'est une
-        panne : la radio reste sur la musique (SPECS.md §4.11).
+        Rend `None` quand il n'y a pas d'émission : aucune case ouverte, flux
+        injoignable, épisode déjà diffusé. Aucun de ces cas n'est une panne,
+        la radio reste sur la musique (SPECS.md §4.11).
         """
         instant = self._horloge.now()
         catalogues = self._catalogues(instant)
@@ -90,13 +86,13 @@ class Shows:
         return self._episode_de(case.show, catalogues.get(case.show.name, []))
 
     def _direct_de(self, case: Slot, instant: datetime) -> tuple[Show, str, str | None] | None:
-        """Un direct, rendu **une fois par case**, avec l'heure absolue de sa fin.
+        """Un direct, rendu une fois par case, avec l'heure absolue de sa fin.
 
-        L'entrée `live:<fin en secondes Unix>:<url>` est une instruction pour
-        Liquidsoap (`adapters/liquidsoap/radio.liq`) : capter cette URL, et
-        couper à cette heure — quelle que soit l'heure où la jonction arrive.
-        La deuxième demande dans la même case rend la musique : sinon, le
-        direct redémarrerait à chaque jonction jusqu'à la fin de la case.
+        L'entrée `live:<fin en secondes Unix>:<url>` est lue par Liquidsoap
+        (`adapters/liquidsoap/radio.liq`) : capter cette URL et couper à cette
+        heure, quelle que soit l'heure de la jonction. Une deuxième demande
+        dans la même case rend `None`, sinon le direct redémarrerait à chaque
+        jonction jusqu'à la fin de la case.
         """
         cle = (case.show.name, case.start)
         if cle in self._cases_rendues:
@@ -116,22 +112,21 @@ class Shows:
 
     @staticmethod
     def _nom_de_cache(show_name: str) -> str:
-        """Un nom STABLE par émission : le prochain téléchargement écrase le
-        précédent — un fichier mal supprimé ne s'accumule jamais (demandé par
-        l'auteur, GOAL-028). Le compagnon `.id` dit quelle vidéo c'est."""
+        """Un nom de fichier stable par émission : chaque téléchargement écrase
+        le précédent, rien ne s'accumule (GOAL-028). Le fichier `.id` à côté
+        dit quelle vidéo c'est."""
         return re.sub(r"[^a-z0-9]+", "-", show_name.lower()).strip("-") or "emission"
 
     def _video_de(
         self, show: Show, catalogue: list[EpisodeDuFlux]
     ) -> tuple[Show, str, str | None] | None:
-        """La dernière vidéo, servie **depuis le cache local** — jamais l'URL.
+        """La dernière vidéo, servie depuis le cache local, jamais par son URL.
 
         Servir l'URL googlevideo faisait télécharger le diffuseur à la
-        jonction : trente à soixante secondes de blanc (docs/youtube.md §5).
-        Ici : pas de fichier → on lance le téléchargement en tâche de fond et
-        la musique continue ; fichier prêt → il part à la jonction suivante,
-        résolution instantanée. La case borne toujours tout : un
-        téléchargement qui finit après elle a manqué son heure, c'est tout.
+        jonction, avec un blanc de trente à soixante secondes
+        (docs/youtube.md §5). Sans fichier prêt, le téléchargement part en
+        tâche de fond et la fonction rend `None` ; la vidéo passera à une
+        jonction suivante, si la case est encore ouverte.
         """
         if not catalogue or self._youtube_adapter is None or self._youtube_cache is None:
             return None
@@ -141,8 +136,8 @@ class Shows:
         nom = self._nom_de_cache(show.name)
         fichier = self._youtube_cache / f"{nom}.m4a"
         temoin = self._youtube_cache / f"{nom}.id"
-        # Le fichier ne vaut que s'il EST la vidéo candidate : un reste d'une
-        # autre semaine sous le même nom serait diffusé à sa place sinon.
+        # Le fichier n'est servi que s'il correspond à la vidéo choisie, sinon
+        # un reste d'une autre semaine passerait à sa place.
         est_la_bonne = (
             fichier.is_file() and temoin.is_file() and temoin.read_text().strip() == chosen.guid
         )
@@ -169,8 +164,8 @@ class Shows:
                 self._youtube_cache.mkdir(parents=True, exist_ok=True)
                 cible = self._youtube_cache / f"{nom}.m4a"
                 temoin = self._youtube_cache / f"{nom}.id"
-                # Le témoin de l'ancienne vidéo tombe d'abord : à aucun moment
-                # un vieux fichier ne peut passer pour la nouvelle.
+                # Le `.id` est supprimé avant le fichier : à aucun moment un
+                # vieux fichier ne peut passer pour la nouvelle vidéo.
                 temoin.unlink(missing_ok=True)
                 cible.unlink(missing_ok=True)
                 (self._youtube_cache / f"{nom}.m4a.part").unlink(missing_ok=True)
@@ -212,9 +207,8 @@ class Shows:
     def _catalogues(self, instant: object) -> dict[str, list[EpisodeDuFlux]]:
         """Lit les flux des émissions dont une case a pu commencer.
 
-        On lit **avant** de savoir si l'on s'en servira : sans la durée, on ne
-        peut pas dire si la case est encore ouverte. C'est le coût assumé de la
-        décision n°13.
+        On lit avant de savoir si on s'en servira : sans la durée, on ne peut
+        pas dire si la case est encore ouverte (décision n°13).
         """
         catalogues: dict[str, list[EpisodeDuFlux]] = {}
         for show in self._programme.shows:
@@ -252,9 +246,8 @@ class Shows:
         try:
             deja = self._etat.last_airing(show.name)
         except StateUnavailable as failure:
-            # Sans mémoire, on rediffuserait en boucle. Mieux vaut sauter la
-            # case : une émission manquée est bien moins gênante qu'une
-            # émission qui repasse indéfiniment (SPECS.md §4.11).
+            # Sans mémoire, on rediffuserait le même épisode en boucle. Sauter
+            # la case est moins gênant (SPECS.md §4.11).
             logger.warning("mémoire indisponible, émission « %s » sautée : %s", show.name, failure)
             return None
         choisi = episode_to_air(

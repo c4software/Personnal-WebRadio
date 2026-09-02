@@ -26,8 +26,8 @@ def _radio(skip: Callable[[], None] | None = None) -> tuple[LiveRadio, ListenerC
 
 
 def test_les_deux_vocabulaires_de_nature_coincident() -> None:
-    """La traduction se fait par valeur. Le jour où les deux jeux divergeront,
-    ce test cassera ici plutôt qu'à l'exécution."""
+    """La traduction se fait par valeur ; si les deux jeux divergent, ce test
+    casse avant l'exécution."""
     assert {n.value for n in Kind} == {n.value for n in NatureWeb}
 
 
@@ -89,8 +89,7 @@ def test_un_vote_accepte_est_retenu() -> None:
 
 
 def test_un_vote_refuse_n_enregistre_rien() -> None:
-    """Sinon la radio apprendrait de gestes qui n'ont rien changé, et
-    l'auditeur pondérerait sa bibliothèque sans le savoir (SPECS.md §4.6)."""
+    """Sinon la radio apprendrait de gestes qui n'ont rien changé (SPECS.md §4.6)."""
     radio, counter = _radio()
     retenus: list[tuple[Command, str]] = []
     radio._retenir = lambda c, p: retenus.append((c, p.identifier))
@@ -112,7 +111,7 @@ def test_un_vote_sans_piste_courante_agit_sans_s_apprendre() -> None:
 
 
 def test_un_stop_accepte_ordonne_le_saut() -> None:
-    """SPECS.md §4.6 : « passer le morceau en cours » — GOAL-017."""
+    """Un `stop` accepté passe le morceau en cours (SPECS.md §4.6, GOAL-017)."""
     sauts: list[bool] = []
     radio, _ = _radio(skip=lambda: sauts.append(True))
     verdict = radio.vote(Vote.SKIP)
@@ -136,7 +135,7 @@ def test_un_stop_refuse_n_ordonne_aucun_saut() -> None:
 
 
 def test_ce_qui_commence_entre_au_journal_sauf_les_jingles() -> None:
-    """GOAL-027 : le journal note ce qui commence — pas l'habillage."""
+    """Le journal note ce qui commence, sauf l'habillage (GOAL-027)."""
     lignes: list[tuple[str, str, str]] = []
     radio, _ = _radio()
     radio._journaliser = lambda kind, titre, artiste: lignes.append((kind, titre, artiste))
@@ -151,7 +150,7 @@ def test_ce_qui_commence_entre_au_journal_sauf_les_jingles() -> None:
 
 
 def test_un_encore_accepte_jette_l_avance_du_diffuseur() -> None:
-    """GOAL-034 : l'effet suit LA chanson en cours, pas celle d'après."""
+    """L'effet suit la chanson en cours, pas celle d'après (GOAL-034)."""
     ordres: list[str] = []
     radio, _ = _radio(skip=lambda: ordres.append("skip"))
     radio._vider_l_avance = lambda: ordres.append("requeue")

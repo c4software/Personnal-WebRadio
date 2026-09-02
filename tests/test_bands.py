@@ -35,8 +35,7 @@ def test_une_plage_impose_son_genre() -> None:
 
 
 def test_le_debut_de_plage_est_inclus_et_la_fin_exclue() -> None:
-    """Sans cette convention, deux plages qui se touchent se recouvriraient
-    d'une minute — et la seconde n'aurait jamais son heure pleine."""
+    """Sans cette convention, deux plages qui se touchent se recouvriraient d'une minute."""
     assert Schedule([MATIN], a(8)).current_band() is MATIN
     assert Schedule([MATIN], a(9, 59)).current_band() is MATIN
     assert Schedule([MATIN], a(10)).current_band() is None
@@ -53,8 +52,8 @@ def test_une_plage_qui_enjambe_minuit_couvre_les_deux_cotes() -> None:
 
 
 def test_une_plage_a_plusieurs_genres_tranche_par_le_hasard_injecte() -> None:
-    """La source n'accepte qu'un genre à la fois : le choix doit rester
-    rejouable, donc il passe par le hasard injecté."""
+    """La source n'accepte qu'un genre à la fois ; le choix passe par le hasard
+    injecté pour rester rejouable."""
     band = Band(start=time(8), end=time(10), genres=("jazz", "soul", "funk"))
     grille = Schedule([band], a(9))
     assert _genre(grille, ScriptedRandom([1])) == "soul"
@@ -71,9 +70,8 @@ def test_a_duree_egale_la_premiere_plage_declaree_l_emporte_sur_un_recouvrement(
 
 
 def test_la_plage_la_plus_courte_l_emporte_sur_celle_qui_la_contient() -> None:
-    """GOAL-068 : une heure posée dans une soirée l'interrompt, où qu'elle
-    soit déclarée. Sans cela, la longue avalait la courte, qui ne passait
-    jamais."""
+    """La plage la plus courte l'emporte quel que soit l'ordre de déclaration,
+    sinon la longue masquerait la courte (GOAL-068)."""
     soiree = Band(start=time(20), end=time(23), genres=("electro",))
     heure = Band(start=time(21), end=time(22), genres=("soul",))
 
@@ -83,8 +81,8 @@ def test_la_plage_la_plus_courte_l_emporte_sur_celle_qui_la_contient() -> None:
 
 
 def test_une_plage_qui_enjambe_minuit_est_mesuree_sur_sa_vraie_duree() -> None:
-    """« 21 h → 02 h » dure cinq heures, pas moins vingt-trois : la mesurer à
-    l'envers en aurait fait la plus courte, et elle aurait tout emporté."""
+    """Une plage 21 h-02 h dure cinq heures ; mesurée à l'envers, elle serait la
+    plus courte et l'emporterait toujours."""
     soiree = Band(start=time(21), end=time(2), genres=("electro",))
     fin_de_nuit = Band(start=time(1), end=time(3), genres=("ambient",))
 
@@ -109,9 +107,8 @@ def test_une_grille_sans_plage_laisse_tout_le_tirage_libre() -> None:
 
 
 def test_un_morceau_tire_dans_une_plage_n_est_pas_repris_par_la_suivante() -> None:
-    """SPECS.md §7 n°5 : la grille n'est consultée qu'au tirage. Un morceau
-    tiré à 09 h 58 finit dans « jazz », même s'il déborde sur 10 h — et rien,
-    ici, n'a de quoi le lui reprendre."""
+    """La grille n'est consultée qu'au tirage (SPECS.md §7 n°5) : un morceau tiré
+    dans une plage garde son genre même s'il déborde sur la suivante."""
     clock = FrozenClock(datetime(2026, 8, 30, 9, 58, tzinfo=UTC))
     grille = Schedule([MATIN], clock)
     genre_au_tirage = _genre(grille, RealRandom(graine=1))
@@ -121,8 +118,7 @@ def test_un_morceau_tire_dans_une_plage_n_est_pas_repris_par_la_suivante() -> No
 
 
 def test_une_journee_entiere_se_deroule_en_une_boucle_et_se_rejoue() -> None:
-    """L'horloge est figée, la graine est fixée : vingt-quatre heures de
-    programmation tiennent en quelques millisecondes, deux fois de suite."""
+    """Horloge figée et graine fixée : une journée se rejoue à l'identique."""
 
     def journee() -> list[str | None]:
         clock = FrozenClock(datetime(2026, 8, 30, tzinfo=UTC))
@@ -156,9 +152,9 @@ def test_une_plage_restreinte_a_un_jour_ne_vaut_que_ce_jour() -> None:
 
 
 def test_une_plage_de_nuit_appartient_au_jour_ou_elle_commence() -> None:
-    """« samedi 22 h → 02 h » couvre dimanche 01 h, pas dimanche 23 h."""
+    """Une plage samedi 22 h-02 h couvre dimanche 01 h, pas dimanche 23 h."""
     nuit = Band(start=time(22), end=time(2), genres=("électro",), days=("saturday",))
-    grille = Schedule([nuit], a(1))  # dimanche 01 h — la soirée de samedi
+    grille = Schedule([nuit], a(1))  # dimanche 01 h, la soirée de samedi
     assert grille.current_band() is nuit
     assert Schedule([nuit], a(23)).current_band() is None  # dimanche 23 h
 
@@ -262,8 +258,8 @@ def test_le_mode_et_la_cle_d_occurrence_voyagent_avec_la_contrainte() -> None:
 
 
 def test_la_cle_d_occurrence_survit_au_changement_de_genre_de_la_plage() -> None:
-    """Une plage multi-genres retire un genre à chaque jonction : la clé, elle,
-    reste celle de l'occurrence — c'est ce qui garde la suite vivante."""
+    """Une plage multi-genres retire un genre à chaque jonction ; la clé reste
+    celle de l'occurrence pour que la suite continue."""
     grille = Schedule(
         [Band(time(9), time(11), genres=("jazz", "soul"), mode=Mode.ARTIST_FAN)], a(10)
     )
@@ -298,10 +294,9 @@ def test_une_plage_sans_theme_ni_mode_reste_refusee() -> None:
 
 
 def test_le_moment_d_une_plage_au_hasard_porte_le_theme_sorti() -> None:
-    """GOAL-057 : retirer le thème ouvre un nouveau moment, et l'avance tirée
-    sous l'ancien est rassise (décision n°33). La clé du moment et le
-    `run_key` de la contrainte sont la même chose — c'est ce que la file
-    compare."""
+    """Retirer le thème ouvre un nouveau moment et rend l'avance rassise
+    (GOAL-057, décision n°33). La clé du moment est le `run_key` de la
+    contrainte : c'est ce que la file compare."""
     au_hasard = Band(start=time(21), end=time(23), random_theme="genre")
     themes = [Constraint(genre="dub"), Constraint(genre="dub"), Constraint(genre="jazz")]
 

@@ -10,8 +10,8 @@ MIDI = datetime(2026, 8, 30, 12, 0, tzinfo=UTC)
 
 
 def test_l_horloge_systeme_rend_un_instant_avec_fuseau() -> None:
-    """Un instant sans fuseau produit des comparaisons fausses à la première
-    frontière d'heure d'été, et elles ne se voient pas en test."""
+    """Un instant sans fuseau donne des comparaisons fausses au changement
+    d'heure, invisibles en test."""
     assert SystemClock().now().tzinfo is not None
 
 
@@ -28,7 +28,7 @@ def test_avancer_deplace_l_instant() -> None:
 
 
 def test_une_journee_entiere_se_deroule_sans_attendre() -> None:
-    """C'est ce que l'injection achète : vingt-quatre heures en une boucle."""
+    """Vingt-quatre heures en une boucle, grâce à l'horloge injectée."""
     h = FrozenClock(MIDI)
     hours = []
     for _ in range(24):
@@ -44,8 +44,8 @@ def test_aller_a_deplace_directement() -> None:
 
 
 def test_le_temps_ne_recule_pas() -> None:
-    """Un test qui a besoin de reculer teste autre chose : mieux vaut qu'il
-    échoue bruyamment que d'obtenir une chronologie impossible."""
+    """Un test qui recule teste autre chose ; mieux vaut échouer que produire
+    une chronologie impossible."""
     h = FrozenClock(MIDI)
     with pytest.raises(ValueError, match="ne recule pas"):
         h.advance(timedelta(hours=-1))

@@ -1,4 +1,4 @@
-"""La charnière : ce qu'elle traduit, ce qu'elle journalise, ce qu'elle refuse."""
+"""`RadioProgramme` (app/playout.py) : ce qu'il rend, journalise et refuse."""
 
 import logging
 from datetime import UTC, datetime, time, timedelta
@@ -63,8 +63,8 @@ def _programme(
 
 
 def test_l_oubli_jette_les_jingles_en_attente(tmp_path: Path) -> None:
-    """Deux heures dues à la même jonction : la première sert, la seconde
-    attend — et l'oubli (SPECS.md §7 n°30) la jette avec le reste."""
+    """Deux jingles dus à la même jonction : le premier sert, le second attend.
+    L'oubli (SPECS.md §7 n°30) jette aussi celui qui attend."""
     (tmp_path / "hours").mkdir()
     (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
     (tmp_path / "hours" / "14h.mp3").write_bytes(b"jingle")
@@ -78,7 +78,7 @@ def test_l_oubli_jette_les_jingles_en_attente(tmp_path: Path) -> None:
 
 
 def test_l_oubli_jette_l_avance_replacee_par_un_encore(tmp_path: Path) -> None:
-    """Ce qu'un encore d'avant la pause avait replacé n'a plus son contexte."""
+    """Une entrée replacée par un encore d'avant la pause est jetée aussi."""
     programme, _ = _programme(tmp_path)
     programme.replay_later("fake://2", Kind.MUSIC, CATALOGUE[1], None)
     programme.forget_pending()
@@ -91,7 +91,7 @@ def test_la_suivante_est_une_entree_que_ffmpeg_peut_ouvrir(tmp_path: Path) -> No
 
 
 def test_la_nature_est_declaree_a_chaque_morceau(tmp_path: Path) -> None:
-    """C'est ce qui permet à l'API de dire ce qui passe, et au noyau de refuser
+    """La nature sert à l'API pour dire ce qui passe, et au noyau pour refuser
     un vote au bon moment."""
     programme, vues = _programme(tmp_path)
     programme.next_entry()
@@ -113,8 +113,7 @@ def test_un_jingle_du_et_present_passe_avant_la_musique(tmp_path: Path) -> None:
 def test_un_jingle_du_mais_absent_ne_signale_rien(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """C'est le mode d'emploi normal, pas une dégradation (SPECS.md §4.3) : le
-    dossier peut ne contenir que trois fichiers."""
+    """Un jingle absent est le cas normal, pas une dégradation (SPECS.md §4.3)."""
     clock = FrozenClock(MIDI)
     programme, vues = _programme(tmp_path, clock=clock)
     clock.advance(timedelta(hours=1))
@@ -137,8 +136,8 @@ def test_le_repli_d_une_plage_sans_musique_est_journalise(
 def test_une_source_injoignable_fait_couper_en_le_disant(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """La radio ne se tait pas : elle coupe, et elle dit pourquoi
-    (SPECS.md §5.1). Jamais un silence, jamais une boucle."""
+    """Source injoignable : la radio coupe et journalise la raison (SPECS.md §5.1).
+    Pas de silence, pas de boucle."""
     programme, _ = _programme(tmp_path, source=FakeSource(CATALOGUE, injoignable=True))
     with caplog.at_level(logging.WARNING):
         assert programme.next_entry() is None
@@ -155,8 +154,8 @@ def test_une_bibliotheque_vide_fait_couper_en_le_disant(
 
 
 def test_preparer_prend_de_l_avance(tmp_path: Path) -> None:
-    """La contrainte de docs/ffmpeg.md §2.2 : résoudre pendant que le courant
-    joue, pas à la jonction."""
+    """Résoudre pendant que le morceau courant joue, pas à la jonction
+    (docs/ffmpeg.md §2.2)."""
     source = FakeSource(CATALOGUE)
     programme, _ = _programme(tmp_path, source=source)
     programme.prepare()
@@ -167,15 +166,15 @@ def test_preparer_prend_de_l_avance(tmp_path: Path) -> None:
 
 
 def test_preparer_avale_une_panne_plutot_que_de_la_propager(tmp_path: Path) -> None:
-    """Se préparer est une commodité : échouer à prendre de l'avance ne doit
-    jamais tuer le fil qui alimente la chaîne."""
+    """`prepare()` est une commodité : une panne ne doit pas tuer le fil qui
+    alimente la chaîne."""
     programme, _ = _programme(tmp_path, source=FakeSource(CATALOGUE, injoignable=True))
     programme.prepare()
 
 
 def test_plusieurs_jingles_dus_passent_a_la_suite(tmp_path: Path) -> None:
-    """Un morceau long a enjambé deux heures : tous passent, le plus ancien
-    d'abord (SPECS.md §4.3)."""
+    """Après un morceau long qui enjambe deux heures, tous les jingles dus
+    passent, le plus ancien d'abord (SPECS.md §4.3)."""
     (tmp_path / "hours").mkdir(exist_ok=True)
     (tmp_path / "hours" / "13h.mp3").write_bytes(b"a")
     (tmp_path / "hours").mkdir(exist_ok=True)
@@ -237,8 +236,8 @@ def test_un_programme_ouvert_puise_dans_sa_liste(tmp_path: Path) -> None:
 
 
 def test_le_programme_dit_le_morceau_qu_il_a_prepare(tmp_path: Path) -> None:
-    """GOAL-054 : « À suivre » se replie là-dessus quand la file du diffuseur
-    n'a que de l'habillage."""
+    """« À suivre » se replie sur ce morceau quand la file du diffuseur n'a que
+    de l'habillage (GOAL-054)."""
     clock = FrozenClock(MIDI)
     programme, _ = _avec_programme(
         tmp_path, clock=clock, listes={"Chloé": LISTE}, programmes=[PROG]
@@ -252,9 +251,8 @@ def test_le_programme_dit_le_morceau_qu_il_a_prepare(tmp_path: Path) -> None:
 
 
 def test_pendant_un_programme_rien_n_est_annonce(tmp_path: Path) -> None:
-    """Sa musique vient d'une liste, pas de la file (SPECS.md §4.13) : l'avance
-    préparée ne passera pas, et l'annoncer serait promettre un morceau qui ne
-    vient jamais."""
+    """Pendant un programme, la musique vient d'une liste, pas de la file
+    (SPECS.md §4.13) : l'avance préparée ne passera pas, on ne l'annonce pas."""
     clock = FrozenClock(MIDI)  # 2026-08-30 est un dimanche, le programme est ouvert
     programme, _ = _avec_programme(
         tmp_path, clock=clock, listes={"Chloé": LISTE}, programmes=[PROG]
@@ -273,8 +271,8 @@ def test_hors_des_heures_du_programme_on_revient_au_tirage_libre(tmp_path: Path)
 
 
 def test_le_programme_l_emporte_sur_une_plage_thematique(tmp_path: Path) -> None:
-    """SPECS.md §4.13 : le programme est le plus précis. Ce choix est
-    provisoire tant que §7 n°19 n'est pas tranchée."""
+    """Le programme est le plus précis (SPECS.md §4.13). Choix provisoire tant
+    que §7 n°19 n'est pas tranchée."""
     bands = [Band(time(0, 0), time(23, 59), ("électro",))]
     clock = FrozenClock(MIDI)
     programme, _ = _avec_programme(
@@ -319,8 +317,8 @@ def test_une_source_illisible_pendant_un_programme_replie_aussi(
 def test_une_liste_courte_ne_bloque_pas_le_programme(tmp_path: Path) -> None:
     """La fenêtre du programme rétrécit plutôt que de se taire.
 
-    Une fenêtre de trois sur une liste de deux titres n'autorise personne dès
-    le second morceau : sans rétrécissement, le programme se tairait.
+    Une fenêtre de trois sur une liste de deux titres n'autoriserait plus rien
+    dès le second morceau.
     """
     clock = FrozenClock(MIDI)
     source = FakeSource(CATALOGUE, listes={"Chloé": LISTE})
@@ -345,7 +343,7 @@ def test_la_fenetre_du_programme_est_distincte_de_celle_du_tirage_libre(
     tmp_path: Path,
 ) -> None:
     """Partager la fenêtre ferait rétrécir l'une à cause de l'autre : une
-    liste de deux titres condamnerait la bibliothèque entière."""
+    liste de deux titres bloquerait la bibliothèque entière."""
     clock = FrozenClock(MIDI)
     programme, _ = _avec_programme(
         tmp_path, clock=clock, listes={"Chloé": LISTE}, programmes=[PROG]
@@ -357,12 +355,11 @@ def test_la_fenetre_du_programme_est_distincte_de_celle_du_tirage_libre(
 
 
 def test_un_jingle_du_passe_meme_quand_les_emissions_sont_cablees(tmp_path: Path) -> None:
-    """GOAL-014-T01 — le défaut que 376 tests n'ont pas vu.
+    """`Jingles.due_now()` consomme les jingles dus (GOAL-014-T01).
 
-    `Jingles.due_now()` **consomme**. Demander aux émissions si l'une est due,
-    puis demander les jingles, ne doit pas avaler les jingles au passage : sans
-    émission due, ils passent — sinon aucun `20h.mp3` ni `encore.mp3` ne sort
-    jamais dès que des émissions sont déclarées, c'est-à-dire toujours.
+    Demander aux émissions si l'une est due, puis aux jingles, ne doit pas
+    avaler les jingles au passage. Sinon aucun jingle horaire ni `encore.mp3`
+    ne sort dès que des émissions sont déclarées.
     """
     from webradio.adapters.state.database import SqliteState
     from webradio.app.show_scheduler import Shows
@@ -406,7 +403,7 @@ def test_un_jingle_du_passe_meme_quand_les_emissions_sont_cablees(tmp_path: Path
 
 
 class _FeedSansEpisode:
-    def episodes(self, url: str) -> list[object]:  # noqa: ARG002 — l'interface l'impose
+    def episodes(self, url: str) -> list[object]:  # noqa: ARG002
         return []
 
 
@@ -419,7 +416,7 @@ def _programme_pilote(
     reelle = source if source is not None else FakeSource(CATALOGUE)
     clock = FrozenClock(MIDI)
     random = ScriptedRandom([0] * 200)
-    # UNE seule instance de Jingles, partagée comme dans main.py : le contrôle
+    # Une seule instance de Jingles, partagée comme dans main.py : le contrôle
     # y marque l'encore, le programme l'y lit.
     jingles = Jingles(clock)
     control = Control(source=reelle, random=random, jingles=jingles)
@@ -440,8 +437,8 @@ def _programme_pilote(
 
 
 def test_un_encore_force_le_prochain_morceau_chez_le_meme_artiste(tmp_path: Path) -> None:
-    """SPECS.md §4.6 : « le prochain morceau est du même artiste » — au-delà
-    de la pondération. C'est le trou jumeau de GOAL-017."""
+    """L'encore force le prochain morceau chez le même artiste (SPECS.md §4.6),
+    ce n'est pas une simple pondération."""
     source = FakeSource(
         [
             track("1", "Bowie", genre="rock"),
@@ -460,9 +457,8 @@ def test_un_encore_force_le_prochain_morceau_chez_le_meme_artiste(tmp_path: Path
 
 
 def test_l_encore_vise_la_chanson_entendue_pas_le_morceau_d_avance(tmp_path: Path) -> None:
-    """GOAL-067, constaté le 2026-09-02 : Bowie à l'antenne, Air pris d'avance
-    par le diffuseur, un vote sur Bowie. À la jonction c'est le jingle qui
-    passe — l'ancre doit rester Bowie, pas l'avance ni rien d'autre."""
+    """L'ancre de l'encore est la chanson à l'antenne, pas l'avance prise par le
+    diffuseur, même si un jingle passe à la jonction (GOAL-067)."""
     (tmp_path / "encore.mp3").write_bytes(b"annonce")
     source = FakeSource(
         [
@@ -488,8 +484,8 @@ def test_l_encore_vise_la_chanson_entendue_pas_le_morceau_d_avance(tmp_path: Pat
 
 
 def test_retirer_le_morceau_force_en_tire_un_autre_du_meme_artiste(tmp_path: Path) -> None:
-    """GOAL-067 : le morceau forcé se retire comme un autre (SPECS.md §4.8), et
-    l'encore tient toujours — un autre du même artiste le remplace."""
+    """Le morceau forcé se retire comme un autre (SPECS.md §4.8) et l'encore
+    tient : un autre titre du même artiste le remplace (GOAL-067)."""
     source = FakeSource(
         [
             track("1", "Bowie", genre="rock"),
@@ -511,7 +507,7 @@ def test_retirer_le_morceau_force_en_tire_un_autre_du_meme_artiste(tmp_path: Pat
 
 
 def test_un_encore_pendant_un_programme_reste_dans_la_liste(tmp_path: Path) -> None:
-    """SPECS.md §7 n°20 : jamais au-dehors, même sur un encore."""
+    """Un encore pendant un programme ne sort pas de la liste (SPECS.md §7 n°20)."""
     bowie_liste = track("1", "Bowie", genre="rock")
     bowie_hors_liste = track("2", "Bowie", genre="rock")
     air_liste = track("3", "Air", genre="électro")
@@ -538,8 +534,7 @@ def test_un_encore_pendant_un_programme_reste_dans_la_liste(tmp_path: Path) -> N
 
     suivant = programme.next_entry()
 
-    # Le seul autre Bowie (2) est HORS liste : on retombe dans la liste (3),
-    # on ne sort jamais.
+    # Le seul autre Bowie (2) est hors liste : on reste dans la liste (3).
     assert suivant == "fake://3"
 
 
@@ -598,7 +593,7 @@ def test_le_generique_de_fin_passe_a_la_sortie_et_avant_le_jingle_horaire(
 
 
 def test_un_generique_absent_ne_signale_rien(tmp_path: Path) -> None:
-    """Optionnel veut dire optionnel : ni fichier, ni erreur, ni silence."""
+    """Le générique est optionnel : sans fichier, ni erreur ni silence."""
     programme, clock = _matinale(tmp_path)
     programme.next_entry()
     clock.advance(timedelta(minutes=3))
@@ -618,7 +613,7 @@ def test_demarrer_au_milieu_d_un_moment_ne_rejoue_pas_son_generique(
 
 
 def test_les_variantes_d_un_jingle_se_tirent_au_hasard_injecte(tmp_path: Path) -> None:
-    """`14h.mp3`, `14h-a.mp3`, `14h-b.mp3`… — l'une au hasard, rejouable."""
+    """Une variante est tirée au hasard injecté, donc rejouable."""
     (tmp_path / "hours").mkdir()
     for nom in ("13h.mp3", "13h-a.mp3", "13h-b.mp3"):
         (tmp_path / "hours" / nom).write_bytes(b"jingle")
@@ -658,7 +653,7 @@ def test_un_generique_a_aussi_ses_variantes(tmp_path: Path) -> None:
 
 
 def test_une_entree_replacee_passe_apres_le_force_et_avant_le_tirage(tmp_path: Path) -> None:
-    """GOAL-034, schéma de l'auteur : Yamê → encore.mp3 → Yamê-2 → Tryo."""
+    """L'entrée replacée passe après le morceau forcé et avant le tirage (GOAL-034)."""
     (tmp_path / "encore.mp3").write_bytes(b"annonce")
     source = FakeSource(
         [
@@ -675,12 +670,12 @@ def test_une_entree_replacee_passe_apres_le_force_et_avant_le_tirage(tmp_path: P
 
     assert programme.next_entry() == str(tmp_path / "encore.mp3")  # l'annonce
     assert programme.next_entry() == "fake://3"  # le même artiste, forcé
-    assert programme.next_entry() == "fake://2"  # l'avance replacée — rien de jeté
+    assert programme.next_entry() == "fake://2"  # l'avance replacée, rien n'est jeté
 
 
 def test_un_programme_sert_aussi_ses_titres_longs(tmp_path: Path) -> None:
-    """SPECS.md §7 n°32 révisée : une piste longue se choisit comme les autres —
-    c'est la diffusion qui la coupera au plafond, pas le tirage qui l'écarte."""
+    """Une piste longue se choisit comme les autres (SPECS.md §7 n°32 révisée) :
+    la diffusion la coupe au plafond, le tirage ne l'écarte pas."""
     clock = FrozenClock(MIDI)
     liste = [
         track("long", "Nina Simone", secondes=2400),
@@ -705,9 +700,8 @@ def test_un_programme_sert_aussi_ses_titres_longs(tmp_path: Path) -> None:
 def test_a_la_jonction_qui_suit_un_changement_de_plage_l_avance_est_retiree(
     tmp_path: Path,
 ) -> None:
-    """Rejoue le 2026-09-02 : à 15 h 59 le programme prend de l'avance sous
-    la plage de 15 h ; à 16 h 03, la plage a changé, et c'est un morceau de
-    la nouvelle plage qui doit sortir — pas l'avance rassise (décision n°33)."""
+    """L'avance prise à 15 h 59 sous la plage de 15 h ne sort pas à 16 h 03 : la
+    plage a changé, un morceau de la nouvelle plage passe (décision n°33)."""
     montre = FrozenClock(MIDI.replace(hour=15, minute=59))
     plages = [
         Band(start=time(15, 0), end=time(16, 0), genres=("trip-hop",)),
@@ -730,8 +724,8 @@ DEUX_PLAGES = [
 def test_chaque_creneau_d_avance_se_tire_sous_le_moment_ou_il_commencera(
     tmp_path: Path,
 ) -> None:
-    """GOAL-058, idée de l'auteur : planifier d'avance, c'est tirer chaque
-    titre sous la plage qu'il trouvera en commençant — durée après durée."""
+    """Chaque titre de l'avance est tiré sous la plage qu'il trouvera en
+    commençant, durée après durée (GOAL-058)."""
     montre = FrozenClock(MIDI.replace(minute=55))
     programme, _ = _programme(tmp_path, bands=DEUX_PLAGES, clock=montre, lookahead=3)
     programme.prepare(from_instant=montre.now() + timedelta(minutes=3))  # 12 h 58
@@ -748,7 +742,7 @@ def test_sans_estimation_l_avance_se_tire_sous_le_moment_present(tmp_path: Path)
 
 def test_la_liste_annonce_l_heure_estimee_et_l_habillage_prevu(tmp_path: Path) -> None:
     """Le jingle de 13 h et le générique de la plage de 13 h figurent dans la
-    liste, à la jonction qui les rendra — prévus, pas encore décidés."""
+    liste à la jonction qui les rendra, marqués prévus, pas encore décidés."""
     (tmp_path / "hours").mkdir()
     (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
     (tmp_path / "bands").mkdir()
@@ -783,8 +777,8 @@ def test_un_jingle_absent_n_est_pas_prevu(tmp_path: Path) -> None:
 
 
 def test_un_creneau_qui_a_glisse_fait_retirer_la_suite(tmp_path: Path) -> None:
-    """Tiré pour 12 h 58, 13 h 01, 13 h 04 ; un saut avance tout : le premier
-    créneau tombe à 13 h 10, sous la plage de 13 h — tout est retiré."""
+    """Tiré pour 12 h 58, 13 h 01 et 13 h 04 ; après un saut, le premier créneau
+    tombe à 13 h 10 sous la plage de 13 h : tout est retiré."""
     montre = FrozenClock(MIDI.replace(minute=55))
     programme, _ = _programme(tmp_path, bands=DEUX_PLAGES, clock=montre, lookahead=3)
     programme.prepare(from_instant=MIDI.replace(minute=58))
@@ -794,8 +788,8 @@ def test_un_creneau_qui_a_glisse_fait_retirer_la_suite(tmp_path: Path) -> None:
 
 
 def test_la_liste_ne_montre_pas_une_avance_rassise(tmp_path: Path) -> None:
-    """Entre la jonction et la préparation suivante, la liste lit l'avance
-    telle quelle : elle s'arrête à la première entrée dont le moment a fini."""
+    """Entre la jonction et la préparation suivante, la liste s'arrête à la
+    première entrée dont le moment a fini."""
     montre = FrozenClock(MIDI.replace(minute=55))
     programme, _ = _programme(tmp_path, bands=DEUX_PLAGES, clock=montre, lookahead=2)
     programme.prepare()
@@ -819,7 +813,7 @@ def test_retirer_un_titre_de_l_avance_du_programme(
 
 def test_ce_qui_attend_deja_passe_avant_l_avance_dans_la_liste(tmp_path: Path) -> None:
     """Un jingle dû et une entrée replacée par un encore passent avant la
-    file : la liste les montre dans cet ordre, sans rien décider."""
+    file ; la liste les montre dans cet ordre sans rien décider."""
     (tmp_path / "hours").mkdir()
     (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
     (tmp_path / "hours" / "14h.mp3").write_bytes(b"jingle")
@@ -836,7 +830,7 @@ def test_ce_qui_attend_deja_passe_avant_l_avance_dans_la_liste(tmp_path: Path) -
 
 
 def test_rompre_la_suite_et_jeter_l_avance_de_la_file(tmp_path: Path) -> None:
-    """GOAL-059 : l'avance part, l'habillage dû reste."""
+    """L'avance de la file est jetée, l'habillage dû reste (GOAL-059)."""
     (tmp_path / "hours").mkdir()
     (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
     (tmp_path / "hours" / "14h.mp3").write_bytes(b"jingle")
@@ -858,8 +852,8 @@ SOIREE = Band(start=time(20), end=time(22), genres=("rock",))
 
 
 def test_la_liste_s_arrete_a_l_emission_qui_va_couper_et_la_nomme(tmp_path: Path) -> None:
-    """Le défaut vu sur le Planning, une couche plus bas : à 19 h 58, la liste
-    annonçait de la musique pour 20 h alors que Hardisk allait passer."""
+    """La liste s'arrête à l'émission qui va couper et la nomme, au lieu
+    d'annoncer de la musique pour 20 h (GOAL-068)."""
     montre = FrozenClock(MIDI.replace(hour=19, minute=55))
     programme, _ = _programme(tmp_path, bands=[SOIREE], clock=montre, lookahead=3, shows=[HARDISK])
     depart = MIDI.replace(hour=19, minute=58)
@@ -874,8 +868,8 @@ def test_la_liste_s_arrete_a_l_emission_qui_va_couper_et_la_nomme(tmp_path: Path
 
 
 def test_l_avance_n_est_pas_tiree_pour_les_heures_du_programme(tmp_path: Path) -> None:
-    """Sans cela, les titres tirés pour 18 h étaient jetés à la fin du
-    programme — et la file se retrouvait vide au moment de reprendre."""
+    """Des titres tirés pour les heures du programme seraient jetés à sa fin,
+    et la file serait vide à la reprise."""
     montre = FrozenClock(MIDI.replace(hour=17, minute=55))
     chloe = Programme(name="Chloé", playlist="Chloé", days=("all",), start=time(18), end=time(20))
     plages = [
@@ -901,8 +895,8 @@ TABLE = Band(start=time(13), end=time(14, 30), genres=("rock",))
 
 
 def test_la_liste_reprend_apres_un_direct_dont_la_fin_est_connue(tmp_path: Path) -> None:
-    """GOAL-070 : la liste jugeait rassis ce qui avait été tiré pour l'heure
-    d'après le direct, et se coupait sans le dire."""
+    """Ce qui est tiré pour après un direct à durée connue n'est pas rassis :
+    la liste continue après lui (GOAL-070)."""
     montre = FrozenClock(MIDI.replace(hour=12, minute=53))
     programme, _ = _programme(tmp_path, bands=[TABLE], clock=montre, lookahead=3, shows=[FLASH])
     depart = montre.now()
@@ -919,7 +913,7 @@ def test_la_liste_reprend_apres_un_direct_dont_la_fin_est_connue(tmp_path: Path)
 
 
 def test_la_liste_ne_promet_rien_apres_une_emission_sans_duree(tmp_path: Path) -> None:
-    """Nul ne sait quand elle finit : la suite ne peut être ni datée ni jugée."""
+    """Sa fin est inconnue : la suite ne peut être ni datée ni jugée."""
     montre = FrozenClock(MIDI.replace(hour=19, minute=55))
     programme, _ = _programme(tmp_path, bands=[SOIREE], clock=montre, lookahead=3, shows=[HARDISK])
     depart = MIDI.replace(hour=19, minute=58)

@@ -1,28 +1,21 @@
-"""La source Subsonic — le protocole ; Navidrome est l'instance relevée.
+"""Source Subsonic (protocole), relevée contre Navidrome.
 
-Tout ce fichier est écrit contre [docs/subsonic.md](../../../docs/subsonic.md),
-un relevé établi contre une instance réelle. Six comportements constatés y
-commandent le code, et chacun serait un défaut audible s'il était ignoré :
+Le code suit docs/subsonic.md. Les comportements constatés qui le contraignent :
 
-1. **Une authentification refusée arrive en HTTP 200** (§1.1). `status` est donc
-   lu dans le corps à *chaque* appel, avant toute donnée : un client qui se
-   fierait au code HTTP prendrait un mot de passe faux pour une bibliothèque
-   vide, et la radio se tairait en annonçant qu'elle va bien.
-2. **La bibliothèque se parcourt entière, par pages de 500** (§2.7). Les
-   endpoints qui tronquent — à 500, et en silence — ne sont pas crus sur
-   parole : la fin d'un parcours se reconnaît à une page plus courte que
-   demandé, jamais à un compteur annoncé (§2.7.3).
-3. **`search3` ramène aussi d'autres artistes** (§2.5). Le filtre sur l'égalité
-   exacte du nom est ce qui empêche `encore` de servir un artiste que
-   l'auditeur n'a pas demandé.
-4. **Un genre inexistant rend `ok` et zéro piste** (§2.2). C'est une liste vide,
-   pas une erreur : le repli sur le tirage libre se décide au-dessus.
-5. **`genre` manque sur près d'une piste sur cinq** (§4). Ces pistes sont
-   conservées avec `genre=None` : les refuser amputerait la radio de 18 % de la
-   bibliothèque.
-6. **Deux régimes d'erreur** (§5) : applicatif en HTTP 200 avec un code dans le
+1. Une authentification refusée arrive en HTTP 200 (§1.1). `status` est lu dans
+   le corps à chaque appel, avant toute donnée.
+2. La bibliothèque se parcourt entière, par pages de 500 (§2.7). La fin d'un
+   parcours se reconnaît à une page plus courte que demandé, jamais à un
+   compteur annoncé (§2.7.3).
+3. `search3` ramène aussi d'autres artistes (§2.5). Le filtre sur l'égalité
+   exacte du nom évite qu'`encore` serve un artiste non demandé.
+4. Un genre inexistant rend `ok` et zéro piste (§2.2). C'est une liste vide, pas
+   une erreur : le repli se décide au-dessus.
+5. `genre` manque sur près d'une piste sur cinq (§4). Ces pistes sont conservées
+   avec `genre=None`.
+6. Deux régimes d'erreur (§5) : applicatif en HTTP 200 avec un code dans le
    corps, routage en HTTP 404 sans corps Subsonic. Les deux deviennent une
-   `SourceIndisponible`, la seule chose que le noyau sait lire.
+   `SourceUnavailable`.
 """
 
 import hashlib
@@ -50,24 +43,22 @@ CLIENT_NAME = "local-webradio"
 FORMAT_REPONSE = "json"
 HTTP_OK = 200
 
-# La taille d'une page de parcours. 500 est le plafond constaté de
-# `getSongsByGenre`, qui tronque au-delà sans rien dire (docs/subsonic.md
-# §2.7.2) : demander davantage reviendrait à croire un endpoint sur parole.
+# Taille d'une page de parcours : 500 est le plafond de `getSongsByGenre`, qui
+# tronque au-delà sans le signaler (docs/subsonic.md §2.7.2).
 PAGE_SIZE = 500
 
-# Le sel accompagne le jeton dans l'URL ; sa seule exigence est de varier d'un
-# appel à l'autre. Il est tiré par le hasard injecté, parce que `random` et
-# `secrets` sont interdits partout ailleurs que dans `core/rng.py`.
+# Le sel doit seulement varier d'un appel à l'autre. Il est tiré par le hasard
+# injecté, car `random` et `secrets` sont réservés à `core/rng.py`.
 SALT_ALPHABET = list("0123456789abcdef")
 SALT_LENGTH = 12
 
 
 @dataclass(frozen=True, slots=True)
 class HttpResponse:
-    """Ce que l'adaptateur a besoin de savoir d'une réponse : un code et un corps.
+    """Une réponse HTTP : code et corps.
 
-    Le corps est du texte et non du JSON déjà analysé : la seule chose dont on
-    soit sûr, c'est qu'un serveur peut répondre autre chose que ce qu'il promet.
+    Le corps est du texte brut, pas du JSON analysé : le serveur peut répondre
+    autre chose que du JSON.
     """
 
     code: int
@@ -75,21 +66,20 @@ class HttpResponse:
 
 
 class HttpTransport(Protocol):
-    """Le seul point par lequel ce dossier touche au réseau.
+    """Le seul accès réseau de ce dossier.
 
-    L'isoler derrière un `Protocol` est ce qui permet de tester l'adaptateur
-    contre des réponses littérales, sans réseau (AGENTS.md §4).
+    Le `Protocol` permet de tester l'adaptateur contre des réponses littérales,
+    sans réseau (AGENTS.md §4).
     """
 
     def fetch(self, url: str) -> HttpResponse: ...
 
 
 class UrllibTransport:
-    """Le transport réel, sur `urllib` de la bibliothèque standard.
+    """Transport réel, sur `urllib`.
 
-    Une erreur HTTP est rendue comme une réponse ordinaire — le code fait partie
-    de ce que l'adaptateur doit examiner — tandis qu'une panne de connexion, qui
-    ne produit aucune réponse, devient tout de suite une `SourceIndisponible`.
+    Une erreur HTTP est rendue comme une réponse ordinaire, l'adaptateur examine
+    le code. Une panne de connexion, sans réponse, lève `SourceUnavailable`.
     """
 
     def __init__(
@@ -136,19 +126,16 @@ class SubsonicSource:
         self._cache: dict[str | None, tuple[datetime, list[Track]]] = {}
 
     def tracks(self, genre: str | None = None) -> list[Track]:
-        """La bibliothèque **entière**, ou tout un genre — jamais un échantillon.
+        """La bibliothèque entière, ou tout un genre, jamais un échantillon.
 
-        Tirer dans un échantillon de 500 quand la bibliothèque en compte 5704
-        faisait tourner la radio en rond dans un douzième de la musique : le
-        tirage appartient au noyau (docs/subsonic.md §2.4), et il doit voir
+        Le tirage appartient au noyau (docs/subsonic.md §2.4) et doit voir
         toutes les pistes.
 
-        Le parcours coûte une douzaine d'appels : il est servi de mémoire
-        pendant `cache_seconds`, une entrée par clé de tirage. Seul un parcours
-        **réussi** entre au cache — une panne se propage telle quelle, le
-        régime de SPECS.md §5 ne change pas — et le prix est assumé : un ajout
-        sur le serveur n'apparaît qu'à l'expiration. `tracks_by` et les listes
-        de lecture restent sans cache : l'« encore » est rare, et une liste
+        Le parcours coûte une dizaine d'appels : il est mis en cache pendant
+        `cache_seconds`, une entrée par genre. Seul un parcours réussi entre au
+        cache, une panne se propage telle quelle (SPECS.md §5). Un ajout sur le
+        serveur n'apparaît qu'à l'expiration. `tracks_by` et les listes de
+        lecture ne sont pas mises en cache : l'encore est rare, et une liste
         renommée ne doit pas rester résolue (§2.6).
         """
         now = self._horloge.now()
@@ -191,13 +178,12 @@ class SubsonicSource:
         count_key: str,
         offset_key: str,
     ) -> list[Track]:
-        """Réunit toutes les pages, et la fin est une page courte — rien d'autre.
+        """Réunit toutes les pages ; la fin est une page plus courte que demandé.
 
-        Aucun compteur annoncé n'est lu : ils divergent des pistes rendues
-        (docs/subsonic.md §2.7.3). Et un serveur qui ignorerait le paramètre
-        d'offset — le silence de §2.6.2 est exactement ce genre de piège —
-        resservirait indéfiniment la même page : une page sans aucune piste
-        nouvelle arrête le parcours en le journalisant, plutôt que de boucler.
+        Les compteurs annoncés ne sont pas lus, ils divergent des pistes rendues
+        (docs/subsonic.md §2.7.3). Si le serveur ignore l'offset (§2.6.2), la
+        même page revient indéfiniment : une page sans piste nouvelle arrête le
+        parcours avec un avertissement.
         """
         gathered: list[Track] = []
         seen: set[str] = set()
@@ -224,11 +210,9 @@ class SubsonicSource:
             offset += len(page)
 
     def tracks_by(self, artist: str) -> list[Track]:
-        """Les pistes de cet artiste, et de lui seul.
+        """Les pistes de cet artiste, filtrées par égalité exacte du nom.
 
-        `search3` ramène aussi des voisins : sur 50 résultats relevés pour un
-        artiste, 49 étaient de lui et un ne l'était pas. Sans l'égalité exacte,
-        `encore` servirait cet intrus.
+        `search3` ramène aussi d'autres artistes (docs/subsonic.md §2.5).
         """
         envelope = self._appeler(
             "search3",
@@ -251,10 +235,9 @@ class SubsonicSource:
         return retenues
 
     def genres(self) -> list[str]:
-        """Les genres connus du serveur, dédoublonnés et ordonnés.
+        """Les genres connus du serveur, dédoublonnés et triés.
 
-        L'ordre du serveur n'est pas garanti stable ; le trier rend deux
-        démarrages comparables, ce que le tri seul suffit à obtenir.
+        L'ordre du serveur n'est pas garanti stable.
         """
         envelope = self._appeler("getGenres", {})
         content = envelope.get("genres")
@@ -271,20 +254,16 @@ class SubsonicSource:
     def tracks_from_playlist(self, name: str) -> list[Track]:
         """Les pistes d'une liste de lecture désignée par son nom.
 
-        Deux appels, et c'est irréductible : le TOML déclare un **nom**
-        (`playlist = "Chloé"`) tandis que `getPlaylist` réclame un identifiant.
-        `getPlaylists` fait la traduction, et elle est refaite à chaque fois —
-        une liste renommée entre deux programmes ne doit pas rester résolue sur
-        un identifiant périmé.
+        Deux appels : le TOML déclare un nom, `getPlaylist` réclame un
+        identifiant. La traduction par `getPlaylists` est refaite à chaque fois,
+        pour qu'une liste renommée ne reste pas résolue sur un identifiant
+        périmé.
 
-        Un nom inconnu rend une liste vide plutôt que de lever : c'est la
-        convention de `pistes()` pour un genre inconnu, et le repli sur le
-        tirage libre se décide au-dessus (SPECS.md §7 n°21).
+        Un nom inconnu rend une liste vide, comme `tracks()` pour un genre
+        inconnu : le repli se décide au-dessus (SPECS.md §7 n°21).
 
-        **`songCount` n'est jamais lu** : il a été constaté à 67 sur une liste
-        qui n'a rendu que 32 entrées, toutes distinctes, sans que la cause soit
-        établie (docs/subsonic.md §2.6.1). Une liste se juge sur ce que
-        `getPlaylist` rend.
+        `songCount` n'est jamais lu, il diverge des entrées rendues
+        (docs/subsonic.md §2.6.1).
         """
         identifier = self._identifiant_de_liste(name)
         if identifier is None:
@@ -301,11 +280,9 @@ class SubsonicSource:
         return tracks
 
     def _identifiant_de_liste(self, name: str) -> str | None:
-        """Traduit un nom de liste en identifiant Subsonic, par égalité exacte.
+        """Traduit un nom de liste en identifiant Subsonic, ou `None`.
 
-        L'égalité exacte plutôt qu'une comparaison indulgente : deux listes
-        peuvent différer par une seule majuscule, et servir l'une pour l'autre
-        se remarquerait à l'antenne bien plus tard que le repli journalisé.
+        Égalité exacte : deux listes peuvent ne différer que par la casse.
         """
         envelope = self._appeler("getPlaylists", {})
         content = envelope.get("playlists")
@@ -330,12 +307,7 @@ class SubsonicSource:
         return trouves[0]
 
     def _entrees_de_liste(self, envelope: Mapping[str, Any]) -> list[Track]:
-        """Les entrées d'une liste, sous la clé `entry` et non `song`.
-
-        C'est la seule différence de forme avec les autres réponses : les
-        entrées sont des chansons ordinaires, converties comme partout ailleurs,
-        et les incomplètes sont écartées de la même façon.
-        """
+        """Les entrées d'une liste, sous la clé `entry` et non `song`."""
         content = envelope.get("playlist")
         brutes = content.get("entry") if isinstance(content, Mapping) else None
         if not isinstance(brutes, Sequence) or isinstance(brutes, str):
@@ -345,13 +317,11 @@ class SubsonicSource:
     def entry(self, track: Track) -> str:
         """L'URL de flux de la piste, jeton compris.
 
-        `stream` plutôt que `download` : le relevé a constaté qu'ils rendent le
-        même octet près sur cette instance, et `stream` est celui que la
-        spécification Subsonic destine à la lecture.
+        `stream` plutôt que `download` : même contenu sur l'instance relevée, et
+        c'est l'endpoint prévu pour la lecture.
 
-        L'URL porte le jeton d'authentification : elle ne doit donc **jamais**
-        paraître dans un journal (AGENTS.md §2). Elle est rendue à la chaîne de
-        diffusion, qui l'ouvre et ne la consigne pas.
+        L'URL porte le jeton : elle ne doit jamais paraître dans un journal
+        (AGENTS.md §2).
         """
         return self._url("stream.view", {"id": track.identifier})
 
@@ -359,10 +329,10 @@ class SubsonicSource:
         return "".join(self._hasard.pick(SALT_ALPHABET) for _ in range(SALT_LENGTH))
 
     def _url(self, method: str, params: Mapping[str, str]) -> str:
-        """Construit l'appel authentifié par jeton dérivé.
+        """Construit l'URL authentifiée par jeton.
 
-        Le mot de passe ne circule jamais : seul `md5(motdepasse + sel)` part sur
-        le réseau, et le sel change à chaque appel (docs/subsonic.md §1).
+        Seul `md5(mot de passe + sel)` circule, avec un sel neuf à chaque appel
+        (docs/subsonic.md §1).
         """
         salt = self._sel()
         empreinte = hashlib.md5((self._identifiants.password + salt).encode("utf-8")).hexdigest()
@@ -378,10 +348,10 @@ class SubsonicSource:
         return f"{self._identifiants.url}{API_PATH}/{method}?{requete}"
 
     def _appeler(self, method: str, params: Mapping[str, str]) -> Mapping[str, Any]:
-        """Un appel, et les quatre façons dont il peut mal tourner.
+        """Un appel, ou `SourceUnavailable` en cas d'échec.
 
-        Aucun message ne contient l'URL : elle porte le jeton et le sel, et un
-        journal n'est pas un endroit où les écrire (AGENTS.md §2).
+        Les messages ne contiennent jamais l'URL, qui porte le jeton
+        (AGENTS.md §2).
         """
         try:
             answer = self._transport.fetch(self._url(method, params))
@@ -414,8 +384,8 @@ class SubsonicSource:
     def _pistes_de_la_liste(self, envelope: Mapping[str, Any], contenant: str) -> list[Track]:
         """Extrait les pistes d'une réponse valable.
 
-        Un contenant absent n'est pas une anomalie : c'est ce que rend un genre
-        inexistant, avec `status: ok` (docs/subsonic.md §2.2).
+        Un contenant absent est normal : c'est ce que rend un genre inexistant,
+        avec `status: ok` (docs/subsonic.md §2.2).
         """
         content = envelope.get(contenant)
         brutes = content.get("song") if isinstance(content, Mapping) else None
@@ -428,9 +398,8 @@ class SubsonicSource:
 def _echec(method: str, envelope: Mapping[str, Any]) -> str:
     """Le message d'un refus applicatif, arrivé en HTTP 200.
 
-    Le code Subsonic est repris tel quel : c'est lui qui distingue un mot de
-    passe faux (40) d'un identifiant inconnu (70), et la distinction est ce qui
-    évite de chercher une panne réseau là où il y a une erreur de configuration.
+    Le code Subsonic est repris tel quel : il distingue un mot de passe faux (40)
+    d'un identifiant inconnu (70).
     """
     error = envelope.get("error")
     if isinstance(error, Mapping):
@@ -441,11 +410,11 @@ def _echec(method: str, envelope: Mapping[str, Any]) -> str:
 
 
 def _en_piste(brute: Any) -> Track | None:
-    """Traduit une chanson Subsonic en `Piste`, ou l'écarte en le disant.
+    """Traduit une chanson Subsonic en `Track`, ou `None` avec un avertissement.
 
-    `genre` est facultatif — il manque sur près d'une piste sur cinq — mais un
-    identifiant, un artiste et une durée ne le sont pas : sans eux, la piste ne
-    peut être ni résolue, ni soumise à la non-répétition.
+    `genre` et `year` sont facultatifs. Identifiant, titre, artiste et durée sont
+    obligatoires : sans eux la piste ne peut être ni résolue, ni soumise à la
+    non-répétition.
     """
     if not isinstance(brute, Mapping):
         journal.warning("entrée ignorée : une chanson est attendue, pas %s", type(brute).__name__)
@@ -472,8 +441,8 @@ def _en_piste(brute: Any) -> Track | None:
             artist=artist,
             genre=genre if isinstance(genre, str) and genre else None,
             duration=timedelta(seconds=duration),
-            # Un entier, quand la piste est datée — 93,3 % de la bibliothèque
-            # réelle (docs/subsonic.md §4.1). Tout le reste vaut « sans année ».
+            # Un entier quand la piste est datée (docs/subsonic.md §4.1), sinon
+            # sans année.
             year=year if isinstance(year, int) and not isinstance(year, bool) else None,
         )
     except ValueError as error:

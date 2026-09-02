@@ -53,8 +53,8 @@ def test_un_encore_accepte_marque_le_jingle_de_vote_comme_du() -> None:
 
 
 def test_l_encore_retient_la_chanson_entendue_au_vote() -> None:
-    """GOAL-067 : l'ancre est ce que l'auditeur entendait en votant — pas ce
-    qui passera à la jonction, ni le morceau d'avance du diffuseur."""
+    """L'ancre est le morceau entendu au moment du vote, pas celui de la jonction
+    ni le morceau d'avance du diffuseur (GOAL-067)."""
     c = control()
     assert c.vote(Command.MORE, playing=BOWIE_1).accepted
     more = c.take_more()
@@ -63,7 +63,7 @@ def test_l_encore_retient_la_chanson_entendue_au_vote() -> None:
 
 
 def test_un_encore_entre_deux_morceaux_n_a_pas_d_ancre() -> None:
-    """Le vote agit — jingle, pondération — mais n'a rien sur quoi forcer."""
+    """Le vote agit (jingle, pondération) mais n'a aucun morceau sur lequel forcer."""
     c = control()
     assert c.vote(Command.MORE).accepted
     more = c.take_more()
@@ -125,8 +125,8 @@ def test_encore_sert_un_autre_morceau_du_meme_artiste() -> None:
 
 
 def test_encore_outrepasse_la_non_repetition() -> None:
-    """Les deux se contrediraient sinon : l'une réclame le même artiste,
-    l'autre le lui interdit. C'est `encore` qui gagne (SPECS.md §7 n°7)."""
+    """`encore` réclame le même artiste et la non-répétition l'interdit : c'est
+    `encore` qui gagne (SPECS.md §7 n°7)."""
     window = Window(width=5)
     window.remember(BOWIE_1)
     assert not window.allows(BOWIE_2)
@@ -134,8 +134,8 @@ def test_encore_outrepasse_la_non_repetition() -> None:
 
 
 def test_les_morceaux_servis_par_encore_n_entrent_pas_dans_la_fenetre() -> None:
-    """Sans cela, un long enchaînement condamnerait l'artiste pour longtemps
-    après (SPECS.md §4.6). La fenêtre est nourrie par la file, pas par `encore`."""
+    """La fenêtre est nourrie par la file, pas par `encore`, sinon un long
+    enchaînement bloquerait l'artiste longtemps après (SPECS.md §4.6)."""
     source = FakeSource([BOWIE_1, BOWIE_2, AIR_1, PORTISHEAD])
     window = Window(width=5)
     queue = Queue(source, ScriptedRandom([0]), window)
@@ -147,8 +147,8 @@ def test_les_morceaux_servis_par_encore_n_entrent_pas_dans_la_fenetre() -> None:
 
 
 def test_un_artiste_epuise_se_replie_sur_le_genre() -> None:
-    """Ce qui borne `encore` est la bibliothèque : quand Bowie n'a plus de
-    morceau non joué, on descend d'un cran (SPECS.md §4.6)."""
+    """Quand l'artiste n'a plus de morceau non joué, on se replie sur le genre
+    (SPECS.md §4.6)."""
     c = control()
     c.track_after_more(BOWIE_1)
     c.track_after_more(BOWIE_2)
@@ -176,8 +176,7 @@ def test_un_morceau_sans_genre_se_replie_directement_sur_le_tirage_libre() -> No
 
 
 def test_une_bibliotheque_entierement_servie_ne_fait_pas_taire_la_radio() -> None:
-    """« Une radio ne se tait pas » (SPECS.md §5.1) : la chaîne d'`encore`
-    repart plutôt que de rendre le silence."""
+    """La chaîne d'`encore` repart plutôt que de rendre le silence (SPECS.md §5.1)."""
     c = control([BOWIE_1])
     pick = c.track_after_more(BOWIE_1)
     assert pick.track == BOWIE_1
@@ -185,8 +184,8 @@ def test_une_bibliotheque_entierement_servie_ne_fait_pas_taire_la_radio() -> Non
 
 
 def test_encore_s_enchaine_sans_limite_borne_par_la_bibliotheque() -> None:
-    """Aucun compteur, aucun plafond (SPECS.md §7 n°7) : ce qui borne est la
-    bibliothèque, et elle n'arrête jamais la radio."""
+    """Aucun compteur ni plafond (SPECS.md §7 n°7) : seule la bibliothèque borne,
+    et elle n'arrête jamais la radio."""
     c = control(indices=[0] * 30)
     courant = BOWIE_1
     for _ in range(20):
@@ -202,8 +201,8 @@ def test_une_source_vide_refuse_de_servir_un_encore() -> None:
 
 
 def test_l_encore_sert_aussi_une_piste_longue() -> None:
-    """SPECS.md §7 n°32 révisée : une piste longue se choisit comme les
-    autres — la diffusion la coupera au plafond, l'encore ne l'écarte pas."""
+    """Une piste longue se choisit comme les autres, la diffusion la coupera au
+    plafond (SPECS.md §7 n°32 révisée)."""
     courant = track("a1", "Air", genre="électro", secondes=200)
     long = track("a2", "Air", genre="électro", secondes=2400)
     c = Control(FakeSource([courant, long]), ScriptedRandom([0]), jingles())

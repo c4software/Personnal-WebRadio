@@ -1,4 +1,4 @@
-"""La charnière Liquidsoap : demandé n'est pas à l'antenne (GOAL-016-T07, T08)."""
+"""Tests de `LiquidsoapPlayout` : une entrée demandée n'est pas encore à l'antenne (GOAL-016)."""
 
 from collections.abc import Callable
 from datetime import UTC, datetime, time, timedelta
@@ -40,8 +40,8 @@ def _playout(
     counter = ListenerCount()
     control = Control(source=source, random=random, jingles=jingles)
     branche: list[LiquidsoapPlayout] = []
-    # Câblé comme main.py : un encore replace l'avance du diffuseur, et le
-    # programme sait ce qui passe.
+    # Même câblage que main.py : un encore replace l'avance du diffuseur, et
+    # le programme connaît le morceau en cours.
     radio = LiveRadio(control, counter, requeue=lambda: branche[0].stash_for_replay())
     programme = RadioProgramme(
         queue=Queue(source, random, Window(width=1), lookahead=lookahead),
@@ -81,7 +81,7 @@ def _playout_avec_reprise(
 
 
 def test_une_longue_pause_fait_repartir_a_neuf(tmp_path: Path) -> None:
-    """SPECS.md §7 n°30 : l'avance rassise est jetée, le reliquat coupé."""
+    """Après une longue pause, l'avance est jetée et le reliquat coupé (SPECS.md §7 n°30)."""
     ordres: list[str] = []
     playout, _radio, clock = _playout_avec_reprise(tmp_path, ordres)
     playout.declare_listeners(1)
@@ -96,14 +96,13 @@ def test_une_longue_pause_fait_repartir_a_neuf(tmp_path: Path) -> None:
     playout.declare_listeners(1)
 
     assert ordres == ["requeue", "skip"]
-    # Le registre de l'avance ET l'avance de la file : `next_pick` sert cette
-    # dernière sans regarder la contrainte, donc la laisser aurait servi à la
-    # reprise un morceau tiré avant la pause (trouvé le 2026-09-02).
+    # L'avance de la file est jetée aussi : `next_pick` la sert sans regarder
+    # la contrainte, donc la garder aurait resservi un tirage d'avant la pause.
     assert playout.up_next() is None
 
 
 def test_une_pause_courte_reprend_l_avance_telle_quelle(tmp_path: Path) -> None:
-    """En deçà du seuil, la pause reste le mode nominal (SPECS.md §4.7)."""
+    """Sous le seuil, la pause est le fonctionnement normal : rien n'est jeté (SPECS.md §4.7)."""
     ordres: list[str] = []
     playout, _radio, clock = _playout_avec_reprise(tmp_path, ordres)
     playout.declare_listeners(1)
@@ -121,8 +120,9 @@ def test_une_pause_courte_reprend_l_avance_telle_quelle(tmp_path: Path) -> None:
 
 
 def test_le_battement_periodique_ne_redate_pas_la_pause(tmp_path: Path) -> None:
-    """Le diffuseur redit « 0 » toutes les quinze secondes : la pause se
-    mesure depuis le départ du dernier auditeur, pas depuis le dernier écho."""
+    """Le diffuseur répète le compteur à zéro toutes les quinze secondes. La
+    pause se mesure depuis le départ du dernier auditeur, pas depuis le dernier
+    battement."""
     ordres: list[str] = []
     playout, _radio, clock = _playout_avec_reprise(tmp_path, ordres)
     playout.declare_listeners(1)
@@ -140,12 +140,9 @@ def test_le_battement_periodique_ne_redate_pas_la_pause(tmp_path: Path) -> None:
 
 
 def test_le_saut_part_meme_sans_entree_connue_de_ce_processus(tmp_path: Path) -> None:
-    """Le diffuseur peut tenir un morceau que cette charnière ignore.
-
-    C'est le cas le 2026-09-02 : `radio` a redémarré seul dans la nuit, et
-    Liquidsoap jouait encore un morceau demandé la veille. Le garde-fou vit
-    désormais dans `radio.liq`, qui, lui, sait ce qu'il tient
-    (docs/liquidsoap.md §9)."""
+    """Après un redémarrage de `radio` seul, Liquidsoap peut jouer un morceau
+    que ce processus ignore. Le saut part quand même ; c'est `radio.liq` qui
+    sait s'il tient une piste (docs/liquidsoap.md §9)."""
     ordres: list[str] = []
     playout, _radio, clock = _playout_avec_reprise(tmp_path, ordres)
     playout.declare_listeners(0)
@@ -169,7 +166,7 @@ def test_un_morceau_demande_n_est_pas_encore_a_l_antenne(tmp_path: Path) -> None
 
 
 def test_un_jingle_est_une_entree_comme_une_autre(tmp_path: Path) -> None:
-    """GOAL-016-T07 — le chemin unique reste `next_entry()`."""
+    """Un jingle passe par `next_entry()` comme un morceau (GOAL-016-T07)."""
     (tmp_path / "hours").mkdir(exist_ok=True)
     (tmp_path / "hours" / "13h.mp3").write_bytes(b"faux jingle")
     playout, radio, clock = _playout(tmp_path)
@@ -177,8 +174,8 @@ def test_un_jingle_est_une_entree_comme_une_autre(tmp_path: Path) -> None:
     clock.advance(timedelta(hours=1))
     entry = playout.next_entry()
     assert entry is not None
-    # Un jingle porte ses propres fondus, plus courts que ceux des morceaux
-    # (GOAL-022) : l'entrée est annotée, et c'est elle qui fait clé.
+    # Un jingle a des fondus plus courts que les morceaux (GOAL-022) : l'entrée
+    # est annotée, et c'est l'entrée annotée qui sert de clé.
     assert entry.startswith("annotate:liq_fade_in=")
     assert entry.endswith(str(tmp_path / "hours" / "13h.mp3"))
     playout.playing(entry)
@@ -186,8 +183,8 @@ def test_un_jingle_est_une_entree_comme_une_autre(tmp_path: Path) -> None:
 
 
 def test_une_piste_au_dessus_du_plafond_s_annote_pour_se_couper(tmp_path: Path) -> None:
-    """SPECS.md §7 n°32 révisée : la piste longue se joue, coupée au plafond
-    par `liq_cue_out` — le crossfade fond la coupe (docs/liquidsoap.md §7)."""
+    """Une piste longue se joue, coupée au plafond par `liq_cue_out` ; le
+    crossfade adoucit la coupe (SPECS.md §7 n°32 révisée, docs/liquidsoap.md §7)."""
     longue = [track("long", "Air", genre="électro", secondes=2400)]
     playout, _, _ = _playout(tmp_path, max_duration=timedelta(minutes=20), catalogue=longue)
     assert playout.next_entry() == "annotate:liq_cue_out=1200:fake://long"
@@ -205,8 +202,8 @@ def test_sans_plafond_une_piste_longue_passe_entiere(tmp_path: Path) -> None:
 
 
 def test_une_entree_replacee_apres_un_encore_ne_s_annote_pas_deux_fois(tmp_path: Path) -> None:
-    """L'avance repart au programme annotée (GOAL-034) : la resservir ne doit
-    pas empiler un second `annotate:`."""
+    """L'avance replacée après un encore est déjà annotée (GOAL-034) : la
+    resservir ne doit pas ajouter un second `annotate:`."""
     longues = [
         track("long1", "Air", genre="électro", secondes=2400),
         track("long2", "Bowie", genre="rock", secondes=2400),
@@ -229,7 +226,7 @@ def test_sans_auditeur_la_radio_ne_tourne_pas(tmp_path: Path) -> None:
 
 def test_une_entree_inconnue_s_affiche_par_ses_etiquettes(tmp_path: Path) -> None:
     """Après un redémarrage, Liquidsoap joue encore un morceau demandé à
-    l'ancien processus : plutôt que rien, les étiquettes du décodeur."""
+    l'ancien processus : on affiche les étiquettes du décodeur plutôt que rien."""
     playout, radio, _ = _playout(tmp_path)
     playout.declare_listeners(1)
     playout.playing("/nulle/part.mp3", "Air", "Sexy Boy")
@@ -247,10 +244,9 @@ def test_une_entree_inconnue_sans_etiquettes_n_affiche_rien(tmp_path: Path) -> N
 
 
 def test_une_entree_inconnue_sans_etiquettes_n_efface_pas_l_antenne(tmp_path: Path) -> None:
-    """GOAL-051 : `input.http` annonce un direct DEUX fois (docs/liquidsoap.md
-    §9). La seconde annonce arrive après que la première a consommé l'entrée,
-    et sans étiquettes : la déclarer effaçait « Matinale franceinfo » de
-    l'antenne pour toute la durée de la case."""
+    """`input.http` annonce un direct deux fois (docs/liquidsoap.md §9). La
+    seconde annonce arrive sans étiquettes, après que la première a consommé
+    l'entrée : elle ne doit pas effacer l'antenne (GOAL-051)."""
     playout, radio, _ = _playout(tmp_path)
     playout.declare_listeners(1)
     entry = playout.next_entry()
@@ -259,7 +255,7 @@ def test_une_entree_inconnue_sans_etiquettes_n_efface_pas_l_antenne(tmp_path: Pa
     annonce = radio.on_air_now()
     assert annonce is not None and annonce.title is not None
 
-    playout.playing(entry)  # la seconde annonce, l'entrée déjà consommée
+    playout.playing(entry)  # seconde annonce, entrée déjà consommée
 
     assert radio.on_air_now() == annonce
 
@@ -285,8 +281,8 @@ def test_plus_rien_a_jouer_rend_none(tmp_path: Path) -> None:
 
 
 def test_une_emission_s_affiche_par_son_nom_declare(tmp_path: Path) -> None:
-    """GOAL-015-T06 : le flux d'un direct ne porte aucune métadonnée — ce qui
-    s'affiche est le nom déclaré au TOML, rien d'autre."""
+    """Le flux d'un direct ne porte aucune métadonnée : l'antenne affiche le
+    nom déclaré dans le TOML (GOAL-015-T06)."""
     playout, radio, _ = _playout(tmp_path)
     playout.declare_listeners(1)
     playout.on_kind(Kind.SHOW, None, "Flash franceinfo")
@@ -299,7 +295,7 @@ def test_une_emission_s_affiche_par_son_nom_declare(tmp_path: Path) -> None:
 
 
 def test_une_video_lue_s_efface_quand_la_suite_commence(tmp_path: Path) -> None:
-    """GOAL-028 : le cache ne garde rien après lecture — question de l'auteur."""
+    """Le cache des vidéos ne garde rien après lecture (GOAL-028)."""
     cache = tmp_path / "cache"
     cache.mkdir()
     video = cache / "v1.m4a"
@@ -310,15 +306,15 @@ def test_une_video_lue_s_efface_quand_la_suite_commence(tmp_path: Path) -> None:
     playout, _radio, _ = _playout(tmp_path)
     playout._ephemere = cache
     playout.playing(str(video), None, "Alcatraz")
-    assert video.exists()  # elle joue encore : on ne touche à rien
+    assert video.exists()  # encore en lecture
 
     playout.playing(str(ailleurs), None, None)
-    assert not video.exists()  # la suite a commencé : effacée
-    assert ailleurs.exists()  # rien d'autre n'est touché
+    assert not video.exists()  # effacée dès que la suite commence
+    assert ailleurs.exists()  # hors du cache, intouché
 
 
 def test_la_file_annonce_ce_qui_suit_et_l_encore_le_replace(tmp_path: Path) -> None:
-    """GOAL-034/035 : l'avance se voit, et un encore la replace sans la jeter."""
+    """L'avance est exposée, et un encore la replace sans la jeter (GOAL-034, GOAL-035)."""
     playout, _radio, _clock = _playout(tmp_path)
     playout.declare_listeners(1)
     premier = playout.next_entry()
@@ -333,21 +329,21 @@ def test_la_file_annonce_ce_qui_suit_et_l_encore_le_replace(tmp_path: Path) -> N
 
     playout.stash_for_replay()
     assert playout.up_next() == a_suivre, "replacée, elle reste à suivre"
-    # …et le programme la ressert telle quelle au prochain tirage.
+    # Le programme la ressert telle quelle au prochain tirage.
     assert playout.next_entry() == deuxieme
 
 
 def test_la_liste_montre_le_morceau_force_des_le_vote(tmp_path: Path) -> None:
-    """GOAL-067 : sans attendre que le diffuseur redemande, la liste dit ce que
-    l'encore a forcé — du même artiste que la chanson entendue — puis l'avance
-    replacée."""
+    """Dès le vote, sans attendre que le diffuseur redemande, la liste montre
+    le titre forcé par l'encore (même artiste), puis l'avance replacée
+    (GOAL-067)."""
     catalogue = [*CATALOGUE, track("3", "Air", genre="électro")]
     playout, radio, _clock = _playout(tmp_path, catalogue=catalogue)
     playout.declare_listeners(1)
     premier = playout.next_entry()
     assert premier == "fake://1"  # Air, à l'antenne
     playout.playing(premier)
-    assert playout.next_entry() == "fake://2"  # Bowie, l'avance du diffuseur
+    assert playout.next_entry() == "fake://2"  # Bowie, avance du diffuseur
 
     assert radio.vote(Vote.MORE).accepted
 
@@ -357,8 +353,8 @@ def test_la_liste_montre_le_morceau_force_des_le_vote(tmp_path: Path) -> None:
 
 
 def test_l_a_suivre_saute_les_jingles(tmp_path: Path) -> None:
-    """Dix secondes d'habillage ne sont pas « à suivre » : on annonce la
-    musique que la file a déjà tirée derrière (GOAL-054)."""
+    """Un jingle n'est pas annoncé comme « à suivre » : on annonce la musique
+    que la file a déjà tirée derrière (GOAL-054)."""
     (tmp_path / "hours").mkdir()
     (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
     playout, _radio, clock = _playout(tmp_path)
@@ -367,7 +363,7 @@ def test_l_a_suivre_saute_les_jingles(tmp_path: Path) -> None:
     assert premier is not None
     playout.playing(premier)
     clock.advance(timedelta(hours=1))
-    jingle = playout.next_entry()  # l'avance du diffuseur est le jingle de 13 h
+    jingle = playout.next_entry()  # l'avance du diffuseur : le jingle de 13 h
     assert jingle is not None and "13h.mp3" in jingle
 
     a_suivre = playout.up_next()
@@ -375,37 +371,36 @@ def test_l_a_suivre_saute_les_jingles(tmp_path: Path) -> None:
     assert a_suivre[0] is Kind.MUSIC, "jamais le jingle"
     assert a_suivre[1] is not None
 
-    musique = playout.next_entry()  # la vraie avance suivante
+    musique = playout.next_entry()  # l'avance suivante
     assert musique is not None
     assert playout.up_next() == a_suivre, "c'est bien elle qui suit"
 
 
-# Deux plages qui se suivent : la première tire de l'électro, la seconde du
-# rock. MIDI ouvre la première ; une heure plus tard, c'est la seconde.
+# Deux plages consécutives : électro à MIDI, rock une heure plus tard.
 DEUX_PLAGES = [
     Band(start=time(12, 0), end=time(13, 0), genres=("électro",)),
     Band(start=time(13, 0), end=time(14, 0), genres=("rock",)),
 ]
-# Deux titres d'électro : l'avance n'est pas la même entrée que le morceau en
-# cours — la charnière range ses entrées par leur adresse.
+# Deux titres d'électro, pour que l'avance ait une adresse distincte du
+# morceau en cours : le playout indexe ses entrées par adresse.
 DEUX_ELECTRO = [*CATALOGUE, track("3", "Portishead", genre="électro")]
 
 
 def test_l_avance_replacee_ne_rejoue_pas_ce_qu_un_moment_fini_a_tire(tmp_path: Path) -> None:
-    """Décision n°33 : l'entrée demandée sous la plage de 12 h ne se replace
-    pas sous celle de 13 h — elle est jetée, et la suite est tirée à neuf."""
+    """Une entrée demandée sous la plage de 12 h ne se replace pas sous celle
+    de 13 h : elle est jetée et la suite est tirée à neuf (décision n°33)."""
     playout, _radio, clock = _playout(tmp_path, bands=DEUX_PLAGES, catalogue=DEUX_ELECTRO)
     playout.declare_listeners(1)
     premier = playout.next_entry()
     assert premier == "fake://1"
     playout.playing(premier)
-    assert playout.next_entry() == "fake://3"  # l'avance, encore sous 12 h
+    assert playout.next_entry() == "fake://3"  # l'avance, tirée sous 12 h
 
     clock.advance(timedelta(hours=1, minutes=1))
     playout.stash_for_replay()
 
-    # La suite se tire à neuf sans attendre que le diffuseur redemande
-    # (GOAL-067) : ce qui suit est déjà sous la plage de 13 h.
+    # La suite est tirée à neuf sans attendre que le diffuseur redemande
+    # (GOAL-067) : elle est déjà sous la plage de 13 h.
     a_suivre = playout.up_next()
     assert a_suivre is not None and a_suivre[1] is not None
     assert a_suivre[1].identifier == "2"
@@ -448,10 +443,9 @@ def _avance_demandee(playout: LiquidsoapPlayout) -> str:
 
 
 def test_l_heure_pleine_remet_l_avance_en_question(tmp_path: Path) -> None:
-    """Le 2026-09-02, 16h-c.mp3 est passé à 16 h 07 : l'entrée de la jonction
-    de 16 h 03 avait été décidée à 15 h 59. Au battement qui suit l'heure, la
-    charnière replace l'avance et fait redemander : le jingle sort à la
-    jonction qui suit l'heure, et l'avance passe derrière lui."""
+    """L'avance a été décidée avant l'heure pleine, donc sans le jingle. Au
+    premier battement après l'heure, le playout replace l'avance et fait
+    redemander : le jingle sort à la jonction suivante, l'avance passe derrière."""
     (tmp_path / "hours").mkdir()
     (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
     ordres: list[str] = []
@@ -489,8 +483,8 @@ def test_avant_l_heure_pleine_l_avance_reste(tmp_path: Path) -> None:
 
 
 def test_sans_auditeur_l_heure_ne_remet_rien_en_question(tmp_path: Path) -> None:
-    """Personne n'écoute : rien n'est décodé ni demandé, et la purge de
-    reprise (SPECS.md §7 n°30) jugera l'avance au retour."""
+    """Sans auditeur, rien n'est décodé ni demandé ; la purge de reprise
+    (SPECS.md §7 n°30) jugera l'avance au retour."""
     ordres: list[str] = []
     playout, _radio, clock = _playout_avec_requeue(tmp_path, ordres)
     _avance_demandee(playout)
@@ -502,7 +496,7 @@ def test_sans_auditeur_l_heure_ne_remet_rien_en_question(tmp_path: Path) -> None
 
 def test_pendant_une_emission_l_heure_pleine_ne_compte_pas(tmp_path: Path) -> None:
     """Les jingles dus pendant une émission sont abandonnés (SPECS.md §4.11) :
-    il n'y a rien à faire passer devant l'avance."""
+    rien à faire passer devant l'avance."""
     ordres: list[str] = []
     playout, radio, clock = _playout_avec_requeue(tmp_path, ordres)
     _avance_demandee(playout)
@@ -513,9 +507,8 @@ def test_pendant_une_emission_l_heure_pleine_ne_compte_pas(tmp_path: Path) -> No
 
 
 def test_au_battement_un_moment_fini_jette_l_avance(tmp_path: Path) -> None:
-    """La plage de 13 h a commencé : l'avance tirée sous celle de 12 h ne
-    passera pas derrière son générique — elle est jetée, la suite tirée à
-    neuf sous la plage ouverte."""
+    """Quand la plage de 13 h commence, l'avance tirée sous celle de 12 h est
+    jetée et la suite est tirée à neuf sous la plage ouverte."""
     ordres: list[str] = []
     playout, _radio, clock = _playout_avec_requeue(tmp_path, ordres, bands=DEUX_PLAGES)
     assert _avance_demandee(playout) == "fake://3"
@@ -539,15 +532,14 @@ TROIS = [*CATALOGUE, track("3", "Portishead", genre="trip-hop")]
 
 
 def test_la_liste_des_prochains_titres_porte_l_heure_estimee(tmp_path: Path) -> None:
-    """GOAL-058 : le morceau en cours a commencé à 12 h et dure trois
-    minutes ; ce qui attend chez le diffuseur commence à 12 h 03, puis
-    l'avance de la file, durée après durée."""
+    """L'heure estimée part de la fin du morceau en cours, puis s'additionne
+    durée après durée (GOAL-058)."""
     playout, _radio, clock = _playout(tmp_path, catalogue=TROIS, lookahead=2)
     playout.declare_listeners(1)
     premier = playout.next_entry()
     assert premier is not None
     playout.playing(premier)
-    playout.next_entry()  # l'avance du diffuseur, puis la file se remplit
+    playout.next_entry()  # l'avance du diffuseur ; la file se remplit derrière
 
     liste = playout.upcoming()
     assert [i.kind for i in liste] == [Kind.MUSIC, Kind.MUSIC, Kind.MUSIC]
@@ -567,8 +559,8 @@ def test_sans_morceau_en_cours_connu_la_liste_n_a_pas_d_heure(tmp_path: Path) ->
 
 
 def test_l_estimation_ne_tombe_jamais_dans_le_passe(tmp_path: Path) -> None:
-    """Après une pause, le morceau commencé il y a longtemps finira au plus
-    tôt maintenant."""
+    """Après une pause, un morceau commencé il y a longtemps finit au plus tôt
+    maintenant."""
     playout, _radio, clock = _playout(tmp_path, catalogue=TROIS, lookahead=1)
     playout.declare_listeners(1)
     premier = playout.next_entry()
@@ -643,7 +635,7 @@ def test_retirer_un_titre_qui_n_attend_plus_rend_faux(tmp_path: Path) -> None:
 
 
 def test_jeter_l_avance_ne_replace_rien_et_fait_redemander(tmp_path: Path) -> None:
-    """GOAL-059 : une suite rompue ne doit pas revenir par l'avance."""
+    """Une suite rompue ne doit pas revenir par l'avance (GOAL-059)."""
     ordres: list[str] = []
     playout, _radio, _clock = _playout(
         tmp_path, catalogue=TROIS, lookahead=2, order_requeue=lambda: ordres.append("requeue")

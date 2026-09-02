@@ -1,7 +1,7 @@
 """Flask, l'API et les gabarits Jinja2 (ARCHITECTURE.md §6).
 
-C'est le **seul** dossier du dépôt où `flask` et `jinja2` ont le droit d'être
-importés — un interdit contrôlé par `verifier.sh` (AGENTS.md §2).
+Seul dossier du dépôt où `flask` et `jinja2` peuvent être importés ; c'est
+contrôlé par `verifier.sh` (AGENTS.md §2).
 """
 
 from webradio.adapters.web.api import (

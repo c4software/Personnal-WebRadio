@@ -1,20 +1,18 @@
-"""L'état durable, dans SQLite — et rien d'autre.
+"""L'état durable du projet, dans SQLite.
 
-Pourquoi une base pour si peu (ARCHITECTURE.md §5.1) : **deux processus vivent
-en même temps**. La chaîne de diffusion écrit l'identifiant d'un épisode quand
-une émission démarre ; le serveur Flask lit et écrit les votes. Un fichier JSON
-demanderait d'écrire soi-même ce que SQLite fait déjà : écriture atomique,
-lecture concurrente cohérente, et pas de fichier tronqué si la machine s'éteint
-au mauvais moment.
+SQLite plutôt qu'un fichier JSON parce que deux processus écrivent en même temps
+(ARCHITECTURE.md §5.1) : la chaîne de diffusion enregistre l'épisode d'une
+émission, le serveur Flask lit et écrit les votes. SQLite fournit l'écriture
+atomique et la lecture concurrente, un JSON demanderait de les réécrire.
 
-**Perdre cette base n'est pas une panne** (ARCHITECTURE.md §5.0) : une base
-absente ou vide se comporte comme « rien n'a jamais été diffusé » et « poids
-neutres ». Elle se crée toute seule, elle ne se sauvegarde pas, elle ne se migre
-pas.
+Perdre cette base n'est pas une panne (ARCHITECTURE.md §5.0) : absente ou vide,
+elle vaut « rien n'a jamais été diffusé » et poids neutres. Elle se crée seule,
+ne se sauvegarde pas et ne se migre pas (une exception, voir `_MIGRATION_LIBELLE`).
 
-Deux tables, et la garde d'ARCHITECTURE.md §5.0 s'applique à la troisième :
-rien d'autre n'entre ici, et surtout pas « puisqu'on a une base ». Ni historique
-d'antenne, ni statistiques, ni position de lecture, ni profil.
+Trois tables : le dernier épisode diffusé par émission, le journal des titres
+sur vingt-quatre heures (SPECS.md §7 n°27) et les votes. Rien d'autre n'entre
+ici sans décision écrite (ARCHITECTURE.md §5.0) : ni statistiques, ni position
+de lecture, ni profil.
 """
 
 import logging
@@ -56,24 +54,23 @@ CREATE TABLE IF NOT EXISTS votes (
 """
 
 # Une base d'avant GOAL-020 n'a pas la colonne `libelle` : on l'ajoute au
-# démarrage, une seule fois — la seule migration du projet.
+# démarrage. C'est la seule migration du projet.
 _MIGRATION_LIBELLE = "ALTER TABLE votes ADD COLUMN libelle TEXT NOT NULL DEFAULT ''"
 
 
 class StateUnavailable(Exception):
-    """La base existe mais ne se laisse ni lire ni écrire.
+    """La base est inaccessible, illisible ou verrouillée.
 
-    Traduite au plus près de son origine : au-dessus de cet adaptateur, plus
-    personne ne connaît `sqlite3` (ARCHITECTURE.md §7).
+    Levée à la place de toute erreur `sqlite3` : les couches au-dessus de cet
+    adaptateur ne connaissent pas `sqlite3` (ARCHITECTURE.md §7).
     """
 
 
 class Scope(StrEnum):
-    """Sur quoi porte un vote (SPECS.md §7 n°16).
+    """La portée d'un vote (SPECS.md §7 n°16).
 
-    Un `StrEnum` plutôt qu'une chaîne libre : la valeur est écrite telle quelle
-    dans la colonne `portee`, et une faute de frappe y créerait silencieusement
-    une troisième portée que personne ne relirait jamais.
+    La valeur est écrite telle quelle dans la colonne `portee` ; un `StrEnum`
+    évite qu'une faute de frappe y crée une portée que personne ne relira.
     """
 
     TRACK = "piste"
@@ -82,11 +79,10 @@ class Scope(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class Broadcast:
-    """Ce que la base retient d'une émission : un épisode, et quand il est passé.
+    """Le dernier épisode diffusé d'une émission, et quand.
 
-    `diffuse_le` ne sert à aucune décision — c'est du diagnostic
-    (ARCHITECTURE.md §5.1). Aucune règle ne doit s'appuyer dessus, sans quoi
-    perdre la base cesserait d'être anodin.
+    `diffuse_le` sert au diagnostic seulement (ARCHITECTURE.md §5.1). Aucune
+    règle ne doit s'appuyer dessus, sinon perdre la base ne serait plus anodin.
     """
 
     episode: str
@@ -95,12 +91,11 @@ class Broadcast:
 
 @dataclass(frozen=True, slots=True)
 class Scores:
-    """Les deux scores d'une cible, **décroissance déjà appliquée**.
+    """Les deux scores d'une cible, décroissance déjà appliquée.
 
-    Ce sont des réels, pas des compteurs : le score porte l'oubli de
-    SPECS.md §4.12. Avec des entiers et une seule date, douze `stop` dont le
-    dernier date d'hier compteraient tous comme frais, et personne ne s'en
-    apercevrait.
+    Des réels et non des compteurs : la décroissance de SPECS.md §4.12 est
+    portée par le score lui-même. Des entiers avec une seule date compteraient
+    tous les anciens votes comme frais.
     """
 
     stop: float = 0.0
@@ -108,10 +103,10 @@ class Scores:
 
 
 def _decroitre(score: float, ecoule: timedelta, half_life: timedelta) -> float:
-    """`score * 2 ** (-Δt / demi_vie)` — l'oubli de SPECS.md §4.12.
+    """Applique `score * 2 ** (-ecoule / half_life)` (SPECS.md §4.12).
 
-    Un `Δt` négatif — horloge reculée, fichier recopié d'une autre machine —
-    ne fait pas grossir un score : on rend la valeur telle quelle.
+    Un `ecoule` négatif (horloge reculée, fichier copié d'une autre machine)
+    rend le score inchangé plutôt que de le faire grossir.
     """
     if ecoule <= timedelta(0):
         return score
@@ -119,14 +114,12 @@ def _decroitre(score: float, ecoule: timedelta, half_life: timedelta) -> float:
 
 
 class SqliteState:
-    """L'état durable, ouvert et refermé à chaque opération.
+    """L'état durable, avec une connexion ouverte et fermée par opération.
 
-    Une connexion par opération plutôt qu'une connexion gardée : Flask sert
-    plusieurs requêtes en parallèle et la chaîne de diffusion écrit depuis un
-    autre processus. Une connexion partagée entre fils imposerait de désactiver
-    la garde `check_same_thread` de `sqlite3` — donc de reprendre à la main la
-    sérialisation que SQLite fait déjà. Le coût d'ouverture est négligeable
-    devant une écriture par morceau diffusé.
+    Flask sert plusieurs requêtes en parallèle et la chaîne écrit depuis un
+    autre processus. Une connexion partagée entre fils obligerait à désactiver
+    `check_same_thread` et à sérialiser soi-même. Le coût d'ouverture est
+    négligeable pour une écriture par titre diffusé.
     """
 
     def __init__(
@@ -137,11 +130,10 @@ class SqliteState:
         lock_timeout: timedelta,
         vote_half_life: timedelta,
     ) -> None:
-        """`delai_attente` et `demi_vie_votes` viennent du TOML (SPECS.md §6.2).
+        """`lock_timeout` et `vote_half_life` viennent du TOML (SPECS.md §6.2).
 
-        Aucun défaut n'est écrit ici : une durée en dur dans le code est un
-        interdit (AGENTS.md §2), et le défaut se déclare là où la clé est
-        documentée.
+        Pas de défaut ici : une durée en dur est interdite (AGENTS.md §2), le
+        défaut se déclare avec la clé dans `adapters/config/schema.py`.
         """
         if lock_timeout <= timedelta(0):
             message = "un délai d'attente nul rendrait toute écriture concurrente perdante"
@@ -156,11 +148,10 @@ class SqliteState:
         self._preparer()
 
     def _preparer(self) -> None:
-        """Crée le fichier, son dossier et le schéma s'ils manquent.
+        """Crée le dossier, le fichier et le schéma s'ils manquent.
 
-        Une seule migration : la colonne `libelle` des votes (GOAL-020),
-        ajoutée à une base d'avant. Idempotente — la colonne présente, il n'y
-        a rien à faire.
+        Ajoute la colonne `libelle` des votes à une base d'avant GOAL-020.
+        Idempotent.
         """
         self._chemin.parent.mkdir(parents=True, exist_ok=True)
         with self._connexion() as connection:
@@ -172,10 +163,10 @@ class SqliteState:
 
     @contextmanager
     def _connexion(self) -> Iterator[sqlite3.Connection]:
-        """Une connexion en WAL, avec le délai d'attente déclaré.
+        """Ouvre une connexion avec le délai d'attente déclaré et la ferme à la sortie.
 
-        WAL parce qu'un lecteur ne doit pas attendre un écrivain : le serveur
-        web lit pendant que la chaîne écrit, et l'inverse.
+        Toute erreur `sqlite3` est traduite en `StateUnavailable`. Le mode WAL,
+        activé dans `_preparer`, évite qu'un lecteur attende un écrivain.
         """
         try:
             connection = sqlite3.connect(
@@ -196,15 +187,14 @@ class SqliteState:
 
     @contextmanager
     def _transaction(self) -> Iterator[sqlite3.Connection]:
-        """Une écriture qui lit d'abord ce qu'elle va modifier.
+        """Une transaction d'écriture, validée à la sortie.
 
-        `BEGIN IMMEDIATE` prend le verrou d'écriture dès l'entrée : sans lui,
-        deux votes simultanés liraient le même score et le dernier écraserait
-        le premier — un vote perdu en silence.
+        `BEGIN IMMEDIATE` prend le verrou d'écriture dès l'entrée. Sans lui,
+        deux votes simultanés liraient le même score et le second écraserait
+        le premier.
 
-        Aucun `ROLLBACK` explicite : une transaction non validée est annulée à
-        la fermeture de la connexion, que `_connexion` garantit. L'écrire
-        quand même serait du code qu'aucun test ne peut atteindre.
+        Pas de `ROLLBACK` explicite : une transaction non validée est annulée
+        quand `_connexion` ferme la connexion.
         """
         with self._connexion() as connection:
             connection.execute("BEGIN IMMEDIATE")
@@ -216,11 +206,10 @@ class SqliteState:
     # ------------------------------------------------------------------
 
     def last_airing(self, show: str) -> Broadcast | None:
-        """Le dernier épisode diffusé d'une émission, ou rien.
+        """Le dernier épisode diffusé d'une émission, ou `None`.
 
-        Rendre `None` pour une base vide **est** le comportement nominal : la
-        radio diffusera une fois l'épisode le plus récent, puis reprendra son
-        cours (ARCHITECTURE.md §5.0).
+        `None` pour une base vide est le cas nominal : la radio diffuse alors
+        l'épisode le plus récent (ARCHITECTURE.md §5.0).
         """
         with self._connexion() as connection:
             row = connection.execute(
@@ -232,11 +221,10 @@ class SqliteState:
         return Broadcast(episode=str(row[0]), diffuse_le=datetime.fromisoformat(str(row[1])))
 
     def record_airing(self, show: str, episode: str) -> None:
-        """Retient qu'un épisode est passé — au singulier, jamais un historique.
+        """Retient l'épisode diffusé d'une émission, en remplaçant le précédent.
 
-        Une seule ligne par émission : c'est la borne que s'impose
-        ARCHITECTURE.md §5.0. Conserver les précédents serait l'historique
-        d'antenne que ce projet a décidé de ne pas avoir.
+        Une seule ligne par émission : conserver les précédents serait un
+        historique d'antenne, que ARCHITECTURE.md §5.0 exclut.
         """
         instant = self._horloge.now().isoformat()
         with self._transaction() as connection:
@@ -258,9 +246,9 @@ class SqliteState:
     def scores(self, scope: Scope, target: str) -> Scores:
         """Les scores d'une cible, décroissance appliquée jusqu'à maintenant.
 
-        La décroissance vaut **aussi à la lecture** (ARCHITECTURE.md §5.2) :
-        sans elle, un score écrit il y a un an pèserait encore son poids plein
-        tant que personne ne revote.
+        La décroissance s'applique aussi à la lecture (ARCHITECTURE.md §5.2),
+        sinon un vieux score garderait son poids tant que personne ne revote.
+        Cible inconnue : scores nuls.
         """
         now = self._horloge.now()
         with self._connexion() as connection:
@@ -277,14 +265,12 @@ class SqliteState:
         )
 
     def all_scores(self) -> list[tuple[Scope, str, str, Scores]]:
-        """Toutes les cibles votées, décroissance appliquée, plus fortes d'abord.
+        """Toutes les cibles votées, décroissance appliquée, scores les plus forts d'abord.
 
-        C'est la matière de la page des votes : elle montre ce que la radio a
-        retenu **aujourd'hui**, pas ce qui a été écrit un jour — d'où la
-        décroissance ici aussi (ARCHITECTURE.md §5.2). Le deuxième élément est
-        la **cible brute** (la clé, pour l'effacement), le troisième le
-        **libellé** retenu au moment du vote (GOAL-020) — ou la cible brute
-        pour les votes d'avant la migration.
+        Sert la page des votes, qui montre les poids actuels et non ceux écrits
+        (ARCHITECTURE.md §5.2). Chaque élément : la portée, la cible brute (la
+        clé, pour `delete_vote`), le libellé retenu au vote (GOAL-020) ou la
+        cible brute pour les votes d'avant la migration, puis les scores.
         """
         now = self._horloge.now()
         with self._connexion() as connection:
@@ -311,12 +297,10 @@ class SqliteState:
         return entries
 
     def record_play(self, kind: str, title: str, artist: str = "") -> None:
-        """Un titre vient de commencer : une ligne, et le journal reste borné.
+        """Ajoute un titre au journal et purge ce qui a plus de vingt-quatre heures.
 
-        SPECS.md §2 excluait l'archivage du FLUX ; ceci est un journal des
-        titres, décidé par l'auteur le 2026-08-30 (§7 n°27) et borné à
-        **vingt-quatre heures** : « c'était quoi, tout à l'heure ? » a une
-        réponse, « le mois dernier » n'en a pas — ce serait une archive.
+        Ce journal des titres n'est pas l'archive du flux que SPECS.md §2 exclut ;
+        il est borné à vingt-quatre heures (SPECS.md §7 n°27).
         """
         now = self._horloge.now()
         with self._transaction() as connection:
@@ -339,10 +323,10 @@ class SqliteState:
         return [(datetime.fromisoformat(str(r[0])), str(r[1]), str(r[2]), str(r[3])) for r in rows]
 
     def delete_vote(self, scope: Scope, target: str) -> bool:
-        """Efface une cible votée par erreur. Vrai si quelque chose a disparu.
+        """Efface les votes d'une cible. Vrai si une ligne a été supprimée.
 
-        C'est un geste de l'auteur, pas de la radio : rien ici n'est appelé
-        par le tirage (GOAL-021).
+        Action manuelle depuis l'interface (GOAL-021), jamais appelée par le
+        tirage.
         """
         with self._transaction() as connection:
             cursor = connection.execute(
@@ -359,11 +343,11 @@ class SqliteState:
         encore: float = 0.0,
         label: str = "",
     ) -> Scores:
-        """Applique la décroissance, ajoute l'incrément, et rend le résultat.
+        """Applique la décroissance, ajoute les incréments et rend les nouveaux scores.
 
-        L'adaptateur ne connaît pas le barème : combien pèse un `stop` sur une
-        piste et combien sur son artiste est une décision, donc du noyau
-        (SPECS.md §4.12). Ici, on additionne ce qu'on nous donne.
+        Le barème (le poids d'un `stop` sur une piste ou sur son artiste) est
+        une décision du noyau (SPECS.md §4.12) ; ici on additionne seulement.
+        Un `label` vide ne remplace pas le libellé déjà enregistré.
         """
         now = self._horloge.now()
         with self._transaction() as connection:

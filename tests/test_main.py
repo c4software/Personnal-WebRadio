@@ -1,8 +1,4 @@
-"""L'assemblage : ce qu'il lit, ce qu'il construit, et ce qu'il refuse.
-
-Ces tests ont remplacé ceux du squelette de `GOAL-001` : `main()` ne se contente
-plus d'annoncer son nom, il lit une configuration et câble une radio.
-"""
+"""Tests de l'assemblage : lecture de la configuration et câblage de la radio."""
 
 from datetime import UTC, datetime, time
 from pathlib import Path
@@ -70,11 +66,8 @@ def test_la_version_est_une_chaine_non_vide() -> None:
 
 
 def test_la_version_reste_lisible_hors_installation(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Le dépôt s'exécute aussi depuis les sources, sans avoir été installé.
-
-    Sans ce repli, lancer la radio dans un dépôt fraîchement cloné lèverait
-    `PackageNotFoundError` au lieu de démarrer.
-    """
+    """Lancée depuis les sources sans installation, la radio doit démarrer au
+    lieu de lever `PackageNotFoundError`."""
     from importlib.metadata import PackageNotFoundError
 
     def absent(_: str) -> str:
@@ -85,8 +78,7 @@ def test_la_version_reste_lisible_hors_installation(monkeypatch: pytest.MonkeyPa
 
 
 def test_les_chemins_ont_des_defauts_utilisables() -> None:
-    """Lancée sans argument dans le dépôt, la radio doit trouver sa
-    configuration : c'est ce que documente le README."""
+    """Sans argument, les chemins par défaut sont ceux documentés dans le README."""
     options = _arguments([])
     assert options.config == Path("webradio.toml")
     assert options.env == Path(".env")
@@ -99,8 +91,8 @@ def test_les_chemins_se_declarent() -> None:
 
 
 def test_l_assemblage_construit_une_radio_qui_ne_tourne_pas(reglages_dessai: object) -> None:
-    """Construire n'est pas démarrer : rien ne tourne tant que personne
-    n'écoute (SPECS.md §1)."""
+    """Construire ne démarre rien : la radio tourne seulement avec un auditeur
+    (SPECS.md §1)."""
     playout, radio, _grille = build(reglages_dessai)  # type: ignore[arg-type]
     assert not radio.on_air()
     assert radio.on_air_now() is None
@@ -109,8 +101,8 @@ def test_l_assemblage_construit_une_radio_qui_ne_tourne_pas(reglages_dessai: obj
 
 
 def test_une_configuration_invalide_empeche_le_demarrage(tmp_path: Path) -> None:
-    """Une radio qui démarre en ignorant la moitié de sa configuration est pire
-    qu'une radio qui refuse de démarrer (SPECS.md §6)."""
+    """Une configuration invalide bloque le démarrage au lieu d'être ignorée en
+    partie (SPECS.md §6)."""
     toml = tmp_path / "webradio.toml"
     toml.write_text("[flux]\naddress = 'x'\n")
     env = tmp_path / ".env"
@@ -120,8 +112,7 @@ def test_une_configuration_invalide_empeche_le_demarrage(tmp_path: Path) -> None
 
 
 def test_un_secret_dans_le_toml_est_refuse(tmp_path: Path) -> None:
-    """La séparation .env / TOML ne tiendrait pas une semaine sans ce refus
-    (SPECS.md §6.2)."""
+    """Les secrets vont dans le .env, jamais dans le TOML (SPECS.md §6.2)."""
     folder = tmp_path / "jingles"
     folder.mkdir()
     toml = tmp_path / "webradio.toml"
@@ -139,7 +130,8 @@ def test_un_secret_dans_le_toml_est_refuse(tmp_path: Path) -> None:
 
 
 def test_l_antenne_nomme_le_theme_tire_et_dit_qu_il_l_a_ete() -> None:
-    """Sans le « au hasard », l'auditeur croirait à une plage déclarée."""
+    """Le libellé dit que le thème a été tiré au sort, pour le distinguer d'une
+    plage déclarée."""
     band = Band(start=time(21), end=time(23), random_theme="artist")
     assert _libelle_du_moment(band, Constraint(artist="Air")) == "Moment · Air (au hasard)"
     band_genre = Band(start=time(21), end=time(23), random_theme="genre")
@@ -160,14 +152,15 @@ def test_une_plage_declaree_s_annonce_comme_avant() -> None:
 
 
 def test_une_plage_a_mode_seul_nomme_son_tirage_libre() -> None:
-    """Sans genre ni artiste, la page affichait un « Moment · » orphelin à côté
-    du bouton « Autre thème »."""
+    """Sans genre ni artiste, le libellé nomme le tirage libre au lieu d'un
+    « Moment · » vide."""
     band = Band(start=time(19), end=time(20), mode=Mode.ERA_FAN)
     assert _libelle_du_moment(band, None) == "Moment · tirage libre (passionné d'époque)"
 
 
 def test_une_plage_declaree_dit_aussi_son_enchainement() -> None:
-    """Le bouton retire la suite, pas les genres : l'antenne dit laquelle."""
+    """Le bouton « Autre thème » retire la suite, pas les genres : le libellé
+    nomme le mode d'enchaînement."""
     band = Band(start=time(15), end=time(16), genres=("reggae", "dub"), mode=Mode.ARTIST_FAN)
     assert _libelle_du_moment(band, None) == "Moment · reggae, dub (passionné d'artiste)"
     double = Band(start=time(20), end=time(22), genres=("rock",), mode=Mode.DOUBLE_DOSE)
@@ -183,7 +176,7 @@ def test_un_theme_tire_au_sort_garde_son_enchainement() -> None:
 
 
 def test_le_planning_annonce_la_sorte_d_une_plage_au_hasard() -> None:
-    """Le thème n'existera qu'à l'occurrence : d'avance, seule la sorte est vraie."""
+    """Le thème n'est tiré qu'à l'occurrence : le planning n'annonce que sa sorte."""
     artiste = Band(start=time(21), end=time(23), random_theme="artist")
     genre = Band(start=time(21), end=time(23), random_theme="genre")
     declaree = Band(start=time(8), end=time(10), genres=("jazz",))
@@ -195,8 +188,8 @@ def test_le_planning_annonce_la_sorte_d_une_plage_au_hasard() -> None:
 def test_hors_d_une_plage_au_hasard_l_assemblage_refuse_de_retirer(
     reglages_dessai: object,
 ) -> None:
-    """GOAL-057 : sans plage au hasard en cours, il n'y a rien à retirer, et
-    c'est dit — pas un tirage libre silencieux."""
+    """Sans plage au hasard en cours, le retirage est refusé avec son motif
+    (GOAL-057)."""
     _playout, radio, _grille = build(reglages_dessai)  # type: ignore[arg-type]
     assert not radio.moment_random()
     verdict = radio.redraw_moment()
@@ -205,8 +198,8 @@ def test_hors_d_une_plage_au_hasard_l_assemblage_refuse_de_retirer(
 
 
 def test_l_assemblage_cable_la_liste_des_prochains_titres(reglages_dessai: object) -> None:
-    """GOAL-058 : rien n'attend tant que le diffuseur n'a rien demandé, et
-    retirer un inconnu est faux — pas une erreur."""
+    """Rien n'attend tant que le diffuseur n'a rien demandé, et retirer un
+    inconnu rend `False` sans lever (GOAL-058)."""
     playout, radio, _grille = build(reglages_dessai)  # type: ignore[arg-type]
     playout.declare_listeners(1)
     assert radio.upcoming() == []
@@ -225,7 +218,8 @@ mode = "era_fan"
 
 
 def test_une_plage_a_suite_au_hasard_se_retire(tmp_path: Path) -> None:
-    """GOAL-059 : « année aléatoire », c'est le mode era_fan — retirer y vaut."""
+    """Le mode era_fan compte comme une plage au hasard : le retirage y est
+    accepté (GOAL-059)."""
     folder = tmp_path / "jingles"
     folder.mkdir()
     toml = tmp_path / "webradio.toml"
@@ -241,8 +235,8 @@ def test_une_plage_a_suite_au_hasard_se_retire(tmp_path: Path) -> None:
 
 
 def test_la_semaine_du_planning_est_deja_fusionnee() -> None:
-    """Ce que la page reçoit, c'est ce qui passera : l'émission d'abord, puis
-    la plage qui reprend après elle — plus deux créneaux côte à côte."""
+    """La page reçoit la grille effective : l'émission, puis la plage qui
+    reprend après elle, et non deux créneaux indépendants."""
     horloge = FrozenClock(datetime(2026, 9, 2, 14, 30, tzinfo=UTC))
     guitares = Band(start=time(20), end=time(22), genres=("Rock",), mode=Mode.DOUBLE_DOSE)
     hardisk = ShowCase(name="Hardisk", days=("wednesday",), hour=time(20))
@@ -283,8 +277,8 @@ def test_la_semaine_du_planning_est_deja_fusionnee() -> None:
 
 
 def test_la_semaine_du_planning_couvre_les_sept_jours_depuis_aujourd_hui() -> None:
-    """Sept journées, quel que soit le jour de démarrage : la grille ne dépend
-    que du jour de la semaine, jamais de la date."""
+    """Sept journées quel que soit le jour de démarrage : la grille dépend du
+    jour de la semaine, pas de la date."""
     guitares = Band(start=time(20), end=time(22), genres=("Rock",))
     samedi = FrozenClock(datetime(2026, 9, 5, 3, tzinfo=UTC))
     grille = EffectiveSchedule(

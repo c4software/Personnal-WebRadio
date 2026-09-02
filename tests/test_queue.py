@@ -1,4 +1,4 @@
-"""La file : ce qui passe ensuite, ce qu'elle relâche, et ce qu'elle refuse."""
+"""Tests de la file de tirage `Queue`."""
 
 from typing import TypeVar
 
@@ -28,8 +28,8 @@ def test_la_file_sert_une_piste_du_catalogue() -> None:
 
 
 def test_la_file_respecte_la_non_repetition() -> None:
-    """Sur un catalogue de quatre artistes et une fenêtre de trois, aucun
-    artiste ne doit revenir avant que trois autres soient passés."""
+    """Avec quatre artistes et une fenêtre de trois, aucun artiste ne revient
+    avant que trois autres soient passés."""
     f = Queue(FakeSource(CATALOGUE), RealRandom(graine=1), Window(width=3))
     joues = [f.next_pick().track.artist for _ in range(12)]
     for i in range(3, len(joues)):
@@ -37,7 +37,8 @@ def test_la_file_respecte_la_non_repetition() -> None:
 
 
 def test_une_plage_sans_musique_replie_sur_le_tirage_libre() -> None:
-    """SPECS.md §4.4 : la radio ne se tait pas, et le repli est signalé."""
+    """Une plage sans musique replie sur le tirage libre, et le repli est
+    signalé dans `fallbacks` (SPECS.md §4.4)."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0]))
     pick = f.next_pick(Constraint(genre="jazz"))
     assert pick.track in CATALOGUE
@@ -52,7 +53,7 @@ def test_une_plage_pourvue_ne_replie_pas() -> None:
 
 
 def test_une_bibliotheque_de_trois_artistes_ne_bloque_pas() -> None:
-    """Le cas de SPECS.md §4.2 : la fenêtre rétrécit plutôt que de se taire."""
+    """La fenêtre rétrécit quand le catalogue est trop petit (SPECS.md §4.2)."""
     trois = [track("1", "Air"), track("2", "Bowie"), track("3", "Portishead")]
     f = Queue(FakeSource(trois), RealRandom(graine=3), Window(width=5))
     joues = [f.next_pick() for _ in range(10)]
@@ -68,24 +69,24 @@ def test_le_retrecissement_est_signale() -> None:
 
 
 def test_une_source_vide_est_refusee_franchement() -> None:
-    """La source a répondu, elle n'a rien. C'est distinct d'une panne : SPECS.md
-    §4.1 en fait une erreur, pas un silence."""
+    """Une source qui répond mais n'a rien est une erreur, distincte d'une
+    panne (SPECS.md §4.1)."""
     f = Queue(FakeSource([]), ScriptedRandom([0]))
     with pytest.raises(EmptyQueue, match="aucune piste"):
         f.next_pick()
 
 
 def test_une_source_injoignable_remonte_telle_quelle() -> None:
-    """La file ne masque pas la panne : le repli en cours de diffusion se décide
-    au-dessus, avec le contexte (SPECS.md §5.1)."""
+    """La file ne masque pas la panne : le repli se décide au-dessus, avec le
+    contexte (SPECS.md §5.1)."""
     f = Queue(FakeSource(CATALOGUE, injoignable=True), ScriptedRandom([0]))
     with pytest.raises(SourceUnavailable):
         f.next_pick()
 
 
 def test_preparer_resout_a_l_avance_sans_consommer() -> None:
-    """La contrainte de docs/ffmpeg.md §2.2 : résoudre pendant que le courant
-    joue, jamais à la jonction."""
+    """La résolution se fait pendant le morceau en cours, pas à la jonction
+    (docs/ffmpeg.md §2.2)."""
     source = FakeSource(CATALOGUE)
     f = Queue(source, ScriptedRandom([0, 1]))
     f.prepare()
@@ -116,8 +117,9 @@ def test_sans_preparation_la_file_n_annonce_rien() -> None:
 
 
 def test_la_file_dit_ce_qu_elle_a_prepare_sans_le_consommer() -> None:
-    """GOAL-054 : « À suivre » restait vide le temps d'une chanson dès que la
-    seule entrée d'avance du diffuseur était un jingle. La file, elle, sait."""
+    """`advance` expose ce qui est préparé sans le consommer, pour que
+    « À suivre » ne reste pas vide quand l'avance du diffuseur est un jingle
+    (GOAL-054)."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([2, 0]))
     f.prepare()
     (annonce,), (redite,) = f.advance, f.advance
@@ -134,10 +136,9 @@ def test_l_avance_servie_n_est_plus_annoncee() -> None:
 
 
 def test_l_avance_s_oublie_pour_repartir_a_neuf() -> None:
-    """SPECS.md §7 n°30 : après une longue pause, le tirage doit être neuf.
-    `next_pick` sert l'avance SANS regarder la contrainte — la garder aurait
-    servi à la reprise un morceau tiré des heures plus tôt, sous une plage
-    fermée depuis (trouvé le 2026-09-02 en câblant « À suivre »)."""
+    """Après une longue pause, le tirage doit être neuf (SPECS.md §7 n°30).
+    `next_pick` sert l'avance sans regarder la contrainte : la garder aurait
+    resservi un morceau tiré sous une plage fermée depuis."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([2, 0]))
     f.prepare()
     f.forget_prepared()
@@ -153,15 +154,14 @@ def test_apres_avoir_servi_l_avance_la_file_recalcule() -> None:
 
 
 def test_sans_poids_la_file_tire_uniformement() -> None:
-    """La pondération est une capacité en plus, jamais un réglage de la
-    première : sans `peser`, rien de ce qui existait ne change."""
+    """Sans `weigh`, le tirage reste uniforme : la pondération est optionnelle."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0]))
     assert f.next_pick().track in CATALOGUE
 
 
 def test_avec_des_poids_la_file_les_honore() -> None:
-    """Un poids nul sur tout sauf un morceau : c'est celui-là qui doit sortir,
-    quel que soit le tirage."""
+    """Avec un poids quasi nul sur tout sauf un morceau, c'est celui-là qui
+    sort presque toujours."""
     vise = CATALOGUE[2]
     f = Queue(
         FakeSource(CATALOGUE),
@@ -174,12 +174,11 @@ def test_avec_des_poids_la_file_les_honore() -> None:
 
 
 def test_des_poids_sans_hasard_pondere_sont_refuses_a_la_construction() -> None:
-    """Refuser ici plutôt qu'au premier tirage : sinon la file tirerait
-    uniformément sans rien signaler, et la pondération semblerait « ne pas
-    marcher » des semaines durant."""
+    """Le refus se fait à la construction : au premier tirage, la file tirerait
+    uniformément sans rien signaler."""
 
     class PlainRandom:
-        """Un hasard qui sait tirer, mais pas pondérer. C'est le cas à refuser."""
+        """Hasard qui sait tirer mais pas pondérer."""
 
         def pick(self, parmi: list[T]) -> T:
             return parmi[0]
@@ -189,7 +188,7 @@ def test_des_poids_sans_hasard_pondere_sont_refuses_a_la_construction() -> None:
 
 
 def test_une_plage_d_artiste_tire_chez_cet_artiste() -> None:
-    """GOAL-023 : une heure d'un seul artiste — la contrainte va à `tracks_by`."""
+    """Une contrainte d'artiste passe par `tracks_by` (GOAL-023)."""
     source = FakeSource([track("1", "Air", genre="électro"), track("2", "Bowie", genre="rock")])
     f = Queue(source, ScriptedRandom([0] * 10), Window(width=1))
     pick = f.next_pick(Constraint(artist="Bowie"))
@@ -208,8 +207,8 @@ def test_une_plage_d_artiste_sans_musique_replie_sur_le_tirage_libre() -> None:
 
 
 def test_la_double_dose_sert_le_meme_artiste_deux_fois_sans_le_meme_titre() -> None:
-    """Le second titre outrepasse la fenêtre — le passe-droit de l'encore —
-    puis la règle reprend : le troisième tirage écarte l'artiste."""
+    """Le second titre passe outre la fenêtre, comme un encore ; au troisième
+    tirage, la règle reprend et écarte l'artiste."""
     catalogue = [
         track("a1", "Air", genre="électro"),
         track("a2", "Air", genre="électro"),
@@ -224,15 +223,15 @@ def test_la_double_dose_sert_le_meme_artiste_deux_fois_sans_le_meme_titre() -> N
 
 
 def test_le_passionne_d_artiste_suit_l_artiste_meme_si_la_plage_change_de_genre() -> None:
-    """La clé est l'occurrence, et la suite passe par `tracks_by` : le genre
-    retiré entre deux jonctions ne la rompt pas."""
+    """La suite est indexée par occurrence et passe par `tracks_by` : un
+    changement de genre entre deux jonctions ne la rompt pas."""
     catalogue = [
         track("a1", "Air", genre="électro"),
         track("a2", "Air", genre="ambient"),
         track("a3", "Air", genre="électro"),
         track("b1", "Bowie", genre="rock"),
     ]
-    hasard = ScriptedRandom([0, 0, 0, 0])  # le 2e indice : longueur 3 dans [3..6]
+    hasard = ScriptedRandom([0, 0, 0, 0])  # 2e indice : longueur 3 dans [3..6]
     f = Queue(FakeSource(catalogue), hasard, Window(width=1), runs=Runs(hasard))
     premier = f.next_pick(Constraint(genre="électro", mode=Mode.ARTIST_FAN, run_key="occ"))
     deuxieme = f.next_pick(Constraint(genre="ambient", mode=Mode.ARTIST_FAN, run_key="occ"))
@@ -291,16 +290,15 @@ def test_une_suite_d_artiste_epuisee_se_rompt_en_le_disant() -> None:
 
 
 def test_une_piste_longue_se_tire_comme_les_autres() -> None:
-    """La coupe au plafond est l'affaire de la diffusion, pas du tirage."""
+    """La coupe au plafond se fait à la diffusion, pas au tirage."""
     catalogue = [track("long", "Air", secondes=2400)]
     f = Queue(FakeSource(catalogue), ScriptedRandom([0]))
     assert f.next_pick().track.identifier == "long"
 
 
 def test_l_avance_tiree_sous_une_plage_ne_passe_pas_sous_la_suivante() -> None:
-    """Le 2026-09-02 à 16 h 07 : le générique annonce un genre mystère, et
-    l'auditeur entend un Bob Marley de plus, tiré d'avance sous la plage de
-    15 h. Une avance dont le moment a fini est rassise (décision n°33)."""
+    """Une avance dont le moment a fini est rassise : elle ne passe pas sous
+    la plage suivante (décision n°33)."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0, 0]))
     f.prepare(Constraint(genre="trip-hop", run_key="15 h"))
     pick = f.next_pick(Constraint(genre="rock", run_key="16 h"))
@@ -309,8 +307,8 @@ def test_l_avance_tiree_sous_une_plage_ne_passe_pas_sous_la_suivante() -> None:
 
 
 def test_l_avance_survit_au_changement_de_genre_dans_la_meme_plage() -> None:
-    """Une plage multi-genres retire un genre à chaque jonction sans changer
-    de moment : l'avance a déjà coûté un appel, elle sert."""
+    """Une plage multi-genres change de genre à chaque jonction sans changer
+    de moment : l'avance, déjà résolue, est servie."""
     source = FakeSource(CATALOGUE)
     f = Queue(source, ScriptedRandom([0, 0]))
     f.prepare(Constraint(genre="trip-hop", run_key="soirée"))
@@ -321,8 +319,8 @@ def test_l_avance_survit_au_changement_de_genre_dans_la_meme_plage() -> None:
 
 
 def test_preparer_sous_un_autre_moment_remplace_l_avance() -> None:
-    """À la jonction où la plage change, le programme reprépare : l'avance
-    rassise cède la place à un tirage sous la nouvelle plage."""
+    """Quand la plage change, le programme reprépare : l'avance rassise est
+    remplacée par un tirage sous la nouvelle plage."""
     source = FakeSource(CATALOGUE)
     f = Queue(source, ScriptedRandom([0, 0]))
     f.prepare(Constraint(genre="trip-hop", run_key="15 h"))
@@ -340,8 +338,8 @@ def test_l_avance_du_tirage_libre_ne_passe_pas_sous_une_plage() -> None:
 
 
 def test_l_avance_dit_sous_quel_moment_chaque_titre_a_ete_tire() -> None:
-    """« À suivre » ne promet pas un morceau qui ne passera pas : c'est le
-    lecteur qui compare la clé à celle du créneau."""
+    """`dated_advance` porte la clé du moment de chaque tirage, pour que le
+    lecteur la compare à celle du créneau avant d'annoncer un titre."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0, 0]))
     f.prepare(Constraint(genre="trip-hop", run_key="15 h"))
     ((track, moment),) = f.dated_advance
@@ -350,14 +348,14 @@ def test_l_avance_dit_sous_quel_moment_chaque_titre_a_ete_tire() -> None:
 
 
 def test_la_file_tire_plusieurs_titres_d_avance_sans_repeter_un_artiste() -> None:
-    """GOAL-058 : une avance de trois titres, et la fenêtre voit ce qui
-    attend — sinon le hasard à indice 0 aurait tiré trois fois Air."""
+    """La fenêtre tient compte des titres en attente, sinon un hasard à indice
+    0 tirerait trois fois le même artiste (GOAL-058)."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0] * 10), Window(width=3), lookahead=3)
     assert f.wants_more()
     for _ in range(3):
         f.prepare()
     assert not f.wants_more()
-    f.prepare()  # pleine : sans effet
+    f.prepare()  # file pleine : sans effet
     artistes = [t.artist for t in f.advance]
     assert len(artistes) == 3
     assert len(set(artistes)) == 3
@@ -375,7 +373,7 @@ def test_l_avance_se_sert_dans_l_ordre_ou_elle_a_ete_tiree() -> None:
 
 def test_une_suite_d_artiste_peut_attendre_deux_fois() -> None:
     """Le passe-droit de fenêtre des suites d'artiste (SPECS.md §4.4) vaut
-    aussi pour ce qui attend : répéter est le but."""
+    aussi pour les titres en attente."""
     deux_air = [track("a1", "Air"), track("a2", "Air"), track("b", "Bowie")]
     hasard = ScriptedRandom([0] * 20)
     f = Queue(FakeSource(deux_air), hasard, Window(width=2), runs=Runs(hasard), lookahead=2)
@@ -386,8 +384,8 @@ def test_une_suite_d_artiste_peut_attendre_deux_fois() -> None:
 
 
 def test_une_petite_bibliotheque_laisse_repasser_un_artiste_en_attente() -> None:
-    """La radio ne se tait pas : quand tout attend déjà, un artiste en attente
-    repasse, et c'est dit."""
+    """Quand tout le catalogue attend déjà, un artiste en attente repasse
+    plutôt que de laisser un trou."""
     deux = [track("1", "Air"), track("2", "Bowie")]
     f = Queue(FakeSource(deux), ScriptedRandom([0] * 10), Window(width=1), lookahead=3)
     for _ in range(3):
@@ -407,7 +405,8 @@ def test_retirer_un_titre_de_l_avance() -> None:
 
 
 def test_revalider_coupe_a_la_premiere_avance_rassise() -> None:
-    """Les créneaux d'après une entrée rassise ont glissé : tout part."""
+    """Tout ce qui suit une entrée rassise est jeté aussi : ses créneaux ont
+    glissé."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0] * 10), Window(width=3), lookahead=3)
     f.prepare(Constraint(genre="rock", run_key="15 h"))
     f.prepare(Constraint(genre="trip-hop", run_key="16 h"))
@@ -419,8 +418,8 @@ def test_revalider_coupe_a_la_premiere_avance_rassise() -> None:
 
 
 def test_une_tete_tiree_pour_plus_tard_reste_en_place() -> None:
-    """L'estimation disait 16 h, la jonction tombe encore à 15 h : la tête ne
-    se sert pas, mais elle servira à son heure — on tire frais devant."""
+    """Une tête tirée pour un moment à venir n'est pas servie avant son heure :
+    on tire un titre frais devant elle."""
     f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0] * 10), Window(width=3), lookahead=2)
     f.prepare(Constraint(genre="trip-hop", run_key="16 h"))
     f.prepare(Constraint(genre="rock", run_key="16 h"))
@@ -435,8 +434,8 @@ def test_une_avance_nulle_est_refusee() -> None:
 
 
 def test_rompre_la_suite_fait_tirer_une_autre_decennie() -> None:
-    """GOAL-059 : le premier titre ancre les années 1990 ; rompue, la suite
-    suivante s'ouvre sur une autre décennie."""
+    """Après `break_run`, la suite suivante s'ouvre sur une autre décennie
+    (GOAL-059)."""
     dates = [
         track("1", "Air", year=1998),
         track("2", "Bowie", year=1977),

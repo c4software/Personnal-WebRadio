@@ -1,19 +1,16 @@
 """`stop` et `encore` : leur effet, et ce qu'ils refusent.
 
-**Ce sont des décisions, donc du noyau** (ARCHITECTURE.md §6) : leur effet se
-spécifie et se teste sans Flask, sans HTTP et sans navigateur. L'API traduit un
-refus en réponse HTTP ; elle ne le décide pas.
+Ce sont des décisions, donc du noyau (ARCHITECTURE.md §6) : leur effet se teste
+sans Flask ni HTTP. L'API traduit un refus en réponse HTTP, elle ne le décide pas.
 
-Trois règles tranchées portent ce module :
+Trois règles :
 
-- **une voix suffit** (SPECS.md §7 n°10) : ni quorum, ni dépouillement ;
-- **un refus est explicite et motivé** (SPECS.md §4.6) : un refus muet est
-  indistinguable d'une panne, et pousse à réessayer ;
-- **`encore` outrepasse la non-répétition** (SPECS.md §7 n°7), et les morceaux
-  qu'il sert n'entrent pas dans la fenêtre — sans quoi un long enchaînement
-  condamnerait l'artiste pour longtemps après. C'est pourquoi aucune `Fenetre`
-  n'apparaît ici : ne pas la connaître est la façon la plus sûre de ne pas la
-  nourrir.
+- une voix suffit, ni quorum ni dépouillement (SPECS.md §7 n°10) ;
+- un refus est explicite et motivé (SPECS.md §4.6), sinon il est indistinguable
+  d'une panne ;
+- `encore` outrepasse la non-répétition (SPECS.md §7 n°7), et les morceaux qu'il
+  sert n'entrent pas dans la fenêtre, sinon un long enchaînement bloquerait
+  l'artiste longtemps après. C'est pourquoi aucune `Window` n'apparaît ici.
 """
 
 from dataclasses import dataclass
@@ -27,7 +24,7 @@ from webradio.core.sources import MusicSource
 
 
 class Kind(Enum):
-    """Ce qui passe à l'antenne. C'est le noyau qui le sait, donc qui refuse."""
+    """La nature de ce qui passe à l'antenne. C'est elle qui décide des refus."""
 
     MUSIC = "musique"
     JINGLE = "jingle"
@@ -49,10 +46,10 @@ REFUSAL_REASONS = {
 
 @dataclass(frozen=True, slots=True)
 class Answer:
-    """Le sort d'un vote. `motif` est vide quand il est accepté.
+    """Le sort d'un vote. `reason` est vide quand il est accepté.
 
-    Un booléen seul aurait suffi à la file, pas à l'auditeur : c'est le motif
-    qui distingue « refusé » de « en panne » (ARCHITECTURE.md §6.1).
+    Le motif permet à l'auditeur de distinguer un refus d'une panne
+    (ARCHITECTURE.md §6.1).
     """
 
     accepted: bool
@@ -61,14 +58,12 @@ class Answer:
 
 @dataclass(frozen=True, slots=True)
 class More:
-    """Un « encore » à honorer, et la chanson qu'il visait.
+    """Un `encore` à honorer, et la chanson qu'il visait.
 
-    L'ancre est ce que l'auditeur **entendait en votant** — pas ce qui passe à
-    la jonction, où c'est déjà `encore.mp3`, ni le morceau d'avance, qui a
-    toujours un titre d'écart (docs/liquidsoap.md §3). Le 2026-09-02 un encore
-    voté sur La Rue Kétanou a forcé le genre de THK, le morceau d'avance :
-    l'ancre lue trop tard désignait la mauvaise chanson (GOAL-067). `None`
-    quand le vote est tombé entre deux morceaux : il agit, sans rien à forcer.
+    L'ancre est la chanson que l'auditeur entendait en votant, pas celle de la
+    jonction (déjà `encore.mp3`) ni le morceau d'avance, qui a toujours un titre
+    d'écart (docs/liquidsoap.md §3, GOAL-067). `None` quand le vote est tombé
+    entre deux morceaux : l'encore agit, sans rien à forcer.
     """
 
     anchor: Track | None
@@ -97,16 +92,15 @@ class Control:
         return self._nature
 
     def declare(self, kind: Kind) -> None:
-        """Ce qui passe maintenant. C'est ce qui rend les refus possibles."""
+        """Déclare ce qui passe maintenant, ce qui permet les refus."""
         self._nature = kind
 
     def vote(self, command: Command, playing: Track | None = None) -> Answer:
-        """Le premier vote reçu s'applique : une voix suffit (SPECS.md §7 n°10).
+        """Applique le vote : une voix suffit (SPECS.md §7 n°10).
 
-        `playing` est la chanson à l'antenne au moment du vote : c'est elle
-        qu'un `encore` vise (GOAL-067). Deux votes avant la même jonction
-        gardent la dernière ancre — c'est la même chanson, ou celle d'après si
-        une jonction est passée entre-temps, et c'est alors elle qu'on entend.
+        `playing` est la chanson à l'antenne au moment du vote, celle qu'un
+        `encore` vise (GOAL-067). Deux votes avant la même jonction gardent la
+        dernière ancre.
         """
         reason = REFUSAL_REASONS.get(self._nature)
         if reason is not None:
@@ -119,27 +113,27 @@ class Control:
         return Answer(accepted=True)
 
     def take_skip(self) -> bool:
-        """Y a-t-il un `stop` à honorer ? L'appel le consomme."""
+        """Vrai s'il y a un `stop` à honorer. L'appel le consomme."""
         requested = self._saut_demande
         self._saut_demande = False
         return requested
 
     def take_more(self) -> More | None:
-        """L'`encore` à honorer, avec son ancre — ou rien. L'appel le consomme.
+        """L'`encore` à honorer avec son ancre, ou `None`. L'appel le consomme.
 
-        `encore` porte sur le morceau **suivant**, pas sur toute la suite : il
-        n'installe pas un mode (SPECS.md §4.6).
+        `encore` porte sur le morceau suivant seulement, pas sur toute la suite
+        (SPECS.md §4.6).
         """
         requested = self._encore
         self._encore = None
         return requested
 
     def track_after_more(self, courant: Track) -> Pick:
-        """Même artiste, puis même genre, puis tirage libre — et chaque repli est dit.
+        """Même artiste, puis même genre, puis tirage libre ; chaque repli est rapporté.
 
-        Ce qui borne l'enchaînement n'est pas un compteur mais la bibliothèque
-        elle-même (SPECS.md §7 n°7) : quand l'artiste n'a plus de morceau non
-        joué, on descend d'un cran.
+        L'enchaînement est borné par la bibliothèque, pas par un compteur
+        (SPECS.md §7 n°7) : sans morceau non joué de l'artiste, on descend d'un
+        cran.
         """
         fallbacks: list[str] = []
         ecartes = self._servis | {courant.identifier}
@@ -161,8 +155,8 @@ class Control:
 
         if not candidates:
             candidates = [p for p in self._source.tracks(None) if p.identifier not in ecartes]
-            # La chaîne d'`encore` s'arrête là où la bibliothèque s'arrête : on
-            # relâche alors « non déjà servi » plutôt que de faire taire la radio
+            # Quand toute la bibliothèque a été servie, on relâche l'exclusion
+            # des morceaux déjà servis plutôt que de faire taire la radio
             # (SPECS.md §5.1).
             if not candidates:
                 self._servis.clear()

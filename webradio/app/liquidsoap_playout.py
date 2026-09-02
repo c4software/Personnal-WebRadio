@@ -1,12 +1,11 @@
-"""Ce que Liquidsoap demande, traduit pour le programme — la quatrième charnière.
+"""Charnière entre Liquidsoap et le programme.
 
-D'un côté `RadioProgramme`, qui rend une entrée et **déclare sa nature au
-moment où il la choisit** ; de l'autre Liquidsoap, qui demande toujours un
-morceau d'avance (docs/liquidsoap.md §3) et ne joue celui-ci que plus tard.
-Entre les deux, cette classe retient ce qui a été demandé, et ne déclare
-« à l'antenne » que ce que Liquidsoap dit avoir **commencé**.
+`RadioProgramme` rend une entrée et déclare sa nature au moment où il la
+choisit. Liquidsoap demande toujours un morceau d'avance (docs/liquidsoap.md §3)
+et ne le joue que plus tard. Cette classe retient ce qui a été demandé et ne
+déclare à l'antenne que ce que Liquidsoap dit avoir commencé.
 
-Rien ici ne décide : le programme a choisi, Liquidsoap joue, on tient le
+Rien ici ne décide : le programme choisit, Liquidsoap joue, on tient le
 registre.
 """
 
@@ -25,19 +24,17 @@ from webradio.core.models import Track
 
 logger = logging.getLogger(__name__)
 
-# Combien d'entrées demandées mais pas encore commencées on garde. Liquidsoap
-# n'en a qu'une d'avance ; en garder quelques-unes tolère un redémarrage.
+# Nombre d'entrées demandées mais pas encore commencées que l'on garde.
+# Liquidsoap n'en a qu'une d'avance ; en garder plusieurs tolère un redémarrage.
 PENDING_MAX = 8
 
-# Un jingle de dix secondes n'a pas à être mangé par le fondu de deux secondes
-# des morceaux : il porte ses propres durées, par les métadonnées que
-# `crossfade` honore (`liq_fade_*`, relevé docs/liquidsoap.md §7). Demandé par
-# l'auteur à l'écoute (GOAL-022).
+# Un jingle court ne doit pas être mangé par le fondu de deux secondes des
+# morceaux : il porte ses propres durées via les métadonnées `liq_fade_*` que
+# `crossfade` honore (docs/liquidsoap.md §7, GOAL-022).
 JINGLE_FADES = "annotate:liq_fade_in=0.2,liq_fade_out=0.2,liq_cross_duration=0.5:"
 
-# Une piste au-dessus du plafond se joue mais se coupe au plafond, fondue vers
-# la suite par le crossfade comme une fin de piste ordinaire (SPECS.md §7
-# n°32 révisée, relevé docs/liquidsoap.md §7).
+# Une piste au-dessus du plafond se coupe au plafond, fondue vers la suite par
+# le crossfade comme une fin ordinaire (SPECS.md §7 n°32, docs/liquidsoap.md §7).
 CUT_AT = "annotate:liq_cue_out={seconds:g}:"
 
 
@@ -45,10 +42,10 @@ CUT_AT = "annotate:liq_cue_out={seconds:g}:"
 class Pending:
     """Une entrée demandée par le diffuseur, pas encore à l'antenne.
 
-    Elle est **datée** (décision n°33) : par le moment qui l'a tirée — le
-    programme, l'occurrence de plage, ou rien — et par l'instant de la
-    décision. Un moment qui a fini, ou une heure pleine passée depuis, la
-    rendent rassise : elle est remise en question avant de passer.
+    Elle est datée (décision n°33) par le moment qui l'a tirée (programme,
+    occurrence de plage, ou rien) et par l'instant de la décision. Un moment
+    fini, ou une heure pleine passée depuis, la rendent rassise : elle est
+    remise en question avant de passer.
     """
 
     kind: Kind
@@ -86,17 +83,16 @@ class LiquidsoapPlayout:
         )  # réentrant : next_entry tient le verrou quand le programme rappelle on_kind
         self._derniere: tuple[Kind, Track | None, str | None] = (Kind.MUSIC, None, None)
         self._en_attente: dict[str, Pending] = {}
-        # Le dossier des fichiers à usage unique — le cache YouTube : ce qui y
-        # a été lu s'efface dès que la suite commence (GOAL-028).
+        # Dossier des fichiers à usage unique (cache YouTube) : un fichier lu
+        # s'efface dès que la suite commence (GOAL-028).
         self._ephemere = ephemeral_dir
         self._entree_en_cours: str | None = None
-        # Ce qui joue, et depuis quand : c'est ce qui permet d'estimer quand
-        # la jonction suivante tombera, donc l'heure de chaque titre d'avance
-        # (GOAL-058). Inconnu après un redémarrage, et pour un direct.
+        # Ce qui joue et depuis quand, pour estimer l'heure de chaque titre
+        # d'avance (GOAL-058). Inconnu après un redémarrage et pour un direct.
         self._en_cours: Pending | None = None
         self._commence_a: datetime | None = None
-        # La reprise à neuf après une longue pause (SPECS.md §7 n°30) : la
-        # pause se date au départ du dernier auditeur, et se juge au retour.
+        # Reprise à neuf après une longue pause (SPECS.md §7 n°30) : la pause se
+        # date au départ du dernier auditeur et se juge au retour.
         self._horloge = clock
         self._reprise_a_neuf = resume_fresh_after
         self._ordonner_requeue = order_requeue
@@ -105,7 +101,7 @@ class LiquidsoapPlayout:
         self._pause_depuis: datetime | None = None
 
     def on_kind(self, kind: Kind, track: Track | None, label: str | None) -> None:
-        """À brancher sur `RadioProgramme(on_kind=...)` : retient, ne déclare pas."""
+        """À brancher sur `RadioProgramme(on_kind=...)`. Retient sans déclarer."""
         with self._verrou:
             self._derniere = (kind, track, label)
 
@@ -133,9 +129,8 @@ class LiquidsoapPlayout:
             return entry
 
     def _fin_estimee_du_courant(self) -> datetime | None:
-        """Quand le morceau en cours finira, si on peut le savoir : son début
-        plus sa durée — coupée au plafond. Rien pour un direct, une entrée
-        inconnue, ou sans horloge."""
+        """La fin estimée du morceau en cours : son début plus sa durée, coupée
+        au plafond. `None` pour un direct, une entrée inconnue ou sans horloge."""
         if self._en_cours is None or self._commence_a is None or self._horloge is None:
             return None
         track = self._en_cours.track
@@ -145,13 +140,12 @@ class LiquidsoapPlayout:
         if self._plafond is not None and duree > self._plafond:
             duree = self._plafond
         # Jamais dans le passé : après une pause sans auditeur, le morceau
-        # commencé il y a longtemps finira au plus tôt maintenant.
+        # commencé avant la pause finira au plus tôt maintenant.
         return max(self._commence_a + duree, self._horloge.now())
 
     def _fin_estimee_de_l_avance(self) -> datetime | None:
-        """Quand la file parlera : la fin du courant, puis ce qui attend déjà
-        chez le diffuseur. L'habillage compte pour zéro — une dizaine de
-        secondes, dont la durée n'est pas connue ici."""
+        """La fin estimée du courant plus ce qui attend chez le diffuseur, ou
+        `None`. L'habillage compte pour zéro, sa durée n'est pas connue ici."""
         instant = self._fin_estimee_du_courant()
         if instant is None:
             return None
@@ -165,8 +159,8 @@ class LiquidsoapPlayout:
         """L'entrée, annotée pour se couper au plafond si sa piste le dépasse.
 
         Seule la musique se coupe : une émission a sa propre durée (SPECS.md
-        §4.11), un jingle est court par construction. Une entrée replacée
-        après un encore revient déjà annotée — on ne la double pas.
+        §4.11), un jingle est court. Une entrée replacée après un encore revient
+        déjà annotée, on ne la double pas.
         """
         kind, track, _ = self._derniere
         if (
@@ -191,17 +185,15 @@ class LiquidsoapPlayout:
         self._effacer_si_ephemere(finie)
         if pending is None:
             if artist is None and title is None:
-                # Sans étiquettes, il n'y a rien à afficher — et déclarer
-                # « musique, sans titre ni artiste » VIDE l'antenne. C'est ce
-                # qui a effacé « Matinale franceinfo » le 2026-09-02 : le
-                # direct s'annonce deux fois, et la seconde annonce arrive
-                # après que la première a consommé l'entrée
-                # (docs/liquidsoap.md §9).
+                # Sans étiquettes, rien à afficher, et déclarer une musique sans
+                # titre ni artiste viderait l'antenne. Un direct s'annonce deux
+                # fois, et la seconde annonce arrive après que la première a
+                # consommé l'entrée (docs/liquidsoap.md §9).
                 logger.info("entrée inconnue et sans étiquettes : l'antenne reste telle quelle")
                 return
-            # Après un redémarrage de `radio`, Liquidsoap joue encore un ou
-            # deux morceaux demandés à l'ancien processus. Plutôt que rien,
-            # on affiche les étiquettes que le décodeur a lues du fichier.
+            # Après un redémarrage de `radio`, Liquidsoap joue encore un ou deux
+            # morceaux demandés à l'ancien processus. On affiche les étiquettes
+            # lues du fichier plutôt que rien.
             logger.info(
                 "entrée demandée avant ce démarrage, affichée d'après ses étiquettes : %s — %s",
                 artist,
@@ -212,11 +204,10 @@ class LiquidsoapPlayout:
         self._radio.declare(pending.kind, pending.track, pending.label)
 
     def _effacer_si_ephemere(self, entry: str | None) -> None:
-        """Une vidéo lue ne sert plus : elle s'efface quand la suite commence.
+        """Efface un fichier du dossier éphémère quand la suite commence.
 
-        C'est le moment sûr — le diffuseur a fini de la lire — et c'est ce qui
-        évite qu'un fichier de soixante mégaoctets traîne jusqu'à l'émission
-        suivante (question de l'auteur, GOAL-028).
+        À ce moment le diffuseur a fini de le lire. Cela évite qu'un fichier
+        volumineux traîne jusqu'à l'émission suivante (GOAL-028).
         """
         if entry is None or self._ephemere is None:
             return
@@ -226,29 +217,25 @@ class LiquidsoapPlayout:
             logger.info("vidéo lue et effacée : %s", chemin.name)
 
     def up_next(self) -> tuple[Kind, Track | None, str | None] | None:
-        """La prochaine entrée déjà demandée — la file, vue de la charnière.
+        """Le prochain contenu qui n'est pas un jingle, ou `None`.
 
-        C'est le morceau d'avance du diffuseur (GOAL-035) : demandé, pas
-        encore à l'antenne. `None` quand rien n'attend — au tout début, ou
-        juste après qu'un encore a vidé l'avance.
+        C'est le morceau d'avance du diffuseur (GOAL-035), ou à défaut ce que la
+        file a déjà tiré. `None` quand rien n'attend : au démarrage, ou juste
+        après qu'un encore a vidé l'avance.
 
-        **Et quand cette avance n'est que de l'habillage, on regarde
-        derrière** (GOAL-054) : le diffuseur ne garde qu'une entrée d'avance
-        (`prefetch=1`, docs/liquidsoap.md §3), donc un jingle demandé suffisait
-        à vider le panneau le temps d'une chanson entière — une quarantaine de
-        fois par jour. La file, elle, a déjà tiré la suite.
+        Les jingles sont sautés (GOAL-054) : le diffuseur ne garde qu'une entrée
+        d'avance (`prefetch=1`, docs/liquidsoap.md §3), un jingle demandé
+        viderait le panneau le temps d'une chanson.
         """
         for item in self.upcoming():
-            # Dix secondes d'habillage ne sont pas « à suivre » : on annonce
-            # le premier vrai contenu (demandé par l'auteur).
             if item.kind is not Kind.JINGLE:
                 return (item.kind, item.track, item.label)
         return None
 
     def upcoming(self) -> list[Upcoming]:
-        """La liste des prochains titres (GOAL-058) : ce que le diffuseur a
-        déjà demandé, puis ce que le programme rendrait ensuite — avec l'heure
-        estimée de chaque début quand le morceau en cours permet de l'estimer.
+        """Les prochains titres (GOAL-058) : ce que le diffuseur a déjà demandé,
+        puis ce que le programme rendrait ensuite, avec l'heure estimée de chaque
+        début quand le morceau en cours permet de l'estimer.
         """
         instant = self._fin_estimee_du_courant()
         items: list[Upcoming] = []
@@ -266,9 +253,9 @@ class LiquidsoapPlayout:
         return items
 
     def withdraw(self, identifier: str) -> bool:
-        """Retire un titre qui attend : chez le diffuseur — l'avance se
-        replace sans lui et le diffuseur redemande — ou dans la file. Faux
-        s'il n'attend plus : il a commencé entre-temps (GOAL-058)."""
+        """Retire un titre qui attend, chez le diffuseur (l'avance se replace
+        sans lui et le diffuseur redemande) ou dans la file. Faux s'il a déjà
+        commencé (GOAL-058)."""
         with self._verrou:
             chez_le_diffuseur = [
                 entry
@@ -291,14 +278,13 @@ class LiquidsoapPlayout:
         return True
 
     def stash_for_replay(self) -> None:
-        """Les entrées demandées mais pas encore à l'antenne repartent au
-        programme, pour être rejouées après l'effet d'un encore (GOAL-034).
+        """Renvoie au programme les entrées demandées mais pas encore à
+        l'antenne, pour les rejouer après un encore (GOAL-034).
 
-        Le diffuseur vide son avance (`/requeue`), et ce qu'elle contenait se
-        ressert tel quel, nature comprise — **si son moment tient encore**
-        (décision n°33). Une entrée tirée sous un moment qui a fini est
-        rassise : elle est jetée en le disant, et le tirage suivant la
-        remplace sous le moment courant.
+        Le diffuseur vide son avance (`/requeue`) et son contenu se ressert tel
+        quel, nature comprise, si son moment tient encore (décision n°33). Une
+        entrée tirée sous un moment fini est jetée avec un message, le tirage
+        suivant la remplace.
         """
         with self._verrou:
             en_avance = [
@@ -316,15 +302,15 @@ class LiquidsoapPlayout:
                 continue
             logger.info("l'avance se replace : %s", shown)
             self._programme.replay_later(entry, pending.kind, pending.track, pending.label)
-        # Sans attendre que le diffuseur redemande : la liste des prochains
-        # titres montre le morceau forcé dès le vote (GOAL-067).
+        # Sans attendre que le diffuseur redemande, pour que la liste des
+        # prochains titres montre le morceau forcé dès le vote (GOAL-067).
         self._programme.prepare(self._fin_estimee_de_l_avance())
 
     def drop_advance(self) -> None:
-        """Jette l'avance sans rien replacer — chez le diffuseur comme dans la
-        file — et fait redemander : ce qui avait été tiré sous une suite qu'on
-        vient de rompre ne doit pas revenir (GOAL-059). Le morceau en cours
-        finit ; l'habillage dû reste dû."""
+        """Jette l'avance sans rien replacer, chez le diffuseur comme dans la
+        file, et fait redemander : ce qui a été tiré sous une suite rompue ne
+        doit pas revenir (GOAL-059). Le morceau en cours finit, l'habillage dû
+        reste dû."""
         with self._verrou:
             for entry in [e for e in self._en_attente if e != self._entree_en_cours]:
                 del self._en_attente[entry]
@@ -334,14 +320,13 @@ class LiquidsoapPlayout:
             self._ordonner_requeue()
 
     def declare_listeners(self, count: int) -> None:
-        """Le compte d'auditeurs — et, au retour après une longue pause, la
-        purge (SPECS.md §4.7).
+        """Déclare le compte d'auditeurs et, au retour après une longue pause,
+        purge l'avance (SPECS.md §4.7).
 
-        Le diffuseur annonce AVANT de rendre l'antenne (docs/liquidsoap.md
-        §5.bis) : tout ce qui se décide ici s'applique pendant que l'auditeur
-        n'entend encore que le silence. Le battement périodique redit le même
-        compte : la pause se date à la première annonce à zéro, pas aux
-        suivantes.
+        Le diffuseur annonce avant de rendre l'antenne (docs/liquidsoap.md
+        §5.bis) : ce qui se décide ici s'applique pendant le silence. Le
+        battement périodique redit le même compte : la pause se date à la
+        première annonce à zéro seulement.
         """
         self._auditeurs.declare(on_air=count > 0)
         if count == 0:
@@ -362,21 +347,20 @@ class LiquidsoapPlayout:
         self._remettre_l_avance_en_question()
 
     def _remettre_l_avance_en_question(self) -> None:
-        """L'avance du diffuseur, jugée à l'heure pleine et au moment (n°33).
+        """Remet en question l'avance du diffuseur à l'heure pleine et au
+        changement de moment (décision n°33).
 
         Le diffuseur décide l'entrée de chaque jonction à la précédente : une
-        heure pleine tombée entre les deux n'était vue qu'à la jonction
-        d'après, et le jingle arrivait une chanson trop tard — 16 h 07 pour
-        16 h, le 2026-09-02. Le battement d'auditeurs, toutes les quinze
-        secondes, est l'horloge dont dispose la charnière : quand une heure
-        pleine est passée depuis la décision d'une entrée musique, ou que son
-        moment a fini, elle est replacée (`stash_for_replay`, qui jette ce qui
-        est rassi) et le diffuseur redemande — le chemin de l'encore
-        (GOAL-034). Il rend alors le générique, le jingle dû, puis l'entrée
-        replacée ou un tirage neuf.
+        heure pleine tombée entre les deux ne serait vue qu'à la jonction
+        d'après, et le jingle arriverait une chanson trop tard. Le battement
+        d'auditeurs sert d'horloge : quand une heure pleine est passée depuis
+        la décision d'une entrée musique, ou que son moment a fini, l'avance
+        est replacée (`stash_for_replay` jette ce qui est rassi) et le diffuseur
+        redemande, comme pour un encore (GOAL-034). Il rend alors le générique,
+        le jingle dû, puis l'entrée replacée ou un tirage neuf.
 
-        Pendant une émission, l'heure ne compte pas — les jingles y sont
-        abandonnés (SPECS.md §4.11) — mais un moment fini compte toujours.
+        Pendant une émission, l'heure ne compte pas, les jingles y sont
+        abandonnés (SPECS.md §4.11). Un moment fini compte toujours.
         """
         if self._horloge is None or self._ordonner_requeue is None:
             return
@@ -407,18 +391,16 @@ class LiquidsoapPlayout:
         self._ordonner_requeue()
 
     def _repartir_a_neuf(self, pause: timedelta) -> None:
-        """Une longue pause a rassis l'avance : tout repart d'un tirage neuf.
+        """Après une longue pause, tout repart d'un tirage neuf.
 
-        L'ordre suit le relevé (docs/liquidsoap.md §5.bis) : l'oubli du
-        programme d'abord — le recomplètement qui suivra le `/requeue` doit
-        calculer à neuf —, la file du diffuseur ensuite, le reliquat du
-        morceau interrompu enfin.
+        L'ordre suit docs/liquidsoap.md §5.bis : oubli du programme d'abord (le
+        recomplètement après le `/requeue` doit calculer à neuf), file du
+        diffuseur ensuite, saut du morceau interrompu enfin.
 
-        **Le saut part toujours**, et c'est le diffuseur qui le refuse s'il n'a
-        rien à couper (docs/liquidsoap.md §9). Le garder ici demandait à ce
-        processus de savoir ce que Liquidsoap tient : redémarré seul — ce qui
-        est arrivé le 2026-09-02 — il n'a plus d'entrée en cours et laissait
-        passer neuf minutes d'un morceau de la veille.
+        Le saut part toujours ; le diffuseur le refuse s'il n'a rien à couper
+        (docs/liquidsoap.md §9). Ce processus, redémarré seul, ne sait pas ce
+        que Liquidsoap tient : il n'a plus d'entrée en cours et laisserait
+        finir un morceau ancien.
         """
         logger.info("pause de %s : la radio repart sur un tirage neuf", pause)
         with self._verrou:

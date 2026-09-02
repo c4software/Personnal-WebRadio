@@ -1,10 +1,9 @@
-"""Le point d'entrée, et le seul endroit qui connaît tout le monde.
+"""Le point d'entrée, et le seul module qui connaît tout le monde.
 
-L'assemblage se fait à la main, une fois au démarrage : pas de conteneur, pas de
-framework (ARCHITECTURE.md §3). C'est ici — et uniquement ici — que le noyau,
-les adaptateurs et la configuration se rencontrent.
-
-Rien de ce fichier ne décide : il construit, il branche, et il attend.
+L'assemblage se fait à la main, une fois au démarrage, sans conteneur ni
+framework (ARCHITECTURE.md §3). C'est le seul endroit où le noyau, les
+adaptateurs et la configuration se rencontrent. Ce module ne décide rien : il
+construit, branche et attend.
 """
 
 import argparse
@@ -55,11 +54,8 @@ NAME = "local-webradio"
 
 
 def version() -> str:
-    """La version déclarée du paquet.
-
-    Lue depuis les métadonnées d'installation plutôt que recopiée ici : deux
-    endroits qui portent le même numéro finissent toujours par diverger.
-    """
+    """La version du paquet, lue dans les métadonnées d'installation pour ne
+    pas la dupliquer ici."""
     try:
         return _version("local-webradio")
     except PackageNotFoundError:
@@ -74,18 +70,17 @@ def _arguments(argv: list[str] | None) -> argparse.Namespace:
 
 
 def _libelle_de_plage(band: Band) -> list[str]:
-    """Ce que le planning affiche d'une plage, avant même qu'elle ait lieu.
+    """Les libellés que le planning affiche pour une plage.
 
-    Une plage au hasard n'a rien à montrer : son thème n'existera qu'à
-    l'occurrence. Le planning annonce donc la **sorte** — c'est ce qu'il y a de
-    vrai à en dire d'avance, et l'antenne nommera le tirage le moment venu.
+    Une plage au hasard n'a pas encore de thème, il est tiré à l'occurrence.
+    Le planning annonce donc seulement la sorte du tirage.
     """
     if band.random_theme == "artist":
         return ["Au hasard · un artiste"]
     if band.random_theme == "genre":
         return ["Au hasard · un genre"]
     if not band.artists and not band.genres:
-        # Une plage à mode seul (SPECS.md §7 n°31) : rien à annoncer d'autre.
+        # Plage à mode seul (SPECS.md §7 n°31).
         return ["Tirage libre"]
     return list(band.artists or band.genres)
 
@@ -95,12 +90,11 @@ def semaine_effective(
     shows: Sequence[ShowSettings],
     clock: Clock,
 ) -> dict[str, object]:
-    """La semaine que le Planning affiche : sept journées déjà fusionnées.
+    """La semaine que le Planning affiche, sept journées déjà fusionnées.
 
-    Calculée **une fois**, au démarrage : la grille ne dépend que du jour de
-    la semaine, et la semaine prochaine se lira à l'identique. La page reçoit
-    donc ce qui passera, et n'a plus à recoller les périodes elle-même — une
-    décision n'a rien à faire dans un gabarit (AGENTS.md §2).
+    Calculée une fois au démarrage : la grille ne dépend que du jour de la
+    semaine. La page reçoit ce qui passera et n'a pas à recoller les périodes
+    elle-même, un gabarit ne décide rien (AGENTS.md §2).
     """
     declarees = {e.name: e for e in shows}
     minuit = clock.now().replace(hour=0, minute=0, second=0, microsecond=0)
@@ -114,21 +108,21 @@ def semaine_effective(
 
 
 def _periode(segment: Segment, shows: Mapping[str, ShowSettings]) -> dict[str, object]:
-    """Une période de la grille effective, mise en données pour la page.
+    """Une période de la grille effective, en données pour la page.
 
-    Ce qui sort d'ici est **structuré**, jamais rédigé : c'est la page qui
-    parle français, et qui nomme un mode, une liste ou un podcast (§4.8).
+    Les valeurs sont structurées, pas rédigées : c'est la page qui nomme un
+    mode, une liste ou un podcast (SPECS.md §4.8).
     """
     content = segment.content
     periode: dict[str, object] = {
         "start": f"{segment.start:%H:%M}",
         "end": None if segment.end is None else f"{segment.end:%H:%M}",
-        # La musique qui reprend après une émission de durée inconnue : son
-        # début n'est pas une heure, c'est « après elle ».
+        # Musique qui reprend après une émission de durée inconnue : `start`
+        # est alors l'heure de l'émission, pas celle de la reprise.
         "after_show": segment.after_show,
     }
     if isinstance(content, Band):
-        # Le mode d'enchaînement, brut (n°31) : la page le traduit.
+        # Le mode d'enchaînement brut (SPECS.md §7 n°31), la page le traduit.
         mode = None if content.mode is None else content.mode.value
         return {**periode, "kind": "moment", "genres": _libelle_de_plage(content), "mode": mode}
     if isinstance(content, Programme):
@@ -144,8 +138,8 @@ def _periode(segment: Segment, shows: Mapping[str, ShowSettings]) -> dict[str, o
     }
 
 
-# Comment l'antenne nomme un enchaînement de plage (SPECS.md §7 n°31) : les
-# mots du Planning, pour qu'une même plage se dise pareil des deux côtés.
+# Le nom d'un mode d'enchaînement à l'antenne (SPECS.md §7 n°31), identique à
+# celui du Planning.
 MODES = {
     Mode.DOUBLE_DOSE: "double dose",
     Mode.ERA_FAN: "passionné d'époque",
@@ -154,18 +148,15 @@ MODES = {
 
 
 def _libelle_du_moment(band: Band, drawn: Constraint | None) -> str:
-    """Ce que l'antenne annonce de la plage en cours.
+    """Le libellé de la plage en cours, tel que l'antenne l'annonce.
 
-    Une plage au hasard nomme son tirage — « Moment · Air (au hasard) » : sans
-    le « au hasard », l'auditeur croirait à une plage déclarée, et ne
-    comprendrait pas qu'elle change demain. Tant que le tirage n'a pas abouti,
-    la plage tire librement, et l'annonce reste honnête là-dessus.
+    Une plage au hasard nomme son tirage avec la mention « (au hasard) »,
+    pour qu'on comprenne qu'il change demain. Tant que le tirage n'a pas
+    abouti (`drawn` à `None`), la plage tire librement et le libellé le dit.
 
-    Le libellé n'est **jamais vide** (GOAL-066) : une plage à mode seul
-    (SPECS.md §7 n°31) n'a ni genre ni artiste à nommer, et la page l'affichait
-    comme un « Moment · » orphelin à côté du bouton « Autre thème ». Elle dit
-    donc ce qu'elle est — un tirage libre enchaîné — et toute plage à mode
-    suffixe son enchaînement, avec les mots du Planning.
+    Le libellé n'est jamais vide (GOAL-066) : une plage à mode seul (SPECS.md
+    §7 n°31) est annoncée comme un tirage libre, et toute plage à mode suffixe
+    son enchaînement avec les mots de `MODES`.
     """
     enchainement = f" ({MODES[band.mode]})" if band.mode is not None else ""
     if band.random_theme is None:
@@ -179,21 +170,19 @@ def _libelle_du_moment(band: Band, drawn: Constraint | None) -> str:
 def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedule]:
     """Câble le tout, et rend ce que Liquidsoap et l'API interrogent.
 
-    Le flux lui-même n'est pas ici : Liquidsoap l'encode et le sert
-    (ARCHITECTURE.md §4), et vient demander quoi jouer par `adapters/web/playout_api.py`.
+    Le flux lui-même est encodé et servi par Liquidsoap (ARCHITECTURE.md §4),
+    qui demande quoi jouer par `adapters/web/playout_api.py`.
 
-    La grille effective sort d'ici plutôt que d'être recalculée par `main` :
-    elle doit être faite des **mêmes** plages, programmes et cases que la
-    radio, sinon le Planning annoncerait une autre soirée que celle qui passe.
+    La grille effective est construite ici, avec les mêmes plages, programmes
+    et cases que la radio, pour que le Planning et l'antenne ne divergent pas.
     """
     settings = config.settings
     clock = SystemClock()
     random = RealRandom()
 
-    # L'état est ouvert au démarrage : une base inaccessible **à ce moment-là**
-    # est une erreur de configuration et doit se dire (SPECS.md §5). Devenue
-    # inaccessible en cours, elle ne fait que rendre des poids neutres
-    # (`app/learning.py`).
+    # Une base inaccessible au démarrage est une erreur de configuration et
+    # doit lever (SPECS.md §5). Devenue inaccessible en cours de route, elle
+    # rend seulement des poids neutres (`app/learning.py`).
     state = SqliteState(
         Path(settings.state.database),
         clock,
@@ -233,7 +222,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         clock,
         resolve_random_theme=theme_au_hasard.constraint_for,
     )
-    # `0` = jamais périmé : l'ancienne règle n°4, pour qui la préfère.
+    # `0` : jamais périmé, l'ancienne règle n°4.
     peremption = settings.jingles.expiry_seconds
     jingles = Jingles(
         clock,
@@ -259,9 +248,9 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             logger.warning("votes illisibles, page vide : %s", failure)
             return []
 
-    # Le saut s'ordonne au diffuseur, par la route qu'il enregistre chez lui
-    # (`radio.liq`, GOAL-017). L'adresse vient de l'environnement, comme tout
-    # le câblage entre services (docker-compose.yml).
+    # Le saut s'ordonne au diffuseur par la route qu'il enregistre (`radio.liq`,
+    # GOAL-017). L'adresse vient de l'environnement, comme tout le câblage
+    # entre services (docker-compose.yml).
     liquidsoap = os.environ.get("LIQUIDSOAP_URL", "http://127.0.0.1:8000")
 
     def _ordonner(chemin: str, consequence: str) -> None:
@@ -281,8 +270,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         _ordonner("/skip", "le morceau finira")
 
     def vider_l_avance() -> None:
-        # La charnière replace ce que l'avance contenait, PUIS le diffuseur la
-        # vide : rien n'est perdu, tout se décale d'un cran (GOAL-034).
+        # Replacer l'avance avant que le diffuseur la vide, pour ne rien
+        # perdre (GOAL-034).
         branche[0].stash_for_replay()
         _ordonner("/requeue", "l'encore portera un morceau plus tard")
 
@@ -314,8 +303,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         )
 
     def prochains_titres() -> list[UpcomingEntry]:
-        """La liste de la charnière, traduite : l'heure estimée en heure
-        locale, l'identifiant pour retirer — vide pour l'habillage."""
+        """La liste de `RadioProgramme.upcoming()` pour l'API : heure estimée
+        en heure locale, identifiant pour retirer, vide pour l'habillage."""
         return [
             UpcomingEntry(
                 kind=WebKind(item.kind.value),
@@ -332,22 +321,21 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         return branche[0].withdraw(identifier)
 
     def moment_courant() -> str | None:
-        """Programme d'abord — il l'emporte sur la plage (SPECS.md §4.13)."""
+        """Le libellé du moment en cours, ou `None`. Le programme l'emporte
+        sur la plage (SPECS.md §4.13)."""
         programme = programmation.current_programme()
         if programme is not None:
             return f"Programme · {programme.name}"
         band = grille.current_band()
         if band is None:
             return None
-        # Le tirage est déjà figé pour l'occurrence : le demander ici, c'est
-        # dire ce qui passe, pas en décider.
+        # Le tirage est déjà figé pour l'occurrence : on lit, on ne décide pas.
         tire = theme_au_hasard.constraint_for(band, clock.now()) if band.random_theme else None
         return _libelle_du_moment(band, tire)
 
     def plage_au_hasard_en_cours() -> Band | None:
-        """La plage dont le thème — ou la suite (GOAL-059) — a été tiré au
-        sort, si c'est elle qui tire — un programme ouvert l'emporte
-        (SPECS.md §4.13)."""
+        """La plage en cours si son thème ou sa suite (GOAL-059) est tiré au
+        sort, sinon `None`. Un programme ouvert l'emporte (SPECS.md §4.13)."""
         if programmation.current_programme() is not None:
             return None
         band = grille.current_band()
@@ -360,10 +348,9 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         return plage_au_hasard_en_cours() is not None
 
     def retirer_le_theme() -> Verdict:
-        """Retirer, puis jeter l'avance : le morceau en cours finit, et dès la
-        jonction suivante c'est le nouveau thème qui joue (GOAL-057). L'avance
-        tirée sous l'ancien est rassise (SPECS.md §7 n°33) — la charnière la
-        jette en replaçant, et le diffuseur redemande."""
+        """Retire le thème puis jette l'avance : le morceau en cours finit, et
+        le nouveau thème joue dès la jonction suivante (GOAL-057). L'avance
+        tirée sous l'ancien thème est rassise (SPECS.md §7 n°33)."""
         band = plage_au_hasard_en_cours()
         if band is None:
             return Verdict(accepted=False, reason=SANS_THEME_A_RETIRER)
@@ -371,10 +358,9 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             theme_au_hasard.redraw(band, clock.now())
             vider_l_avance()
             return Verdict(accepted=True)
-        # Une suite au hasard (GOAL-059) : rompue, et l'avance tirée sous
-        # elle jetée sans être replacée — son moment n'a pas changé, seule
-        # l'ancre l'a fait. S'il n'y a pas encore de suite, le prochain tirage
-        # en ouvre une de toute façon.
+        # Suite au hasard (GOAL-059) : rompue, et l'avance jetée sans être
+        # replacée, car le moment n'a pas changé, seule l'ancre a changé. Sans
+        # suite en cours, le prochain tirage en ouvre une de toute façon.
         programme.break_run()
         branche[0].drop_advance()
         return Verdict(accepted=True)
@@ -427,8 +413,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         upcoming=prochains_titres,
         withdraw=retirer_le_titre,
     )
-    # Le programme déclare la nature de ce qu'il choisit ; la charnière ne la
-    # transmet à la façade que lorsque Liquidsoap commence réellement le morceau.
+    # Le programme déclare la nature de ce qu'il choisit ; la chaîne ne la
+    # transmet à la façade que quand Liquidsoap commence réellement le morceau.
     branche: list[LiquidsoapPlayout] = []
 
     cases = [
@@ -443,8 +429,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         for e in settings.shows
     ]
     cases_declarees = ShowSchedule(cases)
-    # La grille effective, faite des MÊMES objets que la radio : ce que le
-    # Planning annonce et ce que la chaîne prépare ne peuvent pas diverger.
+    # Faite des mêmes objets que la radio, pour que le Planning et la chaîne
+    # ne divergent pas.
     grille_effective = EffectiveSchedule(grille, programmation, cases_declarees)
 
     programme = RadioProgramme(
@@ -493,8 +479,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         clock=clock,
         resume_fresh_after=timedelta(seconds=reprise) if reprise > 0 else None,
         max_duration=timedelta(minutes=minutes) if minutes > 0 else None,
-        # La purge ne replace rien, contrairement à `vider_l_avance` : c'est
-        # tout son sens — l'avance rassise ne doit pas revenir (§7 n°30).
+        # La purge ne replace rien, contrairement à `vider_l_avance` : l'avance
+        # rassise ne doit pas revenir (SPECS.md §7 n°30).
         order_requeue=lambda: _ordonner("/requeue", "l'avance rassise partira quand même"),
         order_skip=lambda: _ordonner("/skip", "le reliquat du morceau interrompu passera"),
     )
@@ -503,10 +489,10 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Démarre, sert, et s'arrête proprement sur SIGTERM.
+    """Démarre, sert, et s'arrête proprement sur SIGTERM ou SIGINT.
 
-    Rend un code de sortie plutôt que d'appeler `sys.exit` : une fonction qui
-    rend une valeur se teste, une fonction qui quitte le processus non.
+    Rend un code de sortie plutôt que d'appeler `sys.exit`, pour rester
+    testable.
     """
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s %(message)s")
     options = _arguments(argv)

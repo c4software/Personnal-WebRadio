@@ -1,6 +1,6 @@
-"""L'API et la page : ce qu'elles disent, ce qu'elles refusent, et par où.
+"""Tests de l'API et de la page web.
 
-Le client de test de Flask suffit : aucun réseau, aucun serveur lancé.
+Tout passe par le client de test de Flask : aucun réseau, aucun serveur lancé.
 """
 
 from datetime import timedelta
@@ -22,10 +22,9 @@ RAFRAICHISSEMENT = timedelta(seconds=5)
 
 
 class FakeRadio:
-    """Une radio dont le test décide ce qu'elle passe et ce qu'elle refuse.
+    """Radio factice dont le test fixe l'antenne et le verdict des votes.
 
-    C'est la frontière de l'API : trois questions, et rien derrière. Le noyau
-    réel s'y branchera sans que l'API change.
+    Elle n'implémente que l'interface attendue par l'API, sans noyau derrière.
     """
 
     def __init__(
@@ -123,7 +122,7 @@ def test_l_api_distingue_les_quatre_natures(kind: Kind) -> None:
 
 
 def test_l_api_dit_quand_la_chaine_ne_tourne_pas() -> None:
-    """La radio n'existe que lorsqu'on l'écoute (SPECS.md §1)."""
+    """Sans auditeur, la radio ne tourne pas (SPECS.md §1)."""
     answer = client(FakeRadio()).get("/api/on-air")
     assert answer.get_json() == {
         "on_air": False,
@@ -145,7 +144,7 @@ def test_un_jingle_n_a_ni_titre_ni_artiste() -> None:
 
 @pytest.mark.parametrize("vote", [Vote.SKIP, Vote.MORE])
 def test_une_seule_voix_suffit_a_faire_passer_un_vote(vote: Vote) -> None:
-    """Ni quorum, ni fenêtre de dépouillement (SPECS.md §4.6)."""
+    """Un vote est appliqué dès la première voix, sans quorum (SPECS.md §4.6)."""
     radio = FakeRadio(on_air_now=MORCEAU)
     answer = client(radio).post(f"/api/votes/{vote}")
     assert answer.status_code == 200
@@ -154,7 +153,7 @@ def test_une_seule_voix_suffit_a_faire_passer_un_vote(vote: Vote) -> None:
 
 
 def test_un_vote_pendant_un_jingle_est_refuse_avec_son_motif() -> None:
-    """Un refus muet est indistinguable d'une panne (ARCHITECTURE.md §6.1)."""
+    """Un refus porte toujours son motif, sinon il ressemble à une panne (ARCHITECTURE.md §6.1)."""
     reason = "un jingle passe : on ne demande pas « encore » d'un jingle"
     radio = FakeRadio(
         on_air_now=OnAir(kind=Kind.JINGLE),
@@ -166,7 +165,7 @@ def test_un_vote_pendant_un_jingle_est_refuse_avec_son_motif() -> None:
 
 
 def test_un_vote_pendant_une_emission_est_refuse_avec_son_motif() -> None:
-    """On ne passe pas une émission (SPECS.md §4.11)."""
+    """Une émission ne se vote pas (SPECS.md §4.11)."""
     reason = "une émission passe : elle remplace la programmation"
     radio = FakeRadio(
         on_air_now=OnAir(kind=Kind.SHOW),
@@ -186,23 +185,23 @@ def test_un_vote_inconnu_est_refuse_en_disant_lequel() -> None:
 
 
 def test_un_refus_sans_motif_est_impossible_a_construire() -> None:
-    """La contrainte est portée par le type, pas par la discipline de l'appelant."""
+    """Le type `Verdict` impose le motif d'un refus à la construction."""
     with pytest.raises(ValueError, match="refus sans motif"):
         Verdict(accepted=False)
 
 
 def test_l_api_ne_rend_que_des_donnees() -> None:
-    """L'API rend des données, la vue les met en page (AGENTS.md §2)."""
+    """L'API rend du JSON, la mise en page est l'affaire de la vue (AGENTS.md §2)."""
     answer = client(FakeRadio(on_air_now=MORCEAU)).get("/api/on-air")
     assert answer.mimetype == "application/json"
     assert b"<html" not in answer.data
 
 
 def test_la_page_ne_recoit_aucune_donnee_d_antenne() -> None:
-    """L'interface n'a aucun chemin privilégié : elle passe par l'API.
+    """La page ne contient aucune donnée d'antenne : elle les charge par l'API.
 
-    Si le titre du morceau apparaissait dans le HTML servi, c'est que la vue
-    serait allée le chercher elle-même — un second chemin vers le noyau.
+    Si le titre apparaissait dans le HTML, la vue aurait interrogé le noyau
+    directement, ce qui créerait un second chemin non testé (AGENTS.md §2).
     """
     answer = client(FakeRadio(on_air_now=MORCEAU)).get("/")
     assert answer.status_code == 200
@@ -223,7 +222,7 @@ def test_la_page_est_faite_pour_un_telephone() -> None:
 
 
 def test_le_rafraichissement_de_la_page_vient_de_la_configuration() -> None:
-    """Aucune durée en dur : cinq secondes doivent se retrouver dans la page."""
+    """Le délai de rafraîchissement vient de la configuration, pas du gabarit."""
     answer = client(FakeRadio()).get("/")
     assert b"5000" in answer.data
 
@@ -257,7 +256,7 @@ def test_la_page_pointe_vers_la_route_des_votes() -> None:
 
 
 def test_la_page_embarque_vue_plutot_qu_un_cdn() -> None:
-    """La radio est un objet local : la page doit s'afficher sans internet."""
+    """La page doit s'afficher sans accès à internet : Vue est servi localement."""
     answer = client(FakeRadio()).get("/")
     assert b"vue.global.prod.js" in answer.data
     assert b"cdn." not in answer.data and b"unpkg" not in answer.data
@@ -337,9 +336,8 @@ def test_l_historique_se_lit_du_plus_recent_au_plus_ancien() -> None:
 
 
 def test_la_page_range_le_journal_par_jour_et_par_heure() -> None:
-    """GOAL-052 : le journal couvre 24 h, donc deux fois la même heure. Grouper
-    sur l'heure seule empilait le 08 h d'hier sous celui d'aujourd'hui, et
-    l'ordre paraissait faux alors qu'il ne l'était pas."""
+    """Le journal couvre 24 h, donc la même heure peut apparaître deux fois.
+    Grouper sur l'heure seule mélangeait hier et aujourd'hui (GOAL-052)."""
     page = client(FakeRadio()).get("/").data
     assert b"pagesHistorique" in page
     assert b"p.jour === jour && p.heure === heure" in page
@@ -351,7 +349,7 @@ def test_sans_historique_la_liste_est_vide_pas_une_erreur() -> None:
 
 
 def test_l_api_dit_ce_qui_suit() -> None:
-    """GOAL-035 : le morceau d'avance, déjà demandé, s'annonce."""
+    """Le morceau d'avance déjà demandé par le diffuseur est exposé (GOAL-035)."""
     radio = FakeRadio(on_air_now=MORCEAU)
     radio._up_next = OnAir(kind=Kind.MUSIC, title="Radiate", artist="Jack Johnson")
     answer = client(radio).get("/api/on-air")
@@ -363,8 +361,8 @@ def test_l_api_dit_ce_qui_suit() -> None:
 
 
 def test_retirer_le_theme_d_une_plage_au_hasard_dit_le_nouveau_moment() -> None:
-    """GOAL-057 : la réponse dit déjà ce qui vient — l'interface n'a pas à
-    attendre le rafraîchissement suivant."""
+    """La réponse porte le nouveau moment, pour que l'interface n'attende pas
+    le rafraîchissement suivant (GOAL-057)."""
     radio = FakeRadio(on_air_now=MORCEAU)
     radio._moment_random = True
     answer = client(radio).post("/api/moment/redraw")
@@ -392,9 +390,8 @@ def test_l_api_dit_si_le_moment_a_ete_tire_au_sort() -> None:
 
 
 def test_la_page_pointe_vers_la_route_du_retirage() -> None:
-    """Le bouton « Autre thème » passe par l'API, comme tout bouton (SPECS.md §4.8).
-    Il s'appelait « Retirer » — à double sens avec le retrait d'un titre de la
-    liste (l'auteur, 2026-09-02)."""
+    """Le bouton « Autre thème » passe par l'API (SPECS.md §4.8). Son ancien
+    libellé « Retirer » se confondait avec le retrait d'un titre de la liste."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert "/api/moment/redraw" in page
     assert "momentRandom" in page
@@ -412,7 +409,7 @@ A_VENIR = [
 
 
 def test_l_api_liste_les_prochains_titres_dans_l_ordre() -> None:
-    """GOAL-058 : la liste, habillage prévu compris, avec l'heure estimée."""
+    """La liste inclut les jingles prévus et l'heure estimée de chaque entrée (GOAL-058)."""
     radio = FakeRadio(on_air_now=MORCEAU)
     radio._upcoming = A_VENIR
     answer = client(radio).get("/api/up-next")
@@ -468,8 +465,7 @@ def test_retirer_un_titre_qui_n_attend_plus_rend_404() -> None:
 
 
 def test_la_page_pointe_vers_la_liste_des_prochains_titres() -> None:
-    """Le tiroir des prochains titres passe par l'API, comme tout le reste
-    (SPECS.md §4.8) : la page porte l'adresse, et rien d'autre."""
+    """La liste des prochains titres se charge par l'API (SPECS.md §4.8)."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert "/api/up-next" in page
     assert "Prochains titres" in page
@@ -477,7 +473,7 @@ def test_la_page_pointe_vers_la_liste_des_prochains_titres() -> None:
 
 
 def test_sans_adresse_de_flux_la_page_n_a_pas_de_lecteur() -> None:
-    """GOAL-060 : rien n'est écrit en dur — pas d'adresse, pas de lecteur."""
+    """L'adresse du flux vient de la configuration ; sans elle, pas de lecteur (GOAL-060)."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert 'const FLUX_DECLARE = ""' in page
 
@@ -492,9 +488,9 @@ def test_la_page_porte_l_adresse_du_flux_declaree() -> None:
 
 
 def test_le_lecteur_est_une_barre_hors_des_onglets() -> None:
-    """GOAL-062 : la barre de lecture vit hors des sections d'onglet, pour
-    rester sous le pouce quand on passe aux votes ou au planning ; et les
-    commandes de l'écran de verrouillage passent par le même bouton."""
+    """La barre de lecture est hors des onglets pour rester visible partout,
+    et les commandes de l'écran de verrouillage passent par le même bouton
+    (GOAL-062)."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert '<footer class="barre"' in page
     assert '<button v-if="flux" type="button" class="jouer"' in page
@@ -504,8 +500,8 @@ def test_le_lecteur_est_une_barre_hors_des_onglets() -> None:
 
 
 def test_les_prochains_titres_se_deploient_dans_le_lecteur() -> None:
-    """GOAL-062-T02, demandé par l'auteur : la liste vit dans la barre, avec
-    son bouton ; et les votes suivent la scène au lieu d'être fixés en bas."""
+    """La liste des prochains titres se déploie depuis la barre, et les votes
+    suivent la scène au lieu d'être fixés en bas (GOAL-062-T02)."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert 'class="tiroir"' not in page
     assert page.index('class="liste"') > page.index('<footer class="barre"')
@@ -515,15 +511,15 @@ def test_les_prochains_titres_se_deploient_dans_le_lecteur() -> None:
 
 
 def test_la_page_grise_les_votes_sans_auditeur() -> None:
-    """GOAL-061 : la page ne décide rien, mais elle n'offre pas un bouton
-    dont l'effet serait invisible — sans antenne, rien sur quoi voter."""
+    """Sans antenne ou hors musique, il n'y a rien à voter : les boutons sont
+    grisés (GOAL-061)."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert 'this.antenne === null || this.antenne.kind !== "musique"' in page
 
 
 def test_sans_antenne_la_page_montre_une_carte_de_veille_sobre() -> None:
-    """GOAL-063-T01, rectifiée par l'auteur : la carte de veille reste, mais
-    sans « La radio dort » — elle dit qu'il n'y a rien à l'antenne."""
+    """La carte de veille dit « Rien à l'antenne », pas « La radio dort »
+    (GOAL-063-T01)."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert "dort" not in page
     assert 'class="carte scene veille"' in page
@@ -531,8 +527,8 @@ def test_sans_antenne_la_page_montre_une_carte_de_veille_sobre() -> None:
 
 
 def test_la_page_a_une_icone_et_nomme_l_onglet_d_apres_ce_qui_passe() -> None:
-    """GOAL-063-T02 : un favicon servi avec la page, et un titre d'onglet
-    qui suit l'antenne — sans que la vue aille chercher l'antenne elle-même."""
+    """Le favicon est servi avec la page et le titre d'onglet suit l'antenne,
+    à partir des données déjà chargées par l'API (GOAL-063-T02)."""
     app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT)
     app.config.update(TESTING=True)
     page = app.test_client().get("/").get_data(as_text=True)
@@ -544,8 +540,8 @@ def test_la_page_a_une_icone_et_nomme_l_onglet_d_apres_ce_qui_passe() -> None:
 
 
 def test_la_page_s_installe_comme_une_application() -> None:
-    """GOAL-063-T03 : un manifeste servi avec son type, des icônes PNG pour
-    l'écran d'accueil, et les balises qu'iOS lit à la place du manifeste."""
+    """Manifeste servi avec son type, icônes PNG, et balises iOS qui remplacent
+    le manifeste (GOAL-063-T03)."""
     app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT)
     app.config.update(TESTING=True)
     page = app.test_client().get("/").get_data(as_text=True)
@@ -562,7 +558,7 @@ def test_la_page_s_installe_comme_une_application() -> None:
 
 
 def test_la_feuille_de_style_est_un_fichier_servi_avec_la_page() -> None:
-    """GOAL-064-T01 : la CSS sort du gabarit et se sert comme Vue, en local."""
+    """La CSS est un fichier statique servi localement, pas un bloc du gabarit (GOAL-064-T01)."""
     app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT)
     app.config.update(TESTING=True)
     page = app.test_client().get("/").get_data(as_text=True)
@@ -575,9 +571,9 @@ def test_la_feuille_de_style_est_un_fichier_servi_avec_la_page() -> None:
 
 
 def test_la_page_anime_les_onglets_les_chansons_et_les_listes() -> None:
-    """GOAL-064-T02 : les transitions sont celles de Vue, les cascades de
-    liste tiennent à un rang posé par le gabarit, et tout s'éteint sous
-    prefers-reduced-motion."""
+    """Les transitions sont celles de Vue, les cascades de liste reposent sur
+    un rang posé par le gabarit, et prefers-reduced-motion coupe tout
+    (GOAL-064-T02)."""
     app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT)
     app.config.update(TESTING=True)
     page = app.test_client().get("/").get_data(as_text=True)
@@ -587,8 +583,8 @@ def test_la_page_anime_les_onglets_les_chansons_et_les_listes() -> None:
     feuille = app.test_client().get("/static/style.css").get_data(as_text=True)
     assert "@keyframes entrer" in feuille
     assert "prefers-reduced-motion" in feuille
-    # Les lignes de la liste du lecteur entrent par le haut : vers le bas,
-    # elles agrandissaient la zone défilante le temps de l'animation.
+    # Les lignes de la liste entrent par le haut : par le bas, elles
+    # agrandissaient la zone défilante pendant l'animation.
     assert (
         "@keyframes entrer-du-haut { from { opacity: 0; transform: translateY(-0.4rem); }"
         in feuille
@@ -597,9 +593,9 @@ def test_la_page_anime_les_onglets_les_chansons_et_les_listes() -> None:
 
 
 def test_le_lecteur_propose_une_enceinte_seulement_en_ecoute() -> None:
-    """GOAL-065 : le renvoi vers une enceinte passe par l'API Remote Playback
-    du navigateur, sans SDK tiers ; le bouton n'existe qu'en écoute et
-    quand le navigateur a trouvé une cible."""
+    """Le renvoi vers une enceinte passe par l'API Remote Playback du
+    navigateur, sans SDK tiers. Le bouton n'apparaît qu'en écoute et quand une
+    cible existe (GOAL-065)."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert '<button v-if="ecoute && castDisponible" type="button" class="cast"' in page
     assert "audio.remote.watchAvailability(" in page
@@ -609,9 +605,8 @@ def test_le_lecteur_propose_une_enceinte_seulement_en_ecoute() -> None:
 
 
 def test_tout_le_dossier_static_est_empaquete() -> None:
-    """Les tests lisent la source, pas le paquet installé : une feuille de
-    style ajoutée sans son motif dans pyproject.toml donnait des 404 dans
-    l'image (constaté par l'auteur le 2026-09-02, GOAL-064)."""
+    """Les tests lisent la source, pas le paquet installé : un fichier statique
+    absent des motifs de pyproject.toml donne un 404 dans l'image (GOAL-064)."""
     import tomllib
     from fnmatch import fnmatch
     from pathlib import Path
@@ -626,8 +621,8 @@ def test_tout_le_dossier_static_est_empaquete() -> None:
 
 
 def test_les_pictos_de_la_page_sont_dessines_et_non_des_emoji() -> None:
-    """GOAL-069 : un emoji ne suit ni la couleur ni la taille des pictos SVG de
-    la barre, et change de dessin d'un système à l'autre."""
+    """Un emoji ne suit ni la couleur ni la taille des pictos SVG, et change de
+    dessin d'un système à l'autre (GOAL-069)."""
     app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT, stream_url=":8000/flux")
     app.config.update(TESTING=True)
     page = app.test_client().get("/").get_data(as_text=True)
@@ -635,7 +630,7 @@ def test_les_pictos_de_la_page_sont_dessines_et_non_des_emoji() -> None:
     assert '<label v-if="flux" class="volume"' in page
     volume = page[page.index('class="volume"') :]
     assert volume[: volume.index("</label>")].count("<svg") == 1
-    # Les plans supérieurs d'Unicode, c'est là que vivent les pictogrammes en
-    # couleur ; les flèches et les croix de la page restent en deçà.
+    # Les pictogrammes en couleur vivent dans les plans supérieurs d'Unicode ;
+    # les flèches et croix de la page sont en dessous de 0x1F000.
     emoji = sorted({c for c in page if ord(c) > 0x1F000})
     assert emoji == [], f"pictogramme en couleur dans la page : {emoji}"

@@ -19,7 +19,7 @@ SHOW = Show(name="A la French", days=("friday",), hour=time(20, 0))
 
 
 class FakeFeed:
-    """Un flux versionné : il rend ce qu'on lui a mis, ou il tombe en panne."""
+    """Un flux d'essai : rend les épisodes donnés, ou lève `PodcastUnavailable`."""
 
     def __init__(self, episodes: list[EpisodeDuFlux], *, injoignable: bool = False) -> None:
         self._episodes = episodes
@@ -85,8 +85,8 @@ def test_hors_de_sa_case_aucune_emission_n_est_due(tmp_path: Path) -> None:
 def test_un_episode_deja_diffuse_fait_sauter_la_case(
     tmp_path: Path, caplog: pytest.LogCaptureFixture
 ) -> None:
-    """« Une émission qui n'a rien de neuf est une émission qui n'a pas lieu »
-    (SPECS.md §4.11). On ne redescend pas à l'avant-dernier."""
+    """Une émission sans épisode neuf n'a pas lieu (SPECS.md §4.11) : on ne
+    redescend pas à l'avant-dernier épisode."""
     feed = FakeFeed([_episode("ep1")])
     shows, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
     assert shows.due() is not None
@@ -137,9 +137,8 @@ def test_le_rattrapage_est_borne_par_la_duree_de_l_episode(tmp_path: Path) -> No
 
 
 def test_le_flux_est_lu_avant_de_savoir_s_il_servira(tmp_path: Path) -> None:
-    """Le seul endroit du projet où une décision exige un appel réseau qui peut
-    ne servir à rien : la durée borne le rattrapage, et elle n'est connue
-    qu'après lecture (ARCHITECTURE.md §5.2)."""
+    """La durée borne le rattrapage et n'est connue qu'après lecture : le flux
+    est lu même si l'émission est finalement perdue (ARCHITECTURE.md §5.2)."""
     feed = FakeFeed([_episode("ep1", minutes=1)])
     tardif = FrozenClock(VENDREDI_20H + timedelta(hours=3))
     shows, _ = _emissions(tmp_path, feed, tardif)
@@ -198,8 +197,8 @@ def test_un_direct_ne_lit_aucun_flux_et_ne_laisse_aucune_trace(tmp_path: Path) -
     clock = FrozenClock(VENDREDI_20H)
     shows = _direct(tmp_path, clock)
     assert shows.due() is not None
-    # Le flux est « injoignable » : s'il avait été lu, un avertissement aurait
-    # été journalisé et la case sautée. Et la base ne connaît aucune diffusion.
+    # Le flux d'essai est injoignable : s'il avait été lu, la case aurait été
+    # sautée. La base ne doit connaître aucune diffusion.
     state = SqliteState(
         tmp_path / "etat.sqlite3",
         clock,
@@ -227,8 +226,8 @@ class FakeYoutube:
         return list(self._episodes)
 
     def download(self, video_url: str, destination: str) -> None:
-        """Le vrai téléchargement est en tâche de fond ; le test écrit le
-        fichier lui-même quand il veut simuler la fin."""
+        """Le vrai téléchargement est en tâche de fond ; le test écrit lui-même
+        le fichier pour simuler la fin."""
         self.telecharges.append((video_url, destination))
 
 
@@ -277,15 +276,16 @@ def _attendre_le_telechargement(yt: FakeYoutube) -> None:
 def test_sans_fichier_local_la_musique_continue_et_le_telechargement_part(
     tmp_path: Path,
 ) -> None:
-    """GOAL-028 : jamais l'URL — trente secondes de blanc (docs/youtube.md §5)."""
+    """Jamais l'URL directe, qui donne trente secondes de blanc (GOAL-028,
+    docs/youtube.md §5)."""
     clock = FrozenClock(VENDREDI_20H)
     yt = FakeYoutube([_video("v1")])
     shows = _youtube_show(tmp_path, yt, clock)
 
     assert shows.due() is None  # la musique continue
     _attendre_le_telechargement(yt)
-    # Un nom STABLE par émission : le prochain téléchargement écrase le
-    # précédent, un fichier mal supprimé ne s'accumule jamais.
+    # Un nom stable par émission : le téléchargement suivant écrase le
+    # précédent, rien ne s'accumule.
     assert yt.telecharges == [
         ("https://www.youtube.com/watch?v=v1", str(tmp_path / "cache" / "hardisk.m4a"))
     ]
@@ -308,8 +308,8 @@ def test_le_fichier_pret_part_a_la_jonction_et_une_seule_fois(tmp_path: Path) ->
 
 
 def test_un_reste_d_une_autre_video_n_est_jamais_servi(tmp_path: Path) -> None:
-    """Le nom est stable : sans le témoin `.id` assorti, le fichier est un
-    reste — on retélécharge par-dessus, on ne le diffuse pas."""
+    """Le nom est stable : sans témoin `.id` assorti, le fichier est un reste.
+    On retélécharge par-dessus, on ne le diffuse pas."""
     clock = FrozenClock(VENDREDI_20H)
     yt = FakeYoutube([_video("v2")])
     shows = _youtube_show(tmp_path, yt, clock)

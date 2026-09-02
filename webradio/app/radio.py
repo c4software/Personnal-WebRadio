@@ -1,13 +1,12 @@
 """La façade que l'API interroge, et le seul endroit qui traduit.
 
-Le noyau parle en `control.Kind`, `Commande` et `Reponse` ; l'API parle en
-`api.Nature`, `Vote` et `Verdict`. **Ce n'est pas une duplication à supprimer** :
-c'est ce qui permet à `adapters/web/` de ne rien importer du noyau, et donc de
-se tester sans lui. La traduction coûte vingt lignes ; la frontière qu'elle
-achète vaut davantage.
+Le noyau parle en `control.Kind`, `Command` et `Answer` ; l'API parle en
+`api.Kind`, `Vote` et `Verdict`. Cette traduction n'est pas une duplication à
+supprimer : elle permet à `adapters/web/` de ne rien importer du noyau, et donc
+de se tester sans lui.
 
-Les deux jeux de valeurs coïncident (`"musique"`, `"stop"`…), et un test le
-vérifie : le jour où ils divergeront, il cassera ici plutôt qu'à l'exécution.
+Les deux jeux de valeurs coïncident (`"musique"`, `"stop"`), et un test le
+vérifie.
 """
 
 import threading
@@ -26,16 +25,16 @@ from webradio.adapters.web.api import (
 from webradio.core.control import Command, Control, Kind
 from webradio.core.models import Track
 
-# Le motif d'un refus de retirage : hors d'une plage au hasard, ou sans le
-# câblage qui sait retirer, il n'y a rien à retirer (SPECS.md §4.4).
+# Motif de refus d'un retirage hors d'une plage au hasard, ou sans câblage
+# pour retirer (SPECS.md §4.4).
 SANS_THEME_A_RETIRER = "aucun thème tiré au sort en ce moment : rien à retirer"
 
 
 class LiveRadio(Radio):
-    """Ce que la radio répond à l'API, à l'instant où on le lui demande.
+    """Ce que la radio répond à l'API.
 
-    Elle ne décide de rien : `Controle` tranche les votes, la `Station` sait si
-    la chaîne tourne. Elle observe et elle traduit.
+    Elle ne décide de rien : `Control` tranche les votes, `ListenerCount` sait
+    si la chaîne tourne. Elle observe et traduit.
     """
 
     def __init__(
@@ -87,11 +86,11 @@ class LiveRadio(Radio):
     ) -> None:
         """Appelée par le programme à chaque changement de ce qui passe.
 
-        Deux destinataires : le noyau, qui en a besoin pour refuser un vote au
-        bon moment, et l'API, qui l'affiche. `label` porte le nom de ce qui n'a
-        pas de piste — une émission — parce que le flux, lui, ne porte aucune
-        métadonnée (docs/franceinfo.md §1.bis) : ce qui s'affiche est ce qui a
-        été déclaré (SPECS.md §4.8, GOAL-015).
+        Le noyau en a besoin pour refuser un vote au bon moment, l'API pour
+        l'afficher. `label` porte le nom de ce qui n'a pas de piste, comme une
+        émission : le flux ne porte aucune métadonnée (docs/franceinfo.md
+        §1.bis), ce qui s'affiche est ce qui a été déclaré (SPECS.md §4.8,
+        GOAL-015).
         """
         with self._verrou:
             self._nature = kind
@@ -99,8 +98,8 @@ class LiveRadio(Radio):
             self._libelle = label
             self._artiste_libelle = artist_label
         self._controle.declare(kind)
-        # Le journal des titres (SPECS.md §7 n°27) : ce qui COMMENCE, hors
-        # jingles — dix secondes d'habillage ne sont pas « une chanson ».
+        # Le journal des titres (SPECS.md §7 n°27) retient ce qui commence,
+        # jingles exclus.
         titre = track.title if track is not None else label
         artiste = track.artist if track is not None else (artist_label or "")
         if self._journaliser is not None and kind is not Kind.JINGLE and titre:
@@ -122,7 +121,7 @@ class LiveRadio(Radio):
         )
 
     def vote_scores(self) -> list[VoteScore]:
-        """La base absente se comporte comme aucune mémoire (SPECS.md §4.12)."""
+        """Sans base, aucune mémoire : liste vide (SPECS.md §4.12)."""
         if self._lister_votes is None:
             return []
         return self._lister_votes()
@@ -138,18 +137,17 @@ class LiveRadio(Radio):
         return self._lister_historique()
 
     def playing_track(self) -> Track | None:
-        """La piste à l'antenne — l'ancre d'un « encore » (SPECS.md §4.6).
+        """La piste à l'antenne, sur laquelle porte un « encore » (SPECS.md §4.6).
 
-        C'est le morceau que l'auditeur entend, pas celui demandé d'avance :
-        la différence compte, il y a toujours un morceau d'écart
-        (docs/liquidsoap.md §3).
+        C'est le morceau entendu, pas celui demandé d'avance : il y a toujours
+        un morceau d'écart (docs/liquidsoap.md §3).
         """
         with self._verrou:
             return self._piste
 
     def playing_kind(self) -> Kind:
-        """La nature de ce qui passe — ce qui dit si une heure pleine compte :
-        pendant une émission, les jingles sont abandonnés (SPECS.md §4.11)."""
+        """La nature de ce qui passe. Pendant une émission, les jingles horaires
+        sont abandonnés (SPECS.md §4.11)."""
         with self._verrou:
             return self._nature
 
@@ -170,8 +168,8 @@ class LiveRadio(Radio):
         return self._moment_au_hasard is not None and self._moment_au_hasard()
 
     def redraw_moment(self) -> Verdict:
-        """Retirer, c'est une décision du câblage — la plage, le tirage, la
-        purge de l'avance — que la façade ne fait que relayer (GOAL-057)."""
+        """Relaie le retirage au câblage, qui connaît la plage, le tirage et
+        l'avance à purger (GOAL-057). Sans câblage, refus."""
         if self._retirer is None:
             return Verdict(accepted=False, reason=SANS_THEME_A_RETIRER)
         return self._retirer()
@@ -182,30 +180,25 @@ class LiveRadio(Radio):
         return self._oublier(scope, target)
 
     def vote(self, vote: Vote) -> Verdict:
-        """Le vote passe au noyau, et n'est retenu que s'il a produit un effet.
+        """Passe le vote au noyau et ne le retient que s'il a été accepté.
 
-        **Un vote refusé n'enregistre rien** (SPECS.md §4.6) : sinon la radio
-        apprendrait de gestes qui n'ont rien changé, et l'auditeur pondérerait
-        sa bibliothèque sans le savoir.
-
-        Un vote accepté alors qu'aucune piste ne passe — c'est possible entre
-        deux morceaux — n'a rien sur quoi porter : il agit, mais il ne
-        s'apprend pas.
+        Un vote refusé n'enregistre rien (SPECS.md §4.6), sinon la radio
+        apprendrait de gestes sans effet. Un vote accepté sans piste à
+        l'antenne (possible entre deux morceaux) agit mais n'est pas retenu.
         """
         command = Command(vote.value)
         with self._verrou:
             courante = self._piste
         answer = self._controle.vote(command, playing=courante)
         if answer.accepted and command is Command.SKIP and self._passer is not None:
-            # « Passer le morceau en cours. Le suivant démarre à la jonction,
-            # sans blanc. » (SPECS.md §4.6) — c'est le diffuseur qui coupe,
-            # sur cet ordre. S'il est injoignable, le vote reste enregistré :
-            # le morceau finira, mais pèsera moins la prochaine fois.
+            # C'est le diffuseur qui coupe (SPECS.md §4.6). S'il est
+            # injoignable, le vote reste enregistré : le morceau finira, mais
+            # pèsera moins la prochaine fois.
             self._passer()
         if answer.accepted and command is Command.MORE and self._vider_l_avance is not None:
-            # Le morceau d'avance déjà demandé s'intercalerait sinon : l'effet
-            # de l'encore — jingle puis même artiste — doit suivre LA chanson
-            # en cours, pas celle d'après (SPECS.md §4.6, GOAL-034).
+            # L'effet de l'encore (jingle puis même artiste) doit suivre la
+            # chanson en cours, pas le morceau d'avance déjà demandé
+            # (SPECS.md §4.6, GOAL-034).
             self._vider_l_avance()
         if answer.accepted and self._retenir is not None and courante is not None:
             self._retenir(command, courante)
@@ -213,11 +206,8 @@ class LiveRadio(Radio):
 
 
 class ListenerCount:
-    """Ce que la façade a besoin de savoir de la station : rien de plus.
-
-    Un `Protocol` d'une seule propriété plutôt qu'une dépendance vers un
-    serveur : la façade n'a aucune raison d'en connaître un.
-    """
+    """Si la chaîne tourne. La façade n'a pas besoin d'en savoir plus sur la
+    station, et aucune raison de dépendre d'un serveur."""
 
     def __init__(self) -> None:
         self._en_antenne = False

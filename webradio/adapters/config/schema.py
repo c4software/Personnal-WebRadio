@@ -1,16 +1,15 @@
-"""Le schéma de configuration, et sa validation au démarrage.
+"""Le schéma de configuration et sa validation au démarrage.
 
-Deux règles commandent tout ce fichier (SPECS.md §6.2) :
+Deux règles (SPECS.md §6.2) :
 
-1. **Une configuration invalide empêche le démarrage et nomme la clé fautive.**
-   Une radio qui démarre en ignorant la moitié de sa configuration est pire
-   qu'une radio qui refuse de démarrer : elle diffuse quelque chose qui n'est
-   pas ce qu'on lui a demandé, et personne ne s'en aperçoit.
-2. **Un secret trouvé dans le TOML est une erreur, pas une commodité.** Le refus
-   nomme la variable d'environnement dont la valeur aurait dû venir.
+1. Une configuration invalide empêche le démarrage et nomme la clé fautive.
+   Démarrer en ignorant une partie de la configuration diffuserait autre chose
+   que ce qui a été demandé, sans que personne le voie.
+2. Un secret trouvé dans le TOML est une erreur. Le refus nomme la variable
+   d'environnement d'où la valeur aurait dû venir.
 
-Une clé inconnue est refusée elle aussi : une clé mal orthographiée
-silencieusement ignorée est exactement le cas que la règle 1 veut empêcher.
+Une clé inconnue est refusée aussi : une clé mal orthographiée et ignorée
+tomberait sous la règle 1.
 """
 
 from collections.abc import Mapping, Sequence
@@ -18,23 +17,22 @@ from dataclasses import dataclass
 from datetime import time
 from typing import Any, NoReturn
 
-# Les valeurs acceptées par `random` et `mode` viennent du noyau : les
-# recopier ici en ferait deux listes à tenir d'accord, et c'est la
-# configuration qui mentirait la première.
+# Les valeurs acceptées par `random` et `mode` viennent du noyau, pour ne pas
+# tenir deux listes d'accord.
 from webradio.core.bands import RANDOM_THEMES
 from webradio.core.runs import Mode
 
 MODES = tuple(m.value for m in Mode)
 
-# Les trois variables du `.env`. Elles ne portent aucune valeur ici : seulement
-# leur nom, qui sert à dire d'où un secret aurait dû venir.
+# Les noms des trois variables du `.env`, pour dire d'où un secret aurait dû
+# venir. Leurs valeurs ne sont jamais lues ici.
 VARIABLE_URL = "SUBSONIC_URL"
 VARIABLE_UTILISATEUR = "SUBSONIC_UTILISATEUR"
 VARIABLE_MOT_DE_PASSE = "SUBSONIC_MOT_DE_PASSE"
 
-# Un fragment de nom de clé qui trahit un secret, et l'origine attendue de sa
-# valeur. La recherche porte sur le nom, jamais sur la valeur : une valeur qui
-# « ressemble » à un mot de passe n'est pas un critère, un nom de clé l'est.
+# Fragment de nom de clé qui désigne un secret, et la variable d'environnement
+# attendue (vide si aucune). Le contrôle porte sur le nom de la clé, jamais sur
+# la valeur : une valeur qui ressemble à un mot de passe n'est pas un critère.
 FORBIDDEN_SECRET_KEYS: Mapping[str, str] = {
     "mot_de_passe": VARIABLE_MOT_DE_PASSE,
     "motdepasse": VARIABLE_MOT_DE_PASSE,
@@ -54,56 +52,53 @@ DAYS = ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sun
 # SPECS.md §4.11 autorise `jours = "all"` comme raccourci des sept jours.
 EVERY_DAY = "all"
 
-# Défauts déclarés au même endroit que la clé qu'ils concernent, faute de quoi
-# ils seraient « en dur » quelque part dans le code (AGENTS.md §2).
+# Les défauts sont déclarés ici, avec la clé qu'ils concernent, et nulle part
+# ailleurs dans le code (AGENTS.md §2).
 DEFAULT_ARTIST_GAP_KEY = 5
-# Au-delà, la lecture se coupe au plafond (SPECS.md §7 n°32). 0 = sans limite.
+# Au-delà, la lecture est coupée au plafond (SPECS.md §7 n°32). 0 = sans limite.
 DEFAULT_MAX_TRACK_MINUTES = 20
-# Huit titres d'avance : assez pour voir venir une demi-heure (GOAL-061).
-# Chaque titre est tiré pour son heure, la grille ne change pas sous l'avance ;
-# le coût est un appel à la source par titre, que le cache absorbe.
+# Assez d'avance pour voir venir une demi-heure (GOAL-061). Chaque titre coûte
+# un appel à la source, que le cache absorbe.
 DEFAULT_LOOKAHEAD = 8
 DEFAULT_VOTE_FLOOR = 0.25
 DEFAULT_VOTE_CEILING = 4.0
 DEFAULT_VOTE_HALF_LIFE = 90
 DEFAULT_ARTIST_RESULTS = 50
 DEFAULT_TIMEOUT_SECONDS = 10.0
-# La bibliothèque bouge rarement ; une heure borne le retard d'apparition
-# d'un ajout sans refaire le parcours complet à chaque tirage (GOAL-040).
+# Un ajout dans la bibliothèque apparaît au plus tard une heure après, sans
+# refaire le parcours complet à chaque tirage (GOAL-040).
 DEFAULT_CACHE_SECONDS = 3600.0
-# À plus d'un quart d'heure de son heure pleine, un jingle horaire sonne comme
-# une horloge cassée : il est abandonné (SPECS.md §7 n°29). 0 = jamais périmé.
+# Distance à l'heure pleine au-delà de laquelle un jingle horaire est abandonné
+# (SPECS.md §7 n°29). 0 = jamais périmé.
 DEFAULT_JINGLE_EXPIRY_SECONDS = 900.0
-# Au-delà de cette pause sans auditeur, l'avance du diffuseur a rassi : le
-# retour repart sur un tirage neuf (SPECS.md §7 n°30). 0 = jamais.
+# Pause sans auditeur au-delà de laquelle le retour jette l'avance et repart
+# sur un tirage neuf (SPECS.md §7 n°30). 0 = jamais.
 DEFAULT_RESUME_FRESH_SECONDS = 900.0
 
 MAX_PORT = 65535
 
-# Le temps qu'une écriture accepte d'attendre un verrou SQLite. Deux processus
-# touchent la base : la chaîne et le serveur web (ARCHITECTURE.md §5.1).
+# Attente maximale d'un verrou SQLite : la chaîne et le serveur web écrivent
+# dans la même base (ARCHITECTURE.md §5.1).
 DEFAULT_STATE_TIMEOUT = 5.0
-# Un flux de podcast qui ne répond pas ne bloque pas la radio : l'émission est
-# perdue et la musique continue (SPECS.md §4.11). Le délai reste donc court.
+# Court : un flux de podcast qui ne répond pas fait perdre l'émission, la
+# musique continue (SPECS.md §4.11).
 DEFAULT_PODCAST_TIMEOUT = 15.0
-# L'interface et l'API sont servies par un serveur DISTINCT de celui du flux :
-# ce sont deux serveurs, et ils ne peuvent pas écouter le même port. Le
-# commentaire précédent affirmait le contraire ; le premier démarrage en
-# conteneur l'a démenti par un « Address already in use » (GOAL-011-T04).
-# Écoute sur toutes les interfaces : la radio est faite pour être jointe depuis
-# le réseau local, et elle n'est jamais exposée sur Internet (SPECS.md §3).
+# Toutes les interfaces : la radio est jointe depuis le réseau local et n'est
+# jamais exposée sur Internet (SPECS.md §3).
 DEFAULT_WEB_ADDRESS = "0.0.0.0"
+# Le serveur web est distinct de celui du flux ; ils ne peuvent pas partager
+# le port (GOAL-011-T04).
 DEFAULT_WEB_PORT = 8080
-# L'intervalle auquel la page redemande ce qui passe. Trop court, elle
-# interroge pour rien ; trop long, un « encore » semble sans effet.
+# Intervalle auquel la page redemande ce qui passe. Trop court, elle interroge
+# pour rien ; trop long, un « encore » semble sans effet.
 DEFAULT_REFRESH = 5.0
 
 
 class SettingsError(Exception):
-    """Le démarrage est refusé, et la clé fautive est nommée.
+    """Configuration invalide : le démarrage est refusé et la clé fautive nommée.
 
-    Elle est levée avant que quoi que ce soit ne soit diffusé : c'est le régime
-    « au démarrage, une erreur est fatale et se dit » (SPECS.md §5).
+    Levée avant toute diffusion ; au démarrage, une erreur est fatale
+    (SPECS.md §5).
     """
 
 
@@ -128,12 +123,11 @@ class DrawSettings:
 
 @dataclass(frozen=True, slots=True)
 class JingleSettings:
-    """Le dossier, le nom du jingle d'« encore » (GOAL-031), la péremption.
+    """Le dossier des jingles, le nom du jingle d'« encore » (GOAL-031), la péremption.
 
-    Les jingles HORAIRES restent nommés par leur heure — c'est leur
-    programmation, pas un réglage. `expiry_seconds` est la distance à l'heure
-    pleine au-delà de laquelle un jingle horaire est abandonné (SPECS.md §7
-    n°29) ; `0` = jamais.
+    Les jingles horaires ne se configurent pas : ils sont nommés par leur
+    heure. `expiry_seconds` est la distance à l'heure pleine au-delà de
+    laquelle un jingle horaire est abandonné (SPECS.md §7 n°29) ; `0` = jamais.
     """
 
     folder: str
@@ -143,17 +137,13 @@ class JingleSettings:
 
 @dataclass(frozen=True, slots=True)
 class Band:
-    """Un moment thématique : des genres, entre deux heures.
+    """Une plage horaire thématique.
 
-    `days` restreint la plage à certains jours ; sans elle, tous les jours —
-    le comportement historique (GOAL-019).
-
-    `random_theme` remplace les deux premiers : la plage ne dit plus *quoi*,
-    elle dit *quelle sorte* — « un genre » ou « un artiste » —, et la radio
-    tire dans la bibliothèque (GOAL-037).
-
-    `mode` demande que les tirages s'enchaînent (SPECS.md §7 n°31) : il se
-    combine au thème, ou se déclare seul — un tirage libre enchaîné.
+    Le thème est `genres`, `artists` ou `random_theme` (un genre ou un artiste
+    tiré dans la bibliothèque, GOAL-037), un seul des trois. `days` restreint
+    la plage à certains jours ; par défaut tous les jours (GOAL-019). `mode`
+    enchaîne les tirages (SPECS.md §7 n°31) ; il se combine au thème ou se
+    déclare seul.
     """
 
     start: time
@@ -171,8 +161,8 @@ class Band:
 class PlayoutSettings:
     """La reprise après une pause sans auditeur (SPECS.md §4.7).
 
-    `resume_fresh_seconds` : au-delà de cette pause, le retour d'un auditeur
-    jette l'avance et repart sur un tirage neuf ; `0` = jamais.
+    Au-delà de `resume_fresh_seconds` de pause, le retour jette l'avance et
+    repart sur un tirage neuf ; `0` = jamais.
     """
 
     resume_fresh_seconds: float = DEFAULT_RESUME_FRESH_SECONDS
@@ -180,11 +170,10 @@ class PlayoutSettings:
 
 @dataclass(frozen=True, slots=True)
 class StateSettings:
-    """La base qui retient le dernier épisode diffusé et les votes.
+    """La base d'état (ARCHITECTURE.md §5).
 
-    `delai_secondes` est le temps qu'une écriture accepte d'attendre un verrou :
-    deux processus vivants touchent cette base — la chaîne de diffusion et le
-    serveur web (ARCHITECTURE.md §5.1).
+    `timeout_seconds` est l'attente maximale d'un verrou : la chaîne et le
+    serveur web écrivent dans la même base (ARCHITECTURE.md §5.1).
     """
 
     database: str
@@ -195,22 +184,21 @@ class StateSettings:
 class WebSettings:
     """L'interface et l'API.
 
-    `rafraichissement_secondes` est l'intervalle auquel la page redemande à
-    l'API ce qui passe. Trop court, elle interroge pour rien ; trop long, un
-    « encore » semble sans effet.
+    `refresh_seconds` est l'intervalle auquel la page redemande à l'API ce qui
+    passe (voir `DEFAULT_REFRESH`).
     """
 
     address: str
     port: int
     refresh_seconds: float
-    # L'adresse du flux, pour le lecteur de la page (GOAL-060). Vide : pas de
-    # lecteur. `:8000/flux` désigne l'hôte de la page.
+    # L'adresse du flux pour le lecteur de la page (GOAL-060). Vide : pas de
+    # lecteur. Une valeur comme `:8000/flux` désigne l'hôte de la page.
     stream_url: str = ""
 
 
 @dataclass(frozen=True, slots=True)
 class YoutubeSettings:
-    """`yt-dlp` peut être lent : son délai se déclare, comme tout délai."""
+    """Le délai accordé à `yt-dlp`, qui peut être lent."""
 
     timeout_seconds: float
 
@@ -219,8 +207,8 @@ class YoutubeSettings:
 class PodcastSettings:
     """Le délai au-delà duquel un flux de podcast est réputé injoignable.
 
-    Il doit rester court : une émission qui ne répond pas ne bloque pas la
-    radio, elle est perdue et la musique continue (SPECS.md §4.11).
+    Il reste court : une émission qui ne répond pas est perdue et la musique
+    continue (SPECS.md §4.11).
     """
 
     timeout_seconds: float
@@ -228,11 +216,10 @@ class PodcastSettings:
 
 @dataclass(frozen=True, slots=True)
 class DeclaredProgramme:
-    """Une plage de temps où la musique vient d'une liste de lecture.
+    """Une plage horaire où la musique vient d'une liste de lecture.
 
-    Elle porte des **jours** en plus des heures, et sa source est une liste
-    choisie plutôt qu'un genre — c'est ce qui la distingue d'une `Plage`
-    (SPECS.md §4.13).
+    À la différence d'une `Band`, la source est une liste de lecture, pas un
+    genre (SPECS.md §4.13).
     """
 
     name: str
@@ -246,11 +233,11 @@ class DeclaredProgramme:
 
 @dataclass(frozen=True, slots=True)
 class Show:
-    """Un podcast — ou un direct — diffusé à jour et heure dits.
+    """Une émission diffusée à jours et heure fixes (SPECS.md §4.11).
 
-    Soit `feed` (un podcast, dont l'épisode se termine de lui-même), soit
-    `stream` **et** `duration_minutes` (un direct, qu'il faut couper). Jamais les
-    deux, jamais ni l'un ni l'autre (SPECS.md §4.11).
+    Exactement une source : `feed` (podcast), `youtube` (chaîne) ou `stream`
+    (direct). Un direct exige `duration_minutes`, puisqu'il faut le couper ;
+    les autres sources l'interdisent.
     """
 
     name: str
@@ -264,15 +251,15 @@ class Show:
 
 @dataclass(frozen=True, slots=True)
 class SubsonicSettings:
-    """Ce que la source Subsonic a besoin de savoir, hors identifiants.
+    """Les réglages de la source Subsonic, hors identifiants.
 
-    Aucune taille d'échantillon : la bibliothèque se parcourt entière, par
-    pagination, et la taille de page est une propriété constatée du serveur,
-    pas un réglage (docs/subsonic.md §2.7).
+    Pas de taille d'échantillon : la bibliothèque se parcourt entière par
+    pagination, et la taille de page est une propriété du serveur
+    (docs/subsonic.md §2.7).
 
-    `cache_seconds` est la durée pendant laquelle un parcours reste servi de
-    mémoire ; `0` refait les appels à chaque tirage. Le prix du cache est
-    assumé : de la musique ajoutée sur le serveur n'apparaît qu'à l'expiration.
+    `cache_seconds` est la durée pendant laquelle un parcours est servi de
+    mémoire ; `0` refait les appels à chaque tirage. De la musique ajoutée sur
+    le serveur n'apparaît qu'à l'expiration du cache.
     """
 
     artist_results: int
@@ -282,7 +269,7 @@ class SubsonicSettings:
 
 @dataclass(frozen=True, slots=True)
 class Settings:
-    """Tout ce que le TOML décrit, une fois validé. Aucun secret n'y figure."""
+    """La configuration validée du TOML. Aucun secret n'y figure."""
 
     draw: DrawSettings
     jingles: JingleSettings
@@ -299,10 +286,10 @@ class Settings:
 
 @dataclass(frozen=True, slots=True, repr=False)
 class SubsonicCredentials:
-    """Les trois valeurs qui viennent du `.env`, et d'aucun autre endroit.
+    """Les identifiants Subsonic, lus dans le `.env` uniquement.
 
-    La représentation masque le mot de passe : un objet passé par mégarde à un
-    appel de journalisation ne doit pas suffire à le divulguer (AGENTS.md §2).
+    Le `repr` masque le mot de passe pour qu'un passage par mégarde dans un
+    journal ne le divulgue pas (AGENTS.md §2).
     """
 
     url: str
@@ -318,7 +305,7 @@ class SubsonicCredentials:
 
 @dataclass(frozen=True, slots=True)
 class Config:
-    """Les deux moitiés de la configuration, réunies pour l'assemblage."""
+    """Les réglages du TOML et les identifiants du `.env`, réunis pour l'assemblage."""
 
     settings: Settings
     credentials: SubsonicCredentials
@@ -334,11 +321,10 @@ def _chemin(prefix: str, key: str) -> str:
 
 
 def reject_secrets(brut: Mapping[str, Any], prefix: str = "") -> None:
-    """Refuse toute clé dont le nom trahit un secret, à n'importe quelle profondeur.
+    """Lève `SettingsError` pour toute clé dont le nom désigne un secret, à toute profondeur.
 
-    Le contrôle porte sur le nom de la clé et non sur sa valeur : une valeur qui
-    ressemble à un mot de passe n'est pas un critère utilisable, alors qu'un nom
-    l'est, et c'est le nom que l'auteur d'un TOML écrit en connaissance de cause.
+    Le contrôle porte sur le nom de la clé, pas sur la valeur (voir
+    `FORBIDDEN_SECRET_KEYS`).
     """
     for key, value in brut.items():
         path = _chemin(prefix, key)
@@ -407,7 +393,7 @@ def _entier(
             _refuser(path, "clé obligatoire absente")
         return default
     value = table[key]
-    # `bool` est un `int` en Python : l'accepter ferait passer `true` pour 1.
+    # `bool` est un sous-type de `int` : sans ce test, `true` passerait pour 1.
     if not isinstance(value, int) or isinstance(value, bool):
         _refuser(path, f"un entier est attendu, pas {type(value).__name__}")
     if value < minimum:
@@ -543,7 +529,7 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
                 genres=_liste_textes(table, "genres", prefix) if "genres" in table else (),
                 artists=_liste_textes(table, "artists", prefix) if "artists" in table else (),
                 random_theme=_texte(table, "random", prefix) if "random" in table else None,
-                # Pas de `days` = tous les jours : le comportement historique.
+                # Sans `days`, la plage vaut tous les jours (GOAL-019).
                 days=_jours(table, prefix) if "days" in table else DAYS,
                 intro=_texte(table, "intro", prefix) if "intro" in table else None,
                 outro=_texte(table, "outro", prefix) if "outro" in table else None,
@@ -554,11 +540,9 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
 
 
 def _jours(table: Mapping[str, Any], prefix: str) -> tuple[str, ...]:
-    """Les jours d'une déclaration : une liste, ou le raccourci « tous ».
+    """Les jours d'une déclaration : une liste de noms, ou le raccourci `"all"`.
 
-    Le raccourci est dans SPECS.md §4.11 depuis l'origine, mais il n'était
-    accepté nulle part : `jours = "all"` faisait échouer le démarrage avec
-    « une liste est attendue ». C'est la spécification qui avait raison.
+    Les noms sont rendus en minuscules. Le raccourci vient de SPECS.md §4.11.
     """
     path = _chemin(prefix, "days")
     value = table.get("days")
@@ -580,12 +564,11 @@ def _jours(table: Mapping[str, Any], prefix: str) -> tuple[str, ...]:
 
 
 def _programmes(brut: Mapping[str, Any]) -> tuple[DeclaredProgramme, ...]:
-    """Les programmes déclarés. Le recouvrement n'est pas refusé.
+    """Les programmes déclarés.
 
-    Contrairement aux émissions, deux programmes qui se recouvrent ne font pas
-    échouer le démarrage : le plus court l'emporte, comme pour les plages.
-    SPECS.md ne réserve le refus qu'aux émissions, et l'étendre ici serait
-    inventer une règle.
+    Deux programmes qui se recouvrent ne sont pas refusés : le plus court
+    l'emporte, comme pour les plages. SPECS.md ne réserve le refus des
+    collisions qu'aux émissions.
     """
     programmes: list[DeclaredProgramme] = []
     for index, table in enumerate(_liste_tables(brut, "programmes")):
@@ -651,11 +634,10 @@ def _emissions(brut: Mapping[str, Any]) -> tuple[Show, ...]:
 
 
 def _refuser_les_collisions(shows: Sequence[Show]) -> None:
-    """Deux émissions au même créneau font échouer le démarrage, en les nommant.
+    """Refuse deux émissions au même jour et à la même heure, en les nommant.
 
-    C'est exigé par SPECS.md §5 : la radio ne peut pas en diffuser deux à la
-    fois, et choisir en silence laquelle sacrifier serait une décision prise
-    sans personne.
+    La radio ne peut pas en diffuser deux à la fois et ne choisit pas à la
+    place de l'auteur (SPECS.md §5).
     """
     occupes: dict[tuple[str, time], str] = {}
     for show in shows:
@@ -684,10 +666,10 @@ def _subsonic(brut: Mapping[str, Any]) -> SubsonicSettings:
 
 
 def validate(brut: Mapping[str, Any]) -> Settings:
-    """Transforme un TOML déjà analysé en configuration, ou refuse le démarrage.
+    """Transforme un TOML déjà analysé en `Settings`, ou lève `SettingsError`.
 
-    Le refus des secrets passe **avant** tout le reste : une clé `mot_de_passe`
-    doit s'entendre dire qu'elle est un secret, pas qu'elle est inconnue.
+    Les secrets sont contrôlés avant les clés inconnues : une clé
+    `mot_de_passe` doit être signalée comme un secret, pas comme inconnue.
     """
     reject_secrets(brut)
     _verifier_cles(

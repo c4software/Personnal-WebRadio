@@ -1,4 +1,4 @@
-"""Le flux de podcast, contre des réponses **littérales**.
+"""Le flux de podcast, contre des réponses littérales.
 
 Y compris celles que le relevé annonce sans les avoir observées
 (docs/podcast.md §5) : flux injoignable, XML malformé, page HTML servie en 200,
@@ -50,7 +50,7 @@ def feed(*items: str) -> str:
 
 
 class FakeReader:
-    """Rend une réponse littérale, ou tombe en panne sur commande."""
+    """Rend une réponse littérale, ou lève `PodcastUnavailable` sur commande."""
 
     def __init__(self, content: str | bytes = "", *, failure: str | None = None) -> None:
         self._contenu = content.encode() if isinstance(content, str) else content
@@ -102,7 +102,7 @@ def test_un_episode_sans_enclosure_est_ecarte() -> None:
 
 
 def test_un_episode_sans_date_exploitable_est_ecarte() -> None:
-    """Sans date, « le plus récent » n'a pas de sens."""
+    """Sans date, le plus récent n'a pas de sens."""
     resultat = episodes_de(feed(item(guid="sans-date", date="hier soir"), item(guid="date")))
     assert [e.identifier for e in resultat] == ["date"]
 
@@ -159,7 +159,7 @@ def test_une_duree_absente_ne_fait_pas_disparaitre_l_episode() -> None:
 
 
 def test_une_taille_annoncee_absurde_ne_change_rien() -> None:
-    """`enclosure/length` ment (docs/podcast.md §2.1) : rien ne s'en sert."""
+    """`enclosure/length` n'est pas fiable (docs/podcast.md §2.1) : rien ne s'en sert."""
     normal = episodes_de(feed(item(length="112645851")))[0]
     menteur = episodes_de(feed(item(length="0")))[0]
     assert normal == menteur
@@ -177,7 +177,7 @@ def test_un_xml_malforme_est_signale() -> None:
 
 
 def test_une_page_html_servie_en_200_est_signalee() -> None:
-    """Le piège du relevé : un portail répond 200 avec du HTML bien formé."""
+    """Un portail peut répondre 200 avec du HTML bien formé (docs/podcast.md §5)."""
     page = "<html><head><title>Erreur</title></head><body><p>503</p></body></html>"
     with pytest.raises(PodcastUnavailable, match="n'est pas un flux RSS"):
         episodes_de(page)

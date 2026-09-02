@@ -45,8 +45,7 @@ def test_un_vote_de_trois_mois_compte_moitie() -> None:
 
 
 def test_un_vote_d_un_an_ne_compte_presque_plus() -> None:
-    """C'est ce qui empêche la pondération de se retourner contre elle-même :
-    sans oubli, la radio se fige sur le premier mois d'usage."""
+    """Sans oubli, la radio se figerait sur le premier mois d'usage."""
     assert decay(1.0, timedelta(days=365)) == pytest.approx(0.06, abs=0.01)
 
 
@@ -61,8 +60,8 @@ def test_une_demi_vie_nulle_est_refusee() -> None:
 
 
 def test_la_decroissance_precede_le_vote_nouveau() -> None:
-    """Ajouter d'abord ferait vieillir le vote qu'on vient de recevoir, et douze
-    `stop` dont un seul est récent compteraient tous comme frais."""
+    """Ajouter avant de faire décroître vieillirait le vote qu'on vient de
+    recevoir."""
     assert record(1.0, TROIS_MOIS, 1.0) == pytest.approx(1.5)
 
 
@@ -76,8 +75,8 @@ def test_sans_aucun_vote_le_multiplicateur_est_neutre() -> None:
 
 
 def test_les_ordres_de_grandeur_annonces_sont_tenus() -> None:
-    """SPECS.md §4.12 : un `stop` récent vaut environ 0,7 fois la chance
-    normale, trois environ 0,4 ; un `encore` récent 1,5, trois 2,5."""
+    """Un `stop` récent vaut environ 0,7 fois la chance normale, trois environ
+    0,4 ; un `encore` récent 1,5, trois 2,5 (SPECS.md §4.12)."""
     assert multiplier(Scores(stop=1)) == pytest.approx(0.7, abs=0.05)
     assert multiplier(Scores(stop=3)) == pytest.approx(0.4, abs=0.05)
     assert multiplier(Scores(encore=1)) == pytest.approx(1.5, abs=0.05)
@@ -85,8 +84,7 @@ def test_les_ordres_de_grandeur_annonces_sont_tenus() -> None:
 
 
 def test_le_plancher_n_est_jamais_zero() -> None:
-    """Rien n'est jamais supprimé : c'est la différence entre une radio qui
-    apprend et une radio qui se rétrécit (SPECS.md §7 n°17)."""
+    """Rien n'est jamais supprimé (SPECS.md §7 n°17)."""
     assert multiplier(Scores(stop=1000)) == DEFAULT_FLOOR
     assert DEFAULT_FLOOR > 0
 

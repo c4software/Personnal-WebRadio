@@ -1,8 +1,7 @@
-"""Le script Liquidsoap ne décide de rien (ARCHITECTURE.md §4, GOAL-016-T04).
+"""Le script Liquidsoap ne prend aucune décision (ARCHITECTURE.md §4, GOAL-016-T04).
 
-Un test qui lit un fichier texte, parce que c'est le seul moyen de tenir la
-règle : une `playlist()` ou un `random` glissé dans le script serait le noyau
-contourné, et aucun test Python ne le verrait.
+Ces tests lisent le script comme du texte : une `playlist()` ou un `random`
+glissé dedans contournerait le noyau sans qu'aucun test Python le voie.
 """
 
 import re
@@ -45,7 +44,7 @@ def test_le_script_demande_et_annonce_par_l_api() -> None:
 
 
 def test_le_script_s_arrete_au_lieu_de_boucler() -> None:
-    """Liquidsoap réessaie sans fin par défaut (docs/liquidsoap.md §3)."""
+    """Par défaut, Liquidsoap réessaie sans fin (docs/liquidsoap.md §3)."""
     assert "shutdown()" in _code()
     assert "status_code == 204" in _code()
 
@@ -56,7 +55,7 @@ def test_rien_ne_joue_sans_auditeur() -> None:
 
 
 def test_un_direct_est_une_instruction_de_l_api_pas_du_script() -> None:
-    """GOAL-015 : le script capte ce qu'on lui dit, jusqu'à l'heure qu'on lui dit."""
+    """L'adresse et la fin du direct viennent de l'API, pas du script (GOAL-015)."""
     code = _code()
     assert 'prefix="live:"' in code
     assert "input.http(" in code
@@ -64,10 +63,9 @@ def test_un_direct_est_une_instruction_de_l_api_pas_du_script() -> None:
 
 
 def test_un_direct_prend_l_antenne_a_une_jonction() -> None:
-    """GOAL-051 : `track_sensitive=true` ne suffit pas — derrière `crossfade`,
-    le `switch` ne reçoit aucune fin de piste et cesse d'évaluer ses prédicats
-    (docs/liquidsoap.md §9). C'est un témoin armé au début d'une piste qui
-    tient la règle de SPECS.md §4.11."""
+    """`track_sensitive=true` ne suffit pas : derrière `crossfade`, le `switch`
+    ne voit aucune fin de piste (docs/liquidsoap.md §9). Un témoin armé au
+    début de chaque piste applique la règle de SPECS.md §4.11 (GOAL-051)."""
     code = _code()
     assert "direct_arme = ref(false)" in code
     assert "direct_arme := live_pending()" in code
@@ -75,9 +73,9 @@ def test_un_direct_prend_l_antenne_a_une_jonction() -> None:
 
 
 def test_un_direct_s_annonce_quand_il_prend_l_antenne() -> None:
-    """GOAL-051 : `live.on_track` s'annonçait deux fois, et une piste trop tôt
-    (docs/liquidsoap.md §9). Seule la transition du `switch` dit l'instant où
-    le direct est réellement à l'antenne."""
+    """`live.on_track` se déclenche deux fois et une piste trop tôt
+    (docs/liquidsoap.md §9). Seule la transition du `switch` marque l'instant
+    où le direct est à l'antenne (GOAL-051)."""
     code = _code()
     assert "live.on_track" not in code
     prise = re.search(r"def prise_direct.*?\nend\n", code, re.DOTALL)
@@ -87,16 +85,16 @@ def test_un_direct_s_annonce_quand_il_prend_l_antenne() -> None:
 
 
 def test_le_saut_est_une_route_que_l_api_ordonne() -> None:
-    """GOAL-017 : le script saute sur ordre, il ne décide jamais de sauter."""
+    """Le script saute sur ordre de l'API, jamais de lui-même (GOAL-017)."""
     code = _code()
     assert '"/skip"' in code
     assert "programme.skip()" in code
 
 
 def test_le_script_refuse_un_saut_a_vide() -> None:
-    """GOAL-051 : un saut sans piste en cours mange l'entrée fraîche (7 ms
-    constatées, docs/liquidsoap.md §9). Seul le script sait si une piste
-    passe : `radio` redémarré seul l'a oublié."""
+    """Un saut sans piste en cours consomme l'entrée fraîche
+    (docs/liquidsoap.md §9). Seul le script sait si une piste passe, car
+    `radio` peut avoir redémarré seul (GOAL-051)."""
     code = _code()
     assert "piste_commencee = ref(false)" in code
     assert "piste_commencee := true" in code
@@ -104,9 +102,8 @@ def test_le_script_refuse_un_saut_a_vide() -> None:
 
 
 def test_la_fin_d_un_direct_jette_l_avance_rassie() -> None:
-    """GOAL-051 : l'avance a dormi sous le direct — elle a été tirée à
-    l'ouverture de la case, pas à sa fermeture. Le 2026-09-02, deux minutes de
-    musique hors plage à 8 h (docs/liquidsoap.md §9)."""
+    """L'avance a été tirée à l'ouverture du direct, pas à sa fermeture : elle
+    est rassise et doit être purgée (docs/liquidsoap.md §9, GOAL-051)."""
     code = _code()
     fin_du_direct = re.search(r"def stop_live.*?\nend\n", code, re.DOTALL)
     assert fin_du_direct is not None
@@ -115,11 +112,10 @@ def test_la_fin_d_un_direct_jette_l_avance_rassie() -> None:
 
 
 def test_un_saut_a_antenne_vide_ne_laisse_aucun_reliquat_au_premier_auditeur() -> None:
-    """GOAL-055 : `cross` tient deux secondes déjà lues du morceau coupé, et un
-    saut ordonné sans auditeur ne s'exécute qu'au premier tirage — quand le
-    premier auditeur écoute déjà. Le 2026-09-02 à 13 h 20, un micro-flash du
-    morceau de 11 h 03 (docs/liquidsoap.md §10). La transition jette ce
-    reliquat ; le reste est l'appel même de `crossfade`."""
+    """`cross` garde deux secondes du morceau coupé, et un saut ordonné sans
+    auditeur ne s'exécute qu'au premier tirage, quand quelqu'un écoute déjà
+    (docs/liquidsoap.md §10). La transition jette ce reliquat ; le reste
+    reproduit `crossfade` (GOAL-055)."""
     code = _code()
     assert "reliquat_a_taire = ref(false)" in code
     saut = re.search(r"def sauter\(\).*?\nend\n", code, re.DOTALL)
@@ -140,25 +136,25 @@ def test_un_saut_a_antenne_vide_ne_laisse_aucun_reliquat_au_premier_auditeur() -
 
 
 def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
-    """GOAL-034 : un encore accepté vide le morceau d'avance."""
+    """Un encore accepté vide l'avance du diffuseur (GOAL-034)."""
     code = _code()
     assert '"/requeue"' in code
     assert "set_queue([])" in code
 
 
 def test_la_prise_d_antenne_se_fond() -> None:
-    """GOAL-050 : le premier auditeur ne prend pas le son en pleine face.
-    `fade.in` ne fond pas une source entamée — c'est la transition qui arme un
-    `amplify` (docs/liquidsoap.md §8)."""
+    """Le premier auditeur a un fondu d'entrée. `fade.in` ne fond pas une
+    source déjà entamée : c'est la transition qui arme un `amplify`
+    (docs/liquidsoap.md §8, GOAL-050)."""
     code = _code()
     assert "transitions=[prise_antenne" in code
     assert re.search(r"amplify\(gain_antenne", code)
 
 
 def test_le_branchement_s_annonce_avant_de_rendre_l_antenne() -> None:
-    """GOAL-041 : tant que le compteur est à zéro, l'antenne reste muette —
-    c'est ce qui laisse l'API purger une avance rassise sans course
-    (docs/liquidsoap.md §5.bis)."""
+    """L'antenne reste muette tant que le compteur est à zéro, ce qui laisse
+    l'API purger une avance rassise sans course (docs/liquidsoap.md §5.bis,
+    GOAL-041)."""
     code = _code()
     connect = code[code.index("def on_connect") : code.index("def on_disconnect")]
     annonce = connect.index("announce_count(listeners() + 1)")
@@ -170,18 +166,16 @@ def test_le_branchement_s_annonce_avant_de_rendre_l_antenne() -> None:
 
 
 def test_le_script_voyage_dans_l_image_du_diffuseur() -> None:
-    """Monté depuis l'hôte, il n'avait pas de version : il a dérivé de six
-    commits en silence, et le déploiement du 2026-09-02 a mis à jour `radio`
-    en laissant le diffuseur à la veille."""
+    """Monté depuis l'hôte, le script n'était pas versionné avec l'image et
+    pouvait dériver de `radio` sans que le déploiement le voie."""
     assert f"COPY {SCRIPT} /etc/local-webradio/radio.liq" in DOCKERFILE.read_text()
     assert str(SCRIPT) not in COMPOSE.read_text(), "le script ne se monte plus, il est dans l'image"
 
 
 def test_l_epingle_de_liquidsoap_ne_diverge_pas() -> None:
-    """Deux fichiers nomment la version : l'image du diffuseur, et la
-    vérification qui valide la syntaxe contre elle (docs/liquidsoap.md §1.7).
-    Elles doivent dire la même chose, ou l'on validerait contre une version
-    qu'on ne déploie pas."""
+    """L'image du diffuseur et la vérification de syntaxe nomment la même
+    version, sinon on valide contre une version qu'on ne déploie pas
+    (docs/liquidsoap.md §1.7)."""
     depuis = re.search(r"^FROM (savonet/liquidsoap:\S+)", DOCKERFILE.read_text(), re.M)
     validee = re.search(r"LIQUIDSOAP_IMAGE:-(savonet/liquidsoap:\S+?)\}", VERIFIER.read_text())
     assert depuis is not None and validee is not None
