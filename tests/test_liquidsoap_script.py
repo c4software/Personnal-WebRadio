@@ -71,6 +71,18 @@ def test_un_direct_prend_l_antenne_a_une_jonction() -> None:
     assert re.search(r"direct_arme\(\).*live\.is_ready\(\).*live", code, re.DOTALL)
 
 
+def test_un_direct_s_annonce_quand_il_prend_l_antenne() -> None:
+    """GOAL-051 : `live.on_track` s'annonçait deux fois, et une piste trop tôt
+    (docs/liquidsoap.md §9). Seule la transition du `switch` dit l'instant où
+    le direct est réellement à l'antenne."""
+    code = _code()
+    assert "live.on_track" not in code
+    prise = re.search(r"def prise_direct.*?\nend\n", code, re.DOTALL)
+    assert prise is not None
+    assert "annoncer_le_direct()" in prise.group()
+    assert "transitions=[prise_direct, rendu_direct]" in code
+
+
 def test_le_saut_est_une_route_que_l_api_ordonne() -> None:
     """GOAL-017 : le script saute sur ordre, il ne décide jamais de sauter."""
     code = _code()

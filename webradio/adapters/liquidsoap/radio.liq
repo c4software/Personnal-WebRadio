@@ -92,13 +92,18 @@ def start_live(entry) =
   end
 end
 
-# Ce qui commence, pour l'API — l'entrée telle qu'elle l'a rendue.
-live.on_track(fun (_) -> begin
+# Ce qui commence, pour l'API — l'entrée telle qu'elle l'a rendue. Appelée
+# depuis la transition qui met le direct à l'antenne, et de nulle part
+# ailleurs : `live.on_track` se déclenche DEUX fois au démarrage d'un
+# `input.http` (3 ms d'écart, docs/liquidsoap.md §9), et une piste d'avance
+# trop tôt — le direct s'annonçait pendant que la musique jouait encore, puis
+# la seconde annonce effaçait l'antenne pour toute la case.
+def annoncer_le_direct() =
   answer = http.post(timeout=api_timeout, data=live_entry(), "#{api}/playout/playing")
   if answer.status_code != 204 then
     log(level=2, "l'API n'a pas pris l'annonce du direct (#{answer.status_code})")
   end
-end)
+end
 
 # ── Le morceau suivant : c'est l'API qui décide ─────────────────────────────
 def ask_next() =
@@ -229,8 +234,21 @@ programme = crossfade(duration=2., fade_in=1., fade_out=1., programme)
 # du morceau — en plein fondu de sortie, qu'elle écourte. Compromis arbitré
 # par l'auteur le 2026-09-02 : deux secondes deux fois par jour valent mieux
 # qu'un direct qui entre à une heure non garantie.
+# L'annonce part d'ici, et d'ici seulement : c'est le seul instant où le
+# direct est réellement à l'antenne. `thread.run` parce qu'une transition
+# s'exécute dans le fil de diffusion — un POST qui bloque y ferait un trou.
+def prise_direct(_, b) =
+  log("le direct prend l'antenne")
+  thread.run({annoncer_le_direct()})
+  b
+end
+
+# Le retour à la musique s'annonce tout seul : la purge de `stop_live` force un
+# tirage frais, dont le `on_track` dit ce qui commence.
+def rendu_direct(_, b) = b end
+
 on_air = switch(
-  track_sensitive=false,
+  track_sensitive=false, transitions=[prise_direct, rendu_direct],
   [({direct_arme() and live_pending() and live.is_ready()}, live), ({true}, programme)]
 )
 

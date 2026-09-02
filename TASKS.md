@@ -172,7 +172,7 @@ ensemble ils mentent.
 - [x] **GOAL-051-T03** — Une entrée inconnue **et sans étiquettes** ne remplace
       plus ce qui est à l'antenne : déclarer « musique, sans titre ni artiste »
       efface l'affichage sans rien apporter. **(défaut 2, moitié Python)**
-- [ ] **GOAL-051-T04** — Le direct s'annonce quand il **prend** l'antenne, une
+- [x] **GOAL-051-T04** — Le direct s'annonce quand il **prend** l'antenne, une
       seule fois par case, et non dès `live.start()` — un morceau d'avance plus
       tôt. **(défaut 2, moitié `.liq`)** — à écouter : la jonction musique → direct.
       **Dépend de T06** : sans prédicat réévalué, la transition ne s'exécute
