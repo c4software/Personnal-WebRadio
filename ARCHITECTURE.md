@@ -188,6 +188,14 @@ le chemin de l'encore) — ce qui est rassi est jeté, le reste se ressert
 derrière le jingle dû. C'est ce qui fait tomber le jingle horaire à la jonction
 qui suit l'heure, et non un morceau plus tard.
 
+**Et elle regarde devant elle** (SPECS.md §7 n°34). La charnière sait quand le
+morceau en cours a commencé et combien il dure : elle estime la jonction
+suivante, et le programme tire chaque titre d'avance sous la plage de son
+heure estimée, durée après durée, puis revalide à chaque préparation. La liste
+des prochains titres (`GET /api/up-next`) est cette avance, lue sans rien
+décider — avec l'habillage que la jonction rendrait, prévu d'après les
+fichiers présents.
+
 ### 4.2 Couper en le disant
 
 Laissé à lui-même, Liquidsoap réessaie sans fin et sert du silence

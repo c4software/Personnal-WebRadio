@@ -83,7 +83,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-058-T05.
+**Prochaine tâche** : aucune — clore et archiver GOAL-056 à GOAL-058.
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -362,7 +362,7 @@ passe par le chemin de l'encore : `/requeue`, et le reste se replace.
 - [x] **GOAL-058-T04** — L'interface : le panneau « À suivre » devient la
       liste, chaque ligne avec un ✕ « Ne passera pas » sur le modèle du ✕ des
       votes, rafraîchie au même rythme que l'antenne.
-- [ ] **GOAL-058-T05** — Documenter : SPECS.md §4.8 (« À suivre » devient
+- [x] **GOAL-058-T05** — Documenter : SPECS.md §4.8 (« À suivre » devient
       une liste, les deux routes), §6 (`lookahead`), §7 — décision n°34 « une
       avance de N titres, retirables » ; ARCHITECTURE.md §5 si la file change
       de forme. **Écouter** une journée : la profondeur ne doit pas se

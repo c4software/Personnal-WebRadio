@@ -406,6 +406,40 @@ tiré le morceau suivant, et c'est lui qu'on annonce. Une émission ou un
 le silence. Pendant un **programme**, rien n'est annoncé : la musique vient
 d'une liste et non de la file (§4.13), et l'avance préparée ne passera pas.
 
+#### Les prochains titres
+
+**Depuis le 2026-09-02** (§7 n°34, GOAL-058), « À suivre » est la tête d'une
+**liste** : la radio tire `draw.lookahead` titres d'avance (§6, trois par
+défaut), et l'API la rend dans l'ordre de passage (`GET /api/up-next`) — ce
+que le diffuseur a déjà demandé, puis l'avance de la file — avec, pour chaque
+entrée, sa nature, son titre, son artiste, l'**heure estimée** de son début, et
+l'habillage **prévu** entre deux titres : le jingle horaire dont l'heure
+tombera avant le suivant, le générique du moment qui changera. L'estimation
+part du morceau en cours — son début, sa durée coupée au plafond — et compte
+l'habillage pour zéro ; elle est absente quand rien ne permet d'estimer (un
+direct, une entrée inconnue). Rien n'y est décidé : la liste dit ce que la
+jonction rendrait si les durées tenaient.
+
+**Chaque titre d'avance est tiré sous le moment qu'il trouvera en
+commençant** — idée de l'auteur : c'est ce qui fait qu'une liste de trois
+titres à 15 h 55 annonce un dernier titre de 15 h, puis deux de 16 h, et non
+trois de 15 h dont deux rassis. L'avance datée (n°33) tranche à la jonction si
+l'estimation tenait ; un créneau qui a glissé sous une autre plage — un `stop`,
+un encore — est retiré avec ce qui le suit, et retiré au sort.
+
+Un titre de la liste **se retire** (`DELETE /api/up-next/<identifiant>`) : il
+ne passera pas, un autre est tiré à sa place sous le même moment, et le retrait
+est journalisé. Retirer compte comme passé pour la non-répétition : sur une
+petite bibliothèque, le remplacement ne le rendrait pas aussitôt. Un titre qui
+a commencé entre-temps n'attend plus : 404, et la page le dit. L'habillage ne
+se retire pas. La non-répétition **voit ce qui attend** : un artiste tiré
+d'avance ne revient pas dans la même avance, sauf suite d'artiste (§4.4) ou
+bibliothèque trop petite — et alors c'est dit.
+
+L'interface ouvre cette liste depuis « À suivre », dans un tiroir : une ligne
+par entrée, l'habillage prévu en pointillé, et un ✕ « Ne passera pas » sur les
+titres. Ni réordonner, ni forcer un titre : rien de plus n'a été demandé.
+
 #### « Retirer »
 
 Quand le moment en cours a tiré son thème au sort (§4.4), l'API le dit
@@ -417,7 +451,7 @@ seulement quand l'API dit qu'il a un sens — elle ne le devine pas sur le
 libellé.
 
 L'interface web n'est rien de plus que la mise en page de cela : ce qui passe,
-trois boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
+ce qui vient, trois boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
 d'entrée des réglages (§6) — et ne touche pas à la bibliothèque (§2).
 
 ### 4.13 Les programmes
@@ -868,7 +902,8 @@ Ce que le TOML doit décrire, au minimum :
 - **Le tirage** : `artist_gap`, le nombre d'artistes distincts qui doivent
   passer avant qu'un artiste puisse revenir (§4.2, défaut 5), et
   `max_track_minutes`, le plafond de durée de lecture d'une piste (§4.2,
-  défaut 20, `0` = sans limite) ;
+  défaut 20, `0` = sans limite), et `lookahead`, le nombre de titres tirés
+  d'avance — la liste des prochains titres (§4.8, défaut 3, au moins 1) ;
 - **Les sources** : une section par source, avec son type et ses paramètres
   (§4.10) ;
 - **Les programmes** : une entrée `[[programmes]]` par programme — nom, liste
@@ -974,6 +1009,9 @@ tiré dans une plage y termine, quitte à déborder (§4.4).
 > connaître, ni coupure, ni cas d'échec supplémentaire. La transition tombe à la
 > jonction suivante plutôt qu'à l'heure pile, et cela ne s'entend pas comme un
 > défaut.
+> **Précisée le 2026-09-02** (n°34) : ce qui joue finit toujours ; mais ce qui
+> est tiré **d'avance** l'est sous le moment de son heure estimée, et non du
+> présent — la grille est consultée pour le créneau, pas après le tirage.
 
 **n°8 — Les pannes en cours ? Tenir, puis couper en le disant.** Tranchée le
 2026-08-30. Source injoignable : continuer sur la file, réessayer en
@@ -1247,6 +1285,24 @@ abandonnés (§4.11) — mais un moment fini compte toujours.
 > que toutes les quinze secondes. Ce qui joue n'est jamais touché : la n°5
 > tient, seule l'avance — que personne n'entend encore — est remise en
 > question.
+
+**n°34 — Les prochains titres ? Une avance de N titres, tirés pour leur
+heure, et retirables.** Tranchée le 2026-09-02 par l'auteur. La file tire
+`draw.lookahead` titres d'avance (défaut 3), chacun **sous le moment de son
+heure estimée** — le morceau en cours, puis les durées, l'habillage pour zéro —
+et daté par lui (n°33) ; l'estimation se revalide à chaque préparation, et un
+créneau qui a glissé est retiré avec ce qui le suit. La liste se lit par l'API
+avec les heures estimées et l'habillage prévu ; un titre s'en retire, remplacé
+sous le même moment, et compte comme passé pour la non-répétition. La
+non-répétition voit ce qui attend. Rien d'autre : ni réordonner, ni forcer.
+> *Raison* : l'auteur voulait voir venir et agir avant diffusion ; une liste
+> qui ne serait qu'une fenêtre sur l'avance existante aurait montré des titres
+> rassis dès qu'une plage change — d'où le tirage pour l'heure du créneau, qui
+> est aussi ce qui rend la liste juste sans rien décider avant la jonction. La
+> profondeur est bornée pour que la grille ne change pas sous une avance
+> entière, et parce que chaque titre d'avance est un appel à la source. La
+> n°5 tient : ce qui joue n'est jamais coupé, seule l'avance — que personne
+> n'entend encore — regarde devant elle.
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :
