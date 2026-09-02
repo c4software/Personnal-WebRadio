@@ -2135,3 +2135,47 @@ même artiste.
 
 - [x] **GOAL-067-T01** — L'ancre au vote, le morceau forcé résolu d'avance et
       visible dans « prochains titres » ; le scénario de production en test.
+
+---
+
+## GOAL-068 — La grille effective : les périodes fusionnent, la plus courte l'emporte
+
+Constaté par l'auteur le 2026-09-02, capture du Planning à l'appui : le
+mercredi, `20:00 Hardisk` et `20:00–22:00 Rock` s'affichaient l'un sous
+l'autre comme deux créneaux indépendants, alors que l'émission mange la plage.
+Quatre autres cas de sa configuration étaient dans le même état — le flash de
+11 h 57, le programme du vendredi, la soirée du samedi, le brunch du dimanche.
+Le défaut valait aussi une couche plus bas : « À suivre » annonçait de la
+musique pour 20 h.
+
+**Décision de l'auteur, prise sur conséquences montrées** : entre deux
+périodes de même nature, **la plus courte l'emporte** — en lieu et place de
+« la première déclarée ». La priorité entre natures ne bouge pas (émission >
+programme > moment), et la fusion vaut aussi pour ce que la radio prépare. Il
+lui a été montré, avant qu'il choisisse, que sa plage « Enfants » du week-end
+et sa « soirée du samedi » n'auraient dès lors plus une minute à elles ; les
+raccourcir est une décision de configuration, et le TOML local n'est pas
+versionné.
+
+**Ce que la fusion ne réécrit pas.** La journée est balayée par frontières, et
+l'occupant de chaque intervalle est demandé aux mêmes objets qu'à la jonction
+— `Programming.programme_at`, `Schedule.band_at`, `ShowSchedule`. La grille
+annoncée et la radio ne peuvent donc pas diverger : elles posent la même
+question aux mêmes objets. Une émission sans durée déclarée — podcast, chaîne
+YouTube — ne prend aucune durée annonçable : elle coupe la période, et ce qui
+reprend après elle n'annonce que sa fin.
+
+- [x] **GOAL-068-T01** — La plus courte période l'emporte (`core/bands.py`,
+      `core/programmes.py`) ; SPECS.md §4.4.
+- [x] **GOAL-068-T02** — `core/planning.py` : la grille effective d'une
+      journée, émissions comprises.
+- [x] **GOAL-068-T03** — `/api/planning` sert la grille effective, la page
+      l'affiche telle quelle ; SPECS.md §4.8. Constaté radio démarrée sur la
+      configuration de l'auteur.
+- [x] **GOAL-068-T04** — « À suivre » s'arrête à l'émission qui va couper et
+      la nomme ; l'avance n'est plus tirée pour les heures d'un programme ou
+      d'un direct ; SPECS.md §4.8.
+
+**Reste à écouter** (AGENTS.md §4.1) : la jonction de 20 h un mercredi, quand
+Hardisk coupe la plage guitares ; et la reprise à la fin du programme du
+vendredi, dont l'avance est désormais tirée pour 20 h et non plus pour 18 h.
