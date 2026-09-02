@@ -286,15 +286,29 @@ def test_le_moment_declare_accompagne_l_antenne() -> None:
 def test_l_historique_se_lit_du_plus_recent_au_plus_ancien() -> None:
     radio = FakeRadio()
     radio._history = [
-        PlayedEntry(at="22:49", kind="emission", title="Alcatraz", artist=""),
-        PlayedEntry(at="22:45", kind="musique", title="Radiate", artist="Jack Johnson"),
+        PlayedEntry(on="2026-09-02", at="22:49", kind="emission", title="Alcatraz", artist=""),
+        PlayedEntry(
+            on="2026-09-01", at="22:45", kind="musique", title="Radiate", artist="Jack Johnson"
+        ),
     ]
     answer = client(radio).get("/api/history")
     assert answer.status_code == 200
     assert answer.get_json() == {
         "history": [
-            {"at": "22:49", "kind": "emission", "title": "Alcatraz", "artist": ""},
-            {"at": "22:45", "kind": "musique", "title": "Radiate", "artist": "Jack Johnson"},
+            {
+                "on": "2026-09-02",
+                "at": "22:49",
+                "kind": "emission",
+                "title": "Alcatraz",
+                "artist": "",
+            },
+            {
+                "on": "2026-09-01",
+                "at": "22:45",
+                "kind": "musique",
+                "title": "Radiate",
+                "artist": "Jack Johnson",
+            },
         ]
     }
 

@@ -141,7 +141,7 @@ juste — `SELECT … ORDER BY joue_le DESC` (`adapters/state/database.py`) — 
 l'API n'expose que `%H:%M` (`app/main.py`, `lister_l_historique`) : privée de sa
 date, la page groupe deux journées sous la même heure et l'ordre paraît faux.
 
-- [ ] **GOAL-052-T01** — L'entrée du journal porte sa date, pas seulement son
+- [x] **GOAL-052-T01** — L'entrée du journal porte sa date, pas seulement son
       heure : `PlayedEntry` gagne le jour, l'API le rend, et le contrat de
       SPECS.md §4.8 le dit.
 - [ ] **GOAL-052-T02** — La page sépare les journées : une heure d'aujourd'hui

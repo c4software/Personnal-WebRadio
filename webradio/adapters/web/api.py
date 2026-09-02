@@ -86,8 +86,15 @@ class VoteScore:
 
 @dataclass(frozen=True, slots=True)
 class PlayedEntry:
-    """Une ligne du journal : quand, quoi, par qui."""
+    """Une ligne du journal : quand, quoi, par qui.
 
+    `on` porte le **jour** (`AAAA-MM-JJ`) et `at` l'heure. Le journal couvre
+    vingt-quatre heures : sans le jour, la page rangeait sous « 08 h » celui
+    d'aujourd'hui et celui d'hier, et l'ordre paraissait faux alors qu'il ne
+    l'était pas (signalé par l'auteur le 2026-09-02).
+    """
+
+    on: str
     at: str
     kind: str
     title: str
@@ -234,7 +241,13 @@ def create_api(radio: Radio, planning: dict[str, object] | None = None) -> Bluep
         return jsonify(
             {
                 "history": [
-                    {"at": e.at, "kind": e.kind, "title": e.title, "artist": e.artist}
+                    {
+                        "on": e.on,
+                        "at": e.at,
+                        "kind": e.kind,
+                        "title": e.title,
+                        "artist": e.artist,
+                    }
                     for e in radio.history()
                 ]
             }

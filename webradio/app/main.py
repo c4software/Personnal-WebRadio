@@ -259,6 +259,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         try:
             return [
                 PlayedEntry(
+                    on=joue_le.astimezone().strftime("%Y-%m-%d"),
                     at=joue_le.astimezone().strftime("%H:%M"),
                     kind=nature,
                     title=titre,

@@ -1083,6 +1083,11 @@ dans un journal chronologique de deux cents lignes, visible dans l'interface.
 > *Raison* : « c'était quoi, tout à l'heure ? » est une question légitime.
 > §2 tient toujours : c'est un journal des **titres**, jamais l'audio — rien
 > ne se rejoue, rien ne s'archive.
+>
+> **Précision du 2026-09-02** (GOAL-052) : chaque ligne porte son **jour** en
+> plus de son heure. Le journal couvre vingt-quatre heures, donc deux fois la
+> même heure : sans le jour, la page rangeait sous « 08 h » celui d'aujourd'hui
+> **et** celui d'hier, et l'ordre paraissait faux alors qu'il ne l'était pas.
 
 **n°28 — Une plage au thème tiré au sort ? Greffée sur les plages, figée sur
 l'occurrence.** Tranchée le 2026-08-31 par l'auteur. Une plage déclare
