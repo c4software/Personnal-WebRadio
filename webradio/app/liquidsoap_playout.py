@@ -13,6 +13,7 @@ registre.
 import logging
 import threading
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -40,6 +41,27 @@ JINGLE_FADES = "annotate:liq_fade_in=0.2,liq_fade_out=0.2,liq_cross_duration=0.5
 CUT_AT = "annotate:liq_cue_out={seconds:g}:"
 
 
+@dataclass(frozen=True, slots=True)
+class Pending:
+    """Une entrée demandée par le diffuseur, pas encore à l'antenne.
+
+    Elle est **datée** (décision n°33) : par le moment qui l'a tirée — le
+    programme, l'occurrence de plage, ou rien — et par l'instant de la
+    décision. Un moment qui a fini, ou une heure pleine passée depuis, la
+    rendent rassise : elle est remise en question avant de passer.
+    """
+
+    kind: Kind
+    track: Track | None
+    label: str | None
+    moment: object = None
+    decided_at: datetime | None = None
+
+    @property
+    def nature(self) -> tuple[Kind, Track | None, str | None]:
+        return (self.kind, self.track, self.label)
+
+
 class LiquidsoapPlayout:
     """Le `Playout` de `adapters/web/playout_api.py`, câblé au programme."""
 
@@ -63,7 +85,7 @@ class LiquidsoapPlayout:
             threading.RLock()
         )  # réentrant : next_entry tient le verrou quand le programme rappelle on_kind
         self._derniere: tuple[Kind, Track | None, str | None] = (Kind.MUSIC, None, None)
-        self._en_attente: dict[str, tuple[Kind, Track | None, str | None]] = {}
+        self._en_attente: dict[str, Pending] = {}
         # Le dossier des fichiers à usage unique — le cache YouTube : ce qui y
         # a été lu s'efface dès que la suite commence (GOAL-028).
         self._ephemere = ephemeral_dir
@@ -91,7 +113,14 @@ class LiquidsoapPlayout:
                 entry = JINGLE_FADES + entry
             else:
                 entry = self._couper_au_plafond(entry)
-            self._en_attente[entry] = self._derniere
+            kind, track, label = self._derniere
+            self._en_attente[entry] = Pending(
+                kind,
+                track,
+                label,
+                moment=self._programme.current_moment(),
+                decided_at=None if self._horloge is None else self._horloge.now(),
+            )
             while len(self._en_attente) > PENDING_MAX:
                 oublie = next(iter(self._en_attente))
                 del self._en_attente[oublie]
@@ -121,10 +150,10 @@ class LiquidsoapPlayout:
 
     def playing(self, entry: str, artist: str | None = None, title: str | None = None) -> None:
         with self._verrou:
-            nature = self._en_attente.pop(entry, None)
+            pending = self._en_attente.pop(entry, None)
             finie, self._entree_en_cours = self._entree_en_cours, entry
         self._effacer_si_ephemere(finie)
-        if nature is None:
+        if pending is None:
             if artist is None and title is None:
                 # Sans étiquettes, il n'y a rien à afficher — et déclarer
                 # « musique, sans titre ni artiste » VIDE l'antenne. C'est ce
@@ -144,8 +173,7 @@ class LiquidsoapPlayout:
             )
             self._radio.declare(Kind.MUSIC, None, title, artist_label=artist)
             return
-        kind, track, label = nature
-        self._radio.declare(kind, track, label)
+        self._radio.declare(pending.kind, pending.track, pending.label)
 
     def _effacer_si_ephemere(self, entry: str | None) -> None:
         """Une vidéo lue ne sert plus : elle s'efface quand la suite commence.
@@ -175,14 +203,14 @@ class LiquidsoapPlayout:
         fois par jour. La file, elle, a déjà tiré la suite.
         """
         with self._verrou:
-            for entry, nature in self._en_attente.items():
+            for entry, pending in self._en_attente.items():
                 if entry == self._entree_en_cours:
                     continue
-                if nature[0] is Kind.JINGLE:
+                if pending.kind is Kind.JINGLE:
                     # Dix secondes d'habillage ne sont pas « à suivre » : on
                     # annonce le premier vrai contenu (demandé par l'auteur).
                     continue
-                return nature
+                return pending.nature
         track = self._programme.prepared()
         return None if track is None else (Kind.MUSIC, track, None)
 
@@ -190,20 +218,28 @@ class LiquidsoapPlayout:
         """Les entrées demandées mais pas encore à l'antenne repartent au
         programme, pour être rejouées après l'effet d'un encore (GOAL-034).
 
-        Rien n'est jeté : le diffuseur vide son avance (`/requeue`), et ce
-        qu'elle contenait se ressert tel quel, nature comprise.
+        Le diffuseur vide son avance (`/requeue`), et ce qu'elle contenait se
+        ressert tel quel, nature comprise — **si son moment tient encore**
+        (décision n°33). Une entrée tirée sous un moment qui a fini est
+        rassise : elle est jetée en le disant, et le tirage suivant la
+        remplace sous le moment courant.
         """
         with self._verrou:
             en_avance = [
-                (entry, nature)
-                for entry, nature in self._en_attente.items()
+                (entry, pending)
+                for entry, pending in self._en_attente.items()
                 if entry != self._entree_en_cours
             ]
             for entry, _ in en_avance:
                 del self._en_attente[entry]
-        for entry, (kind, track, label) in en_avance:
-            logger.info("l'avance se replace après l'encore : %s", entry.split("?", 1)[0])
-            self._programme.replay_later(entry, kind, track, label)
+        moment = self._programme.current_moment()
+        for entry, pending in en_avance:
+            shown = entry.split("?", 1)[0]
+            if pending.moment != moment:
+                logger.info("l'avance est rassise, son moment a fini : %s", shown)
+                continue
+            logger.info("l'avance se replace : %s", shown)
+            self._programme.replay_later(entry, pending.kind, pending.track, pending.label)
 
     def declare_listeners(self, count: int) -> None:
         """Le compte d'auditeurs — et, au retour après une longue pause, la

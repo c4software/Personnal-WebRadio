@@ -1,14 +1,14 @@
 """La charnière Liquidsoap : demandé n'est pas à l'antenne (GOAL-016-T07, T08)."""
 
 from collections.abc import Callable
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
 from tests.fakes import FakeSource, track
 from webradio.app.liquidsoap_playout import LiquidsoapPlayout
 from webradio.app.playout import RadioProgramme
 from webradio.app.radio import ListenerCount, LiveRadio
-from webradio.core.bands import Schedule
+from webradio.core.bands import Band, Schedule
 from webradio.core.clock import FrozenClock
 from webradio.core.control import Control, Kind
 from webradio.core.jingles import Jingles
@@ -29,6 +29,7 @@ def _playout(
     order_skip: Callable[[], None] | None = None,
     max_duration: timedelta | None = None,
     catalogue: list[Track] | None = None,
+    bands: list[Band] | None = None,
 ) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
     clock = FrozenClock(MIDI)
     random = ScriptedRandom([0] * 100)
@@ -40,7 +41,7 @@ def _playout(
     programme = RadioProgramme(
         queue=Queue(source, random, Window(width=1)),
         source=source,
-        grille=Schedule([], clock),
+        grille=Schedule(bands or [], clock),
         jingles=jingles,
         clock=clock,
         random=random,
@@ -351,3 +352,42 @@ def test_l_a_suivre_saute_les_jingles(tmp_path: Path) -> None:
     musique = playout.next_entry()  # la vraie avance suivante
     assert musique is not None
     assert playout.up_next() == a_suivre, "c'est bien elle qui suit"
+
+
+# Deux plages qui se suivent : la première tire de l'électro, la seconde du
+# rock. MIDI ouvre la première ; une heure plus tard, c'est la seconde.
+DEUX_PLAGES = [
+    Band(start=time(12, 0), end=time(13, 0), genres=("électro",)),
+    Band(start=time(13, 0), end=time(14, 0), genres=("rock",)),
+]
+
+
+def test_l_avance_replacee_ne_rejoue_pas_ce_qu_un_moment_fini_a_tire(tmp_path: Path) -> None:
+    """Décision n°33 : l'entrée demandée sous la plage de 12 h ne se replace
+    pas sous celle de 13 h — elle est jetée, et la suite est tirée à neuf."""
+    playout, _radio, clock = _playout(tmp_path, bands=DEUX_PLAGES)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier == "fake://1"
+    playout.playing(premier)
+    assert playout.next_entry() == "fake://1"  # l'avance, encore sous 12 h
+
+    clock.advance(timedelta(hours=1, minutes=1))
+    playout.stash_for_replay()
+
+    assert playout.up_next() is None
+    assert playout.next_entry() == "fake://2", "tiré sous la plage de 13 h, pas replacé"
+
+
+def test_l_avance_replacee_dans_le_meme_moment_se_ressert_telle_quelle(tmp_path: Path) -> None:
+    playout, _radio, clock = _playout(tmp_path, bands=DEUX_PLAGES)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    deuxieme = playout.next_entry()
+
+    clock.advance(timedelta(minutes=10))
+    playout.stash_for_replay()
+
+    assert playout.next_entry() == deuxieme

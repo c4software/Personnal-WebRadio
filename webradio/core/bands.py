@@ -174,6 +174,20 @@ class Schedule:
     def current_band(self) -> Band | None:
         return self._band_at(self._horloge.now())
 
+    def current_moment(self) -> object:
+        """La clé de l'occurrence de plage en cours, `None` hors de toute plage.
+
+        C'est la clé des suites (décision n°31) et celle qui date une avance
+        (décision n°33) : une entrée tirée sous une autre clé est rassise.
+        """
+        return self._moment_at(self._horloge.now())
+
+    def _moment_at(self, instant: datetime) -> tuple[Band, datetime] | None:
+        band = self._band_at(instant)
+        if band is None:
+            return None
+        return (band, band.occurrence_start(instant))
+
     def _band_at(self, instant: datetime) -> Band | None:
         for band in self._plages:
             if band.covers(instant):
@@ -192,13 +206,13 @@ class Schedule:
         tiré à 22 h 59 min 59 s pourrait chercher le thème de la plage suivante.
         """
         instant = self._horloge.now()
-        band = self._band_at(instant)
-        if band is None:
-            return None
         # La clé des suites (décision n°31) : l'occurrence, pas la contrainte —
         # une plage multi-genres retire un genre à chaque jonction, et la suite
         # doit y survivre ; l'occurrence suivante, elle, repart à zéro.
-        key = (band, band.occurrence_start(instant))
+        key = self._moment_at(instant)
+        if key is None:
+            return None
+        band = key[0]
         if band.random_theme is not None:
             if self._tirer_theme is None:
                 # Refuser bruyamment plutôt que de tirer librement : une plage

@@ -83,7 +83,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-056-T02. Les trois Goals s'enchaînent dans
+**Prochaine tâche** : GOAL-056-T03. Les trois Goals s'enchaînent dans
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -225,7 +225,7 @@ d'avance, que personne n'entend encore.
       constater que le premier titre servi après le changement de plage est
       tiré sous la nouvelle contrainte. `forget_prepared()` de GOAL-054-T02
       devient un cas de cette règle ou disparaît.
-- [ ] **GOAL-056-T02** — La charnière date ce qu'elle donne au diffuseur :
+- [x] **GOAL-056-T02** — La charnière date ce qu'elle donne au diffuseur :
       `LiquidsoapPlayout` retient, avec chaque entrée en attente, sa nature, le
       moment qui l'a tirée et l'instant de la décision. Pas encore de décision
       ici, seulement la mémoire — et `stash_for_replay` ne replace que ce dont

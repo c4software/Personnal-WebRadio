@@ -108,6 +108,19 @@ class RadioProgramme:
             return entry
         return self._prochaine_piste()
 
+    def current_moment(self) -> object:
+        """Ce qui tire la musique en ce moment : le programme ouvert, sinon
+        l'occurrence de plage, sinon rien — le tirage libre.
+
+        C'est la clé qui date une entrée d'avance (décision n°33) : la
+        charnière la retient avec chaque entrée demandée, et compare.
+        """
+        if self._programmation is not None:
+            programme = self._programmation.current_programme()
+            if programme is not None:
+                return programme
+        return self._grille.current_moment()
+
     def prepared(self) -> Track | None:
         """Le morceau déjà tiré qui suivra, quand c'est bien la file qui parlera.
 
@@ -126,7 +139,7 @@ class RadioProgramme:
             return None
         if self._programmation is not None and self._programmation.playlist_to_draw() is not None:
             return None
-        return self._file.prepared
+        return self._file.prepared(self._grille.current_moment())
 
     def replay_later(self, entry: str, kind: Kind, track: Track | None, label: str | None) -> None:
         """Replace une entrée déjà demandée, à jouer après l'effet d'un encore."""

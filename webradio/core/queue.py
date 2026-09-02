@@ -87,16 +87,20 @@ class Queue:
         if self._fraiche(constraint) is None:
             self._avance = (self._choisir(constraint), self._cle_de_suite(constraint))
 
-    @property
-    def prepared(self) -> Track | None:
+    def prepared(self, moment: object = None) -> Track | None:
         """L'avance déjà résolue, sans la consommer — ou rien.
 
         Elle sert à **dire** ce qui vient (GOAL-054), jamais à décider : c'est
-        exactement le `Pick` que le prochain `next_pick` servira si le moment
-        tient. Une émission ou un « encore » peuvent encore s'intercaler
-        devant lui ; l'annoncer reste plus juste que de ne rien annoncer.
+        exactement le `Pick` que le prochain `next_pick` servira **si le
+        moment tient** — d'où `moment`, la clé courante : une avance rassise
+        n'est pas annoncée, elle ne passera pas. Une émission ou un « encore »
+        peuvent encore s'intercaler devant ; l'annoncer reste plus juste que
+        de ne rien annoncer.
         """
-        return None if self._avance is None else self._avance[0].track
+        if self._avance is None:
+            return None
+        pick, tire_sous = self._avance
+        return pick.track if tire_sous == moment else None
 
     def forget_prepared(self) -> None:
         """Jette l'avance déjà résolue : le prochain tirage repart à neuf.
