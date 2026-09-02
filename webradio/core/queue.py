@@ -81,6 +81,17 @@ class Queue:
         if self._avance is None:
             self._avance = self._choisir(constraint)
 
+    @property
+    def prepared(self) -> Track | None:
+        """L'avance déjà résolue, sans la consommer — ou rien.
+
+        Elle sert à **dire** ce qui vient (GOAL-054), jamais à décider : c'est
+        exactement le `Pick` que le prochain `next_pick` servira. Une émission
+        ou un « encore » peuvent encore s'intercaler devant lui ; l'annoncer
+        reste plus juste que de ne rien annoncer.
+        """
+        return None if self._avance is None else self._avance.track
+
     def next_pick(self, constraint: Constraint | None = None) -> Pick:
         """Le morceau suivant. Sert l'avance si elle existe, la calcule sinon."""
         pick = self._avance if self._avance is not None else self._choisir(constraint)

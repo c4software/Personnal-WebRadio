@@ -111,6 +111,29 @@ def test_l_avance_est_bien_celle_qui_est_servie() -> None:
     assert f.next_pick().track.artist == "Portishead"
 
 
+def test_sans_preparation_la_file_n_annonce_rien() -> None:
+    assert Queue(FakeSource(CATALOGUE), ScriptedRandom([0])).prepared is None
+
+
+def test_la_file_dit_ce_qu_elle_a_prepare_sans_le_consommer() -> None:
+    """GOAL-054 : « À suivre » restait vide le temps d'une chanson dès que la
+    seule entrée d'avance du diffuseur était un jingle. La file, elle, sait."""
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([2, 0]))
+    f.prepare()
+    annonce, redite = f.prepared, f.prepared
+    assert annonce is not None
+    assert annonce.artist == "Portishead"
+    assert redite is annonce, "le dire ne le consomme pas"
+    assert f.next_pick().track is annonce, "et c'est bien lui qui est servi"
+
+
+def test_l_avance_servie_n_est_plus_annoncee() -> None:
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([2, 0]))
+    f.prepare()
+    f.next_pick()
+    assert f.prepared is None
+
+
 def test_apres_avoir_servi_l_avance_la_file_recalcule() -> None:
     source = FakeSource(CATALOGUE)
     f = Queue(source, ScriptedRandom([0, 1]))

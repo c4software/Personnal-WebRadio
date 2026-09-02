@@ -108,6 +108,22 @@ class RadioProgramme:
             return entry
         return self._prochaine_piste()
 
+    def prepared(self) -> Track | None:
+        """Le morceau déjà tiré qui suivra, quand c'est bien la file qui parlera.
+
+        « À suivre » ne voit que l'avance du diffuseur, et celle-ci n'est
+        parfois que de l'habillage — le panneau restait alors vide le temps
+        d'une chanson entière (GOAL-054). La file, elle, a déjà résolu la
+        suite : il suffit de la lire.
+
+        `None` pendant un **programme** : sa musique vient d'une liste, pas de
+        la file (SPECS.md §4.13), et l'avance préparée ne passera pas. Annoncer
+        un morceau qui ne viendra jamais serait pire que de n'annoncer rien.
+        """
+        if self._programmation is not None and self._programmation.playlist_to_draw() is not None:
+            return None
+        return self._file.prepared
+
     def replay_later(self, entry: str, kind: Kind, track: Track | None, label: str | None) -> None:
         """Replace une entrée déjà demandée, à jouer après l'effet d'un encore."""
         self._a_rejouer.append((entry, kind, track, label))

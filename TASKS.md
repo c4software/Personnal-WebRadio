@@ -69,9 +69,10 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal` — ou de
-l'écoute de GOAL-050 et GOAL-051, qui n'ont jamais atteint la production avant
-GOAL-053.
+**Prochaine tâche** : GOAL-054-T02 — « À suivre » se replie sur cette avance.
+
+**Reste aussi** : l'écoute de GOAL-050 et GOAL-051, qui n'ont atteint la
+production que le 2026-09-02 (GOAL-053).
 
 ---
 
@@ -132,6 +133,37 @@ GOAL-053.
 | GOAL-051 | Le direct ne ment plus à l'antenne, et la reprise coupe vraiment le reliquat | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
 | GOAL-052 | L'historique dit quel jour, et ne mélange plus deux 8 h | `[x]` — clos le 2026-09-02 |
 | GOAL-053 | Le script du diffuseur voyage dans une image, plus par un montage | `[x]` — clos le 2026-09-02 |
+| GOAL-054 | « À suivre » regarde derrière l'habillage | `[ ]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
+
+---
+
+## GOAL-054 — « À suivre » regarde derrière l'habillage
+
+Signalé par l'auteur le 2026-09-02, capture à l'appui : « À suivre » est vide.
+Le journal du diffuseur dit pourquoi, à la seconde — à 11:01:38, la seule
+entrée demandée d'avance était `hours/11h-c.mp3`.
+
+Le diffuseur ne garde **qu'une** entrée d'avance (`prefetch=1` est le minimum,
+docs/liquidsoap.md §3), et `up_next()` saute les jingles : « dix secondes
+d'habillage ne sont pas à suivre » (GOAL-035, demandé par l'auteur). Quand
+cette unique entrée est de l'habillage, il n'y a plus rien à annoncer, et le
+panneau reste vide **le temps de toute la chanson en cours** — une quarantaine
+de fois par jour, à chaque jingle horaire et à chaque générique de plage.
+
+La radio sait pourtant déjà ce qui vient : `core/queue.py` garde une `_avance`,
+un `Pick` entièrement résolu que le tirage suivant servira. « À suivre » ne la
+regarde simplement pas.
+
+**Tranché par l'auteur le 2026-09-02** : regarder derrière l'habillage. La
+règle de GOAL-035 tient — on n'annonce jamais un jingle — et le trou disparaît.
+
+- [x] **GOAL-054-T01** — La file dit ce qu'elle a préparé : `Queue` expose son
+      avance sans la consommer, et le programme ne la rend que lorsque c'est
+      bien le tirage libre qui parlera — **pas** pendant un programme, dont la
+      musique vient d'une liste et non de la file (SPECS.md §4.13). L'annoncer
+      alors serait annoncer un morceau qui ne passera pas.
+- [ ] **GOAL-054-T02** — « À suivre » se replie sur cette avance quand la file
+      du diffuseur n'a que de l'habillage.

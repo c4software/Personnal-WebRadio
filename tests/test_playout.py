@@ -226,6 +226,33 @@ def test_un_programme_ouvert_puise_dans_sa_liste(tmp_path: Path) -> None:
     assert vues[-1][1].artist in {"Nina Simone", "Chet Baker"}
 
 
+def test_le_programme_dit_le_morceau_qu_il_a_prepare(tmp_path: Path) -> None:
+    """GOAL-054 : « À suivre » se replie là-dessus quand la file du diffuseur
+    n'a que de l'habillage."""
+    clock = FrozenClock(MIDI)
+    programme, _ = _avec_programme(
+        tmp_path, clock=clock, listes={"Chloé": LISTE}, programmes=[PROG]
+    )
+    clock.advance(timedelta(hours=4))  # 16 h, hors du programme : la file parle
+    assert programme.prepared() is None, "rien n'est préparé tant qu'on n'a pas préparé"
+    programme.prepare()
+    annonce = programme.prepared()
+    assert annonce is not None
+    assert programme.next_entry() == "fake://1"
+
+
+def test_pendant_un_programme_rien_n_est_annonce(tmp_path: Path) -> None:
+    """Sa musique vient d'une liste, pas de la file (SPECS.md §4.13) : l'avance
+    préparée ne passera pas, et l'annoncer serait promettre un morceau qui ne
+    vient jamais."""
+    clock = FrozenClock(MIDI)  # 2026-08-30 est un dimanche, le programme est ouvert
+    programme, _ = _avec_programme(
+        tmp_path, clock=clock, listes={"Chloé": LISTE}, programmes=[PROG]
+    )
+    programme.prepare()
+    assert programme.prepared() is None
+
+
 def test_hors_des_heures_du_programme_on_revient_au_tirage_libre(tmp_path: Path) -> None:
     clock = FrozenClock(MIDI)
     programme, _ = _avec_programme(
