@@ -43,12 +43,22 @@
       main { width: min(40rem, 100%); padding: 1.25rem 1.25rem 6.75rem; }
       button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
       button[disabled] { cursor: default; }
-      .onglets { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
+      /* L'en-tête et les onglets restent collés en haut, en verre : on change
+         d'onglet sans remonter, et le contenu défile dessous. */
+      .haut { position: sticky; top: 0; z-index: 2; margin: -1.25rem -1.25rem 1.25rem; padding: 0.9rem 1.25rem 0.75rem;
+              background: linear-gradient(rgba(11, 15, 26, 0.85), rgba(11, 15, 26, 0.6) 70%, transparent);
+              backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+      .marque { display: flex; align-items: center; gap: 0.5rem; margin: 0 0.25rem 0.7rem;
+                font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--sourdine); }
+      .marque svg { width: 1rem; height: 1rem; fill: var(--accent); }
+      .onglets { display: flex; gap: 0.2rem; padding: 0.25rem; border-radius: 999px;
+                 background: var(--carte); border: 1px solid var(--bord); box-shadow: var(--reflet); }
       .onglets button {
-        flex: 1; padding: 0.6rem; border-radius: 0.6rem; border: 1px solid var(--bord);
-        background: transparent; color: var(--sourdine); font-size: 1rem;
+        flex: 1; padding: 0.55rem 0.2rem; border-radius: 999px; border: 0; background: transparent;
+        color: var(--sourdine); font-size: 0.9rem; font-weight: 500; white-space: nowrap;
+        transition: background 0.15s ease, color 0.15s ease;
       }
-      .onglets button.actif { background: var(--carte); color: var(--texte); border-color: var(--accent); }
+      .onglets button.actif { background: var(--carte-forte); color: var(--texte); box-shadow: var(--reflet), 0 2px 8px rgba(0, 0, 0, 0.25); }
       /* La scène (GOAL-062) : ce qui passe, dans une carte de verre, et les
          votes juste dessous — à portée de pouce, sans écran de vide. */
       .carte {
@@ -173,35 +183,38 @@
       }
       .etat.refus { border-color: var(--refus); color: var(--texte); }
       .etat.accepte { border-color: var(--accepte); color: var(--texte); }
-      .vote { background: var(--carte); border: 1px solid var(--bord); border-radius: 0.6rem;
-              padding: 0.7rem 0.9rem; margin-bottom: 0.6rem; }
-      .vote .cible { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.45rem; }
-      .vote .qui { overflow-wrap: anywhere; }
-      .vote .quoi { color: var(--sourdine); font-size: 0.8rem; white-space: nowrap; align-self: center; }
-      .jauge { display: flex; height: 0.4rem; border-radius: 999px; overflow: hidden; background: var(--bord); }
+      /* Les autres onglets suivent la même grammaire : des cartes de verre,
+         des libellés de section discrets, des lignes séparées par un filet. */
+      .vote { background: var(--carte); border: 1px solid var(--bord); border-radius: 1rem;
+              backdrop-filter: var(--flou); -webkit-backdrop-filter: var(--flou); box-shadow: var(--reflet);
+              padding: 0.85rem 1rem; margin-bottom: 0.6rem; }
+      .vote .cible { display: flex; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.55rem; align-items: center; }
+      .vote .qui { overflow-wrap: anywhere; font-weight: 600; }
+      .jauge { display: flex; height: 0.45rem; border-radius: 999px; overflow: hidden; background: rgba(255, 255, 255, 0.08); }
       .jauge .stop { background: var(--stop); }
       .jauge .encore { background: var(--encore); }
-      .scores { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--sourdine); margin-top: 0.35rem; }
-      .vide { color: var(--sourdine); text-align: center; padding: 2rem 0; }
-      .legende { display: flex; gap: 1rem; color: var(--sourdine); font-size: 0.8rem; margin-bottom: 1rem; }
+      .scores { display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--sourdine); margin-top: 0.4rem; }
+      .vide { color: var(--sourdine); text-align: center; padding: 2rem 1rem; line-height: 1.45; }
+      .legende { display: flex; gap: 1rem; color: var(--sourdine); font-size: 0.8rem; margin: 0 0.25rem 0.9rem; }
       .legende span { display: flex; align-items: center; gap: 0.35rem; }
       .pagination { display: flex; align-items: center; justify-content: center; gap: 1rem;
                     margin-bottom: 0.9rem; color: var(--texte); }
-      .pagination button { width: 2.4rem; height: 2.4rem; border-radius: 0.5rem;
+      .pagination button { width: 2.4rem; height: 2.4rem; border-radius: 999px;
                            border: 1px solid var(--bord); background: var(--carte); color: var(--texte); }
       .pagination button[disabled] { opacity: 0.35; }
-      .pagination span { font-variant-numeric: tabular-nums; min-width: 3.2rem; text-align: center; }
+      .pagination span { font-variant-numeric: tabular-nums; min-width: 3.2rem; text-align: center; font-weight: 600; }
       .pastille { width: 0.6rem; height: 0.6rem; border-radius: 999px; display: inline-block; }
       .moment-c { background: var(--accent); }
       .programme-c { background: var(--accepte); }
-      .emission-c { background: #d29922; }
-      .jour { background: var(--carte); border: 1px solid var(--bord); border-radius: 0.6rem;
-              padding: 0.7rem 0.9rem; margin-bottom: 0.6rem; }
-      .jour.aujourdhui { border-color: var(--accent); }
-      .jour-nom { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.15em;
+      .emission-c { background: var(--ambre); }
+      .jour { background: var(--carte); border: 1px solid var(--bord); border-radius: 1rem;
+              backdrop-filter: var(--flou); -webkit-backdrop-filter: var(--flou); box-shadow: var(--reflet);
+              padding: 0.85rem 1rem; margin-bottom: 0.6rem; }
+      .jour.aujourdhui { border-color: rgba(110, 168, 255, 0.5); }
+      .jour-nom { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.15em;
                   color: var(--texte); margin-bottom: 0.5rem; display: flex; gap: 0.6rem; align-items: center; }
-      .badge { font-size: 0.65rem; color: var(--accent); border: 1px solid var(--accent);
-               border-radius: 999px; padding: 0.1rem 0.5rem; letter-spacing: 0.05em; text-transform: none;
+      .badge { font-size: 0.65rem; color: var(--accent); background: rgba(110, 168, 255, 0.14);
+               border-radius: 999px; padding: 0.15rem 0.55rem; letter-spacing: 0.05em; text-transform: none;
                flex: none; white-space: nowrap; }
       .jour-vide { color: var(--sourdine); font-size: 0.85rem; }
       .jour-nom.cliquable { cursor: pointer; user-select: none; }
@@ -209,7 +222,7 @@
       .compte { color: var(--sourdine); font-size: 0.75rem; letter-spacing: normal;
                 text-transform: none; margin-left: auto; }
       .evenement { display: grid; grid-template-columns: 7.2rem 1fr auto; gap: 0.6rem;
-                   padding: 0.4rem 0 0.4rem 0.6rem; border-left: 3px solid var(--bord);
+                   padding: 0.45rem 0.5rem 0.45rem 0.6rem; border-left: 3px solid var(--bord);
                    margin-bottom: 0.35rem; align-items: baseline; }
       .evenement .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
       /* Une ligne par créneau : un libellé trop long se tronque en ellipse
@@ -220,9 +233,9 @@
       .evenement .nom { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; }
       .evenement .nom-texte { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .evenement .detail { color: var(--sourdine); font-size: 0.8rem; white-space: nowrap; }
-      .evenement.en-cours { background: rgba(68, 147, 248, 0.12); border-radius: 0 0.4rem 0.4rem 0; }
+      .evenement.en-cours { background: rgba(110, 168, 255, 0.14); border-radius: 0 0.6rem 0.6rem 0; }
       .ligne-histoire { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr); gap: 0.6rem;
-                        padding: 0.45rem 0 0.45rem 0.6rem; border-left: 3px solid var(--bord);
+                        padding: 0.55rem 0.5rem 0.55rem 0.6rem; border-left: 3px solid var(--bord);
                         margin-bottom: 0.35rem; }
       .ligne-histoire .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
       .corps { min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
@@ -231,25 +244,28 @@
                     overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .moment-b { border-left-color: var(--accent); }
       .programme-b { border-left-color: var(--accepte); }
-      .emission-b { border-left-color: #d29922; }
+      .emission-b { border-left-color: var(--ambre); }
       .oubli {
-        border: 1px solid var(--bord); background: transparent; color: var(--sourdine);
-        border-radius: 0.4rem; width: 1.8rem; height: 1.8rem; flex: none;
+        border: 1px solid var(--bord); background: var(--carte); color: var(--sourdine);
+        border-radius: 999px; width: 2rem; height: 2rem; flex: none;
       }
       .groupe {
-        font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.2em;
-        color: var(--sourdine); margin: 1.25rem 0 0.6rem;
+        font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.2em;
+        color: var(--sourdine); margin: 1.25rem 0.25rem 0.6rem;
       }
     </style>
   </head>
   <body>
     <main id="app" v-cloak>
-      <nav class="onglets">
-        <button type="button" :class="{ actif: onglet === 'antenne' }" @click="ouvrir('antenne')">À l'antenne</button>
+      <div class="haut">
+        <p class="marque"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h9A1.5 1.5 0 0 1 14 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-7zm2.5 6.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9 7h3v1H9V7zm0 2h3v1H9V9zM4 1.3l7 2.2-.3.9L3.7 2.2 4 1.3z" /></svg> local-webradio</p>
+        <nav class="onglets">
+        <button type="button" :class="{ actif: onglet === 'antenne' }" @click="ouvrir('antenne')">Antenne</button>
         <button type="button" :class="{ actif: onglet === 'votes' }" @click="ouvrir('votes')">Votes</button>
         <button type="button" :class="{ actif: onglet === 'planning' }" @click="ouvrir('planning')">Planning</button>
         <button type="button" :class="{ actif: onglet === 'historique' }" @click="ouvrir('historique')">Historique</button>
-      </nav>
+        </nav>
+      </div>
 
       <section v-if="onglet === 'antenne'">
         <article v-if="antenne" class="carte scene">

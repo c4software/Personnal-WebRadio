@@ -442,9 +442,11 @@ se retire pas. La non-répétition **voit ce qui attend** : un artiste tiré
 d'avance ne revient pas dans la même avance, sauf suite d'artiste (§4.4) ou
 bibliothèque trop petite — et alors c'est dit.
 
-L'interface ouvre cette liste depuis « À suivre », dans un tiroir : une ligne
-par entrée, l'habillage prévu en pointillé, et un ✕ « Ne passera pas » sur les
-titres. Ni réordonner, ni forcer un titre : rien de plus n'a été demandé.
+L'interface ouvre cette liste depuis « À suivre », ou depuis le bouton de
+liste du lecteur ; **depuis le 2026-09-02** (GOAL-062) elle se déploie dans
+le lecteur lui-même, au lieu d'un tiroir à part : une ligne par entrée,
+l'habillage prévu en italique, et un ✕ « Ne passera pas » sur les titres. Ni
+réordonner, ni forcer un titre : rien de plus n'a été demandé.
 
 #### « Retirer »
 
@@ -468,9 +470,21 @@ un autre : la prise d'antenne se fond, couper rendort la radio si personne
 d'autre n'écoute. Couper **décharge** le flux plutôt que de le mettre en
 pause : un direct ne se reprend pas, et une connexion gardée compterait un
 auditeur. Quand le navigateur le sait, titre, artiste et moment s'affichent
-sur l'écran de verrouillage. Ce que fait un téléphone au rebranchement, en
+sur l'écran de verrouillage, et ses commandes de lecture passent par le même
+bouton que la page. Ce que fait un téléphone au rebranchement, en
 arrière-plan, écran verrouillé, ne se constate qu'en écoutant
 (docs/flux-icy.md).
+
+**Depuis le 2026-09-02** (GOAL-062), le lecteur est une **barre fixe en bas
+de page**, présente sur tous les onglets : ce qui passe, le témoin d'antenne
+(en direct, en veille, prise d'antenne en cours), le bouton de lecture, le
+volume sur un écran large, et le bouton qui déploie les prochains titres. La
+barre existe même sans flux déclaré — elle dit alors ce qui passe et ouvre la
+liste — seul le bouton de lecture dépend de `web.stream_url`. L'onglet
+« Antenne » met ce qui passe dans une carte, « Passer » et « Encore » juste
+dessous ; sans auditeur, la carte dit que la radio dort et comment la
+réveiller. Le style est celui des surfaces de verre : translucides, floutées,
+sur un fond en dégradé — sans bibliothèque, ni de composants ni de lecteur.
 
 L'interface web n'est rien de plus que la mise en page de cela : ce qui passe,
 ce qui vient, un lecteur, trois boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
