@@ -232,12 +232,15 @@ def create_api(radio: Radio, planning: dict[str, object] | None = None) -> Bluep
 
     @api.get("/planning")
     def planning_view() -> ResponseReturnValue:
-        """La grille déclarée au TOML, telle que le démarrage l'a lue.
+        """La grille **effective** de la semaine, jour par jour (GOAL-068).
 
         Des données figées à l'assemblage : rien ne se configure depuis le
-        web (SPECS.md §6), on ne fait que montrer ce qui a été déclaré.
+        web (SPECS.md §6). Les périodes y sont déjà fusionnées — une émission
+        devant la plage qu'elle mange, un direct qui rogne celle qu'il
+        recouvre — pour que la page montre ce qui passera, et non ce qui a été
+        déclaré.
         """
-        return jsonify(planning or {"bands": [], "programmes": [], "shows": []})
+        return jsonify(planning or {"days": {}})
 
     @api.get(ON_AIR_PATH)
     def on_air_now() -> ResponseReturnValue:

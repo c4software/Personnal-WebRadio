@@ -118,7 +118,7 @@ l'émission mange la plage. Cinq cas de la configuration de l'auteur étaient
 dans ce cas. La grille **effective** est calculée une fois, dans le noyau, et
 sert au Planning comme à ce que la radio prépare.
 
-**Prochaine tâche** : GOAL-068-T03.
+**Prochaine tâche** : GOAL-068-T04.
 
 ---
 
@@ -152,7 +152,7 @@ configuration, pas de code — le TOML local n'est pas versionné.
 |---|---|---|
 | GOAL-068-T01 | La plus courte période l'emporte, dans `core/bands.py` et `core/programmes.py` | `[x]` |
 | GOAL-068-T02 | `core/planning.py` : la grille effective d'une journée, émissions comprises | `[x]` |
-| GOAL-068-T03 | `/api/planning` sert la grille effective ; la page l'affiche telle quelle | `[ ]` |
+| GOAL-068-T03 | `/api/planning` sert la grille effective ; la page l'affiche telle quelle | `[x]` |
 | GOAL-068-T04 | « À suivre » et l'avance tirée suivent la grille effective | `[ ]` |
 
 ---

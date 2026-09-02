@@ -13,14 +13,15 @@ import os
 import signal
 import sys
 import threading
+from collections.abc import Mapping, Sequence
 from datetime import timedelta
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
 from pathlib import Path
 
 from webradio.adapters.config.loading import load
-from webradio.adapters.config.schema import Band as BandSettings
 from webradio.adapters.config.schema import Config
+from webradio.adapters.config.schema import Show as ShowSettings
 from webradio.adapters.podcast.feed import PodcastFeed, UrllibReader
 from webradio.adapters.sources.subsonic import SubsonicSource, UrllibTransport
 from webradio.adapters.state.database import Scope as StateScope
@@ -35,11 +36,12 @@ from webradio.app.playout import RadioProgramme
 from webradio.app.radio import SANS_THEME_A_RETIRER, ListenerCount, LiveRadio
 from webradio.app.show_scheduler import Shows
 from webradio.core.bands import Band, Constraint, Schedule
-from webradio.core.clock import SystemClock
+from webradio.core.clock import Clock, SystemClock
 from webradio.core.control import Control
 from webradio.core.jingles import Jingles
 from webradio.core.mystery import RandomTheme
-from webradio.core.programmes import Programme, Programming
+from webradio.core.planning import EffectiveSchedule, Segment
+from webradio.core.programmes import DAYS, Programme, Programming
 from webradio.core.queue import Queue
 from webradio.core.rng import RealRandom
 from webradio.core.rotation import Window
@@ -71,7 +73,7 @@ def _arguments(argv: list[str] | None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _libelle_de_plage(band: BandSettings) -> list[str]:
+def _libelle_de_plage(band: Band) -> list[str]:
     """Ce que le planning affiche d'une plage, avant même qu'elle ait lieu.
 
     Une plage au hasard n'a rien à montrer : son thème n'existera qu'à
@@ -86,6 +88,60 @@ def _libelle_de_plage(band: BandSettings) -> list[str]:
         # Une plage à mode seul (SPECS.md §7 n°31) : rien à annoncer d'autre.
         return ["Tirage libre"]
     return list(band.artists or band.genres)
+
+
+def semaine_effective(
+    grille: EffectiveSchedule,
+    shows: Sequence[ShowSettings],
+    clock: Clock,
+) -> dict[str, object]:
+    """La semaine que le Planning affiche : sept journées déjà fusionnées.
+
+    Calculée **une fois**, au démarrage : la grille ne dépend que du jour de
+    la semaine, et la semaine prochaine se lira à l'identique. La page reçoit
+    donc ce qui passera, et n'a plus à recoller les périodes elle-même — une
+    décision n'a rien à faire dans un gabarit (AGENTS.md §2).
+    """
+    declarees = {e.name: e for e in shows}
+    minuit = clock.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    jours: dict[str, object] = {}
+    for decalage in range(len(DAYS)):
+        debut = minuit + timedelta(days=decalage)
+        jours[DAYS[debut.weekday()]] = [
+            _periode(segment, declarees) for segment in grille.day(debut)
+        ]
+    return {"days": jours}
+
+
+def _periode(segment: Segment, shows: Mapping[str, ShowSettings]) -> dict[str, object]:
+    """Une période de la grille effective, mise en données pour la page.
+
+    Ce qui sort d'ici est **structuré**, jamais rédigé : c'est la page qui
+    parle français, et qui nomme un mode, une liste ou un podcast (§4.8).
+    """
+    content = segment.content
+    periode: dict[str, object] = {
+        "start": f"{segment.start:%H:%M}",
+        "end": None if segment.end is None else f"{segment.end:%H:%M}",
+        # La musique qui reprend après une émission de durée inconnue : son
+        # début n'est pas une heure, c'est « après elle ».
+        "after_show": segment.after_show,
+    }
+    if isinstance(content, Band):
+        # Le mode d'enchaînement, brut (n°31) : la page le traduit.
+        mode = None if content.mode is None else content.mode.value
+        return {**periode, "kind": "moment", "genres": _libelle_de_plage(content), "mode": mode}
+    if isinstance(content, Programme):
+        return {**periode, "kind": "programme", "name": content.name, "playlist": content.playlist}
+    declaree = shows[content.name]
+    return {
+        **periode,
+        "kind": "emission",
+        "name": content.name,
+        "live": declaree.stream is not None,
+        "youtube": declaree.youtube is not None,
+        "duration_minutes": declaree.duration_minutes,
+    }
 
 
 # Comment l'antenne nomme un enchaînement de plage (SPECS.md §7 n°31) : les
@@ -120,11 +176,15 @@ def _libelle_du_moment(band: Band, drawn: Constraint | None) -> str:
     return f"Moment · {drawn.artist or drawn.genre} (au hasard){enchainement}"
 
 
-def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
+def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedule]:
     """Câble le tout, et rend ce que Liquidsoap et l'API interrogent.
 
     Le flux lui-même n'est pas ici : Liquidsoap l'encode et le sert
     (ARCHITECTURE.md §4), et vient demander quoi jouer par `adapters/web/playout_api.py`.
+
+    La grille effective sort d'ici plutôt que d'être recalculée par `main` :
+    elle doit être faite des **mêmes** plages, programmes et cases que la
+    radio, sinon le Planning annoncerait une autre soirée que celle qui passe.
     """
     settings = config.settings
     clock = SystemClock()
@@ -371,6 +431,18 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
     # transmet à la façade que lorsque Liquidsoap commence réellement le morceau.
     branche: list[LiquidsoapPlayout] = []
 
+    cases = [
+        Show(
+            name=e.name,
+            days=e.days,
+            hour=e.hour,
+            duration=(
+                timedelta(minutes=e.duration_minutes) if e.duration_minutes is not None else None
+            ),
+        )
+        for e in settings.shows
+    ]
+
     programme = RadioProgramme(
         queue=Queue(
             source,
@@ -390,21 +462,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         programming=programmation,
         programme_window=Window(settings.draw.artist_gap),
         shows=Shows(
-            ShowSchedule(
-                [
-                    Show(
-                        name=e.name,
-                        days=e.days,
-                        hour=e.hour,
-                        duration=(
-                            timedelta(minutes=e.duration_minutes)
-                            if e.duration_minutes is not None
-                            else None
-                        ),
-                    )
-                    for e in settings.shows
-                ]
-            ),
+            ShowSchedule(cases),
             PodcastFeed(
                 UrllibReader(lock_timeout=timedelta(seconds=settings.podcast.timeout_seconds))
             ),
@@ -436,7 +494,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         order_skip=lambda: _ordonner("/skip", "le reliquat du morceau interrompu passera"),
     )
     branche.append(playout)
-    return playout, radio
+    return playout, radio, EffectiveSchedule(grille, programmation, cases)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -450,43 +508,9 @@ def main(argv: list[str] | None = None) -> int:
     logger.info("%s %s", NAME, version())
 
     config = load(options.config, options.env)
-    playout, radio = build(config)
+    playout, radio, grille_effective = build(config)
     web = config.settings.web
-    s = config.settings
-    planning: dict[str, object] = {
-        "bands": [
-            {
-                "start": f"{b.start:%H:%M}",
-                "end": f"{b.end:%H:%M}",
-                "genres": _libelle_de_plage(b),
-                "days": list(b.days),
-                # Le mode d'enchaînement, brut (n°31) : la page le traduit.
-                "mode": b.mode,
-            }
-            for b in s.bands
-        ],
-        "programmes": [
-            {
-                "name": p.name,
-                "playlist": p.playlist,
-                "days": list(p.days),
-                "start": f"{p.start:%H:%M}",
-                "end": f"{p.end:%H:%M}",
-            }
-            for p in s.programmes
-        ],
-        "shows": [
-            {
-                "name": e.name,
-                "days": list(e.days),
-                "time": f"{e.hour:%H:%M}",
-                "live": e.stream is not None,
-                "youtube": e.youtube is not None,
-                "duration_minutes": e.duration_minutes,
-            }
-            for e in s.shows
-        ],
-    }
+    planning = semaine_effective(grille_effective, config.settings.shows, SystemClock())
     app = create_app(
         radio,
         refresh=timedelta(seconds=web.refresh_seconds),

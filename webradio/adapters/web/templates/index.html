@@ -327,38 +327,18 @@
             for (let i = 0; i < 7; i += 1) {
               ordre.push(semaine[(indexDuJour + i) % 7]);
             }
+            // Les périodes arrivent DÉJÀ fusionnées et dans l'ordre (GOAL-068) :
+            // l'API a fait passer l'émission devant la plage qu'elle mange, et
+            // rogné celle que le direct recouvre. La page ne fait que mettre
+            // en mots — une décision n'a rien à faire ici (AGENTS.md §2).
             return ordre.map((nom) => {
-              const evenements = [];
-              for (const b of this.planning.bands) {
-                if (b.days.includes(nom)) {
-                  evenements.push({ type: "moment", heure: b.start + "–" + b.end, tri: b.start,
-                                    debut: b.start, fin: b.end,
-                                    nom: b.genres.join(", "), detail: this.libelleMode(b.mode) });
-                }
-              }
-              for (const p of this.planning.programmes) {
-                if (p.days.includes(nom)) {
-                  evenements.push({ type: "programme", heure: p.start + "–" + p.end, tri: p.start,
-                                    debut: p.start, fin: p.end,
-                                    nom: p.name, detail: "liste « " + p.playlist + " »" });
-                }
-              }
-              for (const e of this.planning.shows) {
-                if (e.days.includes(nom)) {
-                  // Seul un direct connaît sa fin : un podcast ou une chaîne
-                  // YouTube ne peut pas s'afficher « en cours ».
-                  evenements.push({ type: "emission", heure: e.time, tri: e.time, nom: e.name,
-                                    debut: e.time,
-                                    fin: e.live ? this.finDeDirect(e.time, e.duration_minutes) : null,
-                                    detail: e.live ? "direct · " + e.duration_minutes + " min"
-                                          : e.youtube ? "chaîne YouTube" : "podcast" });
-                }
-              }
-              evenements.sort((a, b) => a.tri.localeCompare(b.tri));
               const aujourdhui = nom === ceJour;
-              for (const e of evenements) {
+              const evenements = (this.planning.days[nom] || []).map((p) => {
+                const e = { type: p.kind, heure: this.creneau(p), debut: p.start, fin: p.end,
+                            nom: this.nomDeLaPeriode(p), detail: this.detailDeLaPeriode(p) };
                 e.enCours = aujourdhui && this.enCours(e);
-              }
+                return e;
+              });
               return { nom: this.enFrancais(nom), evenements, aujourdhui };
             });
           },
@@ -447,11 +427,22 @@
             const n = jour.evenements.length;
             return n === 0 ? "tirage libre" : n === 1 ? "1 créneau" : n + " créneaux";
           },
-          finDeDirect(heure, minutes) {
-            const [h, m] = heure.split(":").map(Number);
-            const total = h * 60 + m + minutes;
-            return String(Math.floor(total / 60) % 24).padStart(2, "0")
-              + ":" + String(total % 60).padStart(2, "0");
+          creneau(p) {
+            // Une émission sans durée déclarée n'annonce que son début : sa
+            // fin se lit dans le flux, et l'inventer serait mentir. Ce qui
+            // reprend APRÈS elle ne connaît que sa fin : on ne montre qu'elle.
+            if (!p.end) { return p.start; }
+            if (p.after_show) { return "→ " + p.end; }
+            return p.start + "–" + p.end;
+          },
+          nomDeLaPeriode(p) {
+            return p.kind === "moment" ? p.genres.join(", ") : p.name;
+          },
+          detailDeLaPeriode(p) {
+            if (p.kind === "moment") { return this.libelleMode(p.mode); }
+            if (p.kind === "programme") { return "liste « " + p.playlist + " »"; }
+            if (p.live) { return "direct · " + p.duration_minutes + " min"; }
+            return p.youtube ? "chaîne YouTube" : "podcast";
           },
           enCours(e) {
             // Présentation seulement — le noyau ne sait rien de cette page.
@@ -475,9 +466,6 @@
                            thursday: "jeudi", friday: "vendredi", saturday: "samedi",
                            sunday: "dimanche" };
             return noms[jour] || jour;
-          },
-          jours(days) {
-            return days.length >= 7 ? "tous les jours" : days.map((j) => this.enFrancais(j)).join(", ");
           },
           async oublier(vote) {
             try {

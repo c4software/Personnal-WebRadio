@@ -472,6 +472,27 @@ le lecteur lui-même, au lieu d'un tiroir à part : une ligne par entrée,
 l'habillage prévu en italique, et un ✕ « Ne passera pas » sur les titres. Ni
 réordonner, ni forcer un titre : rien de plus n'a été demandé.
 
+#### Le Planning
+
+**Depuis le 2026-09-02** (GOAL-068), `GET /api/planning` rend la **grille
+effective** de la semaine — sept journées, chacune déjà fusionnée — et non plus
+les trois listes déclarées au TOML. Jusque-là, la page affichait côte à côte
+« Hardisk, 20:00 » et « 20:00–22:00, Rock » : deux créneaux à la même heure,
+dont l'un mange l'autre, et rien ne le disait.
+
+Les périodes y sont arbitrées **comme à l'antenne** : une émission passe devant
+la plage qu'elle occupe, un direct rogne celle qu'il recouvre, un programme
+remplace celle qu'il couvre (§4.13), et entre deux plages c'est la plus courte
+qui l'emporte (§4.4). Une plage coupée en son milieu se lit donc en deux
+morceaux. Celle qui reprend après une émission **sans durée déclarée** —
+podcast, chaîne YouTube — n'annonce que sa fin, « → 22:00 » : son début dépend
+de la longueur d'un épisode que personne ne connaît d'avance, et l'inventer
+serait mentir.
+
+Une période appartient au jour où elle **commence** : une fin de soirée qui
+court jusqu'à 02 h se lit tout entière la veille, et le lendemain n'en montre
+pas la queue. La page ne recolle plus rien — elle met en mots ce qu'elle reçoit.
+
 #### « Retirer »
 
 Quand le moment en cours a tiré son thème au sort (§4.4), l'API le dit

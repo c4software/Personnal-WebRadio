@@ -285,7 +285,7 @@ def test_effacer_une_portee_inconnue_rend_400_sans_toucher_la_base() -> None:
 
 
 def test_le_planning_est_celui_du_demarrage() -> None:
-    grille: dict[str, object] = {"bands": [{"start": "08:00"}], "programmes": [], "shows": []}
+    grille: dict[str, object] = {"days": {"monday": [{"start": "08:00", "end": "10:00"}]}}
     app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT, planning=grille)
     app.config.update(TESTING=True)
     assert app.test_client().get("/api/planning").get_json() == grille
@@ -293,7 +293,7 @@ def test_le_planning_est_celui_du_demarrage() -> None:
 
 def test_sans_planning_la_route_rend_une_grille_vide() -> None:
     answer = client(FakeRadio()).get("/api/planning")
-    assert answer.get_json() == {"bands": [], "programmes": [], "shows": []}
+    assert answer.get_json() == {"days": {}}
 
 
 def test_le_moment_declare_accompagne_l_antenne() -> None:
