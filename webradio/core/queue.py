@@ -11,7 +11,7 @@ pas un blanc dans l'audio, il fait un trou dans le temps réel, donc un tampon
 qui se vide chez l'auditeur, donc une déconnexion.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import cast
 
@@ -57,15 +57,21 @@ class Queue:
         window: Window | None = None,
         weigh: Weigh | None = None,
         runs: Runs | None = None,
+        lookahead: int = 1,
     ) -> None:
         self._source = source
         self._hasard = random
         self._fenetre = window if window is not None else Window()
         self._peser = weigh
         self._suites = runs
-        # L'avance, et la clé du moment qui l'a tirée (décision n°33) : une
+        if lookahead < 1:
+            message = "une avance nulle laisserait un trou à chaque jonction (docs/ffmpeg.md §2.2)"
+            raise ValueError(message)
+        self._profondeur = lookahead
+        # L'avance — jusqu'à `lookahead` titres, dans l'ordre de passage —
+        # chacun avec la clé du moment qui l'a tiré (décision n°33) : une
         # avance dont le moment a fini est rassise, elle ne passe pas.
-        self._avance: tuple[Pick, object] | None = None
+        self._avance: list[tuple[Pick, object]] = []
         if weigh is not None and not hasattr(random, "pick_weighted"):
             # Refuser ici plutôt qu'au premier tirage : une file construite avec
             # des poids et un hasard qui ne sait pas les honorer tirerait
@@ -75,32 +81,62 @@ class Queue:
             raise TypeError(message)
 
     def prepare(self, constraint: Constraint | None = None) -> None:
-        """Résout le morceau suivant à l'avance, sans le consommer.
+        """Résout un morceau de plus à l'avance, sans le consommer, tant que
+        l'avance n'est pas pleine.
 
         Appelée pendant que le courant joue. Une source lente coûte alors du
-        temps que personne n'attend, au lieu d'un trou à la jonction.
-
-        Une avance tirée sous un autre moment est **rassise** : elle est
-        remplacée, pas servie. C'est ce qui a fait entendre un cinquième Bob
-        Marley derrière le générique du mystère, le 2026-09-02 à 16 h 07.
+        temps que personne n'attend, au lieu d'un trou à la jonction. La
+        contrainte est celle du **moment où ce titre commencera** — c'est
+        l'appelant qui l'estime (GOAL-058) ; ici on ne fait que tirer.
         """
-        if self._fraiche(constraint) is None:
-            self._avance = (self._choisir(constraint), self._cle_de_suite(constraint))
+        if self.wants_more():
+            self._avance.append((self._choisir(constraint), self._cle_de_suite(constraint)))
+
+    def wants_more(self) -> bool:
+        return len(self._avance) < self._profondeur
+
+    def revalidate(self, moments: Sequence[object]) -> None:
+        """Coupe l'avance à la première entrée dont le moment n'est plus celui
+        de son créneau (décision n°33).
+
+        `moments` dit, créneau par créneau, sous quelle clé le titre devrait
+        avoir été tiré. Tout ce qui suit une entrée rassise part avec elle :
+        les créneaux d'après ont glissé, ils seront retirés.
+        """
+        for index, (_, tire_sous) in enumerate(self._avance):
+            attendu = moments[index] if index < len(moments) else None
+            if tire_sous != attendu:
+                del self._avance[index:]
+                return
+
+    @property
+    def advance(self) -> tuple[Track, ...]:
+        """Ce qui attend, dans l'ordre de passage — sans le consommer."""
+        return tuple(pick.track for pick, _ in self._avance)
 
     def prepared(self, moment: object = None) -> Track | None:
-        """L'avance déjà résolue, sans la consommer — ou rien.
+        """Le premier titre de l'avance, sans le consommer — ou rien.
 
-        Elle sert à **dire** ce qui vient (GOAL-054), jamais à décider : c'est
+        Il sert à **dire** ce qui vient (GOAL-054), jamais à décider : c'est
         exactement le `Pick` que le prochain `next_pick` servira **si le
         moment tient** — d'où `moment`, la clé courante : une avance rassise
         n'est pas annoncée, elle ne passera pas. Une émission ou un « encore »
         peuvent encore s'intercaler devant ; l'annoncer reste plus juste que
         de ne rien annoncer.
         """
-        if self._avance is None:
+        if not self._avance:
             return None
-        pick, tire_sous = self._avance
+        pick, tire_sous = self._avance[0]
         return pick.track if tire_sous == moment else None
+
+    def withdraw(self, identifier: str) -> bool:
+        """Retire un titre de l'avance : il ne passera pas (GOAL-058). Faux
+        s'il n'y attendait pas — il a pu commencer entre-temps."""
+        for index, (pick, _) in enumerate(self._avance):
+            if pick.track.identifier == identifier:
+                del self._avance[index]
+                return True
+        return False
 
     def forget_prepared(self) -> None:
         """Jette l'avance déjà résolue : le prochain tirage repart à neuf.
@@ -109,29 +145,35 @@ class Queue:
         pause sans auditeur, la même plage peut être encore ouverte, et le
         « tirage neuf » de SPECS.md §7 n°30 vaut quand même.
         """
-        self._avance = None
+        self._avance.clear()
 
     def next_pick(self, constraint: Constraint | None = None) -> Pick:
-        """Le morceau suivant. Sert l'avance si son moment tient, tire sinon."""
+        """Le morceau suivant. Sert la tête de l'avance si son moment tient,
+        tire sinon — et laisse le reste de l'avance en place : si la tête a
+        été tirée pour un moment qui n'est pas encore venu, la suite l'a été
+        aussi, et elle servira à son heure."""
         pick = self._fraiche(constraint)
         if pick is None:
             pick = self._choisir(constraint)
-        self._avance = None
         self._fenetre.remember(pick.track)
         return pick
 
     def _fraiche(self, constraint: Constraint | None) -> Pick | None:
-        """L'avance, si elle a été tirée sous le moment de cette contrainte.
+        """La tête de l'avance, consommée, si elle a été tirée sous le moment
+        de cette contrainte.
 
         La clé est celle des suites : l'occurrence de plage — une plage
         multi-genres retire un genre à chaque jonction sans changer de moment,
         et son avance survit — ou la contrainte elle-même, ou rien en tirage
         libre.
         """
-        if self._avance is None:
+        if not self._avance:
             return None
-        pick, moment = self._avance
-        return pick if moment == self._cle_de_suite(constraint) else None
+        pick, moment = self._avance[0]
+        if moment != self._cle_de_suite(constraint):
+            return None
+        del self._avance[0]
+        return pick
 
     def _choisir(self, constraint: Constraint | None) -> Pick:
         fallbacks: list[str] = []
@@ -190,14 +232,25 @@ class Queue:
             # dès la fin de la suite.
             allowed = candidates
         else:
-            # La fenêtre rétrécit plutôt que de bloquer le tirage (SPECS.md
-            # §4.2). La boucle se termine toujours : une fenêtre vide n'écarte
-            # personne, donc `filter_out` rendrait `candidates`, non vide ici.
-            allowed = self._fenetre.filter_out(candidates)
+            # La fenêtre voit aussi ce qui ATTEND : un artiste tiré d'avance
+            # est déjà « passé » pour les tirages qui suivent, sinon l'avance
+            # le répéterait (GOAL-058). Elle rétrécit plutôt que de bloquer le
+            # tirage (SPECS.md §4.2) ; l'attente s'efface en dernier — la
+            # boucle se termine : une fenêtre vide n'écarte personne, donc
+            # `filter_out` rendrait `candidates`, non vide ici.
+            en_attente = {pick.track.artist for pick, _ in self._avance}
+            allowed = [
+                t for t in self._fenetre.filter_out(candidates) if t.artist not in en_attente
+            ]
             while not allowed:
-                self._fenetre.shrink()
+                if not self._fenetre.shrink():
+                    fallbacks.append("un artiste déjà en attente repasse")
+                    allowed = candidates
+                    break
                 fallbacks.append("fenêtre de non-répétition rétrécie")
-                allowed = self._fenetre.filter_out(candidates)
+                allowed = [
+                    t for t in self._fenetre.filter_out(candidates) if t.artist not in en_attente
+                ]
 
         track = self._tirer(allowed)
         if self._suites is not None:

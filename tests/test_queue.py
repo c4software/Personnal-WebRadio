@@ -327,6 +327,8 @@ def test_preparer_sous_un_autre_moment_remplace_l_avance() -> None:
     source = FakeSource(CATALOGUE)
     f = Queue(source, ScriptedRandom([0, 0]))
     f.prepare(Constraint(genre="trip-hop", run_key="15 h"))
+    f.revalidate(["16 h"])
+    assert f.advance == ()
     f.prepare(Constraint(genre="rock", run_key="16 h"))
     annonce = f.prepared("16 h")
     assert annonce is not None
@@ -345,3 +347,88 @@ def test_une_avance_rassise_n_est_pas_annoncee() -> None:
     f.prepare(Constraint(genre="trip-hop", run_key="15 h"))
     assert f.prepared("15 h") is not None
     assert f.prepared("16 h") is None
+
+
+def test_la_file_tire_plusieurs_titres_d_avance_sans_repeter_un_artiste() -> None:
+    """GOAL-058 : une avance de trois titres, et la fenêtre voit ce qui
+    attend — sinon le hasard à indice 0 aurait tiré trois fois Air."""
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0] * 10), Window(width=3), lookahead=3)
+    assert f.wants_more()
+    for _ in range(3):
+        f.prepare()
+    assert not f.wants_more()
+    f.prepare()  # pleine : sans effet
+    artistes = [t.artist for t in f.advance]
+    assert len(artistes) == 3
+    assert len(set(artistes)) == 3
+
+
+def test_l_avance_se_sert_dans_l_ordre_ou_elle_a_ete_tiree() -> None:
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0] * 10), Window(width=3), lookahead=3)
+    for _ in range(3):
+        f.prepare()
+    attendus = list(f.advance)
+    servis = [f.next_pick().track for _ in range(3)]
+    assert servis == attendus
+    assert f.advance == ()
+
+
+def test_une_suite_d_artiste_peut_attendre_deux_fois() -> None:
+    """Le passe-droit de fenêtre des suites d'artiste (SPECS.md §4.4) vaut
+    aussi pour ce qui attend : répéter est le but."""
+    deux_air = [track("a1", "Air"), track("a2", "Air"), track("b", "Bowie")]
+    hasard = ScriptedRandom([0] * 20)
+    f = Queue(FakeSource(deux_air), hasard, Window(width=2), runs=Runs(hasard), lookahead=2)
+    suite = Constraint(mode=Mode.ARTIST_FAN, run_key="soirée")
+    f.prepare(suite)
+    f.prepare(suite)
+    assert [t.artist for t in f.advance] == ["Air", "Air"]
+
+
+def test_une_petite_bibliotheque_laisse_repasser_un_artiste_en_attente() -> None:
+    """La radio ne se tait pas : quand tout attend déjà, un artiste en attente
+    repasse, et c'est dit."""
+    deux = [track("1", "Air"), track("2", "Bowie")]
+    f = Queue(FakeSource(deux), ScriptedRandom([0] * 10), Window(width=1), lookahead=3)
+    for _ in range(3):
+        f.prepare()
+    assert len(f.advance) == 3
+
+
+def test_retirer_un_titre_de_l_avance() -> None:
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0] * 10), Window(width=3), lookahead=3)
+    for _ in range(3):
+        f.prepare()
+    retire = f.advance[1]
+    assert f.withdraw(retire.identifier)
+    assert retire not in f.advance
+    assert len(f.advance) == 2
+    assert not f.withdraw(retire.identifier), "il n'y attend plus"
+
+
+def test_revalider_coupe_a_la_premiere_avance_rassise() -> None:
+    """Les créneaux d'après une entrée rassise ont glissé : tout part."""
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0] * 10), Window(width=3), lookahead=3)
+    f.prepare(Constraint(genre="rock", run_key="15 h"))
+    f.prepare(Constraint(genre="trip-hop", run_key="16 h"))
+    f.prepare(Constraint(genre="trip-hop", run_key="16 h"))
+    f.revalidate(["15 h", "15 h", "16 h"])
+    assert len(f.advance) == 1
+    f.revalidate(["15 h"])
+    assert len(f.advance) == 1
+
+
+def test_une_tete_tiree_pour_plus_tard_reste_en_place() -> None:
+    """L'estimation disait 16 h, la jonction tombe encore à 15 h : la tête ne
+    se sert pas, mais elle servira à son heure — on tire frais devant."""
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([0] * 10), Window(width=3), lookahead=2)
+    f.prepare(Constraint(genre="trip-hop", run_key="16 h"))
+    f.prepare(Constraint(genre="rock", run_key="16 h"))
+    pick = f.next_pick(Constraint(genre="électro", run_key="15 h"))
+    assert pick.track.genre == "électro"
+    assert len(f.advance) == 2
+
+
+def test_une_avance_nulle_est_refusee() -> None:
+    with pytest.raises(ValueError, match="trou"):
+        Queue(FakeSource(CATALOGUE), ScriptedRandom([0]), lookahead=0)

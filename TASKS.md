@@ -83,7 +83,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-058-T01. GOAL-057 est codé et documenté ; **reste l'écoute** du retirage à une jonction. GOAL-056 est codé et documenté ; **reste l'écoute** de T03 à une heure pleine en production. Les trois Goals s'enchaînent dans
+**Prochaine tâche** : GOAL-058-T02.
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -341,7 +341,7 @@ ne l'a pas demandé — ni réordonner, ni forcer un titre (AGENTS.md §2 :
 n'anticipe pas). Retirer la tête de liste — l'entrée déjà chez le diffuseur —
 passe par le chemin de l'encore : `/requeue`, et le reste se replace.
 
-- [ ] **GOAL-058-T01** — La file tire N titres d'avance : `Queue` garde une
+- [x] **GOAL-058-T01** — La file tire N titres d'avance : `Queue` garde une
       avance de profondeur configurable (`[draw] lookahead`, défaut à choisir
       et à justifier dans le commit — 3 est un point de départ), chaque `Pick`
       daté par son moment (GOAL-056-T01) ; la fenêtre de non-répétition et
