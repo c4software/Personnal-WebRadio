@@ -257,3 +257,50 @@ volume (témoin : −inf → −3,6 dB en une fenêtre). Comment fondre cette ba
 
 - [ ] La courbe : la rampe est linéaire en amplitude. À l'oreille, un fondu
       logarithmique peut sembler plus régulier — seule l'écoute le dira.
+
+---
+
+## 9. Septième relevé — le direct, le saut et l'antenne (GOAL-051-T01, le 2026-09-02)
+
+> Même image (`v2.3.3`), en Docker sur la machine de développement. Maquette
+> **fidèle** : le vrai `radio.liq` lancé contre une fausse API qui horodate à la
+> milliseconde, quatre MP3 de 30 s, un auditeur `curl`, et le **vrai**
+> `icecast.radiofrance.fr/franceinfo-midfi.mp3` comme direct. Motif : quatre
+> défauts entendus à l'antenne le 2026-09-02 au matin, retrouvés dans les
+> journaux de production.
+
+| Question | Constat |
+|---|---|
+| Combien de fois `input.http` déclenche-t-il `on_track` au démarrage d'un direct ? | **Deux**, à ~3 ms d'intervalle. Maquette : `37.300`/`37.304` puis `38.949`/`38.951` sur deux manches. Production : `05:49:53.371`/`05:49:53.374`. Les deux annonces portent la même entrée — la charnière l'a consommée à la première, et la seconde lui arrive comme une entrée **inconnue et sans étiquettes** |
+| `skip()` sur un `request.dynamic` où rien n'a jamais joué | **Mange l'entrée fraîche sur-le-champ** : `PLAYING a.mp3` à `8.617`, `PLAYING b.mp3` à `8.624` — 7 ms. Pire que ce que §5.bis mesurait : la cascade a avalé dans le même instant l'instruction `live:` **et** le morceau d'après. Le garde-fou de §5.bis est confirmé, et il ne suffit pas de le poser côté API |
+| Un témoin fiable de « une piste passe », lisible **dans le script** | Un `ref` posé par le `on_track` du `request.dynamic`. Manche à froid : `piste_commencee=false`, aucun saut, `a.mp3` joue entier. Manche à chaud (une piste jouée, une pause, puis la purge) : `piste_commencee=true`, saut effectué, l'entrée fraîche démarre **140 ms** après la purge — les 137 ms de §5.bis. C'est le seul témoin qui vaille : `radio` redémarré seul croit qu'aucun morceau ne passe, alors que Liquidsoap en tient un depuis la veille |
+| **`switch(track_sensitive=true)` derrière `crossfade`** | **Cesse d'évaluer ses prédicats.** Compteur posé dans le prédicat : **201 évaluations** tant que `blank()` est à l'antenne, puis **zéro** pendant deux minutes et quatre jonctions. Le direct n'obtient **jamais** l'antenne. `crossfade` ne présente aucune fin de piste au `switch`, et un `switch` sensible aux pistes ne reconsidère rien sans elle |
+| Le même `switch` à `track_sensitive=false` | Le prédicat est évalué **en continu** (`n=1701`, `n=1801`…), `Switch to live with transition` tombe **2 s** après l'instruction — le temps que `input.http` soit prêt, cohérent avec §5 — et la transition s'exécute. Mais la bascule tombe alors **au milieu du morceau**, ce que SPECS.md §4.11 refuse |
+| `transitions=[…]` sur le `switch` **du direct** | **Accepté à l'exécution**, `input.http` compris — contrairement à `normalize`/`crossfade` (§5). La transition du premier enfant s'exécute à la prise d'antenne, et un `thread.run({…})` y poste l'annonce à l'API sans bloquer le fil de diffusion |
+| `set_queue([])` + `skip()` à la **fin** du direct | **Jette l'avance gelée sous le direct** : un `/next` frais part immédiatement et le morceau suivant démarre 140 ms après la coupure. Sans cela, le morceau gelé reprend là où il avait été suspendu — 2 min de musique hors plage constatées en production à 8 h |
+| Un `ref` de fonction pour purger depuis `stop_live` | **Accepté.** `stop_live` est défini avant `programme` ; un `vider_l_avance = ref(fun () -> ())` déclaré tôt et affecté après la définition de `programme` lève la circularité |
+| Un `def f(_, b) = b` sans `end` | **Erreur d'analyse à position fausse** : « At line 2, char 22-22: Parse error », quelle que soit la ligne fautive. Ne pas chercher à la ligne 2 |
+
+### Ce que cela change
+
+- Le témoin du saut **descend dans `radio.liq`** : c'est le seul endroit qui
+  sait si une piste passe. `radio` l'ordonne toujours ; le script refuse à vide.
+- L'annonce d'un direct ne peut pas venir de `live.on_track` : elle sort deux
+  fois, et un morceau d'avance trop tôt. Elle vient de la **transition** du
+  `switch` qui met le direct à l'antenne.
+- La fin d'un direct est une **purge**, au même titre que le retour après une
+  longue pause (SPECS.md §7 n°30) : l'avance qui dormait sous le direct est
+  rassise de toute la durée de la case.
+
+### Points incertains
+
+- [ ] **Ce qui fait qu'une jonction traverse `crossfade` jusqu'au `switch`.**
+      En maquette : jamais, sur quatre jonctions. En production le 2026-09-02 :
+      **une fois**, 85 s après l'instruction, à la première jonction suivant une
+      purge (`set_queue([])`). Tant que ce n'est pas établi, l'heure à laquelle
+      un direct prend l'antenne n'est pas garantie — et c'est la cause du
+      retard entendu à 7 h 51.
+- [ ] Le compromis à trancher pour y remédier : armer la bascule au `on_track`
+      du `request.dynamic` la fait tomber ~2 s **avant** la fin audible du
+      morceau (préchargement du `crossfade`), donc en plein fondu de sortie.
+      Audible ou non : seule l'écoute le dira.

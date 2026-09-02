@@ -47,7 +47,9 @@ et son cache (GOAL-039/040), la plage au thème tiré au sort (GOAL-037), la
 reprise à neuf après une longue pause (GOAL-041), la grille de journée et ses
 quinze génériques (GOAL-043).
 
-**Aucun Goal ouvert.** Décisions restantes de SPECS.md §7 : la **n°9** est une
+**Goal ouvert : GOAL-051** — quatre défauts constatés à l'antenne le
+2026-09-02 au matin, à la rencontre du direct (GOAL-015) et de la reprise à
+neuf (GOAL-041). Décisions restantes de SPECS.md §7 : la **n°9** est une
 conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
 musique.
@@ -57,7 +59,7 @@ secondes au branchement du premier auditeur, y compris quand l'antenne reprend
 au milieu d'un morceau. Les écoutes de GOAL-044 (modes d'enchaînement) et
 GOAL-047 (coupe au plafond) ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
+**Prochaine tâche** : GOAL-051-T02 — le témoin du saut descend dans `radio.liq`.
 
 ---
 
@@ -115,7 +117,100 @@ GOAL-047 (coupe au plafond) ont été validées par l'auteur le 2026-09-01.
 | GOAL-048 | Un libellé trop long du Planning se tronque en ellipse | `[x]` |
 | GOAL-049 | Tirage par genre fiable malgré les genres fantômes de Navidrome | `[x]` — clos le 2026-09-01 : diagnostic consigné (T01), le reste abandonné — la bibliothèque a été purgée, T03 annulée par revert |
 | GOAL-050 | Un fondu à la prise d'antenne | `[x]` — reste l'écoute réelle |
+| GOAL-051 | Le direct ne ment plus à l'antenne, et la reprise coupe vraiment le reliquat | `[ ]` |
+| GOAL-052 | L'historique dit quel jour, et ne mélange plus deux 8 h | `[ ]` — signalé par l'auteur le 2026-09-02, capture à l'appui |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
 
+---
+
+## GOAL-051 — Le direct ne ment plus à l'antenne, et la reprise coupe vraiment le reliquat
+
+Quatre défauts constatés **à l'antenne** le 2026-09-02 au matin, puis retrouvés
+un à un dans les journaux de production (`local-webradio` et
+`local-webradio-liquidsoap` sur `frontal`). Ils naissent de la rencontre de
+GOAL-015 (le direct) et de GOAL-041 (la reprise à neuf) : chacun tient seul,
+ensemble ils mentent.
+
+```
+23:47:22  le conteneur « radio » redémarre seul ; liquidsoap reste debout,
+          figé au milieu d'un morceau depuis 19:11
+07:49:45  premier auditeur — « pause de 8:02:23 : la radio repart à neuf »
+07:49:46  « avance jetée sur ordre de l'API »  … et AUCUN « saut demandé »   ← 1
+07:49:50  /next → live:…franceinfo  « direct demandé pour 609 s »
+07:49:53  /next → le bouche-trou, tiré à 7 h 49 dans un créneau sans plage    ← 3
+07:49:53.371  /playing  ← reconnu : « Matinale franceinfo » s'affiche
+07:49:53.374  /playing  ← MÊME entrée, déjà consommée : « None — None »       ← 2
+07:51:13  le bouche-trou est annoncé et démarre (préchargement du crossfade)
+07:51:15  « Switch to live » — le direct prend l'antenne, rien ne le redit     ← 2
+08:00:00  « le direct se termine » → le bouche-trou GELÉ reprend, 2 min hors
+          de la plage « Chanson française »                                    ← 4
+08:03:05  premier morceau réellement tiré à 8 h
+```
+
+- [x] **GOAL-051-T01** — Relever dans `docs/liquidsoap.md` §9, contre
+      `savonet/liquidsoap:v2.3.3` en Docker : combien de fois `input.http`
+      déclenche `on_track` à son démarrage ; ce que fait `skip()` sur un
+      `request.dynamic` sans piste en cours, et quel témoin le script peut lire
+      pour le savoir ; si l'annonce du direct peut partir d'une **transition**
+      du `switch` qui le met à l'antenne ; ce que devient la source `programme`
+      pendant qu'un direct la recouvre, et l'effet d'un `set_queue([])` +
+      `skip()` à la fin du direct.
+      **Fait le 2026-09-02** — maquette fidèle (le vrai `radio.liq` contre une
+      fausse API, le vrai flux franceinfo), `docs/liquidsoap.md` §9. Le double
+      `on_track` est reproduit sur deux manches, le témoin du saut est validé à
+      froid et à chaud, la transition du `switch` et la purge de fin de direct
+      fonctionnent. **Le relevé a trouvé un cinquième défaut** : un
+      `switch(track_sensitive=true)` derrière `crossfade` cesse d'évaluer ses
+      prédicats — d'où T06.
+- [ ] **GOAL-051-T02** — Le témoin de « une piste passe » vit dans `radio.liq` :
+      `on_skip` refuse un saut à vide, et la charnière ordonne toujours le
+      `/skip` de la reprise à neuf. `radio` ne peut pas savoir ce que liquidsoap
+      tient : redémarré seul, il croit qu'aucun morceau ne passe. **(défaut 1)**
+- [ ] **GOAL-051-T03** — Une entrée inconnue **et sans étiquettes** ne remplace
+      plus ce qui est à l'antenne : déclarer « musique, sans titre ni artiste »
+      efface l'affichage sans rien apporter. **(défaut 2, moitié Python)**
+- [ ] **GOAL-051-T04** — Le direct s'annonce quand il **prend** l'antenne, une
+      seule fois par case, et non dès `live.start()` — un morceau d'avance plus
+      tôt. **(défaut 2, moitié `.liq`)** — à écouter : la jonction musique → direct.
+      **Dépend de T06** : sans prédicat réévalué, la transition ne s'exécute
+      jamais.
+- [ ] **GOAL-051-T05** — À la fin du direct, l'avance rassie est jetée et le
+      reliquat coupé : le premier morceau d'après est tiré à l'heure qu'il est,
+      dans la plage qui est réellement ouverte. **(défauts 3 et 4)** — à
+      écouter : la reprise à la coupure du direct.
+- [ ] **GOAL-051-T06** — Le direct prend l'antenne **à la première jonction**,
+      et non au hasard. Constaté en maquette (T01) : derrière `crossfade`, un
+      `switch(track_sensitive=true)` n'évalue plus ses prédicats — zéro
+      évaluation sur quatre jonctions, le direct n'obtient jamais l'antenne. En
+      production le 2026-09-02, une seule bascule, **85 s** après l'instruction.
+      **(cinquième défaut, découvert par le relevé)**
+      > **Arbitrage à demander (AGENTS.md §1.2, cas 2)** : la seule bascule
+      > fiable observée est `track_sensitive=false`, qui coupe **au milieu du
+      > morceau** — ce que SPECS.md §4.11 refuse. L'armer au `on_track` du
+      > `request.dynamic` la fait tomber ~2 s avant la fin audible, en plein
+      > fondu de sortie. Le compromis est audible : il ne se tranche pas seul.
+
+**Décidé sans arbitrage** (AGENTS.md §1.2) : la purge de fin de direct est
+ordonnée dans `radio.liq`, par un `ref` posé après la définition de `programme`
+— `stop_live` est défini avant elle. Le script ne décide rien de plus : il
+redemande à l'API. L'alternative — une route de plus, ou un réveil côté Python
+à l'heure de fin — coûterait une surface publique pour un geste mécanique.
+
+
+---
+
+## GOAL-052 — L'historique dit quel jour, et ne mélange plus deux 8 h
+
+Signalé par l'auteur le 2026-09-02, capture à l'appui : la page « 08 h » liste
+`08:33 … 08:02` (aujourd'hui) **puis** `08:52 … 08:41` (la veille). L'ordre est
+juste — `SELECT … ORDER BY joue_le DESC` (`adapters/state/database.py`) — mais
+l'API n'expose que `%H:%M` (`app/main.py`, `lister_l_historique`) : privée de sa
+date, la page groupe deux journées sous la même heure et l'ordre paraît faux.
+
+- [ ] **GOAL-052-T01** — L'entrée du journal porte sa date, pas seulement son
+      heure : `PlayedEntry` gagne le jour, l'API le rend, et le contrat de
+      SPECS.md §4.8 le dit.
+- [ ] **GOAL-052-T02** — La page sépare les journées : une heure d'aujourd'hui
+      et la même heure d'hier ne se suivent plus sans le dire.
