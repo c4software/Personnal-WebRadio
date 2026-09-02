@@ -83,7 +83,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-057-T04. GOAL-056 est codé et documenté ; **reste l'écoute** de T03 à une heure pleine en production. Les trois Goals s'enchaînent dans
+**Prochaine tâche** : GOAL-058-T01. GOAL-057 est codé et documenté ; **reste l'écoute** du retirage à une jonction. GOAL-056 est codé et documenté ; **reste l'écoute** de T03 à une heure pleine en production. Les trois Goals s'enchaînent dans
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -303,7 +303,7 @@ un motif, comme un vote pendant un jingle).
 - [x] **GOAL-057-T03** — L'interface : un bouton « Retirer » à côté du moment,
       visible seulement quand `moment_random` est vrai, grisé pendant l'appel,
       qui affiche le motif d'un refus comme le font « Passer » et « Encore ».
-- [ ] **GOAL-057-T04** — Documenter : SPECS.md §4.4 (retirer), §4.8 (la route
+- [x] **GOAL-057-T04** — Documenter : SPECS.md §4.4 (retirer), §4.8 (la route
       et le champ), §7 n°28 amendée ; **écouter** une fois : le retirage à la
       jonction, sans que le générique repasse.
 

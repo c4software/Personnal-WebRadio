@@ -222,6 +222,15 @@ jusqu'à la fin de la plage ; l'occurrence suivante retire (§7 n°28).
   journalisé une fois par occurrence.
 - Une plage sans musique disponible **ne fait pas taire la radio** : elle se
   replie sur le tirage libre, et le repli est journalisé.
+- **Le thème se retire** (§7 n°28 amendée, GOAL-057). Une heure de Ragga qui
+  ne plaît pas ne se subit pas jusqu'à l'heure suivante : un bouton — donc une
+  route de l'API (§4.8) — fait retirer un **autre** thème pour le reste de
+  l'occurrence ; l'ancien est écarté du tirage, sauf si la bibliothèque n'en
+  offre pas d'autre, et c'est alors dit. Le morceau en cours finit (§7 n°5) ;
+  dès la jonction suivante, la plage joue le nouveau thème — ce qui avait été
+  tiré d'avance sous l'ancien est rassis et ne passe pas (§7 n°33). Le
+  générique de la plage ne repasse pas : il annonce la plage, pas le thème.
+  Hors d'une plage au hasard, retirer est **refusé en le disant**.
 
 #### Les modes d'enchaînement
 
@@ -397,8 +406,18 @@ tiré le morceau suivant, et c'est lui qu'on annonce. Une émission ou un
 le silence. Pendant un **programme**, rien n'est annoncé : la musique vient
 d'une liste et non de la file (§4.13), et l'avance préparée ne passera pas.
 
-L'interface web n'est rien de plus que la mise en page de cela : ce qui passe, et
-deux boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
+#### « Retirer »
+
+Quand le moment en cours a tiré son thème au sort (§4.4), l'API le dit
+(`moment_random`) et accepte de le **retirer** (`POST /api/moment/redraw`) : la
+réponse porte le nouveau moment, pour que la page l'affiche sans attendre son
+rafraîchissement. Hors d'une plage au hasard, la demande est refusée avec son
+motif, exactement comme un vote pendant un jingle. L'interface montre le bouton
+seulement quand l'API dit qu'il a un sens — elle ne le devine pas sur le
+libellé.
+
+L'interface web n'est rien de plus que la mise en page de cela : ce qui passe,
+trois boutons. Elle **ne configure pas** la radio — le TOML reste le seul point
 d'entrée des réglages (§6) — et ne touche pas à la bibliothèque (§2).
 
 ### 4.13 Les programmes
@@ -1131,6 +1150,10 @@ l'occurrence.** Tranchée le 2026-08-31 par l'auteur. Une plage déclare
 `random = "genre"` ou `random = "artist"` au lieu d'énumérer ses valeurs ; la
 radio tire dans **toute la bibliothèque** au début de l'occurrence et s'y tient
 jusqu'à la fin. L'occurrence suivante retire, et rien n'est persisté.
+**Amendée le 2026-09-02** (GOAL-057) : figée, mais pas subie — l'auteur peut
+faire **retirer** un autre thème pour le reste de l'occurrence, par l'API et
+l'interface (§4.4). Le thème sorti fait partie du moment : le retirer ouvre un
+nouveau moment, et l'avance tirée sous l'ancien est rassise (n°33).
 > *Raison* : ni un quatrième mécanisme, ni une émission — c'est la même question
 > que les plages, *que jouer à telle heure*, avec une réponse que la
 > configuration ne donne pas. Figer sur l'occurrence est ce qui en fait une
