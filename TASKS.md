@@ -47,10 +47,10 @@ et son cache (GOAL-039/040), la plage au thème tiré au sort (GOAL-037), la
 reprise à neuf après une longue pause (GOAL-041), la grille de journée et ses
 quinze génériques (GOAL-043).
 
-**GOAL-051 est clos le 2026-09-02** : cinq défauts entendus à l'antenne le
-matin même, à la rencontre du direct (GOAL-015) et de la reprise à neuf
-(GOAL-041), corrigés et vérifiés. **Goal ouvert : GOAL-052.** Décisions
-restantes de SPECS.md §7 : la **n°9** est une
+**GOAL-051 et GOAL-052 sont clos le 2026-09-02** : cinq défauts entendus à
+l'antenne le matin même, à la rencontre du direct (GOAL-015) et de la reprise à
+neuf (GOAL-041), plus le journal qui empilait deux journées sous la même heure.
+**Aucun Goal ouvert.** Décisions restantes de SPECS.md §7 : la **n°9** est une
 conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
 musique.
@@ -67,7 +67,8 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-052-T01 — l'entrée du journal porte sa date.
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal` — ou de
+l'écoute de GOAL-050 et GOAL-051.
 
 ---
 
@@ -126,23 +127,7 @@ ont été validées par l'auteur le 2026-09-01.
 | GOAL-049 | Tirage par genre fiable malgré les genres fantômes de Navidrome | `[x]` — clos le 2026-09-01 : diagnostic consigné (T01), le reste abandonné — la bibliothèque a été purgée, T03 annulée par revert |
 | GOAL-050 | Un fondu à la prise d'antenne | `[x]` — reste l'écoute réelle |
 | GOAL-051 | Le direct ne ment plus à l'antenne, et la reprise coupe vraiment le reliquat | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
-| GOAL-052 | L'historique dit quel jour, et ne mélange plus deux 8 h | `[ ]` — signalé par l'auteur le 2026-09-02, capture à l'appui |
+| GOAL-052 | L'historique dit quel jour, et ne mélange plus deux 8 h | `[x]` — clos le 2026-09-02 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
-
----
-
-## GOAL-052 — L'historique dit quel jour, et ne mélange plus deux 8 h
-
-Signalé par l'auteur le 2026-09-02, capture à l'appui : la page « 08 h » liste
-`08:33 … 08:02` (aujourd'hui) **puis** `08:52 … 08:41` (la veille). L'ordre est
-juste — `SELECT … ORDER BY joue_le DESC` (`adapters/state/database.py`) — mais
-l'API n'expose que `%H:%M` (`app/main.py`, `lister_l_historique`) : privée de sa
-date, la page groupe deux journées sous la même heure et l'ordre paraît faux.
-
-- [x] **GOAL-052-T01** — L'entrée du journal porte sa date, pas seulement son
-      heure : `PlayedEntry` gagne le jour, l'API le rend, et le contrat de
-      SPECS.md §4.8 le dit.
-- [x] **GOAL-052-T02** — La page sépare les journées : une heure d'aujourd'hui
-      et la même heure d'hier ne se suivent plus sans le dire.

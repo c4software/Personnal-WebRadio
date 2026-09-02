@@ -1601,3 +1601,19 @@ ordonnée dans `radio.liq`, par un `ref` posé après la définition de `program
 — `stop_live` est défini avant elle. Le script ne décide rien de plus : il
 redemande à l'API. L'alternative — une route de plus, ou un réveil côté Python
 à l'heure de fin — coûterait une surface publique pour un geste mécanique.
+
+---
+
+## GOAL-052 — L'historique dit quel jour, et ne mélange plus deux 8 h
+
+Signalé par l'auteur le 2026-09-02, capture à l'appui : la page « 08 h » liste
+`08:33 … 08:02` (aujourd'hui) **puis** `08:52 … 08:41` (la veille). L'ordre est
+juste — `SELECT … ORDER BY joue_le DESC` (`adapters/state/database.py`) — mais
+l'API n'expose que `%H:%M` (`app/main.py`, `lister_l_historique`) : privée de sa
+date, la page groupe deux journées sous la même heure et l'ordre paraît faux.
+
+- [x] **GOAL-052-T01** — L'entrée du journal porte sa date, pas seulement son
+      heure : `PlayedEntry` gagne le jour, l'API le rend, et le contrat de
+      SPECS.md §4.8 le dit.
+- [x] **GOAL-052-T02** — La page sépare les journées : une heure d'aujourd'hui
+      et la même heure d'hier ne se suivent plus sans le dire.
