@@ -461,3 +461,12 @@ def test_retirer_un_titre_qui_n_attend_plus_rend_404() -> None:
     answer = client(radio).delete("/api/up-next/parti")
     assert answer.status_code == 404
     assert answer.get_json()["withdrawn"] is False
+
+
+def test_la_page_pointe_vers_la_liste_des_prochains_titres() -> None:
+    """Le tiroir des prochains titres passe par l'API, comme tout le reste
+    (SPECS.md §4.8) : la page porte l'adresse, et rien d'autre."""
+    page = client(FakeRadio()).get("/").get_data(as_text=True)
+    assert "/api/up-next" in page
+    assert "Prochains titres" in page
+    assert "chargerProchains" in page

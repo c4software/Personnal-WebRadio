@@ -46,6 +46,32 @@
       .retirer[disabled] { opacity: 0.5; }
       .a-suivre { color: var(--sourdine); font-size: 0.9rem; margin-top: 0.4rem;
                   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      /* « À suivre » ouvre le tiroir des prochains titres (GOAL-058) : un
+         bouton qui ressemble au texte d'avant, avec un chevron. */
+      .a-suivre button { all: unset; cursor: pointer; display: flex; gap: 0.4rem; align-items: baseline;
+                         max-width: 100%; }
+      .a-suivre .texte { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .a-suivre .chevron { flex: none; }
+      .voile { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 5; }
+      .tiroir {
+        position: fixed; inset: auto 0 0 0; z-index: 6; max-height: 75dvh; overflow-y: auto;
+        background: var(--carte); border-top: 1px solid var(--bord); border-radius: 1rem 1rem 0 0;
+        padding: 0.9rem 1.25rem max(1.25rem, env(safe-area-inset-bottom));
+        margin: 0 auto; width: min(40rem, 100%); left: 50%; transform: translateX(-50%);
+      }
+      .tiroir header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; }
+      .tiroir h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.15em; color: var(--texte); }
+      .tiroir .fermer { all: unset; cursor: pointer; color: var(--sourdine); padding: 0.4rem 0.6rem; font-size: 1.1rem; }
+      .prochain { display: grid; grid-template-columns: 3.4rem minmax(0, 1fr) auto; gap: 0.6rem;
+                  align-items: center; padding: 0.45rem 0 0.45rem 0.6rem;
+                  border-left: 3px solid var(--bord); margin-bottom: 0.35rem; }
+      .prochain.musique-b { border-left-color: var(--accent); }
+      .prochain.prevu { border-left-style: dashed; }
+      .prochain.prevu .titre-histoire { color: var(--sourdine); font-style: italic; }
+      .prochain .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
+      .prochain .oubli { all: unset; cursor: pointer; color: var(--sourdine); padding: 0.4rem 0.6rem;
+                         border-radius: 0.4rem; border: 1px solid var(--bord); font-size: 0.9rem; }
+      .prochain .oubli[disabled] { opacity: 0.4; }
       .etat {
         margin-top: 1.25rem; padding: 0.8rem 1rem; border-radius: 0.6rem;
         background: var(--carte); border: 1px solid var(--bord); color: var(--sourdine);
@@ -149,7 +175,12 @@
         <p v-if="antenne && moment" class="moment">[[ moment ]]
           <button v-if="momentRandom" type="button" class="retirer" :disabled="occupe" title="Tirer un autre thème au sort" @click="retirer()">Retirer</button>
         </p>
-        <p v-if="antenne && aSuivre" class="a-suivre">À suivre · [[ aSuivre.title || aSuivre.kind ]]<span v-if="aSuivre.artist"> — [[ aSuivre.artist ]]</span></p>
+        <p v-if="antenne && aSuivre" class="a-suivre">
+          <button type="button" title="Voir les prochains titres" @click="ouvrirTiroir()">
+            <span class="texte">À suivre · [[ aSuivre.title || aSuivre.kind ]]<span v-if="aSuivre.artist"> — [[ aSuivre.artist ]]</span></span>
+            <span class="chevron">▴</span>
+          </button>
+        </p>
         <p v-if="message" class="etat" :class="issue">[[ message ]]</p>
         <p v-else-if="!antenne" class="etat">Personne n'écoute : la radio ne tourne pas.</p>
       </section>
@@ -214,6 +245,31 @@
         </template>
       </section>
 
+      <div v-if="tiroir" class="voile" @click="tiroir = false"></div>
+      <aside v-if="tiroir" class="tiroir" aria-label="Prochains titres">
+        <header>
+          <h2>Prochains titres</h2>
+          <button type="button" class="fermer" title="Fermer" @click="tiroir = false">✕</button>
+        </header>
+        <p v-if="prochains.length === 0" class="vide">Rien d'annoncé pour l'instant.</p>
+        <!-- Une ligne par entrée, dans l'ordre de passage : l'heure estimée,
+             ce qui passe, et — pour un titre déjà tiré — le bouton qui le
+             retire. L'habillage prévu (jingle, générique) se voit en
+             pointillé : il n'est pas encore décidé. -->
+        <div v-for="(e, i) in prochains" :key="e.identifier || (e.title + i)" class="prochain"
+             :class="[e.kind === 'musique' ? 'musique-b' : 'emission-b', { prevu: e.expected }]">
+          <span class="heure">[[ e.at || "—" ]]</span>
+          <div class="corps">
+            <span class="titre-histoire">[[ e.title || e.kind ]]</span>
+            <span v-if="e.artist" class="sous-titre">[[ e.artist ]]</span>
+            <span v-else class="sous-titre">[[ e.expected ? "prévu · " + e.kind : e.kind ]]</span>
+          </div>
+          <button v-if="e.identifier" type="button" class="oubli" title="Ne passera pas"
+                  :disabled="occupe" @click="ecarter(e)">✕</button>
+          <span v-else></span>
+        </div>
+      </aside>
+
       <div class="boutons" v-if="onglet === 'antenne'">
         <!-- Un jingle, un flash ou une émission refuseraient le vote de toute
              façon (SPECS.md §4.6) : autant griser les boutons plutôt que de
@@ -239,6 +295,7 @@
         stop: {{ url_stop | tojson }},
         encore: {{ url_encore | tojson }},
         redraw: {{ url_redraw | tojson }},
+        upNext: {{ url_up_next | tojson }},
       };
       const RAFRAICHISSEMENT_MS = {{ rafraichissement_ms | tojson }};
 
@@ -251,6 +308,8 @@
             moment: null,
             momentRandom: false,
             aSuivre: null,
+            tiroir: false,
+            prochains: [],
             votes: [],
             planning: null,
             maintenant: new Date(),
@@ -461,6 +520,38 @@
               await fetch(this.urls.votes + "/" + vote.scope + "/" + encodeURIComponent(vote.key), { method: "DELETE" });
             } finally { this.chargerVotes(); }
           },
+          ouvrirTiroir() {
+            this.tiroir = true;
+            this.chargerProchains();
+          },
+          async chargerProchains() {
+            try {
+              const reponse = await fetch(this.urls.upNext, { headers: { Accept: "application/json" } });
+              this.prochains = (await reponse.json()).up_next;
+            } catch (erreur) {
+              this.prochains = [];
+            }
+          },
+          async ecarter(e) {
+            // « Ne passera pas » : l'API retire, un autre titre est tiré à
+            // sa place, et la liste se recharge. Un 404 — le titre a commencé
+            // entre-temps — se dit, comme un refus de vote.
+            this.occupe = true;
+            try {
+              const reponse = await fetch(this.urls.upNext + "/" + encodeURIComponent(e.identifier), { method: "DELETE" });
+              const donnees = await reponse.json();
+              this.message = donnees.withdrawn ? "Retiré : " + (e.title || e.kind) : donnees.reason;
+              this.issue = donnees.withdrawn ? "accepte" : "refus";
+            } catch (erreur) {
+              this.message = "L'API ne répond pas : " + erreur;
+              this.issue = "refus";
+            } finally {
+              this.occupe = false;
+              this.chargerProchains();
+              this.rafraichir();
+              setTimeout(() => { this.message = ""; this.issue = ""; }, 4000);
+            }
+          },
           async retirer() {
             // Même chemin qu'un vote : l'API décide, la page affiche — et le
             // moment rendu par la réponse s'affiche sans attendre le
@@ -508,6 +599,7 @@
             this.rafraichir();
             if (this.onglet === "votes") { this.chargerVotes(); }
             if (this.onglet === "historique") { this.ouvrirHistorique(); }
+            if (this.tiroir) { this.chargerProchains(); }
           }, RAFRAICHISSEMENT_MS);
         },
       }).mount("#app");
