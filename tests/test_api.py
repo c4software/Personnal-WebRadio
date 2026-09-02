@@ -485,3 +485,10 @@ def test_la_page_porte_l_adresse_du_flux_declaree() -> None:
     assert 'const FLUX_DECLARE = ":8000/flux"' in page
     assert 'preload="none"' in page
     assert "mediaSession" in page
+
+
+def test_la_page_grise_les_votes_sans_auditeur() -> None:
+    """GOAL-061 : la page ne décide rien, mais elle n'offre pas un bouton
+    dont l'effet serait invisible — sans antenne, rien sur quoi voter."""
+    page = client(FakeRadio()).get("/").get_data(as_text=True)
+    assert 'this.antenne === null || this.antenne.kind !== "musique"' in page

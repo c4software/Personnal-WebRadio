@@ -60,8 +60,12 @@
                          max-width: 100%; }
       .a-suivre .texte { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .a-suivre .chevron { flex: none; }
-      .voile { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 5; }
+      .voile { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 5;
+               animation: apparaitre 0.2s ease-out; }
+      @keyframes apparaitre { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes monter { from { transform: translate(-50%, 100%); } to { transform: translate(-50%, 0); } }
       .tiroir {
+        animation: monter 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
         position: fixed; inset: auto 0 0 0; z-index: 6; max-height: 75dvh; overflow-y: auto;
         background: var(--carte); border-top: 1px solid var(--bord); border-radius: 1rem 1rem 0 0;
         padding: 0.9rem 1.25rem max(1.25rem, env(safe-area-inset-bottom));
@@ -349,7 +353,9 @@
         },
         computed: {
           voteImpossible() {
-            return this.antenne !== null && this.antenne.kind !== "musique";
+            // Sans auditeur, rien ne passe : un vote n'aurait rien sur quoi
+            // porter (GOAL-061). Pendant l'habillage, l'API le refuserait.
+            return this.antenne === null || this.antenne.kind !== "musique";
           },
           pagesHistorique() {
             // Une page par JOUR et par heure, de la plus récente à la plus
