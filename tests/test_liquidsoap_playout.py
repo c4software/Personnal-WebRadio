@@ -128,16 +128,20 @@ def test_le_battement_periodique_ne_redate_pas_la_pause(tmp_path: Path) -> None:
     assert ordres == ["requeue", "skip"]
 
 
-def test_sans_morceau_en_cours_le_saut_n_est_pas_ordonne(tmp_path: Path) -> None:
-    """À froid, un saut resterait enregistré et mangerait le premier morceau
-    (docs/liquidsoap.md §5.bis) : seule la file est purgée."""
+def test_le_saut_part_meme_sans_entree_connue_de_ce_processus(tmp_path: Path) -> None:
+    """Le diffuseur peut tenir un morceau que cette charnière ignore.
+
+    C'est le cas le 2026-09-02 : `radio` a redémarré seul dans la nuit, et
+    Liquidsoap jouait encore un morceau demandé la veille. Le garde-fou vit
+    désormais dans `radio.liq`, qui, lui, sait ce qu'il tient
+    (docs/liquidsoap.md §9)."""
     ordres: list[str] = []
     playout, _radio, clock = _playout_avec_reprise(tmp_path, ordres)
     playout.declare_listeners(0)
     clock.advance(timedelta(minutes=20))
     playout.declare_listeners(1)
 
-    assert ordres == ["requeue"]
+    assert ordres == ["requeue", "skip"]
 
 
 def test_un_morceau_demande_n_est_pas_encore_a_l_antenne(tmp_path: Path) -> None:

@@ -68,6 +68,16 @@ def test_le_saut_est_une_route_que_l_api_ordonne() -> None:
     assert "programme.skip()" in code
 
 
+def test_le_script_refuse_un_saut_a_vide() -> None:
+    """GOAL-051 : un saut sans piste en cours mange l'entrée fraîche (7 ms
+    constatées, docs/liquidsoap.md §9). Seul le script sait si une piste
+    passe : `radio` redémarré seul l'a oublié."""
+    code = _code()
+    assert "piste_commencee = ref(false)" in code
+    assert "piste_commencee := true" in code
+    assert re.search(r"if piste_commencee\(\) then", code)
+
+
 def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
     """GOAL-034 : un encore accepté vide le morceau d'avance."""
     code = _code()

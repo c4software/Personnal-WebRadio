@@ -136,7 +136,14 @@ programme = request.dynamic(id="programme", retry_delay=5., prefetch=1, next_ent
 # L'annonce porte l'entrée, puis les étiquettes lues dans le fichier même :
 # si `radio` a redémarré et ne reconnaît pas l'entrée, il affichera au moins
 # ce que le décodeur sait — au lieu de rien pendant deux jonctions.
+#
+# Ce `ref` est aussi le **seul témoin fiable** qu'une piste passe (relevé
+# docs/liquidsoap.md §9) : `radio` redémarré seul a perdu le sien, et croirait
+# l'antenne vide alors que ce processus tient un morceau depuis la veille.
+piste_commencee = ref(false)
+
 def on_track(metadata) =
+  piste_commencee := true
   body = metadata["initial_uri"] ^ "\n" ^ metadata["artist"] ^ "\n" ^ metadata["title"]
   answer = http.post(timeout=api_timeout, data=body, "#{api}/playout/playing")
   if answer.status_code != 204 then
@@ -149,10 +156,19 @@ programme.on_track(on_track)
 # C'est `radio` qui décide d'un saut — un vote `stop` accepté — et qui nous
 # l'ordonne par cette route. Le saut porte sur la file des morceaux : pendant
 # un direct ou un jingle, le noyau refuse le vote et l'ordre n'arrive jamais.
+#
+# Un saut à vide n'est PAS inoffensif : il reste enregistré et mange l'entrée
+# fraîche dès son départ — 7 ms constatées, et la cascade avale l'instruction
+# de direct qui suivait (docs/liquidsoap.md §9). D'où le refus ici plutôt
+# qu'un garde-fou chez l'appelant, qui ne sait pas ce que ce processus tient.
 def on_skip(request, response) =
   ignore(request)
-  log("saut demandé par l'API")
-  programme.skip()
+  if piste_commencee() then
+    log("saut demandé par l'API")
+    programme.skip()
+  else
+    log("saut demandé à vide : rien ne passe, il mangerait le premier morceau")
+  end
   response.data("passé")
 end
 harbor.http.register(port=port, method="POST", "/skip", on_skip)

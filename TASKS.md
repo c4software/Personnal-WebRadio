@@ -59,7 +59,8 @@ secondes au branchement du premier auditeur, y compris quand l'antenne reprend
 au milieu d'un morceau. Les écoutes de GOAL-044 (modes d'enchaînement) et
 GOAL-047 (coupe au plafond) ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-051-T02 — le témoin du saut descend dans `radio.liq`.
+**Prochaine tâche** : GOAL-051-T03 — une entrée inconnue et sans étiquettes
+n'efface plus l'antenne.
 
 ---
 
@@ -164,7 +165,7 @@ ensemble ils mentent.
       fonctionnent. **Le relevé a trouvé un cinquième défaut** : un
       `switch(track_sensitive=true)` derrière `crossfade` cesse d'évaluer ses
       prédicats — d'où T06.
-- [ ] **GOAL-051-T02** — Le témoin de « une piste passe » vit dans `radio.liq` :
+- [x] **GOAL-051-T02** — Le témoin de « une piste passe » vit dans `radio.liq` :
       `on_skip` refuse un saut à vide, et la charnière ordonne toujours le
       `/skip` de la reprise à neuf. `radio` ne peut pas savoir ce que liquidsoap
       tient : redémarré seul, il croit qu'aucun morceau ne passe. **(défaut 1)**

@@ -219,16 +219,19 @@ class LiquidsoapPlayout:
         L'ordre suit le relevé (docs/liquidsoap.md §5.bis) : l'oubli du
         programme d'abord — le recomplètement qui suivra le `/requeue` doit
         calculer à neuf —, la file du diffuseur ensuite, le reliquat du
-        morceau interrompu enfin. Et ce dernier seulement s'il y en a un :
-        un saut sans morceau en cours reste enregistré et mangerait le
-        premier morceau frais.
+        morceau interrompu enfin.
+
+        **Le saut part toujours**, et c'est le diffuseur qui le refuse s'il n'a
+        rien à couper (docs/liquidsoap.md §9). Le garder ici demandait à ce
+        processus de savoir ce que Liquidsoap tient : redémarré seul — ce qui
+        est arrivé le 2026-09-02 — il n'a plus d'entrée en cours et laissait
+        passer neuf minutes d'un morceau de la veille.
         """
         logger.info("pause de %s : la radio repart sur un tirage neuf", pause)
         with self._verrou:
-            courant = self._entree_en_cours
             self._en_attente.clear()
         self._programme.forget_pending()
         if self._ordonner_requeue is not None:
             self._ordonner_requeue()
-        if courant is not None and self._ordonner_skip is not None:
+        if self._ordonner_skip is not None:
             self._ordonner_skip()

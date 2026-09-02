@@ -1110,8 +1110,12 @@ voté avant la pause survit.
 > une pause courte ; après des heures, elle ne vaut plus rien — un morceau tiré
 > pour 19 h n'annonce rien à 22 h 30. Le mécanisme s'appuie sur ce que le
 > relevé a établi (docs/liquidsoap.md §5.bis) : l'annonce des auditeurs précède
-> la remise à l'antenne, la purge est donc sans course ; et le saut n'est
-> ordonné que si un morceau passait — à froid, il mangerait le premier tirage.
+> la remise à l'antenne, la purge est donc sans course ; et le saut n'a d'effet
+> que si un morceau passait — à froid, il mangerait le premier tirage. **Qui
+> tient ce dernier garde-fou a été revu le 2026-09-02** : c'est le diffuseur,
+> seul à savoir ce qu'il joue. La radio, redémarrée seule dans la nuit, croyait
+> l'antenne vide et laissait passer neuf minutes d'un morceau de la veille
+> (docs/liquidsoap.md §9).
 
 **n°31 — Des tirages qui s'enchaînent ? Trois modes, portés par la plage.**
 Tranchée le 2026-08-31, demande directe de l'auteur. `mode` sur une plage :

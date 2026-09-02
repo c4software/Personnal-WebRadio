@@ -173,7 +173,8 @@ n'affiche un morceau que lorsque Liquidsoap dit l'avoir commencé.
 sans auditeur (docs/liquidsoap.md §5.bis) — c'est ainsi qu'un jingle de 19 h
 s'est entendu à 22 h 28. Au retour d'un auditeur après plus de
 `playout.resume_fresh_seconds`, la charnière la jette (`/requeue`), coupe le
-reliquat du morceau interrompu (`/skip`, seulement si un morceau passait) et
+reliquat du morceau interrompu (`/skip`, **toujours ordonné** : c'est le script
+qui refuse un saut à vide, seul à savoir s'il tient une piste) et
 fait oublier au programme l'habillage en attente : tirage neuf (SPECS.md §4.7,
 §7 n°30). Le script annonce l'auditeur **avant** de rendre l'antenne, ce qui
 rend cette purge sans course.
