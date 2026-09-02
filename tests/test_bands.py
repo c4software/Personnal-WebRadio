@@ -318,3 +318,44 @@ def test_le_moment_d_une_plage_declaree_est_son_occurrence() -> None:
 
 def test_hors_de_toute_plage_le_moment_est_vide() -> None:
     assert Schedule([], a(21, 30)).current_moment() is None
+
+
+def test_une_plage_transmet_ses_decennies_a_la_contrainte() -> None:
+    epoques = Band(
+        start=time(21), end=time(23), genres=("jazz",), mode=Mode.ERA_FAN, eras=(1990, 2000)
+    )
+    contrainte = Schedule([epoques], a(21, 30)).constraint_to_draw(RealRandom(graine=1))
+    assert contrainte is not None
+    assert contrainte.eras == (1990, 2000)
+
+
+def test_une_plage_a_mode_seul_transmet_aussi_ses_decennies() -> None:
+    """Sans genre ni artiste, la contrainte n'existe que pour porter le mode."""
+    epoques = Band(start=time(21), end=time(23), mode=Mode.ERA_FAN, eras=(2010,))
+    contrainte = Schedule([epoques], a(21, 30)).constraint_to_draw(RealRandom(graine=1))
+    assert contrainte is not None
+    assert contrainte.eras == (2010,)
+
+
+def test_une_plage_au_theme_tire_transmet_aussi_ses_decennies() -> None:
+    au_hasard = Band(
+        start=time(21), end=time(23), random_theme="genre", mode=Mode.ERA_FAN, eras=(1980,)
+    )
+
+    def resolveur(_band: Band, _instant: datetime) -> Constraint | None:
+        return Constraint(genre="dub")
+
+    grille = Schedule([au_hasard], a(21, 30), resolve_random_theme=resolveur)
+    contrainte = grille.constraint_to_draw(RealRandom(graine=1))
+    assert contrainte is not None
+    assert (contrainte.genre, contrainte.eras) == ("dub", (1980,))
+
+
+def test_une_plage_refuse_une_annee_qui_n_est_pas_une_decennie() -> None:
+    with pytest.raises(ValueError, match="multiple de dix"):
+        Band(start=time(21), end=time(23), genres=("jazz",), mode=Mode.ERA_FAN, eras=(1995,))
+
+
+def test_une_plage_refuse_une_decennie_negative() -> None:
+    with pytest.raises(ValueError, match="multiple de dix"):
+        Band(start=time(21), end=time(23), genres=("jazz",), mode=Mode.ERA_FAN, eras=(-1970,))

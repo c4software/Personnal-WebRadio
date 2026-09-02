@@ -29,15 +29,17 @@ class Constraint:
     une question à la fois.
 
     `mode` demande en plus que les tirages s'enchaînent (décision n°31).
-    `run_key` identifie l'occurrence de plage qui a émis la contrainte : c'est
-    la clé de remise à zéro des suites. Elle est exclue de l'égalité, car une
-    plage multi-genres retire un genre à chaque jonction et la suite doit y
-    survivre.
+    `eras` borne les décennies où la plage tire (GOAL-071) ; vide, elle tire
+    dans toutes. `run_key` identifie l'occurrence de plage qui a émis la
+    contrainte : c'est la clé de remise à zéro des suites. Elle est exclue de
+    l'égalité, car une plage multi-genres retire un genre à chaque jonction et
+    la suite doit y survivre.
     """
 
     genre: str | None = None
     artist: str | None = None
     mode: Mode | None = None
+    eras: tuple[int, ...] = ()
     run_key: object | None = field(default=None, compare=False)
 
 
@@ -73,6 +75,10 @@ class Band:
     # Les tirages de la plage s'enchaînent (décision n°31). Combinable avec le
     # thème. Une plage à mode seul est un tirage libre enchaîné.
     mode: Mode | None = None
+    # Les décennies où la plage tire (GOAL-071). Vide, elle tire dans toutes.
+    # Une vague d'époque en demande deux à six d'affilée : une décennie qui ne
+    # compte qu'un titre rompt la suite à peine ouverte.
+    eras: tuple[int, ...] = ()
 
     def __post_init__(self) -> None:
         for jour in self.days:
@@ -95,6 +101,12 @@ class Band:
                 "exactement un des trois, sauf à porter un mode seul"
             )
             raise ValueError(message)
+        for era in self.eras:
+            if era <= 0 or era % 10:
+                message = (
+                    f"décennie attendue pour la plage {self.start:%H:%M}, multiple de dix : {era}"
+                )
+                raise ValueError(message)
         if self.start == self.end:
             message = f"plage vide : {self.start} → {self.end}"
             raise ValueError(message)
@@ -249,15 +261,17 @@ class Schedule:
         key = self._moment_key(band, instant, resolved)
         if band.random_theme is not None:
             if resolved is None:
-                return Constraint(mode=band.mode, run_key=key) if band.mode is not None else None
-            return replace(resolved, mode=band.mode, run_key=key)
+                if band.mode is None:
+                    return None
+                return Constraint(mode=band.mode, eras=band.eras, run_key=key)
+            return replace(resolved, mode=band.mode, eras=band.eras, run_key=key)
         if band.artists:
             values = band.artists
             value = values[0] if len(values) == 1 else random.pick(list(values))
-            return Constraint(artist=value, mode=band.mode, run_key=key)
+            return Constraint(artist=value, mode=band.mode, eras=band.eras, run_key=key)
         if band.genres:
             values = band.genres
             value = values[0] if len(values) == 1 else random.pick(list(values))
-            return Constraint(genre=value, mode=band.mode, run_key=key)
+            return Constraint(genre=value, mode=band.mode, eras=band.eras, run_key=key)
         # Plage à mode seul : tirage libre enchaîné.
-        return Constraint(mode=band.mode, run_key=key)
+        return Constraint(mode=band.mode, eras=band.eras, run_key=key)

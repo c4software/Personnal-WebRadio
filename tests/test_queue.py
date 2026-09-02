@@ -271,6 +271,51 @@ def test_une_suite_d_epoque_epuisee_se_rompt_en_le_disant() -> None:
     assert suivant.track.identifier in ("y1", "y2")
 
 
+DATEES = [
+    track("v1", "Elvis", year=1956),
+    track("v2", "Brel", year=1962),
+    track("n1", "Air", year=2003),
+    track("n2", "Justice", year=2007),
+    track("n3", "Phoenix", year=2009),
+    track("sans", "Anonyme"),
+]
+
+
+def test_une_plage_bornee_ne_tire_que_dans_ses_decennies() -> None:
+    f = Queue(FakeSource(DATEES), RealRandom(graine=1), Window(width=1))
+    c = Constraint(eras=(2000,))
+    tirees = [f.next_pick(c).track for _ in range(8)]
+    assert {p.identifier for p in tirees} <= {"n1", "n2", "n3"}
+
+
+def test_une_plage_bornee_ecarte_les_pistes_sans_annee() -> None:
+    """Sans année, une piste n'appartient à aucune décennie (docs/subsonic.md §4.1)."""
+    f = Queue(FakeSource([track("sans", "Anonyme"), track("n1", "Air", year=2003)]), RealRandom(2))
+    tirees = [f.next_pick(Constraint(eras=(2000,))).track.identifier for _ in range(6)]
+    assert set(tirees) == {"n1"}
+
+
+def test_une_vague_s_ancre_dans_les_decennies_declarees() -> None:
+    """L'ancre décide de toute la vague : tirée hors des décennies déclarées,
+    la suite entière en sortirait."""
+    hasard = ScriptedRandom([0, 0, 0])  # l'ancre, la longueur, la piste suivante
+    f = Queue(FakeSource(DATEES), hasard, Window(width=1), runs=Runs(hasard))
+    c = Constraint(mode=Mode.ERA_FAN, eras=(2000,), run_key="occ")
+    premier = f.next_pick(c).track
+    deuxieme = f.next_pick(c).track
+    assert premier.year is not None and premier.year // 10 * 10 == 2000
+    assert deuxieme.year is not None and deuxieme.year // 10 * 10 == 2000
+
+
+def test_une_plage_sans_piste_dans_ses_decennies_le_dit() -> None:
+    """La radio ne se tait pas : les décennies sont ignorées, et le repli est
+    signalé dans `fallbacks` (SPECS.md §4.4)."""
+    f = Queue(FakeSource(DATEES), ScriptedRandom([0]), Window(width=1))
+    pick = f.next_pick(Constraint(eras=(1930, 1940)))
+    assert pick.track in DATEES
+    assert "rien des années 1930, 1940 : décennies ignorées" in pick.fallbacks
+
+
 def test_une_suite_d_artiste_epuisee_se_rompt_en_le_disant() -> None:
     catalogue = [
         track("a1", "Air", genre="électro"),

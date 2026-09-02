@@ -275,6 +275,11 @@ n°31) — combinable avec son thème, ou seul (un tirage libre enchaîné) :
   devient l'ancre de la suite suivante.
 - Une piste **sans année** ne pose pas d'ancre d'époque : le tirage reste
   simple (6,7 % de la bibliothèque, docs/subsonic.md §4.1).
+- Une plage peut **borner les décennies** où elle tire (`eras`, §6). Le filtre
+  s'applique avant l'ancre : une décennie non déclarée ne peut donc pas ouvrir
+  de vague. Les pistes sans année en sont écartées, faute d'appartenir à une
+  décennie. Sans rien dans les décennies déclarées, la plage les **ignore en le
+  journalisant** plutôt que de se taire (§4.4).
 - La suite est **remise à zéro** au changement d'occurrence de plage, et ne
   vaut ni pour les programmes (§4.13) ni pour le tirage libre hors plage.
 

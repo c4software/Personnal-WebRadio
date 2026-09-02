@@ -206,6 +206,17 @@ class Queue:
                 message = "la source a répondu, mais elle n'a aucune piste"
                 raise EmptyQueue(message)
 
+            # Une plage peut borner ses décennies (GOAL-071). Le filtre est ici
+            # parce que c'est ici que l'ancre d'une vague se tire : ancrée hors
+            # des décennies déclarées, la vague entière y serait.
+            if constraint is not None and constraint.eras:
+                datees = [t for t in candidates if era_of(t) in constraint.eras]
+                if datees:
+                    candidates = datees
+                else:
+                    annees = ", ".join(str(era) for era in constraint.eras)
+                    fallbacks.append(f"rien des années {annees} : décennies ignorées")
+
             # Une suite d'époque filtre les candidats de la plage : la source
             # n'a pas de requête par époque.
             if directive is not None and directive.era is not None:
