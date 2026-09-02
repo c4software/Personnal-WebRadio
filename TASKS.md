@@ -59,8 +59,8 @@ secondes au branchement du premier auditeur, y compris quand l'antenne reprend
 au milieu d'un morceau. Les écoutes de GOAL-044 (modes d'enchaînement) et
 GOAL-047 (coupe au plafond) ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-051-T05 — la purge à la fin du direct. T04 et T06
-sont liées et attendent l'arbitrage inscrit en T06.
+**Prochaine tâche** : GOAL-051-T06 — elle porte un arbitrage audible et
+attend l'auteur (AGENTS.md §1.2, cas 2). T04 en dépend.
 
 ---
 
@@ -177,7 +177,7 @@ ensemble ils mentent.
       tôt. **(défaut 2, moitié `.liq`)** — à écouter : la jonction musique → direct.
       **Dépend de T06** : sans prédicat réévalué, la transition ne s'exécute
       jamais.
-- [ ] **GOAL-051-T05** — À la fin du direct, l'avance rassie est jetée et le
+- [x] **GOAL-051-T05** — À la fin du direct, l'avance rassie est jetée et le
       reliquat coupé : le premier morceau d'après est tiré à l'heure qu'il est,
       dans la plage qui est réellement ouverte. **(défauts 3 et 4)** — à
       écouter : la reprise à la coupure du direct.

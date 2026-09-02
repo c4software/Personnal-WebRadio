@@ -529,7 +529,10 @@ avec trois différences qui tiennent à la nature d'un direct :
 
 - **Elle a une durée déclarée, obligatoire.** Un podcast se termine de lui-même ;
   un direct jamais. La radio se rebranche sur la musique à la fin de la case —
-  à la seconde, sans attendre une jonction, puisqu'il n'y en a pas.
+  à la seconde, sans attendre une jonction, puisqu'il n'y en a pas. **Et sur
+  un morceau frais** : celui qui attendait avait été tiré à l'ouverture de la
+  case, pour une plage qui n'est peut-être plus ouverte (§7 n°22, révision du
+  2026-09-02).
 - **Elle n'a pas de rattrapage** (§7 n°13 ne s'applique pas) : ce qui compte est
   ce qui passe *maintenant* sur la station captée. Si la case est déjà
   entamée quand la jonction arrive, on capte pour **le temps qui reste** ; si la
@@ -1046,6 +1049,15 @@ a une durée obligatoire, pas de rattrapage, pas de trace en base.
 > morceau d'avance, et la jonction peut tomber après la case — et la coupure
 > effective traîne de quelques secondes, le temps de vider le tampon du direct
 > (docs/liquidsoap.md §5).
+>
+> **Révision du 2026-09-02** (GOAL-051) : **la fin d'un direct est une purge.**
+> Le morceau demandé d'avance a été tiré à l'ouverture de la case et a dormi
+> dessous toute sa durée ; le rendre à la coupure, c'est diffuser une heure
+> plus tard un morceau choisi pour une plage qui n'est plus ouverte. Le
+> diffuseur jette donc son avance et coupe le reliquat quand le direct rend
+> l'antenne, et redemande — c'est la mécanique de la n°30, appliquée à une
+> autre cause. Constaté à l'antenne : deux minutes de musique hors plage à 8 h
+> le matin même.
 
 **n°23 — ffmpeg à la main, ou Liquidsoap ? Liquidsoap.** Tranchée le 2026-08-30
 par l'auteur, sur relevé ([docs/liquidsoap.md](./docs/liquidsoap.md)). Le

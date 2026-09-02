@@ -54,11 +54,22 @@ live_entry = ref("")
 live_pending = ref(false)
 live = input.http(id="live", start=false, self_sync=false, max_buffer=3., {live_url()})
 
+# Ce qu'il faut faire de l'avance quand le direct rend l'antenne. Un `ref` de
+# fonction parce que `stop_live` est défini avant `programme` ; il est rempli
+# plus bas, dès que `programme` existe.
+vider_l_avance = ref(fun () -> ())
+
 def stop_live(why) =
   if live_pending() then
     live_pending := false
     live.stop()
     log("le direct se termine : #{why}")
+    # L'avance a dormi sous le direct : elle a été tirée à l'heure où la case
+    # s'est ouverte, pas à celle où elle se ferme. C'est la même rassise que
+    # celle d'une longue pause (SPECS.md §7 n°30), et le 2026-09-02 elle a
+    # valu deux minutes de musique hors plage à 8 h.
+    purger = vider_l_avance()
+    purger()
   end
 end
 
@@ -183,6 +194,16 @@ def on_requeue(request, response) =
   response.data("vidé")
 end
 harbor.http.register(port=port, method="POST", "/requeue", on_requeue)
+
+# La purge de fin de direct, maintenant que `programme` existe. Le script ne
+# choisit rien de plus qu'avant : il jette ce qui a rassis et **redemande** à
+# l'API, qui décide seule (ARCHITECTURE.md §4).
+vider_l_avance := fun () -> begin
+  log("fin du direct : l'avance rassie est jetée, le reliquat coupé")
+  programme.set_queue([])
+  if piste_commencee() then programme.skip() end
+end
+
 programme = normalize(programme)
 programme = crossfade(duration=2., fade_in=1., fade_out=1., programme)
 

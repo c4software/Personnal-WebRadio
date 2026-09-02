@@ -78,6 +78,17 @@ def test_le_script_refuse_un_saut_a_vide() -> None:
     assert re.search(r"if piste_commencee\(\) then", code)
 
 
+def test_la_fin_d_un_direct_jette_l_avance_rassie() -> None:
+    """GOAL-051 : l'avance a dormi sous le direct — elle a été tirée à
+    l'ouverture de la case, pas à sa fermeture. Le 2026-09-02, deux minutes de
+    musique hors plage à 8 h (docs/liquidsoap.md §9)."""
+    code = _code()
+    fin_du_direct = re.search(r"def stop_live.*?\nend\n", code, re.DOTALL)
+    assert fin_du_direct is not None
+    assert "purger()" in fin_du_direct.group()
+    assert "programme.set_queue([])" in code.split("vider_l_avance :=", 1)[1]
+
+
 def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
     """GOAL-034 : un encore accepté vide le morceau d'avance."""
     code = _code()
