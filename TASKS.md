@@ -47,11 +47,12 @@ et son cache (GOAL-039/040), la plage au thème tiré au sort (GOAL-037), la
 reprise à neuf après une longue pause (GOAL-041), la grille de journée et ses
 quinze génériques (GOAL-043).
 
-**GOAL-051, GOAL-052 et GOAL-053 sont clos le 2026-09-02** : cinq défauts
+**GOAL-051 à GOAL-054 sont clos le 2026-09-02** : cinq défauts
 entendus à l'antenne le matin même, à la rencontre du direct (GOAL-015) et de
 la reprise à neuf (GOAL-041) ; le journal qui empilait deux journées sous la
 même heure ; et le déploiement en deux moitiés dont une silencieuse — le script
-du diffuseur voyage désormais dans une image. **Aucun Goal ouvert.** Décisions
+du diffuseur voyage désormais dans une image ; et « À suivre » ne se vide
+plus à chaque jingle. **Aucun Goal ouvert.** Décisions
 restantes de SPECS.md §7 : la **n°9** est une
 conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
@@ -69,7 +70,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-054-T02 — « À suivre » se replie sur cette avance.
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 **Reste aussi** : l'écoute de GOAL-050 et GOAL-051, qui n'ont atteint la
 production que le 2026-09-02 (GOAL-053).
@@ -133,41 +134,7 @@ production que le 2026-09-02 (GOAL-053).
 | GOAL-051 | Le direct ne ment plus à l'antenne, et la reprise coupe vraiment le reliquat | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
 | GOAL-052 | L'historique dit quel jour, et ne mélange plus deux 8 h | `[x]` — clos le 2026-09-02 |
 | GOAL-053 | Le script du diffuseur voyage dans une image, plus par un montage | `[x]` — clos le 2026-09-02 |
-| GOAL-054 | « À suivre » regarde derrière l'habillage | `[ ]` |
+| GOAL-054 | « À suivre » regarde derrière l'habillage | `[x]` — clos le 2026-09-02 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
-
----
-
-## GOAL-054 — « À suivre » regarde derrière l'habillage
-
-Signalé par l'auteur le 2026-09-02, capture à l'appui : « À suivre » est vide.
-Le journal du diffuseur dit pourquoi, à la seconde — à 11:01:38, la seule
-entrée demandée d'avance était `hours/11h-c.mp3`.
-
-Le diffuseur ne garde **qu'une** entrée d'avance (`prefetch=1` est le minimum,
-docs/liquidsoap.md §3), et `up_next()` saute les jingles : « dix secondes
-d'habillage ne sont pas à suivre » (GOAL-035, demandé par l'auteur). Quand
-cette unique entrée est de l'habillage, il n'y a plus rien à annoncer, et le
-panneau reste vide **le temps de toute la chanson en cours** — une quarantaine
-de fois par jour, à chaque jingle horaire et à chaque générique de plage.
-
-La radio sait pourtant déjà ce qui vient : `core/queue.py` garde une `_avance`,
-un `Pick` entièrement résolu que le tirage suivant servira. « À suivre » ne la
-regarde simplement pas.
-
-**Tranché par l'auteur le 2026-09-02** : regarder derrière l'habillage. La
-règle de GOAL-035 tient — on n'annonce jamais un jingle — et le trou disparaît.
-
-- [x] **GOAL-054-T01** — La file dit ce qu'elle a préparé : `Queue` expose son
-      avance sans la consommer, et le programme ne la rend que lorsque c'est
-      bien le tirage libre qui parlera — **pas** pendant un programme, dont la
-      musique vient d'une liste et non de la file (SPECS.md §4.13). L'annoncer
-      alors serait annoncer un morceau qui ne passera pas.
-- [x] **GOAL-054-T02** — « À suivre » se replie sur cette avance quand la file
-      du diffuseur n'a que de l'habillage.
-      **Le câblage a révélé un trou dans SPECS.md §7 n°30** : la purge de
-      reprise n'atteignait pas l'avance de la file, et `next_pick` la sert sans
-      regarder la contrainte — un morceau tiré à 19 h serait passé au réveil du
-      lendemain. Corrigé dans le même incrément : la purge l'oublie aussi.
