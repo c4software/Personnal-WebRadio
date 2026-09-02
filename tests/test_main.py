@@ -231,6 +231,25 @@ def test_une_plage_a_suite_au_hasard_se_retire(tmp_path: Path) -> None:
     assert radio.redraw_moment().accepted
 
 
+def test_les_decennies_du_toml_arrivent_jusqu_a_la_grille(tmp_path: Path) -> None:
+    """La clé `eras` traverse le schéma et le câblage : sans elle, la plage
+    tirerait dans toutes les décennies (GOAL-071)."""
+    folder = tmp_path / "jingles"
+    folder.mkdir()
+    toml = tmp_path / "webradio.toml"
+    toml.write_text(
+        (TOML_EPOQUES + "eras = [2000, 2010]\n").format(
+            folder=folder, database=tmp_path / "state.sqlite3"
+        )
+    )
+    env = tmp_path / ".env"
+    env.write_text(ENV_MINIMAL)
+    _playout, _radio, grille = build(load(toml, env, environment={}))
+    journee = grille.day(datetime(2026, 9, 2, tzinfo=UTC))
+    plages = [s.content for s in journee if isinstance(s.content, Band)]
+    assert [p.eras for p in plages] == [(2000, 2010)]
+
+
 # ── La semaine du Planning, déjà fusionnée (GOAL-068) ──────────────────────
 
 

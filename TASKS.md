@@ -142,10 +142,11 @@ dise. Une plage pourra déclarer les décennies dans lesquelles elle tire.
       `Band.eras`, `Constraint.eras`, filtre dans `core/queue.py`, repli
       journalisé quand la plage n'a rien dans ces décennies ; SPECS.md §4.4.
       Les quatre tests ont été vus échouer filtre retiré.
-- [-] **GOAL-071-T02** — La clé `eras` du TOML : schéma, chargeur, câblage
-      `app/main.py`, SPECS.md §6
+- [x] **GOAL-071-T02** — La clé `eras` du TOML : schéma, chargeur, câblage
+      `app/main.py`, SPECS.md §6, `webradio.exemple.toml`. Le test de câblage a
+      été vu échouer `eras=p.eras` retiré.
 
-**Prochaine tâche** : GOAL-071-T02.
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
 

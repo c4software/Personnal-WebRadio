@@ -1032,7 +1032,9 @@ Ce que le TOML doit décrire, au minimum :
   choisir (§4.4). Une plage déclare **exactement une** des trois clés — sauf à
   porter un `mode` seul. `mode` demande que les tirages s'**enchaînent**
   (§4.4, n°31) : `double_dose`, `era_fan` ou `artist_fan`, combinable au
-  thème ;
+  thème. `eras` borne les décennies où la plage tire — une liste d'entiers
+  multiples de dix, comme `[2000, 2010, 2020]` ; absente, la plage tire dans
+  toutes (§4.4) ;
 - **Le tirage** : `artist_gap`, le nombre d'artistes distincts qui doivent
   passer avant qu'un artiste puisse revenir (§4.2, défaut 5), et
   `max_track_minutes`, le plafond de durée de lecture d'une piste (§4.2,

@@ -143,7 +143,8 @@ class Band:
     tiré dans la bibliothèque, GOAL-037), un seul des trois. `days` restreint
     la plage à certains jours ; par défaut tous les jours (GOAL-019). `mode`
     enchaîne les tirages (SPECS.md §7 n°31) ; il se combine au thème ou se
-    déclare seul.
+    déclare seul. `eras` borne les décennies où la plage tire (GOAL-071) ;
+    vide, elle tire dans toutes.
     """
 
     start: time
@@ -155,6 +156,7 @@ class Band:
     intro: str | None = None
     outro: str | None = None
     mode: str | None = None
+    eras: tuple[int, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -502,7 +504,18 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
         prefix = f"bands[{index}]"
         _verifier_cles(
             table,
-            ("start", "end", "genres", "artists", "random", "days", "intro", "outro", "mode"),
+            (
+                "start",
+                "end",
+                "genres",
+                "artists",
+                "random",
+                "days",
+                "intro",
+                "outro",
+                "mode",
+                "eras",
+            ),
             prefix,
         )
         declarees = sum(cle in table for cle in ("genres", "artists", "random"))
@@ -534,9 +547,26 @@ def _plages(brut: Mapping[str, Any]) -> tuple[Band, ...]:
                 intro=_texte(table, "intro", prefix) if "intro" in table else None,
                 outro=_texte(table, "outro", prefix) if "outro" in table else None,
                 mode=_texte(table, "mode", prefix) if "mode" in table else None,
+                eras=_liste_decennies(table, "eras", prefix) if "eras" in table else (),
             )
         )
     return tuple(bands)
+
+
+def _liste_decennies(table: Mapping[str, Any], key: str, prefix: str) -> tuple[int, ...]:
+    """Les décennies d'une plage : des entiers multiples de dix (GOAL-071)."""
+    path = _chemin(prefix, key)
+    value = table[key]
+    if not isinstance(value, list):
+        _refuser(path, f"une liste est attendue, pas {type(value).__name__}")
+    if not value:
+        _refuser(path, "une liste vide ne restreint rien")
+    for index, element in enumerate(value):
+        if not isinstance(element, int) or isinstance(element, bool):
+            _refuser(f"{path}[{index}]", "une décennie est un entier, comme 1990")
+        if element <= 0 or element % 10:
+            _refuser(f"{path}[{index}]", f"décennie attendue, multiple de dix : {element}")
+    return tuple(value)
 
 
 def _jours(table: Mapping[str, Any], prefix: str) -> tuple[str, ...]:

@@ -216,6 +216,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
                 intro=p.intro,
                 outro=p.outro,
                 mode=Mode(p.mode) if p.mode is not None else None,
+                eras=p.eras,
             )
             for p in settings.bands
         ],

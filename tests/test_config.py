@@ -168,6 +168,104 @@ mode = "era_fan"
     assert plage.genres == () and plage.artists == ()
 
 
+def test_une_plage_peut_borner_ses_decennies() -> None:
+    content = (
+        TOML_MINIMAL
+        + """
+[[bands]]
+start = "12:00"
+end = "13:30"
+genres = ["Pop"]
+mode = "era_fan"
+eras = [2000, 2010, 2020]
+"""
+    )
+    assert _valider(content).bands[0].eras == (2000, 2010, 2020)
+
+
+def test_une_plage_sans_decennies_tire_dans_toutes() -> None:
+    content = (
+        TOML_MINIMAL
+        + """
+[[bands]]
+start = "12:00"
+end = "13:30"
+genres = ["Pop"]
+"""
+    )
+    assert _valider(content).bands[0].eras == ()
+
+
+def test_une_annee_qui_n_est_pas_une_decennie_est_refusee() -> None:
+    content = (
+        TOML_MINIMAL
+        + """
+[[bands]]
+start = "12:00"
+end = "13:30"
+genres = ["Pop"]
+eras = [2000, 1995]
+"""
+    )
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "bands[0].eras[1]" in str(refus.value)
+    assert "multiple de dix" in str(refus.value)
+
+
+def test_une_decennie_qui_n_est_pas_un_entier_est_refusee() -> None:
+    content = (
+        TOML_MINIMAL
+        + """
+[[bands]]
+start = "12:00"
+end = "13:30"
+genres = ["Pop"]
+eras = ["1990"]
+"""
+    )
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "bands[0].eras[0]" in str(refus.value)
+
+
+def test_une_liste_de_decennies_vide_est_refusee() -> None:
+    """Une liste vide ne restreint rien : c'est une faute de frappe, pas un choix."""
+    content = (
+        TOML_MINIMAL
+        + """
+[[bands]]
+start = "12:00"
+end = "13:30"
+genres = ["Pop"]
+eras = []
+"""
+    )
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "bands[0].eras" in str(refus.value)
+
+
+def test_des_decennies_hors_liste_sont_refusees() -> None:
+    content = (
+        TOML_MINIMAL
+        + """
+[[bands]]
+start = "12:00"
+end = "13:30"
+genres = ["Pop"]
+eras = 2000
+"""
+    )
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "bands[0].eras" in str(refus.value)
+
+
 def test_un_mode_inconnu_est_refuse_en_nommant_les_valeurs() -> None:
     content = (
         TOML_MINIMAL
