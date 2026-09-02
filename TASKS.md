@@ -97,9 +97,12 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
-l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
-son moment que GOAL-056 met en place.
+**GOAL-062 est ouvert le 2026-09-02** : l'auteur a trouvé l'interface
+« pas terrible » — un lecteur perdu au milieu de la page, un grand vide
+jusqu'aux votes collés en bas. Le lecteur devient une barre fixe, l'antenne
+une carte, et les votes viennent juste dessous.
+
+**Prochaine tâche** : GOAL-062-T02.
 
 **Reste aussi** : l'écoute de GOAL-050 et GOAL-051, qui n'ont atteint la
 production que le 2026-09-02 (GOAL-053).
@@ -171,9 +174,46 @@ production que le 2026-09-02 (GOAL-053).
 | GOAL-059 | « Retirer » vaut aussi pour une suite tirée au sort : décennie ou artiste | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
 | GOAL-060 | Un lecteur dans la page : écouter la radio depuis l'interface | `[x]` — clos le 2026-09-02 ; **reste l'écoute** depuis un téléphone |
 | GOAL-061 | Retouches de l'interface : votes grisés sans auditeur, tiroir plus profond et animé | `[x]` — clos le 2026-09-02 |
+| GOAL-062 | L'interface repensée : un lecteur en barre fixe, l'antenne en carte, les votes à portée de pouce | `[-]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
+
+---
+
+## GOAL-062 — L'interface repensée
+
+Demandé par l'auteur le 2026-09-02, capture à l'appui : « c'est pas terrible ».
+Le lecteur (GOAL-060) était un bouton posé sous le moment, les votes deux
+pavés fixés en bas, et entre les deux un écran de vide. L'auteur propose un
+lecteur « plus beau, toujours en bas », par une bibliothèque tierce peut-être.
+
+**Décision : pas de bibliothèque de lecteur.** Un lecteur tiers (Plyr, et
+consorts) est fait pour un fichier — barre de progression, durée, avance —
+et rien de cela n'a de sens sur un direct. Il faudrait le vendre avec la page
+(hors ligne, comme Vue), et « couper, c'est décharger » — la règle qui compte
+un auditeur de moins — resterait à écrire à côté de lui. Vue est déjà là ; la
+barre se dessine avec.
+
+**Décision : le style « verre » d'Apple, pas Material.** L'auteur proposait
+l'un ou l'autre. Material fidèle demande une bibliothèque de composants à
+vendre hors ligne ; le verre — surfaces translucides floutées sur un fond en
+dégradé — se fait en CSS seul, et convient à une radio qu'on regarde dans le
+noir.
+
+- [x] **GOAL-062-T01** — La barre de lecture, fixe en bas de page et présente
+      sur tous les onglets : un bouton rond Écouter / Couper, titre, artiste et
+      moment sur une ligne, un témoin « en direct » / « en veille », le volume
+      quand l'écran est assez large. La règle de GOAL-060 ne change pas :
+      rien n'est chargé avant le geste, couper décharge. **Écouter** depuis
+      un téléphone : la barre reste sous le pouce quand on change d'onglet.
+- [ ] **GOAL-062-T02** — L'onglet « À l'antenne » en carte : nature, titre,
+      artiste, moment et « Retirer », « À suivre » en ligne ouvrable, et
+      « Passer » / « Encore » juste dessous — plus de vide entre le contenu et
+      les boutons ; sans auditeur, la carte dit qu'il suffit d'écouter.
+- [ ] **GOAL-062-T03** — Un en-tête et des onglets segmentés communs, des
+      cartes unifiées sur Votes, Planning, Historique et le tiroir ;
+      SPECS.md §4.8 ; clôture.
 
 
 

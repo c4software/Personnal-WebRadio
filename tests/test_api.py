@@ -487,6 +487,17 @@ def test_la_page_porte_l_adresse_du_flux_declaree() -> None:
     assert "mediaSession" in page
 
 
+def test_le_lecteur_est_une_barre_hors_des_onglets() -> None:
+    """GOAL-062 : la barre de lecture vit hors des sections d'onglet, pour
+    rester sous le pouce quand on passe aux votes ou au planning ; et les
+    commandes de l'écran de verrouillage passent par le même bouton."""
+    page = client(FakeRadio()).get("/").get_data(as_text=True)
+    assert '<footer v-if="flux" class="barre"' in page
+    assert 'class="lecteur"' not in page
+    assert page.index('class="barre"') > page.index("<section v-else>")
+    assert "setActionHandler(action, () => this.basculerEcoute())" in page
+
+
 def test_la_page_grise_les_votes_sans_auditeur() -> None:
     """GOAL-061 : la page ne décide rien, mais elle n'offre pas un bouton
     dont l'effet serait invisible — sans antenne, rien sur quoi voter."""

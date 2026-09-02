@@ -8,10 +8,17 @@
          objet local, elle doit s'afficher sans internet. -->
     <script src="{{ url_for('static', filename='vue.global.prod.js') }}"></script>
     <style>
+      /* Le style « verre » (GOAL-062) : des surfaces translucides et floutées
+         posées sur un fond en dégradé. Le flou n'a de sens que si quelque
+         chose passe dessous — d'où les halos de couleur du fond. */
       :root {
-        --fond: #0d1117; --carte: #161b22; --bord: #21262d;
-        --texte: #e6edf3; --sourdine: #8b949e; --accent: #4493f8;
-        --refus: #f85149; --accepte: #3fb950; --encore: #3fb950; --stop: #f85149;
+        --fond: #0b0f1a; --carte: rgba(255, 255, 255, 0.06); --carte-forte: rgba(255, 255, 255, 0.1);
+        --bord: rgba(255, 255, 255, 0.12); --bord-fort: rgba(255, 255, 255, 0.22);
+        --texte: #f5f7fa; --sourdine: rgba(245, 247, 250, 0.62); --accent: #6ea8ff; --accent-fort: #3d8bff;
+        --refus: #fb7185; --accepte: #34d399; --encore: #34d399; --stop: #fb7185; --ambre: #fbbf24;
+        --rayon: 1.25rem; --flou: blur(24px) saturate(160%);
+        --ombre: 0 12px 40px rgba(0, 0, 0, 0.45);
+        --reflet: inset 0 1px 0 rgba(255, 255, 255, 0.08);
       }
       /* Vue pose v-cloak jusqu'au montage : cette règle cache la page tant
          que les gabarits ne sont pas compilés — sans elle, les [[ ]] bruts
@@ -20,10 +27,22 @@
       * { box-sizing: border-box; margin: 0; }
       body {
         background: var(--fond); color: var(--texte); min-height: 100dvh;
-        font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-        display: flex; justify-content: center;
+        font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased; display: flex; justify-content: center;
+      }
+      /* Les halos vivent dans un pseudo-élément fixe : `background-attachment:
+         fixed` est ignoré sur iOS, et un fond qui défile avec la page laisse
+         les surfaces de verre sans rien à flouter. */
+      body::before {
+        content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+        background:
+          radial-gradient(60rem 40rem at 10% -10%, rgba(61, 139, 255, 0.38), transparent 60%),
+          radial-gradient(50rem 36rem at 100% 25%, rgba(168, 85, 247, 0.3), transparent 60%),
+          radial-gradient(46rem 40rem at 40% 110%, rgba(52, 211, 153, 0.18), transparent 60%);
       }
       main { width: min(40rem, 100%); padding: 1.25rem 1.25rem 7.5rem; }
+      button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+      button[disabled] { cursor: default; }
       .onglets { display: flex; gap: 0.5rem; margin-bottom: 1.5rem; }
       .onglets button {
         flex: 1; padding: 0.6rem; border-radius: 0.6rem; border: 1px solid var(--bord);
@@ -44,14 +63,55 @@
         background: transparent; color: var(--accent);
       }
       .retirer[disabled] { opacity: 0.5; }
-      /* Le lecteur (GOAL-060) : un seul bouton, large, pour une main. */
-      .lecteur { margin-top: 1.25rem; display: flex; align-items: center; gap: 0.8rem; }
-      .lecteur button {
-        padding: 0.8rem 1.4rem; font-size: 1rem; font-weight: 600; border-radius: 999px;
-        border: 1px solid var(--accent); background: var(--accent); color: var(--fond);
+      /* La barre de lecture (GOAL-062) : fixe en bas, sur tous les onglets,
+         sous le pouce — un bouton rond, ce qui passe, le témoin d'antenne.
+         Le volume ne se montre que sur un écran large : un téléphone le
+         règle avec ses touches, et iOS ignore `audio.volume`. */
+      .barre {
+        position: fixed; left: 50%; transform: translateX(-50%); z-index: 4;
+        bottom: max(0.75rem, env(safe-area-inset-bottom)); width: min(40rem, 100% - 1.5rem);
+        background: var(--carte-forte); border: 1px solid var(--bord-fort); border-radius: 1.5rem;
+        backdrop-filter: var(--flou); -webkit-backdrop-filter: var(--flou);
+        box-shadow: var(--reflet), var(--ombre);
+        display: flex; align-items: center; gap: 0.8rem; padding: 0.6rem 0.6rem 0.6rem 0.75rem;
       }
-      .lecteur button.en-ecoute { background: transparent; color: var(--accent); }
-      .lecteur .detail { color: var(--sourdine); font-size: 0.85rem; }
+      .barre .pochette {
+        width: 3.25rem; height: 3.25rem; flex: none; border-radius: 0.9rem; display: grid; place-items: center;
+        background: linear-gradient(145deg, var(--accent-fort), #a855f7); color: #fff;
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+      }
+      .barre .pochette svg { width: 1.4rem; height: 1.4rem; fill: currentColor; }
+      .barre .ligne { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 0.15rem; }
+      .barre .quoi { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
+      .barre .detail { color: var(--sourdine); font-size: 0.8rem; display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+      .barre .detail .texte { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .temoin { width: 0.5rem; height: 0.5rem; border-radius: 999px; background: var(--sourdine); flex: none; }
+      .temoin.direct { background: var(--accepte); box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.25); }
+      .temoin.attente { background: var(--ambre); animation: pulser 1s ease-in-out infinite; }
+      @keyframes pulser { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+      .ondes { display: inline-flex; align-items: flex-end; gap: 3px; height: 1.3rem; }
+      .ondes i { width: 4px; border-radius: 2px; background: #fff; animation: onde 0.9s ease-in-out infinite; }
+      .ondes i:nth-child(2) { animation-delay: 0.15s; }
+      .ondes i:nth-child(3) { animation-delay: 0.3s; }
+      .ondes i:nth-child(4) { animation-delay: 0.45s; }
+      @keyframes onde { 0%, 100% { height: 30%; } 50% { height: 100%; } }
+      .barre .volume { display: none; align-items: center; gap: 0.4rem; color: var(--sourdine); }
+      .barre .volume input { width: 6rem; accent-color: var(--accent); }
+      @media (min-width: 40rem) { .barre .volume { display: flex; } }
+      .barre .jouer {
+        width: 3.25rem; height: 3.25rem; border-radius: 999px; flex: none; border: 0;
+        background: #fff; color: var(--fond); display: grid; place-items: center;
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); transition: transform 0.15s ease;
+      }
+      .barre .jouer:active { transform: scale(0.92); }
+      .barre .jouer svg { width: 1.25rem; height: 1.25rem; fill: currentColor; }
+      @media (prefers-reduced-motion: reduce) {
+        .ondes i { animation: none; height: 60%; }
+        .temoin.attente { animation: none; }
+      }
+      /* Tant que les votes sont fixés en bas, ils se posent au-dessus de la barre. */
+      main:has(.barre) { padding-bottom: 12.5rem; }
+      main:has(.barre) .boutons { bottom: 5.4rem; }
       .a-suivre { color: var(--sourdine); font-size: 0.9rem; margin-top: 0.4rem;
                   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       /* « À suivre » ouvre le tiroir des prochains titres (GOAL-058) : un
@@ -193,14 +253,6 @@
             <span class="chevron">▴</span>
           </button>
         </p>
-        <!-- Le lecteur ne charge rien tant qu'on n'écoute pas (preload="none") :
-             la page ouverte sur un téléphone ne doit pas brancher un auditeur
-             à l'insu de tous — la radio ne tourne que si quelqu'un écoute. -->
-        <div v-if="flux" class="lecteur">
-          <button type="button" :class="{ 'en-ecoute': ecoute }" @click="basculerEcoute()">[[ ecoute ? "Couper" : "Écouter" ]]</button>
-          <span class="detail">[[ ecoute ? "en écoute depuis cette page" : "écouter ici" ]]</span>
-          <audio ref="audio" preload="none" :src="flux" @playing="ecoute = true" @pause="ecoute = false" @error="erreurDeFlux()"></audio>
-        </div>
         <p v-if="message" class="etat" :class="issue">[[ message ]]</p>
         <p v-else-if="!antenne" class="etat">Personne n'écoute : la radio ne tourne pas.</p>
       </section>
@@ -297,6 +349,34 @@
         <button type="button" :disabled="occupe || voteImpossible" @click="voter(urls.stop)">Passer</button>
         <button type="button" :disabled="occupe || voteImpossible" @click="voter(urls.encore)">Encore</button>
       </div>
+
+      <!-- La barre de lecture (GOAL-062), hors des onglets : elle reste là
+           quand on passe aux votes ou au planning. Le lecteur ne charge rien
+           tant qu'on n'écoute pas (preload="none") : la page ouverte sur un
+           téléphone ne doit pas brancher un auditeur à l'insu de tous — la
+           radio ne tourne que si quelqu'un écoute. -->
+      <footer v-if="flux" class="barre" aria-label="Lecteur">
+        <div class="pochette" aria-hidden="true">
+          <span v-if="ecoute" class="ondes"><i></i><i></i><i></i><i></i></span>
+          <svg v-else viewBox="0 0 16 16"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h9A1.5 1.5 0 0 1 14 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-7zm2.5 6.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9 7h3v1H9V7zm0 2h3v1H9V9zM4 1.3l7 2.2-.3.9L3.7 2.2 4 1.3z" /></svg>
+        </div>
+        <div class="ligne">
+          <span class="quoi">[[ ligneDeLaBarre ]]</span>
+          <span class="detail">
+            <i class="temoin" :class="{ direct: antenne !== null && !attente, attente: attente }"></i>
+            <span class="texte">[[ detailDeLaBarre ]]</span>
+          </span>
+        </div>
+        <label class="volume" title="Volume">
+          <span aria-hidden="true">🔈</span>
+          <input type="range" min="0" max="1" step="0.05" aria-label="Volume" v-model.number="volume" @input="reglerVolume()" />
+        </label>
+        <button type="button" class="jouer" :title="ecoute || attente ? 'Couper' : 'Écouter'" :aria-label="ecoute || attente ? 'Couper' : 'Écouter'" @click="basculerEcoute()">
+          <svg v-if="ecoute || attente" viewBox="0 0 16 16" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2" /></svg>
+          <svg v-else viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 2.6v10.8a1 1 0 0 0 1.5.86l9-5.4a1 1 0 0 0 0-1.72l-9-5.4a1 1 0 0 0-1.5.86z" /></svg>
+        </button>
+        <audio ref="audio" preload="none" :src="flux" @playing="prendreAntenne()" @pause="ecoute = false" @error="erreurDeFlux()"></audio>
+      </footer>
     </main>
 
     <script>
@@ -339,6 +419,8 @@
             prochains: [],
             flux: FLUX,
             ecoute: false,
+            attente: false,
+            volume: 1,
             votes: [],
             planning: null,
             maintenant: new Date(),
@@ -356,6 +438,19 @@
             // Sans auditeur, rien ne passe : un vote n'aurait rien sur quoi
             // porter (GOAL-061). Pendant l'habillage, l'API le refuserait.
             return this.antenne === null || this.antenne.kind !== "musique";
+          },
+          ligneDeLaBarre() {
+            // La barre dit ce qui passe, d'où qu'on la regarde ; sans antenne,
+            // elle dit ce qu'appuyer ferait.
+            if (this.attente) { return "Prise d'antenne…"; }
+            if (this.antenne === null) { return "Écouter la radio"; }
+            const a = this.antenne;
+            return (a.title || a.kind) + (a.artist ? " — " + a.artist : "");
+          },
+          detailDeLaBarre() {
+            if (this.attente) { return "le flux se connecte"; }
+            if (this.antenne === null) { return "en veille · personne n'écoute"; }
+            return (this.ecoute ? "en écoute" : "en direct") + (this.moment ? " · " + this.moment : "");
           },
           pagesHistorique() {
             // Une page par JOUR et par heure, de la plus récente à la plus
@@ -557,20 +652,38 @@
             // décharger — sinon le navigateur garde la connexion, la radio
             // compte un auditeur, et reprendre rejouerait du tampon rassis.
             const audio = this.$refs.audio;
-            if (this.ecoute) {
+            if (this.ecoute || this.attente) {
               audio.pause();
               audio.removeAttribute("src");
               audio.load();
               this.ecoute = false;
+              this.attente = false;
               return;
             }
+            // Entre le geste et le premier son, la radio se réveille : la
+            // barre le dit, plutôt que de laisser croire que rien ne s'est passé.
+            this.attente = true;
             audio.src = this.flux;
+            audio.volume = this.volume;
             audio.load();
-            audio.play().catch((erreur) => { this.message = "Lecture impossible : " + erreur; this.issue = "refus"; });
+            audio.play().catch((erreur) => {
+              this.attente = false;
+              this.message = "Lecture impossible : " + erreur;
+              this.issue = "refus";
+            });
+          },
+          prendreAntenne() {
+            this.attente = false;
+            this.ecoute = true;
+            this.annoncerAuVerrouillage();
+          },
+          reglerVolume() {
+            this.$refs.audio.volume = this.volume;
           },
           erreurDeFlux() {
-            if (!this.ecoute) { return; }
+            if (!this.ecoute && !this.attente) { return; }
             this.ecoute = false;
+            this.attente = false;
             this.message = "Le flux s'est interrompu.";
             this.issue = "refus";
           },
@@ -659,6 +772,13 @@
             if (nom !== this.onglet) { this.ouvrir(nom); }
           });
           this.rafraichir();
+          if ("mediaSession" in navigator && this.flux) {
+            // Les commandes de l'écran de verrouillage et des écouteurs
+            // passent par le même chemin que le bouton : couper décharge.
+            for (const action of ["play", "pause", "stop"]) {
+              navigator.mediaSession.setActionHandler(action, () => this.basculerEcoute());
+            }
+          }
           setInterval(() => {
             this.maintenant = new Date();
             this.rafraichir();
