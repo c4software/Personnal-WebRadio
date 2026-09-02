@@ -184,6 +184,15 @@ on ajoute un jingle en déposant un fichier, on le retire en le supprimant.
   Le jingle de vote `encore.mp3` (§4.6) passe toujours **en dernier**, parce
   qu'il annonce le morceau qui suit immédiatement.
 - Pendant un jingle, `stop` et `encore` ne s'appliquent pas (§4.6).
+- **La jonction suivante est bien la jonction qui suit l'heure** — pas celle
+  d'après. Le diffuseur décide l'entrée de chaque jonction à la précédente
+  (un morceau d'avance, §7 n°23) ; une heure pleine tombée entre les deux
+  n'était donc vue qu'un morceau plus tard : `16h.mp3` à 16 h 07 pour un
+  morceau fini à 16 h 03, constaté le 2026-09-02. **Depuis ce jour**, l'heure
+  pleine remet l'avance en question (§7 n°33) : l'entrée déjà demandée se
+  replace derrière le jingle, dans les quinze secondes qui suivent l'heure.
+  Le résidu assumé : une jonction tombée dans ces quinze secondes-là garde le
+  retard d'un morceau.
 
 ### 4.4 Les moments thématiques
 
@@ -244,6 +253,13 @@ tiré dans la plage « jazz » finit dans la plage « jazz », même s'il débor
 quatre minutes sur la suivante. La transition entre deux plages tombe donc à la
 jonction suivante, pas à l'heure pile — et c'est très bien ainsi : aucune
 coupure, aucune durée à connaître d'avance, aucun cas limite à tester.
+
+**Mais la plage d'avant ne déborde pas derrière son générique.** Ce qui a été
+tiré **d'avance** — pas ce qui joue — sous une plage qui a fini est rassis, et
+ne passe pas (§7 n°33) : le générique de la plage suivante est suivi d'un
+morceau de cette plage, jamais d'un reliquat de la précédente. Le 2026-09-02 à
+16 h 07, « une heure d'un genre tiré au sort » avait été suivie d'un cinquième
+Bob Marley du contretemps de 15 h.
 
 ### 4.5 Les interruptions d'information
 
@@ -1183,6 +1199,31 @@ journalisée. Les émissions gardent leur propre durée.
 > au plafond garde les deux : tout se joue, rien ne monopolise l'antenne. La
 > coupe vit dans la charnière de diffusion — le noyau ne connaît plus le
 > plafond, c'est une affaire de lecture, pas de choix (docs/liquidsoap.md §7).
+
+**n°33 — Ce qui a été tiré d'avance sous un moment fini ? Rassis, et jeté.**
+Tranchée le 2026-09-02 par l'auteur, après l'écoute de 16 h : le jingle une
+chanson trop tard, puis le générique du mystère suivi d'un morceau de la plage
+d'avant. Toute entrée décidée d'avance — l'avance de la file comme l'entrée
+déjà demandée par le diffuseur — est **datée** par le moment qui l'a tirée
+(le programme, l'occurrence de plage, ou le tirage libre) et par l'instant de
+sa décision. Une entrée dont le moment a fini est rassise : elle n'est ni
+servie, ni annoncée, ni replacée — le tirage suivant la remplace sous le
+moment courant. Une heure pleine passée depuis la décision d'une entrée
+musique la fait replacer derrière le jingle dû ; le battement d'auditeurs du
+diffuseur (quinze secondes) en est l'horloge, et seulement quand quelqu'un
+écoute. Pendant une émission, l'heure ne compte pas — ses jingles sont
+abandonnés (§4.11) — mais un moment fini compte toujours.
+> *Raison* : le direct (`stop_live`), la longue pause (n°30) et « À suivre »
+> (GOAL-054) avaient chacun reçu un correctif particulier pour le même trou —
+> une avance servie sans regarder sous quoi elle avait été tirée. Une règle
+> unique, constatable dans la file et dans la charnière, remplace le quatrième
+> cas particulier. Les deux purges existantes restent, parce qu'elles ne
+> jugent pas au moment : la longue pause impose un tirage neuf **même sous la
+> même plage** (n°30), et le script du diffuseur ne connaît aucun moment — sa
+> purge de fin de direct est la ceinture du battement, qui, lui, ne peut agir
+> que toutes les quinze secondes. Ce qui joue n'est jamais touché : la n°5
+> tient, seule l'avance — que personne n'entend encore — est remise en
+> question.
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :

@@ -179,6 +179,15 @@ fait oublier au programme l'habillage en attente : tirage neuf (SPECS.md §4.7,
 §7 n°30). Le script annonce l'auditeur **avant** de rendre l'antenne, ce qui
 rend cette purge sans course.
 
+**Et elle est datée** (SPECS.md §7 n°33). La charnière retient, avec chaque
+entrée demandée, le moment qui l'a tirée et l'instant de la décision ; la file
+du noyau fait de même avec son avance. Le battement d'auditeurs, toutes les
+quinze secondes, est l'horloge de la charnière : une heure pleine passée
+depuis la décision, ou un moment fini, font replacer l'avance (`/requeue`,
+le chemin de l'encore) — ce qui est rassi est jeté, le reste se ressert
+derrière le jingle dû. C'est ce qui fait tomber le jingle horaire à la jonction
+qui suit l'heure, et non un morceau plus tard.
+
 ### 4.2 Couper en le disant
 
 Laissé à lui-même, Liquidsoap réessaie sans fin et sert du silence

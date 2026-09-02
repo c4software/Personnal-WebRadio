@@ -83,7 +83,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-056-T04. Les trois Goals s'enchaînent dans
+**Prochaine tâche** : GOAL-057-T01. GOAL-056 est codé et documenté ; **reste l'écoute** de T03 à une heure pleine en production. Les trois Goals s'enchaînent dans
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -242,13 +242,14 @@ d'avance, que personne n'entend encore.
       dans les 15 s qui précèdent l'heure garde l'ancien comportement.
       **Écouter** avant de cocher (AGENTS.md §4.1) : un jingle à 17 h, à la
       jonction qui suit l'heure, sans blanc ni doublon.
-- [ ] **GOAL-056-T04** — Les deux purges existantes rejoignent la règle :
-      `forget_pending()` (longue pause, §7 n°30) et le `/requeue` de fin de
-      direct (`stop_live`) s'expriment comme « l'avance est rassise », sans
-      code propre. Le script Liquidsoap ne change de comportement que si le
-      relevé (docs/liquidsoap.md) le permet ; sinon la tâche se limite au
-      Python et le dit.
-- [ ] **GOAL-056-T05** — Documenter : SPECS.md §4.3 (le jingle tombe à la
+- [x] **GOAL-056-T04** — Les deux purges existantes **restent**, et la
+      raison est consignée dans SPECS.md §7 n°33 : elles ne jugent pas au
+      moment. La longue pause impose un tirage neuf même sous la même plage
+      (n°30), donc `forget_prepared()` garde son sens ; et le script du
+      diffuseur ne connaît aucun moment — sa purge de fin de direct est la
+      ceinture d'un battement qui n'agit que toutes les quinze secondes. Aucun
+      code retiré : il n'y avait pas de doublon, seulement une règle absente.
+- [x] **GOAL-056-T05** — Documenter : SPECS.md §4.3 (le jingle tombe à la
       jonction qui suit l'heure, résidu de 15 s compris), §4.4 (la plage
       d'avant ne déborde pas derrière son générique), §7 — une décision
       n°33 « l'avance est datée par son moment » qui absorbe la purge de la
