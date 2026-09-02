@@ -90,7 +90,7 @@ l'antenne est une carte, les votes juste dessous. **Aucun Goal ouvert.**
 application, porte une icône et dit dans son titre ce qui passe ; la carte
 « La radio dort » est retirée.
 
-**Prochaine tâche** : GOAL-063-T02.
+**Prochaine tâche** : GOAL-063-T03.
 
 ---
 
@@ -175,10 +175,10 @@ barre dit déjà que personne n'écoute.
 
 - [x] **GOAL-063-T01** — Retirer la carte « La radio dort » : sans antenne,
       l'onglet Antenne ne montre que les votes grisés, la barre dit le reste.
-- [-] **GOAL-063-T02** — Une icône (favicon SVG) et un titre de page qui dit
+- [x] **GOAL-063-T02** — Une icône (favicon SVG) et un titre de page qui dit
       ce qui passe — titre et artiste dans l'onglet du navigateur, mis à jour
       à chaque rafraîchissement.
-- [ ] **GOAL-063-T03** — Installable en PWA : un manifeste, des icônes PNG
+- [-] **GOAL-063-T03** — Installable en PWA : un manifeste, des icônes PNG
       pour l'écran d'accueil, les métadonnées qu'iOS exige, l'affichage
       autonome ; SPECS.md §4.8 ; la carte du dépôt (ARCHITECTURE.md §9) ;
       clôture. Ce qu'un téléphone en fait — l'installation, l'ouverture

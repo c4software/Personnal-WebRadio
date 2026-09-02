@@ -523,3 +523,16 @@ def test_sans_antenne_la_page_n_affiche_pas_de_carte_de_veille() -> None:
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert "La radio dort" not in page
     assert "dort" not in page
+
+
+def test_la_page_a_une_icone_et_nomme_l_onglet_d_apres_ce_qui_passe() -> None:
+    """GOAL-063-T02 : un favicon servi avec la page, et un titre d'onglet
+    qui suit l'antenne — sans que la vue aille chercher l'antenne elle-même."""
+    app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT)
+    app.config.update(TESTING=True)
+    page = app.test_client().get("/").get_data(as_text=True)
+    assert 'rel="icon" type="image/svg+xml" href="/static/favicon.svg"' in page
+    assert "document.title = a === null" in page
+    icone = app.test_client().get("/static/favicon.svg")
+    assert icone.status_code == 200
+    assert icone.mimetype == "image/svg+xml"

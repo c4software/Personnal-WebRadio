@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>local-webradio</title>
+    <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}" />
     <!-- Vue est VENDU avec le paquet, pas tiré d'un CDN : la radio est un
          objet local, elle doit s'afficher sans internet. -->
     <script src="{{ url_for('static', filename='vue.global.prod.js') }}"></script>
@@ -586,6 +587,7 @@
               this.moment = donnees.moment || null;
               this.momentRandom = donnees.moment_random === true;
               this.annoncerAuVerrouillage();
+              this.nommerLOnglet();
               this.aSuivre = donnees.up_next || null;
               if (this.issue === "") { this.message = ""; }
             } catch (erreur) {
@@ -726,6 +728,14 @@
             this.attente = false;
             this.message = "Le flux s'est interrompu.";
             this.issue = "refus";
+          },
+          nommerLOnglet() {
+            // L'onglet du navigateur dit ce qui passe (demandé par l'auteur) ;
+            // sans antenne, il redevient le nom de la radio.
+            const a = this.antenne;
+            document.title = a === null
+              ? "local-webradio"
+              : (a.title || a.kind) + (a.artist ? " — " + a.artist : "") + " · local-webradio";
           },
           annoncerAuVerrouillage() {
             // Titre et artiste sur l'écran de verrouillage, quand le
