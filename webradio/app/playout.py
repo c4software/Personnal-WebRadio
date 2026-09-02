@@ -120,6 +120,10 @@ class RadioProgramme:
         la file (SPECS.md §4.13), et l'avance préparée ne passera pas. Annoncer
         un morceau qui ne viendra jamais serait pire que de n'annoncer rien.
         """
+        if self._a_rejouer:
+            # Une avance replacée par un « encore » passe AVANT le tirage
+            # suivant (GOAL-034) : annoncer la file serait annoncer le mauvais.
+            return None
         if self._programmation is not None and self._programmation.playlist_to_draw() is not None:
             return None
         return self._file.prepared
@@ -142,6 +146,11 @@ class RadioProgramme:
         self._en_attente.clear()
         self._a_rejouer.clear()
         self._moment_vu = ...
+        # Et l'avance de la file, que la purge n'atteignait pas : `next_pick`
+        # la sert sans regarder la contrainte, donc un morceau tiré à 19 h
+        # serait passé à 7 h le lendemain — le contraire du tirage neuf promis
+        # (SPECS.md §7 n°30). Trouvé le 2026-09-02 en câblant « À suivre ».
+        self._file.forget_prepared()
 
     def prepare(self) -> None:
         """Résout le morceau suivant pendant que le courant joue.

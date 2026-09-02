@@ -167,6 +167,12 @@ class LiquidsoapPlayout:
         C'est le morceau d'avance du diffuseur (GOAL-035) : demandé, pas
         encore à l'antenne. `None` quand rien n'attend — au tout début, ou
         juste après qu'un encore a vidé l'avance.
+
+        **Et quand cette avance n'est que de l'habillage, on regarde
+        derrière** (GOAL-054) : le diffuseur ne garde qu'une entrée d'avance
+        (`prefetch=1`, docs/liquidsoap.md §3), donc un jingle demandé suffisait
+        à vider le panneau le temps d'une chanson entière — une quarantaine de
+        fois par jour. La file, elle, a déjà tiré la suite.
         """
         with self._verrou:
             for entry, nature in self._en_attente.items():
@@ -177,7 +183,8 @@ class LiquidsoapPlayout:
                     # annonce le premier vrai contenu (demandé par l'auteur).
                     continue
                 return nature
-        return None
+        track = self._programme.prepared()
+        return None if track is None else (Kind.MUSIC, track, None)
 
     def stash_for_replay(self) -> None:
         """Les entrées demandées mais pas encore à l'antenne repartent au

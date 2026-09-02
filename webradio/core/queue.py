@@ -92,6 +92,17 @@ class Queue:
         """
         return None if self._avance is None else self._avance.track
 
+    def forget_prepared(self) -> None:
+        """Jette l'avance déjà résolue : le prochain tirage repart à neuf.
+
+        `next_pick` sert l'avance **sans regarder la contrainte** — c'est tout
+        son intérêt, elle a déjà coûté un appel à la source. Mais après une
+        longue pause sans auditeur, cette avance a été tirée des heures plus
+        tôt, sous une plage qui n'est plus ouverte : la servir contredirait le
+        « tirage neuf » de SPECS.md §7 n°30.
+        """
+        self._avance = None
+
     def next_pick(self, constraint: Constraint | None = None) -> Pick:
         """Le morceau suivant. Sert l'avance si elle existe, la calcule sinon."""
         pick = self._avance if self._avance is not None else self._choisir(constraint)

@@ -88,7 +88,10 @@ def test_une_longue_pause_fait_repartir_a_neuf(tmp_path: Path) -> None:
     playout.declare_listeners(1)
 
     assert ordres == ["requeue", "skip"]
-    assert playout.up_next() is None  # le registre de l'avance est purgé
+    # Le registre de l'avance ET l'avance de la file : `next_pick` sert cette
+    # dernière sans regarder la contrainte, donc la laisser aurait servi à la
+    # reprise un morceau tiré avant la pause (trouvé le 2026-09-02).
+    assert playout.up_next() is None
 
 
 def test_une_pause_courte_reprend_l_avance_telle_quelle(tmp_path: Path) -> None:
@@ -327,7 +330,8 @@ def test_la_file_annonce_ce_qui_suit_et_l_encore_le_replace(tmp_path: Path) -> N
 
 
 def test_l_a_suivre_saute_les_jingles(tmp_path: Path) -> None:
-    """Dix secondes d'habillage ne sont pas « à suivre »."""
+    """Dix secondes d'habillage ne sont pas « à suivre » : on annonce la
+    musique que la file a déjà tirée derrière (GOAL-054)."""
     (tmp_path / "hours").mkdir()
     (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
     playout, _radio, clock = _playout(tmp_path)
@@ -336,12 +340,14 @@ def test_l_a_suivre_saute_les_jingles(tmp_path: Path) -> None:
     assert premier is not None
     playout.playing(premier)
     clock.advance(timedelta(hours=1))
-    jingle = playout.next_entry()  # l'avance est le jingle de 13 h
+    jingle = playout.next_entry()  # l'avance du diffuseur est le jingle de 13 h
     assert jingle is not None and "13h.mp3" in jingle
 
-    assert playout.up_next() is None  # rien à annoncer : c'est de l'habillage
+    a_suivre = playout.up_next()
+    assert a_suivre is not None
+    assert a_suivre[0] is Kind.MUSIC, "jamais le jingle"
+    assert a_suivre[1] is not None
 
     musique = playout.next_entry()  # la vraie avance suivante
     assert musique is not None
-    a_suivre = playout.up_next()
-    assert a_suivre is not None and a_suivre[1] is not None
+    assert playout.up_next() == a_suivre, "c'est bien elle qui suit"

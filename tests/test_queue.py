@@ -134,6 +134,17 @@ def test_l_avance_servie_n_est_plus_annoncee() -> None:
     assert f.prepared is None
 
 
+def test_l_avance_s_oublie_pour_repartir_a_neuf() -> None:
+    """SPECS.md §7 n°30 : après une longue pause, le tirage doit être neuf.
+    `next_pick` sert l'avance SANS regarder la contrainte — la garder aurait
+    servi à la reprise un morceau tiré des heures plus tôt, sous une plage
+    fermée depuis (trouvé le 2026-09-02 en câblant « À suivre »)."""
+    f = Queue(FakeSource(CATALOGUE), ScriptedRandom([2, 0]))
+    f.prepare()
+    f.forget_prepared()
+    assert f.prepared is None
+
+
 def test_apres_avoir_servi_l_avance_la_file_recalcule() -> None:
     source = FakeSource(CATALOGUE)
     f = Queue(source, ScriptedRandom([0, 1]))

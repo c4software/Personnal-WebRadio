@@ -165,5 +165,9 @@ règle de GOAL-035 tient — on n'annonce jamais un jingle — et le trou dispar
       bien le tirage libre qui parlera — **pas** pendant un programme, dont la
       musique vient d'une liste et non de la file (SPECS.md §4.13). L'annoncer
       alors serait annoncer un morceau qui ne passera pas.
-- [ ] **GOAL-054-T02** — « À suivre » se replie sur cette avance quand la file
+- [x] **GOAL-054-T02** — « À suivre » se replie sur cette avance quand la file
       du diffuseur n'a que de l'habillage.
+      **Le câblage a révélé un trou dans SPECS.md §7 n°30** : la purge de
+      reprise n'atteignait pas l'avance de la file, et `next_pick` la sert sans
+      regarder la contrainte — un morceau tiré à 19 h serait passé au réveil du
+      lendemain. Corrigé dans le même incrément : la purge l'oublie aussi.
