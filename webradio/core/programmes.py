@@ -17,7 +17,7 @@ connaît que des noms, jamais l'identifiant opaque que la source leur donne.
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import datetime, time
+from datetime import date, datetime, time, timedelta
 
 from webradio.core.clock import Clock
 
@@ -73,6 +73,20 @@ class Programme:
             message = f"programme vide : {self.start} → {self.end}"
             raise ValueError(message)
 
+    @property
+    def length(self) -> timedelta:
+        """La durée déclarée du programme, minuit enjambé compris.
+
+        C'est elle qui tranche un recouvrement : le plus court l'emporte. Le
+        calcul est recopié de `core/bands.py` plutôt qu'importé — les deux
+        modules répondent à la même question sans se connaître, comme `DAYS`
+        l'est de `core/shows.py`.
+        """
+        jour = date.min
+        return (datetime.combine(jour, self.end) - datetime.combine(jour, self.start)) % timedelta(
+            days=1
+        )
+
     def covers(self, instant: datetime) -> bool:
         moment = instant.time()
         if self.start < self.end:
@@ -94,14 +108,17 @@ class Programming:
     déroule alors en une boucle, et se rejoue à l'identique.
 
     Deux programmes qui se recouvrent ne sont pas refusés — la spécification ne
-    réserve ce refus qu'aux émissions (SPECS.md §4.11) : c'est **le premier
-    déclaré** qui l'emporte, exactement comme les plages de `core/bands.py`.
-    Le résultat reste donc déterministe, et l'ordre du TOML est une réponse que
-    l'auteur peut donner sans qu'on la lui demande.
+    réserve ce refus qu'aux émissions (SPECS.md §4.11) : c'est **le plus
+    court** qui l'emporte, exactement comme les plages de `core/bands.py`
+    (révisé le 2026-09-02, GOAL-068). À durée égale, le premier déclaré
+    tranche : le résultat reste déterministe.
     """
 
     def __init__(self, programmes: Sequence[Programme], clock: Clock) -> None:
         self._programmes = tuple(programmes)
+        # L'ordre de l'arbitrage, figé une fois : `sorted` est stable, donc
+        # deux programmes de même durée restent dans l'ordre du TOML.
+        self._par_duree = tuple(sorted(self._programmes, key=lambda p: p.length))
         self._horloge = clock
 
     @property
@@ -112,7 +129,7 @@ class Programming:
         return self.programme_at(self._horloge.now())
 
     def programme_at(self, instant: datetime) -> Programme | None:
-        for programme in self._programmes:
+        for programme in self._par_duree:
             if programme.covers(instant):
                 return programme
         return None

@@ -101,7 +101,21 @@ def test_une_nuit_du_dimanche_se_prolonge_le_lundi_matin() -> None:
     assert Programming([nuit], a(lundi, 23)).current_programme() is None
 
 
-def test_le_premier_programme_declare_l_emporte_sur_un_recouvrement() -> None:
+def test_le_programme_le_plus_court_l_emporte_sur_celui_qui_le_contient() -> None:
+    """GOAL-068 : la même règle que pour les plages (`core/bands.py`)."""
+    longue = Programme(
+        name="La soirée", playlist="A", days=(EVERY_DAY,), start=time(20), end=time(23)
+    )
+    courte = Programme(
+        name="L'heure de Chloé", playlist="B", days=(EVERY_DAY,), start=time(21), end=time(22)
+    )
+
+    assert Programming([longue, courte], a(VENDREDI, 21, 30)).current_programme() is courte
+    assert Programming([courte, longue], a(VENDREDI, 21, 30)).current_programme() is courte
+    assert Programming([longue, courte], a(VENDREDI, 22, 30)).current_programme() is longue
+
+
+def test_a_duree_egale_le_premier_programme_declare_l_emporte_sur_un_recouvrement() -> None:
     tot = Programme(name="Le premier", playlist="A", days=(EVERY_DAY,), start=time(8), end=time(12))
     tard = Programme(
         name="Le second", playlist="B", days=(EVERY_DAY,), start=time(10), end=time(14)

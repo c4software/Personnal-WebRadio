@@ -111,7 +111,49 @@ avait forcé le genre de THK, le morceau d'avance — l'ancre était lue à la
 jonction, sous le jingle. Elle se prend désormais au vote, et le morceau forcé
 se voit dans les prochains titres. **Aucun Goal ouvert.**
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
+**GOAL-068 est ouvert le 2026-09-02** : le Planning affichait les périodes
+**déclarées**, jamais celles qui passent réellement — mercredi, « Hardisk » et
+la plage guitares s'y lisaient comme deux créneaux côte à côte, alors que
+l'émission mange la plage. Cinq cas de la configuration de l'auteur étaient
+dans ce cas. La grille **effective** est calculée une fois, dans le noyau, et
+sert au Planning comme à ce que la radio prépare.
+
+**Prochaine tâche** : GOAL-068-T02.
+
+---
+
+## Goal ouvert
+
+### GOAL-068 — La grille effective : les périodes fusionnent, la plus courte l'emporte
+
+**Ce qui a été constaté** (auteur, capture du Planning du mercredi) : `20:00`
+Hardisk et `20:00–22:00` Rock s'affichent l'un sous l'autre sans que rien ne
+dise que le second commence après le premier. Le défaut vaut aussi pour
+« À suivre », qui annonce de la musique à 20 h.
+
+**Ce qui est tranché** (auteur, le 2026-09-02) :
+
+- entre deux **natures**, la priorité ne change pas : émission > programme >
+  moment (SPECS.md §4.11 et §4.13) ;
+- entre deux **moments** — ou deux programmes — qui se recouvrent, **la plus
+  courte période l'emporte**, en lieu et place de « la première déclarée »
+  (règle jusqu'ici documentée dans les docstrings et le TOML d'exemple). À
+  durée égale, la première déclarée tranche : le résultat reste déterministe.
+- la fusion vaut **aussi pour ce que la radio prépare** : « À suivre » et
+  l'avance tirée.
+
+**Ce que cela change dans la configuration de l'auteur**, et qui a été montré
+avant d'être choisi : la plage « Enfants » du week-end (08:00–10:00) est
+désormais coupée par la matinale et le café ; « la soirée du samedi »
+(21:00–02:00) n'a plus une minute à elle. Les raccourcir est une décision de
+configuration, pas de code — le TOML local n'est pas versionné.
+
+| Tâche | Ce qu'elle livre | État |
+|---|---|---|
+| GOAL-068-T01 | La plus courte période l'emporte, dans `core/bands.py` et `core/programmes.py` | `[x]` |
+| GOAL-068-T02 | `core/planning.py` : la grille effective d'une journée, émissions comprises | `[ ]` |
+| GOAL-068-T03 | `/api/planning` sert la grille effective ; la page l'affiche telle quelle | `[ ]` |
+| GOAL-068-T04 | « À suivre » et l'avance tirée suivent la grille effective | `[ ]` |
 
 ---
 
@@ -186,6 +228,7 @@ se voit dans les prochains titres. **Aucun Goal ouvert.**
 | GOAL-065 | Renvoyer le son vers une enceinte depuis le lecteur | `[x]` — clos le 2026-09-02 ; **reste à essayer** avec une enceinte |
 | GOAL-066 | Le moment courant se nomme toujours, à côté du bouton | `[x]` — clos le 2026-09-02 |
 | GOAL-067 | L'encore vise la chanson entendue au vote, et la liste le montre | `[x]` — clos le 2026-09-02 |
+| GOAL-068 | La grille effective : les périodes fusionnent, la plus courte l'emporte | `[-]` — ouvert le 2026-09-02 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

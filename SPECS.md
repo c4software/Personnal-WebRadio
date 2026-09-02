@@ -206,6 +206,15 @@ par défaut          → tirage libre dans toute la bibliothèque
 21h00–23h00         → « un genre, choisis-le toi-même »
 ```
 
+**Deux plages qui se recouvrent ne sont pas refusées : la plus courte
+l'emporte** (révisé le 2026-09-02, GOAL-068). Dans l'exemple ci-dessus, la
+plage de 21 h interrompt celle de 20 h, qui reprend à sa fin — c'est ce qui
+permet de déclarer un fond de soirée large et d'y planter un rendez-vous, sans
+avoir à découper le fond à la main. À durée égale, la **première déclarée**
+tranche : le résultat reste déterministe. Une émission (§4.11) et un programme
+(§4.13) passent avant, quelle que soit leur durée. La règle vaut à
+l'identique entre deux programmes.
+
 Une plage peut aussi **déléguer le choix** : plutôt que d'énumérer ses valeurs,
 elle déclare la *sorte* de thème voulue — un genre, ou un artiste. La radio tire
 alors dans toute la bibliothèque **au début de l'occurrence**, et s'y tient

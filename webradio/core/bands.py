@@ -107,6 +107,20 @@ class Band:
             message = f"plage vide : {self.start} → {self.end}"
             raise ValueError(message)
 
+    @property
+    def length(self) -> timedelta:
+        """La durée déclarée de la plage, minuit enjambé compris.
+
+        C'est elle qui tranche un recouvrement (SPECS.md §4.4) : la plus
+        courte l'emporte. Le calcul est le même pour un programme
+        (`core/programmes.py`) et y est recopié plutôt qu'importé — les deux
+        modules répondent à la même question sans se connaître.
+        """
+        jour = date.min
+        return (datetime.combine(jour, self.end) - datetime.combine(jour, self.start)) % timedelta(
+            days=1
+        )
+
     def _a_lieu_le(self, jour: date) -> bool:
         if EVERY_DAY in self.days:
             return True
@@ -152,9 +166,11 @@ class Schedule:
     programmation se déroule alors en une boucle, et se rejoue à l'identique.
 
     Deux plages qui se recouvrent ne sont pas refusées — la spécification ne
-    l'exige que des émissions (SPECS.md §4.11) : c'est **la première déclarée**
-    qui l'emporte. Le résultat reste donc déterministe, et l'ordre du TOML est
-    une réponse que l'auteur peut donner sans qu'on la lui demande.
+    l'exige que des émissions (SPECS.md §4.11) : c'est **la plus courte** qui
+    l'emporte (révisé le 2026-09-02, GOAL-068). Une plage d'une heure posée
+    dans une soirée de quatre l'interrompt donc, comme le ferait une émission,
+    au lieu d'être avalée par elle. À durée égale, la première déclarée
+    tranche : le résultat reste déterministe.
     """
 
     def __init__(
@@ -164,6 +180,9 @@ class Schedule:
         resolve_random_theme: ThemeResolver | None = None,
     ) -> None:
         self._plages = tuple(bands)
+        # L'ordre de l'arbitrage, figé une fois : `sorted` est stable, donc
+        # deux plages de même durée restent dans l'ordre du TOML.
+        self._par_duree = tuple(sorted(self._plages, key=lambda plage: plage.length))
         self._horloge = clock
         self._tirer_theme = resolve_random_theme
 
@@ -218,7 +237,7 @@ class Schedule:
         return self._tirer_theme(band, instant)
 
     def _band_at(self, instant: datetime) -> Band | None:
-        for band in self._plages:
+        for band in self._par_duree:
             if band.covers(instant):
                 return band
         return None

@@ -583,7 +583,7 @@ def _programmes(brut: Mapping[str, Any]) -> tuple[DeclaredProgramme, ...]:
     """Les programmes déclarés. Le recouvrement n'est pas refusé.
 
     Contrairement aux émissions, deux programmes qui se recouvrent ne font pas
-    échouer le démarrage : le premier déclaré l'emporte, comme pour les plages.
+    échouer le démarrage : le plus court l'emporte, comme pour les plages.
     SPECS.md ne réserve le refus qu'aux émissions, et l'étendre ici serait
     inventer une règle.
     """

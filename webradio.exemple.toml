@@ -45,6 +45,7 @@ expiry_seconds = 900.0
 # ── Les moments thématiques ────────────────────────────────────────────────
 # En dehors de ces plages, le tirage est libre. Une plage sans musique se
 # replie sur le tirage libre plutôt que de faire taire la radio.
+# Recouvrement : la plus COURTE plage l'emporte, la plus longue reprend après.
 # `intro` et `outro` : un générique d'ouverture et de fermeture, comme une
 # radio classique — des noms de fichiers dans le dossier des jingles,
 # optionnels. Absents, rien ne se passe et rien ne se signale.

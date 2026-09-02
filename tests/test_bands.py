@@ -63,11 +63,33 @@ def test_une_plage_a_plusieurs_genres_tranche_par_le_hasard_injecte() -> None:
     assert premier == second
 
 
-def test_la_premiere_plage_declaree_l_emporte_sur_un_recouvrement() -> None:
+def test_a_duree_egale_la_premiere_plage_declaree_l_emporte_sur_un_recouvrement() -> None:
     tot = Band(start=time(8), end=time(12), genres=("jazz",))
     tard = Band(start=time(10), end=time(14), genres=("rock",))
     assert _genre(Schedule([tot, tard], a(11)), RealRandom(graine=1)) == "jazz"
     assert _genre(Schedule([tard, tot], a(11)), RealRandom(graine=1)) == "rock"
+
+
+def test_la_plage_la_plus_courte_l_emporte_sur_celle_qui_la_contient() -> None:
+    """GOAL-068 : une heure posée dans une soirée l'interrompt, où qu'elle
+    soit déclarée. Sans cela, la longue avalait la courte, qui ne passait
+    jamais."""
+    soiree = Band(start=time(20), end=time(23), genres=("electro",))
+    heure = Band(start=time(21), end=time(22), genres=("soul",))
+
+    assert _genre(Schedule([soiree, heure], a(21, 30)), RealRandom(graine=1)) == "soul"
+    assert _genre(Schedule([heure, soiree], a(21, 30)), RealRandom(graine=1)) == "soul"
+    assert _genre(Schedule([soiree, heure], a(22, 30)), RealRandom(graine=1)) == "electro"
+
+
+def test_une_plage_qui_enjambe_minuit_est_mesuree_sur_sa_vraie_duree() -> None:
+    """« 21 h → 02 h » dure cinq heures, pas moins vingt-trois : la mesurer à
+    l'envers en aurait fait la plus courte, et elle aurait tout emporté."""
+    soiree = Band(start=time(21), end=time(2), genres=("electro",))
+    fin_de_nuit = Band(start=time(1), end=time(3), genres=("ambient",))
+
+    assert soiree.length == timedelta(hours=5)
+    assert _genre(Schedule([soiree, fin_de_nuit], a(1, 30)), RealRandom(graine=1)) == "ambient"
 
 
 def test_une_plage_sans_genre_ni_artiste_est_refusee() -> None:
