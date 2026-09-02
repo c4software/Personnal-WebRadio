@@ -475,6 +475,7 @@ def main(argv: list[str] | None = None) -> int:
         refresh=timedelta(seconds=web.refresh_seconds),
         playout=playout,
         planning=planning,
+        stream_url=web.stream_url,
     )
 
     shutdown = threading.Event()

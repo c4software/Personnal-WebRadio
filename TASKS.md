@@ -94,7 +94,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-060-T02.
+**Prochaine tâche** : GOAL-060-T03.
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -191,7 +191,7 @@ constate qu'en écoutant (docs/flux-icy.md).
       page doit l'ouvrir. Absente, pas de lecteur. Une valeur qui commence
       par `:` — `:8000/flux` — désigne l'hôte de la page : la même
       configuration vaut depuis tous les postes du réseau.
-- [ ] **GOAL-060-T02** — Le lecteur dans l'onglet « À l'antenne » : un bouton
+- [x] **GOAL-060-T02** — Le lecteur dans l'onglet « À l'antenne » : un bouton
       « Écouter » / « Couper », un `<audio preload="none">` qui ne charge rien
       tant qu'on n'écoute pas, et titre et artiste passés à l'écran de
       verrouillage par Media Session quand le navigateur le sait.

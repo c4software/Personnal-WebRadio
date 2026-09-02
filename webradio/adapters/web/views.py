@@ -27,11 +27,12 @@ from webradio.adapters.web.playout_api import Playout, create_playout_api
 MILLISECONDES = 1000
 
 
-def create_view(*, refresh: timedelta) -> Blueprint:
+def create_view(*, refresh: timedelta, stream_url: str = "") -> Blueprint:
     """La page unique.
 
     `rafraichissement` vient du TOML : c'est une durée, et aucune durée ne
-    s'écrit dans le code (AGENTS.md §2).
+    s'écrit dans le code (AGENTS.md §2). `stream_url` aussi : l'adresse que
+    le lecteur de la page ouvre (GOAL-060) — vide, la page n'a pas de lecteur.
     """
     if refresh <= timedelta(0):
         message = "un rafraîchissement nul ferait boucler la page sans reprendre son souffle"
@@ -51,6 +52,7 @@ def create_view(*, refresh: timedelta) -> Blueprint:
             url_encore=url_for("api.vote", name=str(Vote.MORE)),
             url_redraw=url_for("api.redraw_moment"),
             url_up_next=url_for("api.up_next_list"),
+            url_flux=stream_url,
             rafraichissement_ms=int(refresh.total_seconds() * MILLISECONDES),
         )
 
@@ -63,6 +65,7 @@ def create_app(
     refresh: timedelta,
     playout: Playout | None = None,
     planning: dict[str, object] | None = None,
+    stream_url: str = "",
 ) -> Flask:
     """L'application complète : l'API, puis la page qui s'en sert.
 
@@ -71,7 +74,7 @@ def create_app(
     """
     app = Flask(__name__)
     app.register_blueprint(create_api(radio, planning=planning))
-    app.register_blueprint(create_view(refresh=refresh))
+    app.register_blueprint(create_view(refresh=refresh, stream_url=stream_url))
     if playout is not None:
         app.register_blueprint(create_playout_api(playout))
     return app

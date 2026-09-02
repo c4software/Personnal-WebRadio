@@ -470,3 +470,18 @@ def test_la_page_pointe_vers_la_liste_des_prochains_titres() -> None:
     assert "/api/up-next" in page
     assert "Prochains titres" in page
     assert "chargerProchains" in page
+
+
+def test_sans_adresse_de_flux_la_page_n_a_pas_de_lecteur() -> None:
+    """GOAL-060 : rien n'est écrit en dur — pas d'adresse, pas de lecteur."""
+    page = client(FakeRadio()).get("/").get_data(as_text=True)
+    assert 'const FLUX_DECLARE = ""' in page
+
+
+def test_la_page_porte_l_adresse_du_flux_declaree() -> None:
+    app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT, stream_url=":8000/flux")
+    app.config.update(TESTING=True)
+    page = app.test_client().get("/").get_data(as_text=True)
+    assert 'const FLUX_DECLARE = ":8000/flux"' in page
+    assert 'preload="none"' in page
+    assert "mediaSession" in page

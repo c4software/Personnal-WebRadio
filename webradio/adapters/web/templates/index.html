@@ -44,6 +44,14 @@
         background: transparent; color: var(--accent);
       }
       .retirer[disabled] { opacity: 0.5; }
+      /* Le lecteur (GOAL-060) : un seul bouton, large, pour une main. */
+      .lecteur { margin-top: 1.25rem; display: flex; align-items: center; gap: 0.8rem; }
+      .lecteur button {
+        padding: 0.8rem 1.4rem; font-size: 1rem; font-weight: 600; border-radius: 999px;
+        border: 1px solid var(--accent); background: var(--accent); color: var(--fond);
+      }
+      .lecteur button.en-ecoute { background: transparent; color: var(--accent); }
+      .lecteur .detail { color: var(--sourdine); font-size: 0.85rem; }
       .a-suivre { color: var(--sourdine); font-size: 0.9rem; margin-top: 0.4rem;
                   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       /* « À suivre » ouvre le tiroir des prochains titres (GOAL-058) : un
@@ -181,6 +189,14 @@
             <span class="chevron">▴</span>
           </button>
         </p>
+        <!-- Le lecteur ne charge rien tant qu'on n'écoute pas (preload="none") :
+             la page ouverte sur un téléphone ne doit pas brancher un auditeur
+             à l'insu de tous — la radio ne tourne que si quelqu'un écoute. -->
+        <div v-if="flux" class="lecteur">
+          <button type="button" :class="{ 'en-ecoute': ecoute }" @click="basculerEcoute()">[[ ecoute ? "Couper" : "Écouter" ]]</button>
+          <span class="detail">[[ ecoute ? "en écoute depuis cette page" : "écouter ici" ]]</span>
+          <audio ref="audio" preload="none" :src="flux" @playing="ecoute = true" @pause="ecoute = false" @error="erreurDeFlux()"></audio>
+        </div>
         <p v-if="message" class="etat" :class="issue">[[ message ]]</p>
         <p v-else-if="!antenne" class="etat">Personne n'écoute : la radio ne tourne pas.</p>
       </section>
@@ -298,6 +314,13 @@
         upNext: {{ url_up_next | tojson }},
       };
       const RAFRAICHISSEMENT_MS = {{ rafraichissement_ms | tojson }};
+      // L'adresse du flux vient du TOML (web.stream_url). Une valeur qui
+      // commence par « : » — « :8000/flux » — désigne l'hôte de la page : la
+      // même configuration vaut depuis tous les postes du réseau.
+      const FLUX_DECLARE = {{ url_flux | tojson }};
+      const FLUX = FLUX_DECLARE.startsWith(":")
+        ? location.protocol + "//" + location.hostname + FLUX_DECLARE
+        : FLUX_DECLARE;
 
       Vue.createApp({
         delimiters: ["[[", "]]"],
@@ -310,6 +333,8 @@
             aSuivre: null,
             tiroir: false,
             prochains: [],
+            flux: FLUX,
+            ecoute: false,
             votes: [],
             planning: null,
             maintenant: new Date(),
@@ -419,6 +444,7 @@
               this.antenne = donnees.on_air && donnees.on_air_now ? donnees.on_air_now : null;
               this.moment = donnees.moment || null;
               this.momentRandom = donnees.moment_random === true;
+              this.annoncerAuVerrouillage();
               this.aSuivre = donnees.up_next || null;
               if (this.issue === "") { this.message = ""; }
             } catch (erreur) {
@@ -519,6 +545,39 @@
             try {
               await fetch(this.urls.votes + "/" + vote.scope + "/" + encodeURIComponent(vote.key), { method: "DELETE" });
             } finally { this.chargerVotes(); }
+          },
+          basculerEcoute() {
+            // Un flux en direct ne se met pas en pause : couper, c'est
+            // décharger — sinon le navigateur garde la connexion, la radio
+            // compte un auditeur, et reprendre rejouerait du tampon rassis.
+            const audio = this.$refs.audio;
+            if (this.ecoute) {
+              audio.pause();
+              audio.removeAttribute("src");
+              audio.load();
+              this.ecoute = false;
+              return;
+            }
+            audio.src = this.flux;
+            audio.load();
+            audio.play().catch((erreur) => { this.message = "Lecture impossible : " + erreur; this.issue = "refus"; });
+          },
+          erreurDeFlux() {
+            if (!this.ecoute) { return; }
+            this.ecoute = false;
+            this.message = "Le flux s'est interrompu.";
+            this.issue = "refus";
+          },
+          annoncerAuVerrouillage() {
+            // Titre et artiste sur l'écran de verrouillage, quand le
+            // navigateur le sait faire ; sinon rien, sans erreur.
+            if (!("mediaSession" in navigator) || !this.ecoute) { return; }
+            const a = this.antenne;
+            navigator.mediaSession.metadata = new MediaMetadata({
+              title: a ? (a.title || a.kind) : "local-webradio",
+              artist: a ? (a.artist || "") : "",
+              album: this.moment || "",
+            });
           },
           ouvrirTiroir() {
             this.tiroir = true;
