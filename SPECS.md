@@ -456,7 +456,8 @@ réponse porte le nouveau moment, pour que la page l'affiche sans attendre son
 rafraîchissement. Hors d'une plage au hasard, la demande est refusée avec son
 motif, exactement comme un vote pendant un jingle. L'interface montre le bouton
 seulement quand l'API dit qu'il a un sens — elle ne le devine pas sur le
-libellé.
+libellé. **Depuis le 2026-09-02**, le bouton s'appelle « Autre thème » :
+« Retirer » se lisait aussi comme le retrait d'un titre de la liste.
 
 #### Écouter depuis la page
 

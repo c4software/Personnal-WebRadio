@@ -392,10 +392,14 @@ def test_l_api_dit_si_le_moment_a_ete_tire_au_sort() -> None:
 
 
 def test_la_page_pointe_vers_la_route_du_retirage() -> None:
-    """Le bouton « Retirer » passe par l'API, comme tout bouton (SPECS.md §4.8)."""
+    """Le bouton « Autre thème » passe par l'API, comme tout bouton (SPECS.md §4.8).
+    Il s'appelait « Retirer » — à double sens avec le retrait d'un titre de la
+    liste (l'auteur, 2026-09-02)."""
     page = client(FakeRadio()).get("/").get_data(as_text=True)
     assert "/api/moment/redraw" in page
     assert "momentRandom" in page
+    assert '@click="retirer()">Autre thème</button>' in page
+    assert ">Retirer</button>" not in page
 
 
 A_VENIR = [

@@ -1856,6 +1856,12 @@ un motif, comme un vote pendant un jingle).
 
 ---
 
+**Amendement du 2026-09-02** : le bouton de l'interface s'appelle « Autre
+thème », plus « Retirer » — à double sens depuis que GOAL-058 retire des
+titres de la liste (l'auteur).
+
+---
+
 ## GOAL-058 — Les prochains titres se voient, et se retirent avant de passer
 
 Demandé par l'auteur le 2026-09-02 : « si elle existe, exposer la liste des

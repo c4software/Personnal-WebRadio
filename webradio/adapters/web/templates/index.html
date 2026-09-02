@@ -47,7 +47,7 @@
             </div>
           </Transition>
           <p v-if="moment" class="moment"><span>[[ moment ]]</span>
-            <button v-if="momentRandom" type="button" class="retirer" :disabled="occupe" title="Tirer un autre thème au sort" @click="retirer()">Retirer</button>
+            <button v-if="momentRandom" type="button" class="retirer" :disabled="occupe" title="Tirer un autre thème au sort" @click="retirer()">Autre thème</button>
           </p>
           <button v-if="aSuivre" type="button" class="a-suivre" title="Voir les prochains titres" @click="ouvrirTiroir()">
             <span class="etiquette">À suivre</span>
@@ -615,7 +615,7 @@
               const reponse = await fetch(this.urls.redraw, { method: "POST", headers: { Accept: "application/json" } });
               const donnees = await reponse.json();
               if (donnees.accepted) { this.moment = donnees.moment || this.moment; }
-              this.message = donnees.accepted ? "Retiré : " + (donnees.moment || "tirage libre") : donnees.reason;
+              this.message = donnees.accepted ? "Nouveau thème : " + (donnees.moment || "tirage libre") : donnees.reason;
               this.issue = donnees.accepted ? "accepte" : "refus";
             } catch (erreur) {
               this.message = "L'API ne répond pas : " + erreur;
