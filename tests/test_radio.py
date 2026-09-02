@@ -159,3 +159,22 @@ def test_un_encore_accepte_jette_l_avance_du_diffuseur() -> None:
     assert ordres == ["requeue"]
     assert radio.vote(Vote.SKIP).accepted
     assert ordres == ["requeue", "skip"]
+
+
+def test_sans_cablage_le_retirage_est_refuse_en_le_disant() -> None:
+    radio, _ = _radio()
+    assert not radio.moment_random()
+    verdict = radio.redraw_moment()
+    assert not verdict.accepted
+    assert verdict.reason is not None and "rien à retirer" in verdict.reason
+
+
+def test_le_retirage_est_relaye_tel_quel() -> None:
+    """La façade relaie une décision du câblage, elle ne la prend pas."""
+    from webradio.adapters.web.api import Verdict
+
+    radio, _ = _radio()
+    radio._moment_au_hasard = lambda: True
+    radio._retirer = lambda: Verdict(accepted=True)
+    assert radio.moment_random()
+    assert radio.redraw_moment().accepted

@@ -29,6 +29,7 @@ API_PATH = "/api"
 ON_AIR_PATH = "/on-air"
 VOTE_PATH = "/votes/<name>"
 VOTES_PATH = "/votes"
+MOMENT_REDRAW_PATH = "/moment/redraw"
 
 REFUS = 409
 DEMANDE_INVALIDE = 400
@@ -166,6 +167,19 @@ class Radio(Protocol):
         """
         ...
 
+    def moment_random(self) -> bool:
+        """Le moment en cours a-t-il tiré son thème au sort (SPECS.md §4.4) ?
+
+        C'est ce qui dit à l'interface si « Retirer » a un sens — elle ne
+        doit pas le deviner sur le libellé.
+        """
+        ...
+
+    def redraw_moment(self) -> Verdict:
+        """Retire le thème du moment en cours, ou refuse en disant pourquoi
+        (GOAL-057). Hors d'une plage au hasard, il n'y a rien à retirer."""
+        ...
+
 
 def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | None] | None:
     if on_air_now is None:
@@ -203,6 +217,7 @@ def create_api(radio: Radio, planning: dict[str, object] | None = None) -> Bluep
                 "on_air": radio.on_air(),
                 "on_air_now": _antenne_en_donnees(radio.on_air_now()),
                 "moment": radio.moment(),
+                "moment_random": radio.moment_random(),
                 "up_next": _antenne_en_donnees(radio.up_next()),
             }
         )
@@ -269,6 +284,18 @@ def create_api(radio: Radio, planning: dict[str, object] | None = None) -> Bluep
             logger.info("vote « %s » accepté", vote)
             return jsonify(body)
         logger.info("vote « %s » refusé — %s", vote, verdict.reason)
+        return jsonify(body), REFUS
+
+    @api.post(MOMENT_REDRAW_PATH)
+    def redraw_moment() -> ResponseReturnValue:
+        """Retirer le thème d'une plage au hasard — accepté avec le nouveau
+        moment, ou refusé avec son motif (GOAL-057)."""
+        verdict = radio.redraw_moment()
+        body = {"accepted": verdict.accepted, "reason": verdict.reason, "moment": radio.moment()}
+        if verdict.accepted:
+            logger.info("thème retiré : %s", body["moment"])
+            return jsonify(body)
+        logger.info("retirage refusé — %s", verdict.reason)
         return jsonify(body), REFUS
 
     return api

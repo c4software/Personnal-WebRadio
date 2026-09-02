@@ -18,6 +18,10 @@ from webradio.adapters.web.api import OnAir, PlayedEntry, Radio, Verdict, Vote, 
 from webradio.core.control import Command, Control, Kind
 from webradio.core.models import Track
 
+# Le motif d'un refus de retirage : hors d'une plage au hasard, ou sans le
+# câblage qui sait retirer, il n'y a rien à retirer (SPECS.md §4.4).
+SANS_THEME_A_RETIRER = "aucun thème tiré au sort en ce moment : rien à retirer"
+
 
 class LiveRadio(Radio):
     """Ce que la radio répond à l'API, à l'instant où on le lui demande.
@@ -39,6 +43,9 @@ class LiveRadio(Radio):
         up_next: Callable[[], OnAir | None] | None = None,
         journal: Callable[[str, str, str], None] | None = None,
         list_history: Callable[[], "list[PlayedEntry]"] | None = None,
+        *,
+        moment_random: Callable[[], bool] | None = None,
+        redraw: Callable[[], Verdict] | None = None,
     ) -> None:
         self._controle = control
         self._station = on_air
@@ -51,6 +58,8 @@ class LiveRadio(Radio):
         self._journaliser = journal
         self._a_suivre = up_next
         self._lister_historique = list_history
+        self._moment_au_hasard = moment_random
+        self._retirer = redraw
         self._verrou = threading.Lock()
         self._nature = Kind.MUSIC
         self._piste: Track | None = None
@@ -136,6 +145,16 @@ class LiveRadio(Radio):
         if self._moment is None:
             return None
         return self._moment()
+
+    def moment_random(self) -> bool:
+        return self._moment_au_hasard is not None and self._moment_au_hasard()
+
+    def redraw_moment(self) -> Verdict:
+        """Retirer, c'est une décision du câblage — la plage, le tirage, la
+        purge de l'avance — que la façade ne fait que relayer (GOAL-057)."""
+        if self._retirer is None:
+            return Verdict(accepted=False, reason=SANS_THEME_A_RETIRER)
+        return self._retirer()
 
     def forget_vote(self, scope: str, target: str) -> bool:
         if self._oublier is None:

@@ -83,7 +83,7 @@ musique.
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
 
-**Prochaine tâche** : GOAL-057-T02. GOAL-056 est codé et documenté ; **reste l'écoute** de T03 à une heure pleine en production. Les trois Goals s'enchaînent dans
+**Prochaine tâche** : GOAL-057-T03. GOAL-056 est codé et documenté ; **reste l'écoute** de T03 à une heure pleine en production. Les trois Goals s'enchaînent dans
 l'ordre : GOAL-057 et GOAL-058 s'appuient tous deux sur l'avance datée par
 son moment que GOAL-056 met en place.
 
@@ -293,7 +293,7 @@ un motif, comme un vote pendant un jingle).
       l'avance datée (GOAL-056) et la suite en cours (`Runs`) repartent. Tests
       à graine fixée : le nouveau thème diffère, l'occurrence suivante retire
       normalement, une bibliothèque à un seul genre rend le même en le disant.
-- [ ] **GOAL-057-T02** — La route : `POST /api/moment/redraw`. Accepté →
+- [x] **GOAL-057-T02** — La route : `POST /api/moment/redraw`. Accepté →
       `{"accepted": true, "moment": "Moment · Jazz (au hasard)"}` après avoir
       préparé le tirage, pour que la réponse dise déjà ce qui vient ; refusé
       hors d'une plage au hasard → 409 et un motif. `/api/on-air` gagne un

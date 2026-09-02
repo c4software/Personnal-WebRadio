@@ -26,13 +26,13 @@ from webradio.adapters.sources.subsonic import SubsonicSource, UrllibTransport
 from webradio.adapters.state.database import Scope as StateScope
 from webradio.adapters.state.database import SqliteState, StateUnavailable
 from webradio.adapters.web.api import Kind as WebKind
-from webradio.adapters.web.api import OnAir, PlayedEntry, VoteScore
+from webradio.adapters.web.api import OnAir, PlayedEntry, Verdict, VoteScore
 from webradio.adapters.web.views import create_app
 from webradio.adapters.youtube.channel import YoutubeChannel
 from webradio.app.learning import Learning
 from webradio.app.liquidsoap_playout import LiquidsoapPlayout
 from webradio.app.playout import RadioProgramme
-from webradio.app.radio import ListenerCount, LiveRadio
+from webradio.app.radio import SANS_THEME_A_RETIRER, ListenerCount, LiveRadio
 from webradio.app.show_scheduler import Shows
 from webradio.core.bands import Band, Constraint, Schedule
 from webradio.core.clock import SystemClock
@@ -249,6 +249,29 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         tire = theme_au_hasard.constraint_for(band, clock.now()) if band.random_theme else None
         return _libelle_du_moment(band, tire)
 
+    def plage_au_hasard_en_cours() -> Band | None:
+        """La plage dont le thème a été tiré au sort, si c'est elle qui tire —
+        un programme ouvert l'emporte (SPECS.md §4.13)."""
+        if programmation.current_programme() is not None:
+            return None
+        band = grille.current_band()
+        return band if band is not None and band.random_theme is not None else None
+
+    def moment_au_hasard() -> bool:
+        return plage_au_hasard_en_cours() is not None
+
+    def retirer_le_theme() -> Verdict:
+        """Retirer, puis jeter l'avance : le morceau en cours finit, et dès la
+        jonction suivante c'est le nouveau thème qui joue (GOAL-057). L'avance
+        tirée sous l'ancien est rassise (SPECS.md §7 n°33) — la charnière la
+        jette en replaçant, et le diffuseur redemande."""
+        band = plage_au_hasard_en_cours()
+        if band is None:
+            return Verdict(accepted=False, reason=SANS_THEME_A_RETIRER)
+        theme_au_hasard.redraw(band, clock.now())
+        vider_l_avance()
+        return Verdict(accepted=True)
+
     def journaliser_le_titre(kind: str, title: str, artist: str) -> None:
         try:
             state.record_play(kind, title, artist)
@@ -292,6 +315,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         ce_qui_suit,
         journaliser_le_titre,
         lister_l_historique,
+        moment_random=moment_au_hasard,
+        redraw=retirer_le_theme,
     )
     # Le programme déclare la nature de ce qu'il choisit ; la charnière ne la
     # transmet à la façade que lorsque Liquidsoap commence réellement le morceau.

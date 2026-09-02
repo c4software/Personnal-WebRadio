@@ -43,6 +43,8 @@ class FakeRadio:
         self._moment: str | None = None
         self._history: list[PlayedEntry] = []
         self._up_next: OnAir | None = None
+        self._moment_random = False
+        self.redraws = 0
 
     def on_air(self) -> bool:
         return self._antenne is not None
@@ -70,6 +72,16 @@ class FakeRadio:
     def up_next(self) -> OnAir | None:
         return self._up_next
 
+    def moment_random(self) -> bool:
+        return self._moment_random
+
+    def redraw_moment(self) -> Verdict:
+        self.redraws += 1
+        if not self._moment_random:
+            return Verdict(accepted=False, reason="aucun thème tiré au sort en ce moment")
+        self._moment = "Moment · Jazz (au hasard)"
+        return Verdict(accepted=True)
+
 
 def client(radio: FakeRadio) -> FlaskClient:
     app = create_app(radio, refresh=RAFRAICHISSEMENT)
@@ -86,6 +98,7 @@ def test_l_api_dit_ce_qui_passe_et_de_quelle_nature() -> None:
     assert answer.get_json() == {
         "on_air": True,
         "moment": None,
+        "moment_random": False,
         "up_next": None,
         "on_air_now": {"kind": "musique", "title": "Sexy Boy", "artist": "Air"},
     }
@@ -107,6 +120,7 @@ def test_l_api_dit_quand_la_chaine_ne_tourne_pas() -> None:
         "on_air": False,
         "on_air_now": None,
         "moment": None,
+        "moment_random": False,
         "up_next": None,
     }
 
@@ -337,3 +351,32 @@ def test_l_api_dit_ce_qui_suit() -> None:
         "title": "Radiate",
         "artist": "Jack Johnson",
     }
+
+
+def test_retirer_le_theme_d_une_plage_au_hasard_dit_le_nouveau_moment() -> None:
+    """GOAL-057 : la réponse dit déjà ce qui vient — l'interface n'a pas à
+    attendre le rafraîchissement suivant."""
+    radio = FakeRadio(on_air_now=MORCEAU)
+    radio._moment_random = True
+    answer = client(radio).post("/api/moment/redraw")
+    assert answer.status_code == 200
+    assert answer.get_json() == {
+        "accepted": True,
+        "reason": None,
+        "moment": "Moment · Jazz (au hasard)",
+    }
+    assert radio.redraws == 1
+
+
+def test_retirer_hors_d_une_plage_au_hasard_est_refuse_avec_son_motif() -> None:
+    radio = FakeRadio(on_air_now=MORCEAU)
+    answer = client(radio).post("/api/moment/redraw")
+    assert answer.status_code == 409
+    assert answer.get_json()["accepted"] is False
+    assert "aucun thème" in answer.get_json()["reason"]
+
+
+def test_l_api_dit_si_le_moment_a_ete_tire_au_sort() -> None:
+    radio = FakeRadio(on_air_now=MORCEAU)
+    radio._moment_random = True
+    assert client(radio).get("/api/on-air").get_json()["moment_random"] is True

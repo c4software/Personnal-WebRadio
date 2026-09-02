@@ -157,3 +157,15 @@ def test_le_planning_annonce_la_sorte_d_une_plage_au_hasard() -> None:
     assert _libelle_de_plage(artiste) == ["Au hasard · un artiste"]
     assert _libelle_de_plage(genre) == ["Au hasard · un genre"]
     assert _libelle_de_plage(declaree) == ["jazz"]
+
+
+def test_hors_d_une_plage_au_hasard_l_assemblage_refuse_de_retirer(
+    reglages_dessai: object,
+) -> None:
+    """GOAL-057 : sans plage au hasard en cours, il n'y a rien à retirer, et
+    c'est dit — pas un tirage libre silencieux."""
+    _playout, radio = build(reglages_dessai)  # type: ignore[arg-type]
+    assert not radio.moment_random()
+    verdict = radio.redraw_moment()
+    assert not verdict.accepted
+    assert verdict.reason is not None and "rien à retirer" in verdict.reason
