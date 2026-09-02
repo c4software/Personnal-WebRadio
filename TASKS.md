@@ -184,7 +184,7 @@ le morceau en cours finit.
 - [x] **GOAL-059-T01** — Le noyau : `Runs.break_run()` rompt la suite et
       retient l'ancre à éviter ; la `Directive` porte cet évitement, que la
       file applique au tirage suivant, avec repli dit ; `Queue.break_run()`.
-- [ ] **GOAL-059-T02** — L'assemblage : « Retirer » s'applique aux plages à
+- [x] **GOAL-059-T02** — L'assemblage : « Retirer » s'applique aux plages à
       suite au hasard — rompre, puis jeter l'avance sans la replacer
       (`drop_advance`) ; `moment_random` le dit à l'interface. SPECS.md §4.4
       et §7 n°28.

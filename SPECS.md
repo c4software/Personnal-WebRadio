@@ -230,7 +230,13 @@ jusqu'à la fin de la plage ; l'occurrence suivante retire (§7 n°28).
   dès la jonction suivante, la plage joue le nouveau thème — ce qui avait été
   tiré d'avance sous l'ancien est rassis et ne passe pas (§7 n°33). Le
   générique de la plage ne repasse pas : il annonce la plage, pas le thème.
-  Hors d'une plage au hasard, retirer est **refusé en le disant**.
+  **Vaut aussi pour une suite tirée au sort** (GOAL-059) : sur une plage
+  `era_fan` ou `artist_fan`, retirer rompt la suite en cours et en ouvre une
+  autre, d'une autre décennie ou d'un autre artiste — sauf si la bibliothèque
+  n'offre rien d'autre, et c'est dit ; l'avance tirée sous l'ancienne suite
+  est jetée sans être replacée. Une double dose ne se retire pas : son artiste
+  n'est pas une ancre tirée pour durer. Hors de ces plages, retirer est
+  **refusé en le disant**.
 
 #### Les modes d'enchaînement
 
@@ -1188,9 +1194,10 @@ l'occurrence.** Tranchée le 2026-08-31 par l'auteur. Une plage déclare
 `random = "genre"` ou `random = "artist"` au lieu d'énumérer ses valeurs ; la
 radio tire dans **toute la bibliothèque** au début de l'occurrence et s'y tient
 jusqu'à la fin. L'occurrence suivante retire, et rien n'est persisté.
-**Amendée le 2026-09-02** (GOAL-057) : figée, mais pas subie — l'auteur peut
-faire **retirer** un autre thème pour le reste de l'occurrence, par l'API et
-l'interface (§4.4). Le thème sorti fait partie du moment : le retirer ouvre un
+**Amendée le 2026-09-02** (GOAL-057, GOAL-059) : figée, mais pas subie —
+l'auteur peut faire **retirer** un autre thème pour le reste de l'occurrence,
+par l'API et l'interface (§4.4) ; et de même rompre une suite au hasard
+(n°31) pour en ouvrir une autre. Le thème sorti fait partie du moment : le retirer ouvre un
 nouveau moment, et l'avance tirée sous l'ancien est rassise (n°33).
 > *Raison* : ni un quatrième mécanisme, ni une émission — c'est la même question
 > que les plages, *que jouer à telle heure*, avec une réponse que la

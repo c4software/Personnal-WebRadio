@@ -317,6 +317,19 @@ class LiquidsoapPlayout:
             logger.info("l'avance se replace : %s", shown)
             self._programme.replay_later(entry, pending.kind, pending.track, pending.label)
 
+    def drop_advance(self) -> None:
+        """Jette l'avance sans rien replacer — chez le diffuseur comme dans la
+        file — et fait redemander : ce qui avait été tiré sous une suite qu'on
+        vient de rompre ne doit pas revenir (GOAL-059). Le morceau en cours
+        finit ; l'habillage dû reste dû."""
+        with self._verrou:
+            for entry in [e for e in self._en_attente if e != self._entree_en_cours]:
+                del self._en_attente[entry]
+        self._programme.forget_advance()
+        logger.info("l'avance est jetée : la suite est rompue, le diffuseur redemande")
+        if self._ordonner_requeue is not None:
+            self._ordonner_requeue()
+
     def declare_listeners(self, count: int) -> None:
         """Le compte d'auditeurs — et, au retour après une longue pause, la
         purge (SPECS.md §4.7).

@@ -611,3 +611,23 @@ def test_retirer_un_titre_qui_n_attend_plus_rend_faux(tmp_path: Path) -> None:
     playout, _radio, _clock = _playout(tmp_path, catalogue=TROIS, lookahead=2)
     playout.declare_listeners(1)
     assert not playout.withdraw("nulle-part")
+
+
+def test_jeter_l_avance_ne_replace_rien_et_fait_redemander(tmp_path: Path) -> None:
+    """GOAL-059 : une suite rompue ne doit pas revenir par l'avance."""
+    ordres: list[str] = []
+    playout, _radio, _clock = _playout(
+        tmp_path, catalogue=TROIS, lookahead=2, order_requeue=lambda: ordres.append("requeue")
+    )
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    playout.next_entry()
+    assert playout.upcoming()
+
+    playout.drop_advance()
+
+    assert ordres == ["requeue"]
+    assert playout.upcoming() == []
+    assert playout.next_entry() is not None, "le diffuseur redemande, la file retire"

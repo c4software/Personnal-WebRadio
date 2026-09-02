@@ -773,3 +773,19 @@ def test_ce_qui_attend_deja_passe_avant_l_avance_dans_la_liste(tmp_path: Path) -
     assert [(i.kind, i.label) for i in liste][:2] == [(Kind.JINGLE, "14h"), (Kind.MUSIC, None)]
     assert liste[1].track is not None and liste[1].track.artist == "Yamê"
     assert liste[2].kind is Kind.MUSIC
+
+
+def test_rompre_la_suite_et_jeter_l_avance_de_la_file(tmp_path: Path) -> None:
+    """GOAL-059 : l'avance part, l'habillage dû reste."""
+    (tmp_path / "hours").mkdir()
+    (tmp_path / "hours" / "13h.mp3").write_bytes(b"jingle")
+    (tmp_path / "hours" / "14h.mp3").write_bytes(b"jingle")
+    montre = FrozenClock(MIDI)
+    programme, _ = _programme(tmp_path, clock=montre, lookahead=2)
+    assert not programme.break_run(), "sans suites, rien à rompre"
+    montre.advance(timedelta(hours=2))
+    programme.next_entry()  # 13h ; 14h reste dû
+    programme.prepare()
+    programme.forget_advance()
+    liste = programme.upcoming()
+    assert [(i.kind, i.label) for i in liste] == [(Kind.JINGLE, "14h")]

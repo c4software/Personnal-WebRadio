@@ -266,6 +266,15 @@ class RadioProgramme:
                 return programme
         return self._grille.band_at(instant)
 
+    def break_run(self) -> bool:
+        """Rompt la suite au hasard en cours, s'il y en a une (GOAL-059)."""
+        return self._file.break_run()
+
+    def forget_advance(self) -> None:
+        """Jette l'avance de la file, et elle seule : ce qui attendait un
+        générique ou un encore reste dû (GOAL-059)."""
+        self._file.forget_prepared()
+
     def withdraw(self, identifier: str) -> bool:
         """Retire un titre de l'avance de la file : il ne passera pas, un
         autre sera tiré à sa place (GOAL-058)."""

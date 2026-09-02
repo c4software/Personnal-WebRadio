@@ -268,12 +268,16 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         return _libelle_du_moment(band, tire)
 
     def plage_au_hasard_en_cours() -> Band | None:
-        """La plage dont le thème a été tiré au sort, si c'est elle qui tire —
-        un programme ouvert l'emporte (SPECS.md §4.13)."""
+        """La plage dont le thème — ou la suite (GOAL-059) — a été tiré au
+        sort, si c'est elle qui tire — un programme ouvert l'emporte
+        (SPECS.md §4.13)."""
         if programmation.current_programme() is not None:
             return None
         band = grille.current_band()
-        return band if band is not None and band.random_theme is not None else None
+        if band is None:
+            return None
+        au_hasard = band.random_theme is not None or band.mode in (Mode.ERA_FAN, Mode.ARTIST_FAN)
+        return band if au_hasard else None
 
     def moment_au_hasard() -> bool:
         return plage_au_hasard_en_cours() is not None
@@ -286,8 +290,16 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio]:
         band = plage_au_hasard_en_cours()
         if band is None:
             return Verdict(accepted=False, reason=SANS_THEME_A_RETIRER)
-        theme_au_hasard.redraw(band, clock.now())
-        vider_l_avance()
+        if band.random_theme is not None:
+            theme_au_hasard.redraw(band, clock.now())
+            vider_l_avance()
+            return Verdict(accepted=True)
+        # Une suite au hasard (GOAL-059) : rompue, et l'avance tirée sous
+        # elle jetée sans être replacée — son moment n'a pas changé, seule
+        # l'ancre l'a fait. S'il n'y a pas encore de suite, le prochain tirage
+        # en ouvre une de toute façon.
+        programme.break_run()
+        branche[0].drop_advance()
         return Verdict(accepted=True)
 
     def journaliser_le_titre(kind: str, title: str, artist: str) -> None:

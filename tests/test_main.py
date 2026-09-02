@@ -178,3 +178,27 @@ def test_l_assemblage_cable_la_liste_des_prochains_titres(reglages_dessai: objec
     playout.declare_listeners(1)
     assert radio.upcoming() == []
     assert not radio.withdraw("inconnu")
+
+
+TOML_EPOQUES = (
+    TOML_MINIMAL
+    + """
+[[bands]]
+start = "00:00"
+end = "23:59"
+mode = "era_fan"
+"""
+)
+
+
+def test_une_plage_a_suite_au_hasard_se_retire(tmp_path: Path) -> None:
+    """GOAL-059 : « année aléatoire », c'est le mode era_fan — retirer y vaut."""
+    folder = tmp_path / "jingles"
+    folder.mkdir()
+    toml = tmp_path / "webradio.toml"
+    toml.write_text(TOML_EPOQUES.format(folder=folder, database=tmp_path / "state.sqlite3"))
+    env = tmp_path / ".env"
+    env.write_text(ENV_MINIMAL)
+    _playout, radio = build(load(toml, env, environment={}))
+    assert radio.moment_random()
+    assert radio.redraw_moment().accepted
