@@ -22,10 +22,12 @@ from webradio.core.clock import Clock
 from webradio.core.control import Control, Kind
 from webradio.core.jingles import Jingles, full_hours_between, jingle_name
 from webradio.core.models import Track
+from webradio.core.planning import EffectiveSchedule, Segment
 from webradio.core.programmes import Programme, Programming
 from webradio.core.queue import EmptyQueue, Queue
 from webradio.core.rng import Random
 from webradio.core.rotation import Window
+from webradio.core.shows import Show
 from webradio.core.sources import MusicSource, SourceUnavailable
 
 if TYPE_CHECKING:
@@ -73,6 +75,7 @@ class RadioProgramme:
         programming: Programming | None = None,
         programme_window: Window | None = None,
         shows: "Shows | None" = None,
+        effective: EffectiveSchedule | None = None,
         control: Control | None = None,
         now_playing: Callable[[], Track | None] | None = None,
     ) -> None:
@@ -86,6 +89,10 @@ class RadioProgramme:
         self._sur_nature = on_kind
         self._programmation = programming
         self._emissions = shows
+        # La grille effective (GOAL-068) : elle sait ce qui remplacera la file
+        # — une émission, un programme — et jusqu'à quand. Sans elle, l'avance
+        # s'estime sur les seules plages, comme avant.
+        self._effective = effective
         self._controle = control
         self._a_l_antenne = now_playing
         # Le morceau qu'un encore force, résolu dès la préparation pour que la
@@ -179,6 +186,11 @@ class RadioProgramme:
         qu'il trouvera en commençant, durée après durée. Sans estimation, tout
         se tire sous le moment présent — et l'avance datée (décision n°33)
         tranche, à la jonction, si l'estimation tenait.
+
+        Un créneau qui tomberait pendant un **programme** ou un **direct** est
+        reporté à leur fin (GOAL-068) : la file n'y est pas servie, et un
+        titre tiré pour cette heure-là serait jeté à la jonction — laissant la
+        file vide au moment même de reprendre.
         """
         self._resoudre_encore()
         depart = self._horloge.now() if from_instant is None else from_instant
@@ -186,15 +198,28 @@ class RadioProgramme:
         instant = self._fin_des_creneaux(depart)
         try:
             while self._file.wants_more():
+                instant = self._servi_a_partir_de(instant)
                 self._file.prepare(self._grille.constraint_to_draw(self._hasard, at=instant))
                 instant = instant + self._file.advance[-1].duration
         except (SourceUnavailable, EmptyQueue) as echec:
             logger.debug("préparation sans effet : %s", echec)
 
+    def _servi_a_partir_de(self, instant: datetime) -> datetime:
+        """L'heure où ce créneau commencera vraiment (GOAL-068).
+
+        Sans grille effective câblée, l'estimation reste celle des plages —
+        c'est le comportement d'avant, et il n'a rien de faux : il est
+        seulement aveugle aux programmes et aux directs.
+        """
+        if self._effective is None:
+            return instant
+        return self._effective.served_from(instant)
+
     def _moments_des_creneaux(self, depart: datetime) -> list[object]:
         moments: list[object] = []
         instant = depart
         for track in self._file.advance:
+            instant = self._servi_a_partir_de(instant)
             moments.append(self._grille.moment_at(instant))
             instant = instant + track.duration
         return moments
@@ -202,7 +227,7 @@ class RadioProgramme:
     def _fin_des_creneaux(self, depart: datetime) -> datetime:
         instant = depart
         for track in self._file.advance:
-            instant = instant + track.duration
+            instant = self._servi_a_partir_de(instant) + track.duration
         return instant
 
     def upcoming(self, from_instant: datetime | None = None) -> list[Upcoming]:
@@ -242,11 +267,35 @@ class RadioProgramme:
             if rassise:
                 break
             if instant is not None and precedent is not None:
+                remplacement = self._remplacement_entre(precedent, instant)
+                if remplacement is not None:
+                    items.extend(self._annonce_du_remplacement(remplacement))
+                    break
                 items.extend(self._habillage_prevu(precedent, instant))
             items.append(Upcoming(Kind.MUSIC, track, None, instant))
             precedent = instant
             instant = None if instant is None else instant + track.duration
         return items
+
+    def _remplacement_entre(self, depuis: datetime, jusqu_a: datetime) -> Segment | None:
+        """Ce qui prendra l'antenne à la place de la file entre ces deux heures.
+
+        Sans cette question, la liste annonçait de la musique pour 20 h alors
+        qu'une émission allait couper — le défaut vu par l'auteur sur le
+        Planning, une couche plus bas (GOAL-068).
+        """
+        if self._effective is None:
+            return None
+        return self._effective.next_replacement(depuis, jusqu_a)
+
+    @staticmethod
+    def _annonce_du_remplacement(remplacement: Segment) -> list[Upcoming]:
+        """Ce qu'on dit de ce qui coupe : le nom d'une émission, rien d'un
+        programme — pendant un programme, la radio n'annonce pas (§4.8)."""
+        if not isinstance(remplacement.content, Show):
+            return []
+        nom = remplacement.content.name
+        return [Upcoming(Kind.SHOW, None, nom, remplacement.start, True)]
 
     def _habillage_prevu(self, depuis: datetime, jusqu_a: datetime) -> list[Upcoming]:
         """Les jingles et génériques que la jonction de `jusqu_a` rendrait,

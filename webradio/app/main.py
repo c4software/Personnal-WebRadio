@@ -442,6 +442,10 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         )
         for e in settings.shows
     ]
+    cases_declarees = ShowSchedule(cases)
+    # La grille effective, faite des MÊMES objets que la radio : ce que le
+    # Planning annonce et ce que la chaîne prépare ne peuvent pas diverger.
+    grille_effective = EffectiveSchedule(grille, programmation, cases_declarees)
 
     programme = RadioProgramme(
         queue=Queue(
@@ -462,7 +466,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         programming=programmation,
         programme_window=Window(settings.draw.artist_gap),
         shows=Shows(
-            ShowSchedule(cases),
+            cases_declarees,
             PodcastFeed(
                 UrllibReader(lock_timeout=timedelta(seconds=settings.podcast.timeout_seconds))
             ),
@@ -474,6 +478,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             youtube=YoutubeChannel(timedelta(seconds=settings.youtube.timeout_seconds)),
             youtube_cache=Path(settings.state.database).parent / "cache",
         ),
+        effective=grille_effective,
         control=control,
         now_playing=lambda: radio.playing_track(),
     )
@@ -494,7 +499,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         order_skip=lambda: _ordonner("/skip", "le reliquat du morceau interrompu passera"),
     )
     branche.append(playout)
-    return playout, radio, EffectiveSchedule(grille, programmation, cases)
+    return playout, radio, grille_effective
 
 
 def main(argv: list[str] | None = None) -> int:

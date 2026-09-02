@@ -19,14 +19,13 @@ les dates de la fenêtre. Deux intervalles voisins de même occupant sont
 recollés — c'est ce qui rend une plage qui enjambe minuit à sa vraie longueur.
 """
 
-from collections.abc import Sequence
 from dataclasses import dataclass, replace
 from datetime import datetime, time, timedelta
 from itertools import pairwise
 
 from webradio.core.bands import Band, Schedule
 from webradio.core.programmes import Programme, Programming
-from webradio.core.shows import Show
+from webradio.core.shows import Show, ShowSchedule
 
 # Ce qui peut occuper une période. Une émission n'est pas de la musique, mais
 # elle occupe l'antenne, et c'est ce dont une grille parle.
@@ -74,11 +73,11 @@ class EffectiveSchedule:
         self,
         bands: Schedule,
         programmes: Programming,
-        shows: Sequence[Show],
+        shows: ShowSchedule,
     ) -> None:
         self._plages = bands
         self._programmes = programmes
-        self._emissions = tuple(shows)
+        self._emissions = shows
 
     def day(self, midnight: datetime) -> list[Segment]:
         """Les périodes de la journée qui commence à `midnight`, dans l'ordre.
@@ -105,6 +104,77 @@ class EffectiveSchedule:
         periodes.sort(key=lambda p: (p.start, 0 if isinstance(p.content, Show) else 1))
         fin = midnight + timedelta(days=1)
         return [p for p in periodes if midnight <= p.start < fin]
+
+    def next_replacement(self, depuis: datetime, jusqu_a: datetime) -> Segment | None:
+        """La première période qui **remplacera la file** entre ces deux instants.
+
+        Une émission remplace toute la programmation (SPECS.md §4.11) ; un
+        programme puise sa musique dans une liste, et non dans la file
+        (§4.13). Dans les deux cas, ce que la file a préparé pour cette
+        heure-là ne passera pas — et l'annoncer serait mentir.
+        """
+        candidates = self._emissions_de(depuis, jusqu_a)
+        candidates += self._programmes_de(depuis, jusqu_a)
+        return min(candidates, key=lambda p: p.start, default=None)
+
+    def served_from(self, instant: datetime) -> datetime:
+        """Le premier instant, à partir de celui-ci, où la file sera servie.
+
+        Un titre tiré pour une heure que couvriront un programme ou un direct
+        ne passera pas alors : il sera jeté à la jonction, et la file se
+        retrouvera vide au moment de reprendre. On tire donc pour l'heure où
+        le créneau commencera **vraiment** (GOAL-068).
+
+        Une émission dont la durée n'est pas déclarée ne se saute pas : nul ne
+        sait quand elle finit, et le deviner serait inventer.
+        """
+        # Autant de sauts que de périodes déclarées, pas un de plus : un
+        # programme quotidien couvrant presque toute la journée se
+        # rattraperait lui-même le lendemain, et la boucle ne finirait jamais.
+        for _ in range(len(self._emissions.shows) + len(self._programmes.programmes)):
+            fin = self._fin_de_ce_qui_remplace(instant)
+            if fin is None:
+                return instant
+            instant = fin
+        return instant
+
+    def _fin_de_ce_qui_remplace(self, instant: datetime) -> datetime | None:
+        """La fin de l'émission ou du programme qui occupe cet instant."""
+        for emission in self._emissions.shows:
+            if emission.duration is None:
+                continue
+            debut = self._emissions.slot_start(emission, instant)
+            if debut is not None and instant < debut + emission.duration:
+                return debut + emission.duration
+        programme = self._programmes.programme_at(instant)
+        if programme is None:
+            return None
+        return self._fin_du_programme(programme, instant)
+
+    def _programmes_de(self, depuis: datetime, jusqu_a: datetime) -> list[Segment]:
+        """Les programmes qui s'ouvrent dans la fenêtre, et eux seuls.
+
+        Un programme recouvert par un plus court ne s'ouvre pas : c'est
+        `Programming` qui le dit, avec la règle de la diffusion (§4.13).
+        """
+        ouvertures: list[Segment] = []
+        jour = depuis.date()
+        while jour <= jusqu_a.date():
+            for programme in self._programmes.programmes:
+                debut = datetime.combine(jour, programme.start, tzinfo=depuis.tzinfo)
+                if not depuis <= debut < jusqu_a:
+                    continue
+                if self._programmes.programme_at(debut) is not programme:
+                    continue
+                ouvertures.append(Segment(programme, debut, debut + programme.length))
+            jour += timedelta(days=1)
+        return ouvertures
+
+    @staticmethod
+    def _fin_du_programme(programme: Programme, instant: datetime) -> datetime:
+        """La fin de l'occurrence en cours — minuit enjambé compris."""
+        fin = datetime.combine(instant.date(), programme.end, tzinfo=instant.tzinfo)
+        return fin if fin > instant else fin + timedelta(days=1)
 
     def _musique(self, depuis: datetime, jusqu_a: datetime) -> list[_Music]:
         """La musique de la fenêtre, l'occupant recollé d'une frontière à l'autre."""
@@ -167,7 +237,7 @@ class EffectiveSchedule:
         cases: list[Segment] = []
         jour = depuis.date()
         while jour <= jusqu_a.date():
-            for emission in self._emissions:
+            for emission in self._emissions.shows:
                 if not emission.a_lieu_le(jour):
                     continue
                 debut = datetime.combine(jour, emission.hour, tzinfo=depuis.tzinfo)

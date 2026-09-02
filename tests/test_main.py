@@ -27,6 +27,7 @@ from webradio.core.planning import EffectiveSchedule
 from webradio.core.programmes import DAYS, Programming
 from webradio.core.runs import Mode
 from webradio.core.shows import Show as ShowCase
+from webradio.core.shows import ShowSchedule
 
 TOML_MINIMAL = """
 [draw]
@@ -245,7 +246,9 @@ def test_la_semaine_du_planning_est_deja_fusionnee() -> None:
     horloge = FrozenClock(datetime(2026, 9, 2, 14, 30, tzinfo=UTC))
     guitares = Band(start=time(20), end=time(22), genres=("Rock",), mode=Mode.DOUBLE_DOSE)
     hardisk = ShowCase(name="Hardisk", days=("wednesday",), hour=time(20))
-    grille = EffectiveSchedule(Schedule([guitares], horloge), Programming([], horloge), [hardisk])
+    grille = EffectiveSchedule(
+        Schedule([guitares], horloge), Programming([], horloge), ShowSchedule([hardisk])
+    )
     declaree = ShowSettings(
         name="Hardisk",
         days=("wednesday",),
@@ -284,7 +287,9 @@ def test_la_semaine_du_planning_couvre_les_sept_jours_depuis_aujourd_hui() -> No
     que du jour de la semaine, jamais de la date."""
     guitares = Band(start=time(20), end=time(22), genres=("Rock",))
     samedi = FrozenClock(datetime(2026, 9, 5, 3, tzinfo=UTC))
-    grille = EffectiveSchedule(Schedule([guitares], samedi), Programming([], samedi), [])
+    grille = EffectiveSchedule(
+        Schedule([guitares], samedi), Programming([], samedi), ShowSchedule([])
+    )
 
     jours = semaine_effective(grille, [], samedi)["days"]
 

@@ -10,7 +10,7 @@ from webradio.core.bands import Band, Schedule
 from webradio.core.clock import FrozenClock
 from webradio.core.planning import EffectiveSchedule, Segment
 from webradio.core.programmes import EVERY_DAY, Programme, Programming
-from webradio.core.shows import Show
+from webradio.core.shows import Show, ShowSchedule
 
 # Le 2026-09-02 est un mercredi ; les journées d'essai partent de son minuit.
 MERCREDI = datetime(2026, 9, 2, tzinfo=UTC)
@@ -39,7 +39,7 @@ def _grille(
     return EffectiveSchedule(
         Schedule(bands or [], horloge),
         Programming(programmes or [], horloge),
-        shows or [],
+        ShowSchedule(shows or []),
     )
 
 
@@ -179,3 +179,89 @@ def test_une_plage_du_seul_samedi_ne_deborde_pas_sur_le_dimanche() -> None:
 
     assert _lu(_grille(bands=[soiree]).day(SAMEDI)) == [("21:00", "02:00", "House")]
     assert _lu(_grille(bands=[soiree]).day(DIMANCHE)) == []
+
+
+# ── Ce que la chaîne demande à la grille effective (GOAL-068) ──────────────
+
+
+def test_la_prochaine_coupure_nomme_l_emission_qui_vient() -> None:
+    """« À suivre » annonçait de la musique à 20 h alors que Hardisk allait
+    couper : la grille sait le dire une heure à l'avance."""
+    grille = _grille(bands=[GUITARES], shows=[HARDISK])
+
+    coupure = grille.next_replacement(
+        MERCREDI.replace(hour=19, minute=58), MERCREDI.replace(hour=20, minute=1)
+    )
+
+    assert coupure is not None
+    assert coupure.content is HARDISK
+    assert coupure.start == MERCREDI.replace(hour=20)
+
+
+def test_aucune_coupure_annoncee_quand_rien_ne_remplace_la_file() -> None:
+    grille = _grille(bands=[GUITARES], shows=[HARDISK])
+
+    assert grille.next_replacement(MERCREDI.replace(hour=15), MERCREDI.replace(hour=16)) is None
+
+
+def test_un_programme_qui_s_ouvre_est_une_coupure() -> None:
+    chloe = Programme(
+        name="Chloé", playlist="Chloé", days=(EVERY_DAY,), start=time(18), end=time(20)
+    )
+    grille = _grille(programmes=[chloe])
+
+    coupure = grille.next_replacement(MERCREDI.replace(hour=17), MERCREDI.replace(hour=19))
+
+    assert coupure is not None and coupure.content is chloe
+
+
+def test_la_file_n_est_servie_qu_a_la_fin_du_programme() -> None:
+    """Un titre tiré pour 18 h 30 ne passerait pas : il serait jeté, et la
+    file se retrouverait vide à 20 h — au moment même de reprendre."""
+    chloe = Programme(
+        name="Chloé", playlist="Chloé", days=(EVERY_DAY,), start=time(18), end=time(20)
+    )
+    grille = _grille(programmes=[chloe])
+
+    assert grille.served_from(MERCREDI.replace(hour=18, minute=30)) == MERCREDI.replace(hour=20)
+    assert grille.served_from(MERCREDI.replace(hour=17)) == MERCREDI.replace(hour=17)
+
+
+def test_la_file_n_est_servie_qu_a_la_fin_d_un_direct() -> None:
+    grille = _grille(shows=[FLASH])
+
+    assert grille.served_from(MERCREDI.replace(hour=12)) == MERCREDI.replace(hour=12, minute=10)
+
+
+def test_une_emission_sans_duree_ne_se_saute_pas() -> None:
+    """Nul ne sait quand elle finit : deviner reviendrait à inventer."""
+    grille = _grille(shows=[HARDISK])
+
+    assert grille.served_from(MERCREDI.replace(hour=20)) == MERCREDI.replace(hour=20)
+
+
+def test_un_programme_puis_un_direct_se_sautent_l_un_apres_l_autre() -> None:
+    chloe = Programme(
+        name="Chloé", playlist="Chloé", days=(EVERY_DAY,), start=time(11), end=time(11, 57)
+    )
+    grille = _grille(programmes=[chloe], shows=[FLASH])
+
+    assert grille.served_from(MERCREDI.replace(hour=11, minute=30)) == MERCREDI.replace(
+        hour=12, minute=10
+    )
+
+
+def test_un_programme_recouvert_par_un_plus_court_ne_coupe_rien() -> None:
+    """Il ne s'ouvre pas : ce n'est pas lui qui prendra l'antenne, et
+    l'annoncer ferait attendre une émission qui n'aura pas lieu."""
+    longue = Programme(
+        name="La soirée", playlist="A", days=(EVERY_DAY,), start=time(18), end=time(22)
+    )
+    courte = Programme(
+        name="L'heure", playlist="B", days=(EVERY_DAY,), start=time(18), end=time(19)
+    )
+    grille = _grille(programmes=[longue, courte])
+
+    coupure = grille.next_replacement(MERCREDI.replace(hour=17), MERCREDI.replace(hour=19))
+
+    assert coupure is not None and coupure.content is courte

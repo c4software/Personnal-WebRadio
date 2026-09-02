@@ -13,10 +13,13 @@ from webradio.core.clock import FrozenClock
 from webradio.core.control import Command, Control, Kind
 from webradio.core.jingles import Jingles
 from webradio.core.models import Track
+from webradio.core.planning import EffectiveSchedule
 from webradio.core.programmes import Programme, Programming
 from webradio.core.queue import Queue
 from webradio.core.rng import ScriptedRandom
 from webradio.core.rotation import Window
+from webradio.core.shows import Show as ShowCase
+from webradio.core.shows import ShowSchedule
 
 CATALOGUE = [
     track("1", "Air", genre="électro"),
@@ -33,21 +36,27 @@ def _programme(
     bands: list[Band] | None = None,
     clock: FrozenClock | None = None,
     lookahead: int = 1,
+    programmes: list[Programme] | None = None,
+    shows: list[ShowCase] | None = None,
 ) -> tuple[RadioProgramme, list[tuple[Kind, Track | None, str | None]]]:
     reelle = source if source is not None else FakeSource(CATALOGUE)
     montre = clock if clock is not None else FrozenClock(MIDI)
     random = ScriptedRandom([0] * 200)
     vues: list[tuple[Kind, Track | None, str | None]] = []
+    grille = Schedule(bands or [], montre)
+    programmation = Programming(programmes or [], montre)
     return (
         RadioProgramme(
             queue=Queue(reelle, random, Window(width=1), lookahead=lookahead),
             source=reelle,
-            grille=Schedule(bands or [], montre),
+            grille=grille,
             jingles=Jingles(montre),
             clock=montre,
             random=random,
             jingle_folder=folder,
             on_kind=lambda n, p, e: vues.append((n, p, e)),
+            programming=programmation if programmes else None,
+            effective=EffectiveSchedule(grille, programmation, ShowSchedule(shows or [])),
         ),
         vues,
     )
@@ -840,3 +849,46 @@ def test_rompre_la_suite_et_jeter_l_avance_de_la_file(tmp_path: Path) -> None:
     programme.forget_advance()
     liste = programme.upcoming()
     assert [(i.kind, i.label) for i in liste] == [(Kind.JINGLE, "14h")]
+
+
+# ── « À suivre » et l'avance suivent la grille effective (GOAL-068) ────────
+
+HARDISK = ShowCase(name="Hardisk", days=("all",), hour=time(20))
+SOIREE = Band(start=time(20), end=time(22), genres=("rock",))
+
+
+def test_la_liste_s_arrete_a_l_emission_qui_va_couper_et_la_nomme(tmp_path: Path) -> None:
+    """Le défaut vu sur le Planning, une couche plus bas : à 19 h 58, la liste
+    annonçait de la musique pour 20 h alors que Hardisk allait passer."""
+    montre = FrozenClock(MIDI.replace(hour=19, minute=55))
+    programme, _ = _programme(tmp_path, bands=[SOIREE], clock=montre, lookahead=3, shows=[HARDISK])
+    depart = MIDI.replace(hour=19, minute=58)
+
+    programme.prepare(from_instant=depart)
+    liste = programme.upcoming(depart)
+
+    assert [(i.kind, i.label, i.at, i.expected) for i in liste] == [
+        (Kind.MUSIC, None, depart, False),
+        (Kind.SHOW, "Hardisk", MIDI.replace(hour=20), True),
+    ]
+
+
+def test_l_avance_n_est_pas_tiree_pour_les_heures_du_programme(tmp_path: Path) -> None:
+    """Sans cela, les titres tirés pour 18 h étaient jetés à la fin du
+    programme — et la file se retrouvait vide au moment de reprendre."""
+    montre = FrozenClock(MIDI.replace(hour=17, minute=55))
+    chloe = Programme(name="Chloé", playlist="Chloé", days=("all",), start=time(18), end=time(20))
+    plages = [
+        Band(start=time(17), end=time(20), genres=("trip-hop",)),
+        Band(start=time(20), end=time(22), genres=("rock",)),
+    ]
+    programme, _ = _programme(tmp_path, bands=plages, clock=montre, lookahead=3, programmes=[chloe])
+
+    programme.prepare(from_instant=MIDI.replace(hour=17, minute=58))
+    assert programme.next_entry() == "fake://3", "le premier créneau est bien celui de 17 h 58"
+
+    montre.jump_to(MIDI.replace(hour=20))
+    assert [i.track.genre for i in programme.upcoming(montre.now()) if i.track] == [
+        "rock",
+        "rock",
+    ]

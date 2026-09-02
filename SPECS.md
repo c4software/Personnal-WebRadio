@@ -456,6 +456,19 @@ trois de 15 h dont deux rassis. L'avance datée (n°33) tranche à la jonction s
 l'estimation tenait ; un créneau qui a glissé sous une autre plage — un `stop`,
 un encore — est retiré avec ce qui le suit, et retiré au sort.
 
+**Depuis le 2026-09-02** (GOAL-068), l'estimation regarde aussi ce qui
+**remplacera la file** — les émissions et les programmes, et non plus les
+seules plages :
+
+- la liste **s'arrête** à ce qui va couper, et **nomme l'émission** : à
+  19 h 58, elle annonçait un titre pour 20 h alors que l'émission de 20 h
+  allait passer. D'un programme, elle ne dit rien — pendant un programme, la
+  radio n'annonce pas (voir « À suivre » ci-dessus) ;
+- un créneau qui tomberait pendant un **programme** ou un **direct** est tiré
+  pour l'heure de leur **fin** : la file n'y est pas servie, et un titre tiré
+  pour cette heure-là aurait été jeté à la jonction — laissant la file vide au
+  moment même de reprendre.
+
 Un titre de la liste **se retire** (`DELETE /api/up-next/<identifiant>`) : il
 ne passera pas, un autre est tiré à sa place sous le même moment, et le retrait
 est journalisé. Le morceau qu'un encore force (§4.6) y figure après le jingle,
