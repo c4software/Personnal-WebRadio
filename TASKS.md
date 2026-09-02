@@ -70,32 +70,12 @@ conséquence consignée, non une question ; la **n°12** (combiner plusieurs
 sources actives) est délibérément différée jusqu'à la deuxième source de
 musique.
 
-**Reste à écouter** (AGENTS.md §4.1) :
-
-- **GOAL-050** — la montée du volume en deux secondes au branchement du premier
-  auditeur, y compris quand l'antenne reprend au milieu d'un morceau.
-- **GOAL-051** — la jonction musique → direct, dont les ~2 s de fondu de sortie
-  écourtées (T04/T06) ; et la reprise à la coupure du direct, sur un morceau
-  frais (T05). Les mesures disent qu'il n'y a ni silence ni retard ; elles ne
-  disent pas si la coupure du fondu s'entend.
-- **GOAL-055** — la reprise après une longue pause : le morceau frais entre
-  sans fondu propre, sous la seule rampe de prise d'antenne. Les mesures disent
-  que le reliquat ne passe plus ; elles ne disent pas si l'entrée à froid
-  s'entend.
-
-- **GOAL-056** — un jingle à la jonction qui suit l'heure pleine, sans blanc
-  ni doublon, et la plage suivante derrière son générique.
-- **GOAL-057** — un retirage : le nouveau thème à la jonction suivante, sans
-  que le générique repasse.
-- **GOAL-059** — un retirage sur le contretemps de 15 h ou les époques de
-  19 h : une autre suite à la jonction suivante.
-- **GOAL-060** — le lecteur depuis un téléphone : la prise d'antenne, le
-  rebranchement, l'arrière-plan, l'écran de verrouillage.
-- **GOAL-058** — une journée avec trois titres d'avance : ni artiste répété,
-  ni titre hors plage après une transition ; et le tiroir, dans un navigateur.
-- **GOAL-062** — la pilule du lecteur depuis un téléphone : sous le pouce en
-  changeant d'onglet, la liste qui se déploie, la prise d'antenne signalée,
-  et les commandes de l'écran de verrouillage qui coupent vraiment.
+**Toutes les écoutes en attente ont été validées par l'auteur le 2026-09-02**
+(AGENTS.md §4.1) : la prise d'antenne en fondu (GOAL-050), la jonction avec
+le direct et la reprise à sa coupure (GOAL-051), la reprise après une longue
+pause (GOAL-055), le jingle à la jonction qui suit l'heure (GOAL-056), les
+retirages (GOAL-057, GOAL-059), les titres d'avance et leur liste (GOAL-058),
+le lecteur puis la pilule depuis un téléphone (GOAL-060, GOAL-062).
 
 Les écoutes de GOAL-044 (modes d'enchaînement) et GOAL-047 (coupe au plafond)
 ont été validées par l'auteur le 2026-09-01.
@@ -106,10 +86,11 @@ jusqu'aux votes collés en bas. Le lecteur est une pilule de verre fixe en
 bas, présente sur tous les onglets, et les prochains titres s'y déploient ;
 l'antenne est une carte, les votes juste dessous. **Aucun Goal ouvert.**
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
+**GOAL-063 est ouvert le 2026-09-02** : la page s'installe comme une
+application, porte une icône et dit dans son titre ce qui passe ; la carte
+« La radio dort » est retirée.
 
-**Reste aussi** : l'écoute de GOAL-050 et GOAL-051, qui n'ont atteint la
-production que le 2026-09-02 (GOAL-053).
+**Prochaine tâche** : GOAL-063-T01.
 
 ---
 
@@ -166,19 +147,39 @@ production que le 2026-09-02 (GOAL-053).
 | GOAL-047 | Une chanson trop longue se joue, mais se coupe en fondu au plafond | `[x]` — écoute validée le 2026-09-01 |
 | GOAL-048 | Un libellé trop long du Planning se tronque en ellipse | `[x]` |
 | GOAL-049 | Tirage par genre fiable malgré les genres fantômes de Navidrome | `[x]` — clos le 2026-09-01 : diagnostic consigné (T01), le reste abandonné — la bibliothèque a été purgée, T03 annulée par revert |
-| GOAL-050 | Un fondu à la prise d'antenne | `[x]` — reste l'écoute réelle |
-| GOAL-051 | Le direct ne ment plus à l'antenne, et la reprise coupe vraiment le reliquat | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
+| GOAL-050 | Un fondu à la prise d'antenne | `[x]` — écoute validée le 2026-09-02 |
+| GOAL-051 | Le direct ne ment plus à l'antenne, et la reprise coupe vraiment le reliquat | `[x]` — clos le 2026-09-02, écoute validée le même jour |
 | GOAL-052 | L'historique dit quel jour, et ne mélange plus deux 8 h | `[x]` — clos le 2026-09-02 |
 | GOAL-053 | Le script du diffuseur voyage dans une image, plus par un montage | `[x]` — clos le 2026-09-02 |
 | GOAL-054 | « À suivre » regarde derrière l'habillage | `[x]` — clos le 2026-09-02 |
-| GOAL-055 | Le premier auditeur n'entend plus le reliquat du morceau interrompu | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
-| GOAL-056 | L'avance est datée par son moment : le jingle horaire tombe à la jonction qui suit l'heure, et la plage d'avant ne déborde plus derrière le générique | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
-| GOAL-057 | Retirer au sort le thème d'une plage « au hasard », par l'API et l'interface | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
-| GOAL-058 | Les prochains titres se voient, et se retirent avant de passer | `[x]` — clos le 2026-09-02 ; **reste l'écoute**, et le tiroir à voir |
-| GOAL-059 | « Retirer » vaut aussi pour une suite tirée au sort : décennie ou artiste | `[x]` — clos le 2026-09-02 ; **reste l'écoute** |
-| GOAL-060 | Un lecteur dans la page : écouter la radio depuis l'interface | `[x]` — clos le 2026-09-02 ; **reste l'écoute** depuis un téléphone |
+| GOAL-055 | Le premier auditeur n'entend plus le reliquat du morceau interrompu | `[x]` — clos le 2026-09-02, écoute validée le même jour |
+| GOAL-056 | L'avance est datée par son moment : le jingle horaire tombe à la jonction qui suit l'heure, et la plage d'avant ne déborde plus derrière le générique | `[x]` — clos le 2026-09-02, écoute validée le même jour |
+| GOAL-057 | Retirer au sort le thème d'une plage « au hasard », par l'API et l'interface | `[x]` — clos le 2026-09-02, écoute validée le même jour |
+| GOAL-058 | Les prochains titres se voient, et se retirent avant de passer | `[x]` — clos le 2026-09-02, écoute validée le même jour |
+| GOAL-059 | « Retirer » vaut aussi pour une suite tirée au sort : décennie ou artiste | `[x]` — clos le 2026-09-02, écoute validée le même jour |
+| GOAL-060 | Un lecteur dans la page : écouter la radio depuis l'interface | `[x]` — clos le 2026-09-02, écoute validée le même jour |
 | GOAL-061 | Retouches de l'interface : votes grisés sans auditeur, tiroir plus profond et animé | `[x]` — clos le 2026-09-02 |
-| GOAL-062 | L'interface repensée : un lecteur en barre fixe, l'antenne en carte, les votes à portée de pouce | `[x]` — clos le 2026-09-02 ; **reste l'écoute** depuis un téléphone |
+| GOAL-062 | L'interface repensée : un lecteur en barre fixe, l'antenne en carte, les votes à portée de pouce | `[x]` — clos le 2026-09-02, écoute validée le même jour |
+| GOAL-063 | Installable en PWA, une icône, un titre qui dit ce qui passe | `[-]` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
+
+---
+
+## GOAL-063 — Installable en PWA, une icône, un titre qui dit ce qui passe
+
+Demandé par l'auteur le 2026-09-02, en validant GOAL-062. Trois ajouts et
+un retrait : la carte « La radio dort » — « c'est con » — disparaît ; la
+barre dit déjà que personne n'écoute.
+
+- [ ] **GOAL-063-T01** — Retirer la carte « La radio dort » : sans antenne,
+      l'onglet Antenne ne montre que les votes grisés, la barre dit le reste.
+- [ ] **GOAL-063-T02** — Une icône (favicon SVG) et un titre de page qui dit
+      ce qui passe — titre et artiste dans l'onglet du navigateur, mis à jour
+      à chaque rafraîchissement.
+- [ ] **GOAL-063-T03** — Installable en PWA : un manifeste, des icônes PNG
+      pour l'écran d'accueil, les métadonnées qu'iOS exige, l'affichage
+      autonome ; SPECS.md §4.8 ; la carte du dépôt (ARCHITECTURE.md §9) ;
+      clôture. Ce qu'un téléphone en fait — l'installation, l'ouverture
+      plein écran — ne se constate qu'en essayant.
