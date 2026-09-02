@@ -625,6 +625,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   │   ├── runs.py ...... les suites d'une plage : double dose, époque, artiste
 │   │   ├── jingles.py ... quel jingle est dû, d'après l'heure
 │   │   ├── shows.py ..... quelle émission est due, d'après la grille déclarée
+│   │   ├── planning.py .. la grille EFFECTIVE : les périodes fusionnées d'une journée
 │   │   ├── control.py ... l'effet de stop et encore, et le refus motivé
 │   │   └── weighting.py . des votes aux poids du tirage
 │   ├── adapters/ ........ le monde extérieur — ne décide de rien
