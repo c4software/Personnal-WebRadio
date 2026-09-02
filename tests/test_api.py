@@ -555,3 +555,16 @@ def test_la_page_s_installe_comme_une_application() -> None:
     assert contenu["display"] == "standalone"
     for icone in contenu["icons"]:
         assert app.test_client().get("/static/" + icone["src"]).status_code == 200
+
+
+def test_la_feuille_de_style_est_un_fichier_servi_avec_la_page() -> None:
+    """GOAL-064-T01 : la CSS sort du gabarit et se sert comme Vue, en local."""
+    app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT)
+    app.config.update(TESTING=True)
+    page = app.test_client().get("/").get_data(as_text=True)
+    assert 'rel="stylesheet" href="/static/style.css"' in page
+    assert "<style" not in page
+    feuille = app.test_client().get("/static/style.css")
+    assert feuille.status_code == 200
+    assert feuille.mimetype == "text/css"
+    assert ".barre" in feuille.get_data(as_text=True)
