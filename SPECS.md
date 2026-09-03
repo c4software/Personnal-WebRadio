@@ -444,6 +444,14 @@ remplace pas.
 Le sens inverse — voter, retirer un titre, retirer un thème — n'a pas de canal
 permanent : ce sont des appels REST, comme avant (décision de l'auteur).
 
+**Une coupure ne s'écrit pas.** Réseau perdu, serveur arrêté : la page affichait
+« L'API ne répond pas : TypeError: Failed to fetch » jusqu'au prochain succès.
+Elle montre désormais un **témoin** discret à côté du nom de la radio, et rien
+d'autre — `EventSource` se rebranche de lui-même, et le témoin s'efface quand il
+y parvient. Aucune exception n'est plus rendue telle quelle à l'auditeur : une
+action qui échoue dit « Le serveur ne répond pas. » et s'efface au bout de
+quelques secondes, comme un refus.
+
 #### « À suivre »
 
 L'interface annonce aussi **ce qui vient**. Le diffuseur a toujours un morceau

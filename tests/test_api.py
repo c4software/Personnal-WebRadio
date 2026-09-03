@@ -309,6 +309,14 @@ def test_la_page_s_abonne_a_l_antenne_au_lieu_de_la_sonder() -> None:
     assert b"/api/on-air" not in answer.data
 
 
+def test_une_coupure_se_voit_sans_rendre_l_exception() -> None:
+    """Une panne réseau est un témoin, pas un « TypeError » lu par l'auditeur."""
+    answer = client(FakeRadio()).get("/")
+    assert b"deconnecte" in answer.data
+    assert b"+ erreur" not in answer.data
+    assert "L'API ne répond pas".encode() not in answer.data
+
+
 # ── La page des votes (GOAL-018) ────────────────────────────────────────────
 
 

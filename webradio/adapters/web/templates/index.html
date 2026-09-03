@@ -21,7 +21,13 @@
   <body>
     <main id="app" v-cloak>
       <div class="haut">
-        <p class="marque"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h9A1.5 1.5 0 0 1 14 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-7zm2.5 6.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9 7h3v1H9V7zm0 2h3v1H9V9zM4 1.3l7 2.2-.3.9L3.7 2.2 4 1.3z" /></svg> local-webradio</p>
+        <p class="marque"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 5.5A1.5 1.5 0 0 1 3.5 4h9A1.5 1.5 0 0 1 14 5.5v7a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12.5v-7zm2.5 6.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM9 7h3v1H9V7zm0 2h3v1H9V9zM4 1.3l7 2.2-.3.9L3.7 2.2 4 1.3z" /></svg> local-webradio
+          <!-- Une coupure ne s'écrit pas : elle se voit, et s'en va d'elle-même
+               quand EventSource se rebranche (GOAL-073). -->
+          <span v-if="!connecte" class="deconnecte" title="Le serveur ne répond pas" role="status" aria-label="Le serveur ne répond pas">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.6a6.4 6.4 0 0 1 4.53 10.93l-.85-.85A5.2 5.2 0 0 0 4.32 4.32l-.85-.85A6.37 6.37 0 0 1 8 1.6zM2.62 4.62A6.4 6.4 0 0 0 8 14.4a6.37 6.37 0 0 0 3.38-.97l-.88-.88A5.2 5.2 0 0 1 3.5 5.5l-.88-.88zM2.4 1.55l12.05 12.05-.85.85L1.55 2.4l.85-.85z" /></svg>
+          </span>
+        </p>
         <nav class="onglets">
         <button type="button" :class="{ actif: onglet === 'antenne' }" @click="ouvrir('antenne')">Antenne</button>
         <button type="button" :class="{ actif: onglet === 'votes' }" @click="ouvrir('votes')">Votes</button>
@@ -266,6 +272,7 @@
             historique: [],
             pageHeure: 0,
             urls: URLS,
+            connecte: true,
             message: "",
             issue: "",
             occupe: false,
@@ -370,10 +377,14 @@
             if (this.onglet === "historique") { this.ouvrirHistorique(); }
             if (this.tiroir) { this.chargerProchains(); }
           },
+          // Une coupure n'a pas de reprise à écrire : EventSource se rebranche
+          // seul, et le témoin dit seulement où l'on en est (GOAL-073).
           ecouterLAntenne() {
             if (fluxAntenne) { return; }
             fluxAntenne = new EventSource(URLS.evenements);
             fluxAntenne.addEventListener("antenne", (e) => this.appliquerAntenne(JSON.parse(e.data)));
+            fluxAntenne.onopen = () => { this.connecte = true; };
+            fluxAntenne.onerror = () => { this.connecte = false; };
           },
           async chargerVotes() {
             try {
@@ -496,9 +507,9 @@
             audio.src = this.flux;
             audio.volume = this.volume;
             audio.load();
-            audio.play().catch((erreur) => {
+            audio.play().catch(() => {
               this.attente = false;
-              this.message = "Lecture impossible : " + erreur;
+              this.message = "Lecture impossible.";
               this.issue = "refus";
             });
           },
@@ -589,8 +600,8 @@
               const donnees = await reponse.json();
               this.message = donnees.withdrawn ? "Retiré : " + (e.title || e.kind) : donnees.reason;
               this.issue = donnees.withdrawn ? "accepte" : "refus";
-            } catch (erreur) {
-              this.message = "L'API ne répond pas : " + erreur;
+            } catch {
+              this.message = "Le serveur ne répond pas.";
               this.issue = "refus";
             } finally {
               this.occupe = false;
@@ -609,8 +620,8 @@
               if (donnees.accepted) { this.moment = donnees.moment || this.moment; }
               this.message = donnees.accepted ? "Nouveau thème : " + (donnees.moment || "tirage libre") : donnees.reason;
               this.issue = donnees.accepted ? "accepte" : "refus";
-            } catch (erreur) {
-              this.message = "L'API ne répond pas : " + erreur;
+            } catch {
+              this.message = "Le serveur ne répond pas.";
               this.issue = "refus";
             } finally {
               this.occupe = false;
@@ -624,8 +635,8 @@
               const donnees = await reponse.json();
               this.message = donnees.accepted ? "C'est noté." : donnees.reason;
               this.issue = donnees.accepted ? "accepte" : "refus";
-            } catch (erreur) {
-              this.message = "L'API ne répond pas : " + erreur;
+            } catch {
+              this.message = "Le serveur ne répond pas.";
               this.issue = "refus";
             } finally {
               this.occupe = false;

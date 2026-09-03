@@ -190,7 +190,7 @@ SSE tiennent dans Flask nu, et `EventSource` reconnecte de lui-même.
       L'événement remplace le `setInterval` et devient l'horloge de l'interface :
       c'est lui qui fait recharger la liste de l'onglet ouvert. `refresh` quitte
       la vue pour l'API.
-- [ ] **GOAL-073-T03** — Une coupure se voit, elle ne s'écrit pas : un témoin
+- [x] **GOAL-073-T03** — Une coupure se voit, elle ne s'écrit pas : un témoin
       d'état à la place du message d'erreur, et plus aucune exception rendue
       telle quelle à l'auditeur.
       **À constater** (AGENTS.md §4.1) : une vraie coupure réseau depuis un
