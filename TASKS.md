@@ -162,44 +162,19 @@ en fond de page. C'est ce qui ferait vraiment vivre le verre, puisqu'il
 change à chaque titre — mais cela demande la couverture depuis l'API
 Subsonic, donc noyau, API et page : un Goal à part, pas une retouche.
 
-**GOAL-073 est ouvert le 2026-09-03** : la page redemande à l'API ce qui passe
+**GOAL-073 est clos le 2026-09-03** : la page redemandait à l'API ce qui passe
 toutes les cinq secondes, qu'elle soit visible ou non, et une coupure de réseau
-s'affiche en toutes lettres — « L'API ne répond pas : TypeError: Failed to
-fetch » — jusqu'au prochain succès. L'état d'antenne est poussé par le serveur,
-et une coupure devient un témoin plutôt qu'une phrase.
+s'affichait en toutes lettres — « L'API ne répond pas : TypeError: Failed to
+fetch » — jusqu'au prochain succès. L'état d'antenne est désormais **poussé**
+par `GET /api/events`, un flux SSE ; la page s'y abonne au lieu de sonder, ferme
+sa connexion quand l'onglet passe en fond, et montre une coupure par un témoin
+discret que `EventSource` efface en se rebranchant. Le sens interface → serveur
+reste REST (décision de l'auteur). **Aucun Goal ouvert.**
+**Reste à constater** (AGENTS.md §4.1, et rien ne le fera automatiquement) :
+une vraie coupure réseau depuis un téléphone, et le retour d'un écran
+verrouillé au bout de dix minutes.
 
-**Prochaine tâche** : GOAL-073-T01.
-
----
-
-## GOAL-073 — L'état d'antenne poussé par SSE, et une coupure qui ne s'écrit plus
-
-Le sens **serveur → interface** passe en flux poussé ; le sens **interface →
-serveur** reste REST (décision de l'auteur : « je ne veux du live que sur
-serveur → UI »). Le WebSocket est écarté — Flask ne le parle pas nativement, il
-demanderait `flask-sock` et `simple-websocket`, contre l'ordre de préférence
-d'AGENTS.md §2 et la ligne « aucune autre dépendance » de `pyproject.toml`. Les
-SSE tiennent dans Flask nu, et `EventSource` reconnecte de lui-même.
-
-- [x] **GOAL-073-T01** — `GET /api/events` : l'état d'antenne poussé dès qu'il
-      change. Un générateur par connexion regarde l'antenne à `refresh_seconds`
-      et n'émet que sur changement ; un commentaire de maintien sinon.
-      `GET /api/on-air` reste : SPECS.md §4.8 demande que l'API dise ce qui
-      passe, et la page n'a pas de chemin privilégié.
-- [x] **GOAL-073-T02** — La page s'abonne au flux au lieu de sonder.
-      L'événement remplace le `setInterval` et devient l'horloge de l'interface :
-      c'est lui qui fait recharger la liste de l'onglet ouvert. `refresh` quitte
-      la vue pour l'API.
-- [x] **GOAL-073-T03** — Une coupure se voit, elle ne s'écrit pas : un témoin
-      d'état à la place du message d'erreur, et plus aucune exception rendue
-      telle quelle à l'auditeur.
-      **À constater** (AGENTS.md §4.1) : une vraie coupure réseau depuis un
-      téléphone — que le témoin apparaisse, et disparaisse au retour sans geste.
-- [x] **GOAL-073-T04** — L'onglet en fond ferme son flux, et le rouvre au
-      retour. La carte du dépôt (ARCHITECTURE.md §9) est vérifiée exacte : le
-      Goal n'ajoute ni dossier ni fichier.
-      **À constater** (AGENTS.md §4.1) : écran verrouillé, application repliée,
-      retour au bout de dix minutes — la page doit se remettre à l'heure seule.
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
 
@@ -279,7 +254,7 @@ SSE tiennent dans Flask nu, et `EventSource` reconnecte de lui-même.
 | GOAL-070 | La liste des prochains titres ne se coupe plus en silence | `[x]` — clos le 2026-09-02 |
 | GOAL-071 | Une plage `era_fan` choisit ses décennies | `[x]` — clos le 2026-09-02 ; **reste à écouter** la plage de 12 h |
 | GOAL-072 | Le verre d'iOS : la matière, la palette du système, un en-tête qui flotte | `[x]` — clos le 2026-09-03, rendu validé à l'œil le même jour |
-| GOAL-073 | L'état d'antenne poussé par SSE, et une coupure qui ne s'écrit plus | `[ ]` |
+| GOAL-073 | L'état d'antenne poussé par SSE, et une coupure qui ne s'écrit plus | `[x]` — clos le 2026-09-03 ; **reste à constater** une coupure réseau et un retour d'arrière-plan depuis un téléphone |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

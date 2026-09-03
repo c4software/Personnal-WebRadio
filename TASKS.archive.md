@@ -2306,3 +2306,34 @@ couvert : que la feuille est servie avec son type, et que la page la lie.
 **Piste ouverte, non planifiée** : la pochette du morceau en cours, floutée, en
 fond de page — le fond qui ferait vraiment vivre le verre, puisqu'il change à
 chaque titre. Demande la couverture depuis l'API Subsonic : noyau, API et page.
+
+---
+
+## GOAL-073 — L'état d'antenne poussé par SSE, et une coupure qui ne s'écrit plus
+
+Le sens **serveur → interface** passe en flux poussé ; le sens **interface →
+serveur** reste REST (décision de l'auteur : « je ne veux du live que sur
+serveur → UI »). Le WebSocket est écarté — Flask ne le parle pas nativement, il
+demanderait `flask-sock` et `simple-websocket`, contre l'ordre de préférence
+d'AGENTS.md §2 et la ligne « aucune autre dépendance » de `pyproject.toml`. Les
+SSE tiennent dans Flask nu, et `EventSource` reconnecte de lui-même.
+
+- [x] **GOAL-073-T01** — `GET /api/events` : l'état d'antenne poussé dès qu'il
+      change. Un générateur par connexion regarde l'antenne à `refresh_seconds`
+      et n'émet que sur changement ; un commentaire de maintien sinon.
+      `GET /api/on-air` reste : SPECS.md §4.8 demande que l'API dise ce qui
+      passe, et la page n'a pas de chemin privilégié.
+- [x] **GOAL-073-T02** — La page s'abonne au flux au lieu de sonder.
+      L'événement remplace le `setInterval` et devient l'horloge de l'interface :
+      c'est lui qui fait recharger la liste de l'onglet ouvert. `refresh` quitte
+      la vue pour l'API.
+- [x] **GOAL-073-T03** — Une coupure se voit, elle ne s'écrit pas : un témoin
+      d'état à la place du message d'erreur, et plus aucune exception rendue
+      telle quelle à l'auditeur.
+      **À constater** (AGENTS.md §4.1) : une vraie coupure réseau depuis un
+      téléphone — que le témoin apparaisse, et disparaisse au retour sans geste.
+- [x] **GOAL-073-T04** — L'onglet en fond ferme son flux, et le rouvre au
+      retour. La carte du dépôt (ARCHITECTURE.md §9) est vérifiée exacte : le
+      Goal n'ajoute ni dossier ni fichier.
+      **À constater** (AGENTS.md §4.1) : écran verrouillé, application repliée,
+      retour au bout de dix minutes — la page doit se remettre à l'heure seule.
