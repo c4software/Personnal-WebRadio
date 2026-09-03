@@ -167,6 +167,9 @@ réservée à ce qui a un sens — l'accent, le vert d'un « encore », le rouge
 - [x] **GOAL-072-T02** — Les composants au vocabulaire du système : contrôle
       segmenté, listes groupées, boutons teintés, barre de lecture, feuille à
       poignée.
+- [x] **GOAL-072-T04** — Le verre liquide : un en-tête qui flotte au lieu de
+      déborder, des surfaces plus transparentes, une arête spéculaire qui leur
+      donne une épaisseur.
 - [-] **GOAL-072-T03** — Documentation et clôture.
 
 ---

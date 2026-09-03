@@ -1,32 +1,17 @@
-/* La feuille de style de la page (GOAL-064) : servie avec Vue, jamais tirée
-   d'un CDN — la radio est un objet local. */
-/* Le verre (GOAL-072) : une matière, pas une couleur. Le fond est
-   monochrome ; les surfaces sont cette même teinte à des opacités
-   croissantes, et c'est leur épaisseur qui les distingue, jamais leur
-   teinte. La couleur est réservée à ce qui a un sens. */
 :root {
   color-scheme: dark;
   --fond: #0b0c0e;
-  /* Les trois épaisseurs de verre. Le flou sature ce qu'il échantillonne :
-     sans cela, un fond sombre traverse en gris mort. */
-  --mat-fin: rgba(32, 33, 37, 0.5); --mat: rgba(32, 33, 37, 0.68); --mat-epais: rgba(40, 41, 46, 0.84);
-  --flou: saturate(180%) blur(30px);
-  /* Un filet sépare, il n'encadre pas : la bordure d'un pixel plein se lit
-     comme un trait dessiné, et casse l'illusion d'une matière. */
+  --mat-fin: rgba(255, 255, 255, 0.045); --mat: rgba(255, 255, 255, 0.075); --mat-epais: rgba(255, 255, 255, 0.11);
+  --flou: blur(28px) saturate(190%) brightness(1.12);
   --filet: rgba(255, 255, 255, 0.07); --filet-fort: rgba(255, 255, 255, 0.14);
   --texte: #ffffff; --sourdine: rgba(235, 235, 245, 0.6); --tertiaire: rgba(235, 235, 245, 0.32);
-  /* Les remplissages inertes — pistes de jauge, pastilles éteintes — sont
-     gris neutres, et translucides pour laisser passer le fond. */
-  --remplissage: rgba(120, 120, 128, 0.26); --remplissage-fort: rgba(120, 120, 128, 0.4);
+  --remplissage: rgba(255, 255, 255, 0.09); --remplissage-fort: rgba(255, 255, 255, 0.17);
   --accent: #0a84ff; --vert: #30d158; --rouge: #ff453a; --ambre: #ff9f0a;
   --encore: var(--vert); --stop: var(--rouge); --accepte: var(--vert); --refus: var(--rouge);
   --rayon: 1.125rem; --rayon-controle: 0.7rem;
   --ombre: 0 10px 34px rgba(0, 0, 0, 0.55);
-  --reflet: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --reflet: inset 0 1px 0 rgba(255, 255, 255, 0.28), inset 0 -1px 0 rgba(255, 255, 255, 0.07);
 }
-/* Vue pose v-cloak jusqu'au montage : cette règle cache la page tant
-   que les gabarits ne sont pas compilés — sans elle, les [[ ]] bruts
-   flashent au chargement (constaté par l'auteur). */
 [v-cloak] { display: none; }
 * { box-sizing: border-box; margin: 0; }
 body {
@@ -34,45 +19,46 @@ body {
   font-family: -apple-system, system-ui, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased; display: flex; justify-content: center;
 }
-/* Le fond vit dans un pseudo-élément fixe : `background-attachment: fixed`
-   est ignoré sur iOS, et un fond qui défile avec la page laisse les
-   surfaces de verre sans rien à flouter. Une seule source de lumière, en
-   haut, sans teinte : c'est elle qui donne au verre de quoi varier. */
 body::before {
   content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
   background:
-    radial-gradient(120% 55% at 50% -15%, rgba(255, 255, 255, 0.07), transparent 70%),
-    linear-gradient(180deg, #15171b 0%, #0d0e11 55%, #08090b 100%);
+    radial-gradient(95% 50% at 50% -12%, rgba(255, 255, 255, 0.1), transparent 65%),
+    radial-gradient(70% 55% at 8% 32%, rgba(86, 116, 160, 0.16), transparent 72%),
+    radial-gradient(65% 45% at 92% 96%, rgba(255, 255, 255, 0.06), transparent 70%),
+    linear-gradient(180deg, #191c22 0%, #101217 55%, #0a0b0e 100%);
+}
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 main { width: min(40rem, 100%); padding: 1.25rem 1.25rem 6.75rem; }
 button { font: inherit; color: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
 button[disabled] { cursor: default; }
-/* L'en-tête et les onglets restent collés en haut, en verre : on change
-   d'onglet sans remonter, et le contenu défile dessous. Le filet du bas
-   est ce qui sépare la barre du contenu quand il passe dessous. */
-.haut { position: sticky; top: 0; z-index: 2; margin: -1.25rem -1.25rem 1.25rem; padding: 0.9rem 1.25rem 0.75rem;
-        background: var(--mat); border-bottom: 1px solid var(--filet);
-        backdrop-filter: var(--flou); -webkit-backdrop-filter: var(--flou); }
+.haut { position: sticky; top: max(0.5rem, env(safe-area-inset-top)); z-index: 2;
+        margin-bottom: 1rem; padding: 0.7rem 0.85rem; border-radius: 1.375rem;
+        background: var(--mat); border: 1px solid var(--filet-fort);
+        backdrop-filter: var(--flou); -webkit-backdrop-filter: var(--flou);
+        box-shadow: var(--reflet), 0 8px 26px rgba(0, 0, 0, 0.4); }
 .marque { display: flex; align-items: center; gap: 0.45rem; margin: 0 0.15rem 0.65rem;
           font-size: 0.78rem; letter-spacing: 0.02em; font-weight: 600; color: var(--sourdine); }
 .marque svg { width: 1rem; height: 1rem; fill: var(--accent); }
-/* Un contrôle segmenté : une piste grise, un curseur plein qui glisse
-   sous le libellé actif. Ni pilule ni bordure — c'est le contraste du
-   curseur qui porte la sélection. */
-.onglets { display: flex; gap: 0.15rem; padding: 0.125rem; border-radius: 0.625rem;
-           background: var(--remplissage); }
+.onglets { display: flex; gap: 0.15rem; padding: 0.125rem; border-radius: 0.75rem;
+           background: rgba(255, 255, 255, 0.055); border: 1px solid var(--filet); }
 .onglets button {
-  flex: 1; padding: 0.4rem 0.2rem; border-radius: 0.5rem; border: 0; background: transparent;
+  flex: 1; padding: 0.4rem 0.2rem; border-radius: 0.625rem; border: 0; background: transparent;
   color: var(--sourdine); font-size: 0.82rem; font-weight: 600; white-space: nowrap;
   transition: background 0.2s ease, color 0.2s ease;
 }
-.onglets button.actif { background: rgba(99, 99, 102, 0.95); color: var(--texte);
-                        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.2), 0 1px 1px rgba(0, 0, 0, 0.14); }
-/* La scène (GOAL-062) : ce qui passe, dans une carte de verre, et les
-   votes juste dessous — à portée de pouce, sans écran de vide. */
+.onglets button.actif { background: rgba(255, 255, 255, 0.15); color: var(--texte);
+                        box-shadow: var(--reflet), 0 3px 8px rgba(0, 0, 0, 0.22); }
 .carte {
-  background: var(--mat-fin); border: 1px solid var(--filet); border-radius: var(--rayon);
+  position: relative; background: var(--mat-fin); border: 1px solid var(--filet-fort); border-radius: var(--rayon);
   backdrop-filter: var(--flou); -webkit-backdrop-filter: var(--flou); box-shadow: var(--reflet);
+}
+.carte, .barre, .haut { isolation: isolate; }
+.carte::after, .barre::after, .haut::after {
+  content: ""; position: absolute; inset: 0; z-index: -1; pointer-events: none; border-radius: inherit;
+  background: linear-gradient(148deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0) 44%, rgba(255, 255, 255, 0.05));
 }
 .scene { padding: 1.25rem 1.25rem 0.5rem; }
 .scene .entete { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; margin-bottom: 1rem; }
@@ -100,25 +86,19 @@ button[disabled] { cursor: default; }
 .scene.veille { padding-bottom: 1.25rem; }
 .scene.veille .titre { font-size: 1.4rem; }
 .scene.veille p { color: var(--sourdine); margin-top: 0.5rem; line-height: 1.45; }
-/* Les deux votes sont des boutons teintés : le remplissage prend la
-   couleur de l'action, à faible opacité, et le libellé la porte en plein.
-   Deux boutons gris à picto coloré se ressemblaient trop pour un geste
-   qu'on fait sans regarder. */
-.votes { display: flex; gap: 0.75rem; margin-top: 0.9rem; }
+.votes { display: flex; gap: 0.6rem; margin-top: 0.9rem; }
 .votes button {
   flex: 1; display: flex; align-items: center; justify-content: center; gap: 0.5rem;
-  padding: 0.95rem; font-size: 1.05rem; font-weight: 600; border-radius: 0.875rem; border: 0;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  padding: 0.9rem; font-size: 1rem; font-weight: 600; border-radius: 999px;
+  background: var(--mat); border: 1px solid var(--filet-fort); color: var(--texte);
+  backdrop-filter: var(--flou); -webkit-backdrop-filter: var(--flou); box-shadow: var(--reflet);
+  transition: transform 0.15s ease, background 0.15s ease;
 }
-.votes button svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
-.votes button:active { transform: scale(0.97); opacity: 0.75; }
+.votes button svg { width: 1rem; height: 1rem; fill: currentColor; }
+.votes button:active { transform: scale(0.97); background: var(--mat-epais); }
 .votes button[disabled] { opacity: 0.35; }
-.votes .encore { background: rgba(48, 209, 88, 0.16); color: var(--encore); }
-.votes .passer { background: rgba(255, 69, 58, 0.16); color: var(--stop); }
-/* La barre de lecture (GOAL-062) : fixe en bas, sur tous les onglets,
-   sous le pouce — un bouton rond, ce qui passe, le témoin d'antenne.
-   Le volume ne se montre que sur un écran large : un téléphone le
-   règle avec ses touches, et iOS ignore `audio.volume`. */
+.votes .encore { color: var(--encore); }
+.votes .passer { color: var(--stop); }
 .barre {
   position: fixed; left: 50%; transform: translateX(-50%); z-index: 4;
   bottom: max(0.75rem, env(safe-area-inset-bottom)); width: min(40rem, 100% - 1.5rem);
@@ -161,17 +141,12 @@ button[disabled] { cursor: default; }
   .ondes i { animation: none; height: 60%; }
   .temoin.attente { animation: none; }
 }
-/* La liste des prochains titres se déploie depuis le lecteur (GOAL-062,
-   demandé par l'auteur) : la pilule grandit vers le haut, et un voile
-   couvre le reste de la page. */
 .voile { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 3;
          backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
          animation: apparaitre 0.2s ease-out; }
 @keyframes apparaitre { from { opacity: 0; } to { opacity: 1; } }
 @keyframes deplier { from { opacity: 0; transform: translateY(0.75rem); } to { opacity: 1; transform: none; } }
 .liste { animation: deplier 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); padding: 0.5rem 0.4rem 0.25rem; }
-/* La poignée d'une feuille : elle dit que le panneau est venu du bas, et
-   qu'il peut y retourner. */
 .liste::before { content: ""; display: block; width: 2.25rem; height: 0.3125rem; margin: 0.1rem auto 0.5rem;
                  border-radius: 999px; background: var(--remplissage-fort); }
 .liste header { display: flex; justify-content: space-between; align-items: center; padding: 0 0.25rem 0.5rem; }
@@ -197,16 +172,12 @@ button[disabled] { cursor: default; }
 }
 .barre .ouvrir-liste.actif { color: var(--accent); background: rgba(10, 132, 255, 0.16); }
 .barre .ouvrir-liste svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
-/* Un bandeau d'état prend la teinte de sa réponse, il ne s'entoure pas
-   d'un trait de couleur. */
 .etat {
   margin-top: 0.9rem; padding: 0.75rem 0.95rem; border-radius: 0.875rem;
   font-size: 0.9rem; background: var(--remplissage); color: var(--sourdine);
 }
 .etat.refus { background: rgba(255, 69, 58, 0.16); color: var(--refus); }
 .etat.accepte { background: rgba(48, 209, 88, 0.16); color: var(--accepte); }
-/* Les autres onglets suivent la même grammaire : des cartes de verre,
-   des libellés de section discrets, des lignes séparées par un filet. */
 .vote { background: var(--mat-fin); border: 1px solid var(--filet); border-radius: 0.875rem;
         backdrop-filter: var(--flou); -webkit-backdrop-filter: var(--flou); box-shadow: var(--reflet);
         padding: 0.85rem 1rem; margin-bottom: 0.5rem; }
@@ -247,11 +218,6 @@ button[disabled] { cursor: default; }
              padding: 0.45rem 0.5rem 0.45rem 0.6rem; border-left: 3px solid var(--filet);
              margin-bottom: 0.35rem; align-items: baseline; }
 .evenement .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.9rem; }
-/* Une ligne par créneau : un libellé trop long se tronque en ellipse
-   (la liste complète reste lisible au survol, par `title`).
-   `min-width: 0` : sans lui, un enfant de grille refuse de rétrécir
-   sous son contenu. Le créneau en cours se voit à son fond bleu, sans
-   badge. */
 .evenement .nom { display: flex; align-items: baseline; gap: 0.4rem; min-width: 0; }
 .evenement .nom-texte { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .evenement .detail { color: var(--sourdine); font-size: 0.8rem; white-space: nowrap; }
@@ -276,15 +242,7 @@ button[disabled] { cursor: default; }
   color: var(--sourdine); margin: 1.25rem 0.25rem 0.5rem;
 }
 
-/* Les animations (GOAL-064). Les lignes d'une liste entrent l'une après
-   l'autre — `--i` est leur rang, posé par le gabarit — ; un onglet glisse
-   vers le suivant ; une chanson qui change fond l'ancienne dans la nouvelle.
-   Tout s'éteint sous `prefers-reduced-motion`. */
 @keyframes entrer { from { opacity: 0; transform: translateY(0.5rem); } to { opacity: 1; transform: none; } }
-/* Dans la liste du lecteur, les lignes entrent par le haut : un décalage
-   vers le bas dépassait le conteneur défilant le temps de l'animation, et
-   une barre de défilement apparaissait (constaté par l'auteur). Un
-   débordement vers le haut n'agrandit jamais la zone défilable. */
 @keyframes entrer-du-haut { from { opacity: 0; transform: translateY(-0.4rem); } to { opacity: 1; transform: none; } }
 .vote, .jour, .ligne-histoire, .evenement {
   animation: entrer 0.35s cubic-bezier(0.2, 0.8, 0.2, 1) both;
@@ -308,10 +266,15 @@ button[disabled] { cursor: default; }
   .onglet-enter-active, .onglet-leave-active, .chanson-enter-active, .chanson-leave-active { transition: none; }
 }
 
-/* Le bouton de renvoi vers une enceinte (GOAL-065), à côté de la liste. */
 .barre .cast {
   width: 2.6rem; height: 2.6rem; border-radius: 999px; flex: none; border: 0;
   background: var(--remplissage); color: var(--sourdine); display: grid; place-items: center;
 }
 .barre .cast.actif { color: var(--accent); background: rgba(10, 132, 255, 0.16); }
 .barre .cast svg { width: 1.1rem; height: 1.1rem; fill: currentColor; }
+
+.retirer, .vote .oubli, .prochain .oubli, .liste .fermer, .pagination button,
+.barre .pochette, .barre .ouvrir-liste, .barre .cast {
+  box-shadow: var(--reflet);
+  backdrop-filter: blur(12px) saturate(180%); -webkit-backdrop-filter: blur(12px) saturate(180%);
+}
