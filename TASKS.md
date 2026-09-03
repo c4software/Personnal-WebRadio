@@ -140,7 +140,34 @@ décennie quand une vague en demande deux à six. **Aucun Goal ouvert.**
 **Reste à écouter** (AGENTS.md §4.1) la plage de 12 h : qu'une vague bornée
 s'entende comme une vague, et non comme un vivier rétréci.
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
+**GOAL-072 est ouvert le 2026-09-03** : l'auteur trouve le jeu de couleurs
+« trop vibecoding » et demande un verre complet, à la manière d'iOS et du
+client Telegram. Le style « verre » de GOAL-062 en avait la forme sans en
+avoir la matière.
+
+**Prochaine tâche** : GOAL-072-T02.
+
+---
+
+## GOAL-072 — Le verre, pour de bon : la matière et la palette du système
+
+Le fond posait trois halos bleu, violet et vert ; la pochette un dégradé
+bleu→violet ; les témoins des lueurs colorées ; les micro-titres des capitales
+espacées de 0,2 em. C'est la signature qu'on reproche.
+
+Un verre d'iOS ne tient pas à sa couleur mais à sa **matière** : une seule
+teinte de fond, des surfaces d'une même teinte à opacités croissantes, un flou
+qui sature ce qu'il échantillonne, des filets d'un demi-pixel, et la couleur
+réservée à ce qui a un sens — l'accent, le vert d'un « encore », le rouge d'un
+« passer ».
+
+- [x] **GOAL-072-T01** — La palette et les matériaux : fond monochrome,
+      matériaux étagés (fin, régulier, épais), filets, trois niveaux de texte,
+      couleurs système. `theme-color`, le manifeste et le favicon suivent.
+- [-] **GOAL-072-T02** — Les composants au vocabulaire du système : contrôle
+      segmenté, listes groupées, boutons teintés, barre de lecture, feuille à
+      poignée.
+- [ ] **GOAL-072-T03** — Documentation et clôture.
 
 ---
 

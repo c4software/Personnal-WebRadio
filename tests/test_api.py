@@ -592,6 +592,27 @@ def test_la_page_anime_les_onglets_les_chansons_et_les_listes() -> None:
     assert ".prochain {\n  animation: entrer-du-haut" in feuille
 
 
+def test_la_page_est_un_verre_monochrome_aux_couleurs_du_systeme() -> None:
+    """Le fond n'a plus qu'une teinte, les surfaces sont trois épaisseurs d'un
+    même matériau flouté, et la barre système suit le fond (GOAL-072-T01)."""
+    app = client(FakeRadio())
+    page = app.get("/").get_data(as_text=True)
+    feuille = app.get("/static/style.css").get_data(as_text=True)
+    icone = app.get("/static/favicon.svg").get_data(as_text=True)
+    manifeste = app.get("/static/manifest.webmanifest").get_json(force=True)
+    assert '<meta name="theme-color" content="#0b0c0e" />' in page
+    assert manifeste["theme_color"] == "#0b0c0e"
+    assert manifeste["background_color"] == "#0b0c0e"
+    for materiau in ("--mat-fin:", "--mat:", "--mat-epais:"):
+        assert materiau in feuille
+    assert "--flou: saturate(180%) blur(30px);" in feuille
+    # Le violet des halos et du dégradé de pochette est ce que l'auteur
+    # reprochait : aucune de ces teintes ne se redéclare, nulle part.
+    for teinte in ("#a855f7", "168, 85, 247", "#6ea8ff", "110, 168, 255"):
+        assert teinte not in feuille
+        assert teinte not in icone
+
+
 def test_le_lecteur_propose_une_enceinte_seulement_en_ecoute() -> None:
     """Le renvoi vers une enceinte passe par l'API Remote Playback du
     navigateur, sans SDK tiers. Le bouton n'apparaît qu'en écoute et quand une
