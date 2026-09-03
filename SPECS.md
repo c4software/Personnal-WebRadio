@@ -452,6 +452,13 @@ y parvient. Aucune exception n'est plus rendue telle quelle à l'auditeur : une
 action qui échoue dit « Le serveur ne répond pas. » et s'efface au bout de
 quelques secondes, comme un refus.
 
+**Un onglet en fond ne suit plus l'antenne.** Page repliée, écran verrouillé,
+application passée à l'arrière-plan : la page **ferme** son flux — elle n'a rien
+à montrer, et le serveur n'a personne à qui pousser. Elle le rouvre au retour,
+et le flux lui renvoie l'antenne dès la connexion : elle se remet à l'heure sans
+rien redemander. C'est aussi ce qui évite qu'un téléphone laissé sur la page
+toute une nuit tienne une connexion pour rien.
+
 #### « À suivre »
 
 L'interface annonce aussi **ce qui vient**. Le diffuseur a toujours un morceau

@@ -195,7 +195,7 @@ SSE tiennent dans Flask nu, et `EventSource` reconnecte de lui-même.
       telle quelle à l'auditeur.
       **À constater** (AGENTS.md §4.1) : une vraie coupure réseau depuis un
       téléphone — que le témoin apparaisse, et disparaisse au retour sans geste.
-- [ ] **GOAL-073-T04** — L'onglet en fond ferme son flux, et le rouvre au
+- [x] **GOAL-073-T04** — L'onglet en fond ferme son flux, et le rouvre au
       retour. La carte du dépôt (ARCHITECTURE.md §9) est vérifiée exacte : le
       Goal n'ajoute ni dossier ni fichier.
       **À constater** (AGENTS.md §4.1) : écran verrouillé, application repliée,

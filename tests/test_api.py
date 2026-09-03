@@ -309,6 +309,13 @@ def test_la_page_s_abonne_a_l_antenne_au_lieu_de_la_sonder() -> None:
     assert b"/api/on-air" not in answer.data
 
 
+def test_la_page_ferme_son_flux_quand_l_onglet_passe_en_fond() -> None:
+    """Un onglet en fond n'a rien à montrer : la connexion se ferme (GOAL-073)."""
+    answer = client(FakeRadio()).get("/")
+    assert b"visibilitychange" in answer.data
+    assert b"document.hidden" in answer.data
+
+
 def test_une_coupure_se_voit_sans_rendre_l_exception() -> None:
     """Une panne réseau est un témoin, pas un « TypeError » lu par l'auditeur."""
     answer = client(FakeRadio()).get("/")

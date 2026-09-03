@@ -386,6 +386,15 @@
             fluxAntenne.onopen = () => { this.connecte = true; };
             fluxAntenne.onerror = () => { this.connecte = false; };
           },
+          // Un onglet en fond n'a rien à montrer, et le serveur n'a personne à
+          // qui pousser : la connexion se ferme (GOAL-073). onerror est
+          // débranché d'abord — une fermeture voulue n'est pas une panne.
+          veiller() {
+            if (!fluxAntenne) { return; }
+            fluxAntenne.onerror = null;
+            fluxAntenne.close();
+            fluxAntenne = null;
+          },
           async chargerVotes() {
             try {
               const reponse = await fetch(URLS.votes, { headers: { Accept: "application/json" } });
@@ -651,6 +660,11 @@
             if (nom !== this.onglet) { this.ouvrir(nom); }
           });
           this.ecouterLAntenne();
+          // Au retour, le flux renvoie l'antenne dès la connexion : la page se
+          // remet à l'heure sans rien redemander.
+          document.addEventListener("visibilitychange", () => {
+            if (document.hidden) { this.veiller(); } else { this.ecouterLAntenne(); }
+          });
           this.surveillerLesEnceintes();
           if ("mediaSession" in navigator && this.flux) {
             // Les commandes de l'écran de verrouillage et des écouteurs
