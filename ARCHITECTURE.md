@@ -397,6 +397,31 @@ comme le ferait n'importe quel autre client (SPECS.md §4.8). C'est un interdit,
 pas une convention : un gabarit Jinja2 ou une route Flask qui appellerait le
 noyau directement créerait un second chemin, qui divergerait du premier.
 
+### 6.0 Pourquoi des SSE et pas un WebSocket
+
+L'état d'antenne est **poussé** vers la page (`GET /api/events`, GOAL-073).
+Le besoin est asymétrique : seul le sens serveur → interface a quelque chose à
+annoncer sans qu'on le lui demande. Voter, retirer un titre, retirer un thème
+restent des appels REST — un canal permanent ne leur apporterait rien.
+
+Le WebSocket a été écarté. Flask ne le parle pas nativement : il faudrait
+`flask-sock` et `simple-websocket`, pour un duplex que personne ne réclame.
+Les SSE tiennent dans Flask nu — une réponse `text/event-stream` et un
+générateur — donc dans l'ordre de préférence d'AGENTS.md §2, qui finit par
+*bibliothèque standard*. `EventSource` reconnecte de lui-même, ce qui évite
+d'écrire une reprise de connexion dans la page.
+
+**Un générateur par connexion, pas un fil de diffusion partagé.** Le générateur
+regarde l'antenne à `web.refresh_seconds` et n'émet que si elle a changé. Un fil
+unique avec ses abonnés et son cycle de vie aurait économisé une lecture par
+client supplémentaire — la radio en compte deux ou trois. C'est une pièce en
+moins, et le coût reste celui du sondage d'avant, moins les allers-retours HTTP.
+
+Le générateur est infini : c'est la déconnexion du client qui l'arrête. Entre
+deux changements, il émet un commentaire de maintien — une connexion muette se
+fait fermer par les intermédiaires, et c'est l'écriture qui fait constater un
+client parti.
+
 ### 6.1 Ce que l'API doit refuser
 
 Pendant un jingle ou un flash, un vote n'est pas applicable (SPECS.md §4.6). Le

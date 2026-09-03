@@ -11,23 +11,30 @@ un jingle, un flash ou une émission ; l'API traduit ce refus en réponse HTTP
 (ARCHITECTURE.md §6.1).
 """
 
+import json
 import logging
+import time
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass
+from datetime import timedelta
 from enum import StrEnum
 from typing import Protocol
 
-from flask import Blueprint, jsonify
+from flask import Blueprint, Response, jsonify
 from flask.typing import ResponseReturnValue
 
 logger = logging.getLogger(__name__)
 
 API_PATH = "/api"
 ON_AIR_PATH = "/on-air"
+EVENTS_PATH = "/events"
 VOTE_PATH = "/votes/<name>"
 VOTES_PATH = "/votes"
 MOMENT_REDRAW_PATH = "/moment/redraw"
 UP_NEXT_PATH = "/up-next"
 UP_NEXT_ENTRY_PATH = "/up-next/<identifier>"
+
+EVENT_ANTENNE = "antenne"
 
 REFUS = 409
 DEMANDE_INVALIDE = 400
@@ -213,12 +220,67 @@ def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | None] | Non
     }
 
 
-def create_api(radio: Radio, planning: dict[str, object] | None = None) -> Blueprint:
+def _etat_antenne(radio: Radio) -> dict[str, object]:
+    """Ce qui passe, sous la forme que rendent `/api/on-air` et `/api/events`.
+
+    Une seule fonction pour les deux : la route et le flux ne doivent pas
+    pouvoir diverger.
+    """
+    return {
+        "on_air": radio.on_air(),
+        "on_air_now": _antenne_en_donnees(radio.on_air_now()),
+        "moment": radio.moment(),
+        "moment_random": radio.moment_random(),
+        "up_next": _antenne_en_donnees(radio.up_next()),
+    }
+
+
+def diffuser_antenne(
+    radio: Radio,
+    *,
+    interval: float,
+    sleep: Callable[[float], None] = time.sleep,
+) -> Iterator[str]:
+    """Le flux SSE de l'antenne : un message à chaque changement d'état.
+
+    Générateur infini ; c'est la déconnexion du client qui l'arrête. Le premier
+    tour émet toujours, pour qu'un client qui se branche sache aussitôt ce qui
+    passe. Sans changement, un commentaire de maintien part quand même : une
+    connexion muette se fait fermer par les intermédiaires, et l'écriture est ce
+    qui fait constater un client parti.
+
+    `sleep` est injecté pour que les tests ne dorment pas (AGENTS.md §4).
+    """
+    dernier: dict[str, object] | None = None
+    while True:
+        etat = _etat_antenne(radio)
+        if etat == dernier:
+            yield ": maintien\n\n"
+        else:
+            dernier = etat
+            yield f"event: {EVENT_ANTENNE}\ndata: {json.dumps(etat)}\n\n"
+        sleep(interval)
+
+
+def create_api(
+    radio: Radio,
+    *,
+    refresh: timedelta,
+    planning: dict[str, object] | None = None,
+) -> Blueprint:
     """L'API, montée sous `/api`.
 
     Une fabrique plutôt qu'un module global : on l'assemble dans `app/`
     (ARCHITECTURE.md §3) et on la teste contre un Fake sans état de module.
+
+    `refresh` vient du TOML (`web.refresh_seconds`) : c'est l'intervalle auquel
+    le flux d'événements regarde si l'antenne a changé. Aucune durée n'est
+    écrite dans le code (AGENTS.md §2).
     """
+    if refresh <= timedelta(0):
+        message = "un intervalle nul ferait boucler le flux sans reprendre son souffle"
+        raise ValueError(message)
+
     api = Blueprint("api", __name__, url_prefix=API_PATH)
 
     @api.get("/planning")
@@ -235,14 +297,19 @@ def create_api(radio: Radio, planning: dict[str, object] | None = None) -> Bluep
     @api.get(ON_AIR_PATH)
     def on_air_now() -> ResponseReturnValue:
         """Ce qui passe, et si la chaîne tourne."""
-        return jsonify(
-            {
-                "on_air": radio.on_air(),
-                "on_air_now": _antenne_en_donnees(radio.on_air_now()),
-                "moment": radio.moment(),
-                "moment_random": radio.moment_random(),
-                "up_next": _antenne_en_donnees(radio.up_next()),
-            }
+        return jsonify(_etat_antenne(radio))
+
+    @api.get(EVENTS_PATH)
+    def events() -> ResponseReturnValue:
+        """Le même état, poussé au fil de l'eau (GOAL-073).
+
+        `X-Accel-Buffering` désamorce les intermédiaires qui accumulent une
+        réponse avant de la transmettre : un flux mis en tampon n'arrive plus.
+        """
+        return Response(
+            diffuser_antenne(radio, interval=refresh.total_seconds()),
+            mimetype="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     @api.get(VOTES_PATH)

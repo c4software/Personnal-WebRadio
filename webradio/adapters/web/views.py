@@ -66,7 +66,7 @@ def create_app(
     """L'application complète : l'API, la page qui s'en sert, et les routes de
     Liquidsoap si `playout` est fourni."""
     app = Flask(__name__)
-    app.register_blueprint(create_api(radio, planning=planning))
+    app.register_blueprint(create_api(radio, refresh=refresh, planning=planning))
     app.register_blueprint(create_view(refresh=refresh, stream_url=stream_url))
     if playout is not None:
         app.register_blueprint(create_playout_api(playout))

@@ -425,6 +425,25 @@ L'API doit au minimum :
   disant pourquoi — un refus muet est indistinguable d'une panne ;
 - dire **si la chaîne tourne**, donc si quelqu'un écoute.
 
+#### L'antenne poussée, plutôt que redemandée
+
+**Depuis le 2026-09-03** (GOAL-073), `GET /api/events` **pousse** ce que rend
+`GET /api/on-air` : un flux `text/event-stream` qui envoie un événement
+`antenne` à la connexion, puis à **chaque changement** — et rien d'autre qu'un
+commentaire de maintien entre deux. Un changement de chanson se voit dans la
+page au moment où il arrive, au lieu d'attendre le prochain sondage.
+
+Le serveur regarde l'antenne à `web.refresh_seconds` (§6) ; c'est ce que
+cette clé règle désormais, à la place de l'intervalle auquel la page
+redemandait.
+
+`GET /api/on-air` **reste** : l'API doit dire ce qui passe à qui le demande, et
+la page n'a aucun chemin privilégié. Le flux s'ajoute à cette surface, il ne la
+remplace pas.
+
+Le sens inverse — voter, retirer un titre, retirer un thème — n'a pas de canal
+permanent : ce sont des appels REST, comme avant (décision de l'auteur).
+
 #### « À suivre »
 
 L'interface annonce aussi **ce qui vient**. Le diffuseur a toujours un morceau

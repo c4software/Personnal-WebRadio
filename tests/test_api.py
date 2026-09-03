@@ -3,7 +3,9 @@
 Tout passe par le client de test de Flask : aucun réseau, aucun serveur lancé.
 """
 
+import json
 from datetime import timedelta
+from itertools import islice
 
 import pytest
 from flask.testing import FlaskClient
@@ -13,10 +15,16 @@ from webradio.adapters.web import (
     OnAir,
     Verdict,
     Vote,
+    create_api,
     create_app,
     create_view,
 )
-from webradio.adapters.web.api import PlayedEntry, UpcomingEntry, VoteScore
+from webradio.adapters.web.api import (
+    PlayedEntry,
+    UpcomingEntry,
+    VoteScore,
+    diffuser_antenne,
+)
 
 RAFRAICHISSEMENT = timedelta(seconds=5)
 
@@ -140,6 +148,79 @@ def test_un_jingle_n_a_ni_titre_ni_artiste() -> None:
         "title": None,
         "artist": None,
     }
+
+
+# ── Le flux d'événements (GOAL-073) ─────────────────────────────────────────
+
+
+def messages(radio: FakeRadio, combien: int, *, interval: float = 5.0) -> list[str]:
+    """Les `combien` premiers messages du flux, sans jamais dormir."""
+    return list(
+        islice(
+            diffuser_antenne(radio, interval=interval, sleep=lambda _: None),
+            combien,
+        )
+    )
+
+
+def charge(message: str) -> dict[str, object]:
+    """Le JSON d'un message SSE, une fois ses en-têtes retirés."""
+    ligne = next(x for x in message.splitlines() if x.startswith("data: "))
+    donnees: dict[str, object] = json.loads(ligne.removeprefix("data: "))
+    return donnees
+
+
+def test_le_flux_annonce_l_antenne_des_la_connexion() -> None:
+    """Un client qui se branche ne doit pas attendre le premier changement."""
+    premier = messages(FakeRadio(on_air_now=MORCEAU), 1)[0]
+    assert premier.startswith("event: antenne\n")
+    assert charge(premier)["on_air_now"] == {
+        "kind": "musique",
+        "title": "Sexy Boy",
+        "artist": "Air",
+    }
+
+
+def test_le_flux_ne_repete_pas_une_antenne_inchangee() -> None:
+    """Un état identique ne repart pas : le maintien tient la connexion."""
+    assert messages(FakeRadio(on_air_now=MORCEAU), 3)[1:] == [": maintien\n\n", ": maintien\n\n"]
+
+
+def test_le_flux_repart_des_que_l_antenne_change() -> None:
+    radio = FakeRadio(on_air_now=MORCEAU)
+    flux = diffuser_antenne(radio, interval=5.0, sleep=lambda _: None)
+    next(flux)
+    radio._antenne = OnAir(kind=Kind.JINGLE)
+    suivant = next(flux)
+    assert suivant.startswith("event: antenne\n")
+    assert charge(suivant)["on_air_now"] == {"kind": "jingle", "title": None, "artist": None}
+
+
+def test_le_flux_regarde_l_antenne_a_l_intervalle_configure() -> None:
+    """L'intervalle vient du TOML, aucune durée n'est écrite dans le code."""
+    attentes: list[float] = []
+    flux = diffuser_antenne(FakeRadio(), interval=2.5, sleep=attentes.append)
+    list(islice(flux, 3))
+    assert attentes == [2.5, 2.5]
+
+
+def test_le_flux_dit_ce_que_dit_la_route_de_l_antenne() -> None:
+    """La route et le flux ne doivent pas pouvoir diverger."""
+    radio = FakeRadio(on_air_now=MORCEAU)
+    assert charge(messages(radio, 1)[0]) == client(radio).get("/api/on-air").get_json()
+
+
+def test_le_flux_s_annonce_comme_un_flux_d_evenements() -> None:
+    answer = client(FakeRadio()).get("/api/events")
+    assert answer.mimetype == "text/event-stream"
+    assert answer.headers["Cache-Control"] == "no-cache"
+    assert answer.headers["X-Accel-Buffering"] == "no"
+    answer.close()
+
+
+def test_un_intervalle_de_flux_nul_est_refuse() -> None:
+    with pytest.raises(ValueError, match="intervalle nul"):
+        create_api(FakeRadio(), refresh=timedelta(0))
 
 
 @pytest.mark.parametrize("vote", [Vote.SKIP, Vote.MORE])
