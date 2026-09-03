@@ -137,8 +137,8 @@ address = "0.0.0.0"
 # ne peuvent pas écouter le même. Le premier démarrage en conteneur l'a
 # rappelé par un « Address already in use ».
 port    = 8080
-# Intervalle auquel la page redemande ce qui passe. Trop court, elle interroge
-# pour rien ; trop long, un « encore » semble sans effet.
+# Intervalle auquel le flux d'événements regarde si l'antenne a changé. Trop
+# long, un « encore » semble sans effet.
 refresh_seconds = 5.0
 # L'adresse du flux pour le lecteur de la page. Absente : pas de lecteur.
 # « :8000/flux » désigne l'hôte de la page, quel que soit le poste.

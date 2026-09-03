@@ -186,8 +186,9 @@ class StateSettings:
 class WebSettings:
     """L'interface et l'API.
 
-    `refresh_seconds` est l'intervalle auquel la page redemande à l'API ce qui
-    passe (voir `DEFAULT_REFRESH`).
+    `refresh_seconds` est l'intervalle auquel le flux d'événements regarde si
+    l'antenne a changé (voir `DEFAULT_REFRESH`). La page ne sonde plus : elle
+    s'abonne, et le serveur pousse (GOAL-073).
     """
 
     address: str

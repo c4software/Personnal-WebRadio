@@ -17,7 +17,6 @@ from webradio.adapters.web import (
     Vote,
     create_api,
     create_app,
-    create_view,
 )
 from webradio.adapters.web.api import (
     PlayedEntry,
@@ -294,7 +293,7 @@ def test_les_boutons_de_la_page_pointent_vers_l_api() -> None:
     answer = client(FakeRadio(on_air_now=MORCEAU)).get("/")
     assert b"/api/votes/stop" in answer.data
     assert b"/api/votes/encore" in answer.data
-    assert b"/api/on-air" in answer.data
+    assert b"/api/events" in answer.data
 
 
 def test_la_page_est_faite_pour_un_telephone() -> None:
@@ -302,15 +301,12 @@ def test_la_page_est_faite_pour_un_telephone() -> None:
     assert b'name="viewport"' in answer.data
 
 
-def test_le_rafraichissement_de_la_page_vient_de_la_configuration() -> None:
-    """Le délai de rafraîchissement vient de la configuration, pas du gabarit."""
+def test_la_page_s_abonne_a_l_antenne_au_lieu_de_la_sonder() -> None:
+    """Le flux est le seul chemin de la page vers l'état de la radio (GOAL-073)."""
     answer = client(FakeRadio()).get("/")
-    assert b"5000" in answer.data
-
-
-def test_un_rafraichissement_nul_est_refuse() -> None:
-    with pytest.raises(ValueError, match="rafraîchissement"):
-        create_view(refresh=timedelta(0))
+    assert b"EventSource" in answer.data
+    assert b"setInterval" not in answer.data
+    assert b"/api/on-air" not in answer.data
 
 
 # ── La page des votes (GOAL-018) ────────────────────────────────────────────

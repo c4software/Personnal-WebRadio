@@ -186,7 +186,7 @@ SSE tiennent dans Flask nu, et `EventSource` reconnecte de lui-même.
       et n'émet que sur changement ; un commentaire de maintien sinon.
       `GET /api/on-air` reste : SPECS.md §4.8 demande que l'API dise ce qui
       passe, et la page n'a pas de chemin privilégié.
-- [ ] **GOAL-073-T02** — La page s'abonne au flux au lieu de sonder.
+- [x] **GOAL-073-T02** — La page s'abonne au flux au lieu de sonder.
       L'événement remplace le `setInterval` et devient l'horloge de l'interface :
       c'est lui qui fait recharger la liste de l'onglet ouvert. `refresh` quitte
       la vue pour l'API.

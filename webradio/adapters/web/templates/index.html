@@ -222,7 +222,7 @@
       // constante globale échouait en silence, et le bouton ne faisait rien
       // (constaté par l'auteur, GOAL-021).
       const URLS = {
-        antenne: {{ url_antenne | tojson }},
+        evenements: {{ url_evenements | tojson }},
         votes: {{ url_votes | tojson }},
         planning: {{ url_planning | tojson }},
         history: {{ url_history | tojson }},
@@ -231,7 +231,9 @@
         redraw: {{ url_redraw | tojson }},
         upNext: {{ url_up_next | tojson }},
       };
-      const RAFRAICHISSEMENT_MS = {{ rafraichissement_ms | tojson }};
+      // Hors de `data` : Vue enveloppe ce qu'il y trouve dans un proxy réactif,
+      // et un EventSource n'a rien à y gagner.
+      let fluxAntenne = null;
       // L'adresse du flux vient du TOML (web.stream_url). Une valeur qui
       // commence par « : » — « :8000/flux » — désigne l'hôte de la page : la
       // même configuration vaut depuis tous les postes du réseau.
@@ -354,21 +356,24 @@
             const total = Math.max(this.votes.reduce((m, v) => Math.max(m, v.stop + v.encore), 0), 1);
             return Math.round((score / total) * 100) + "%";
           },
-          async rafraichir() {
-            try {
-              const reponse = await fetch(URLS.antenne, { headers: { Accept: "application/json" } });
-              const donnees = await reponse.json();
-              this.antenne = donnees.on_air && donnees.on_air_now ? donnees.on_air_now : null;
-              this.moment = donnees.moment || null;
-              this.momentRandom = donnees.moment_random === true;
-              this.annoncerAuVerrouillage();
-              this.nommerLOnglet();
-              this.aSuivre = donnees.up_next || null;
-              if (this.issue === "") { this.message = ""; }
-            } catch (erreur) {
-              this.message = "L'API ne répond pas : " + erreur;
-              this.issue = "refus";
-            }
+          // L'antenne arrive par le flux d'événements, jamais par un sondage :
+          // la page n'a qu'un chemin vers l'état de la radio (GOAL-073).
+          appliquerAntenne(donnees) {
+            this.maintenant = new Date();
+            this.antenne = donnees.on_air && donnees.on_air_now ? donnees.on_air_now : null;
+            this.moment = donnees.moment || null;
+            this.momentRandom = donnees.moment_random === true;
+            this.annoncerAuVerrouillage();
+            this.nommerLOnglet();
+            this.aSuivre = donnees.up_next || null;
+            if (this.onglet === "votes") { this.chargerVotes(); }
+            if (this.onglet === "historique") { this.ouvrirHistorique(); }
+            if (this.tiroir) { this.chargerProchains(); }
+          },
+          ecouterLAntenne() {
+            if (fluxAntenne) { return; }
+            fluxAntenne = new EventSource(URLS.evenements);
+            fluxAntenne.addEventListener("antenne", (e) => this.appliquerAntenne(JSON.parse(e.data)));
           },
           async chargerVotes() {
             try {
@@ -590,7 +595,6 @@
             } finally {
               this.occupe = false;
               this.chargerProchains();
-              this.rafraichir();
               setTimeout(() => { this.message = ""; this.issue = ""; }, 4000);
             }
           },
@@ -635,7 +639,7 @@
             const nom = location.hash.replace("#", "");
             if (nom !== this.onglet) { this.ouvrir(nom); }
           });
-          this.rafraichir();
+          this.ecouterLAntenne();
           this.surveillerLesEnceintes();
           if ("mediaSession" in navigator && this.flux) {
             // Les commandes de l'écran de verrouillage et des écouteurs
@@ -644,13 +648,6 @@
               navigator.mediaSession.setActionHandler(action, () => this.basculerEcoute());
             }
           }
-          setInterval(() => {
-            this.maintenant = new Date();
-            this.rafraichir();
-            if (this.onglet === "votes") { this.chargerVotes(); }
-            if (this.onglet === "historique") { this.ouvrirHistorique(); }
-            if (this.tiroir) { this.chargerProchains(); }
-          }, RAFRAICHISSEMENT_MS);
         },
       }).mount("#app");
     </script>
