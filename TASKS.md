@@ -145,7 +145,7 @@ s'entende comme une vague, et non comme un vivier rétréci.
 client Telegram. Le style « verre » de GOAL-062 en avait la forme sans en
 avoir la matière.
 
-**Prochaine tâche** : GOAL-072-T02.
+**Prochaine tâche** : GOAL-072-T03.
 
 ---
 
@@ -164,10 +164,10 @@ réservée à ce qui a un sens — l'accent, le vert d'un « encore », le rouge
 - [x] **GOAL-072-T01** — La palette et les matériaux : fond monochrome,
       matériaux étagés (fin, régulier, épais), filets, trois niveaux de texte,
       couleurs système. `theme-color`, le manifeste et le favicon suivent.
-- [-] **GOAL-072-T02** — Les composants au vocabulaire du système : contrôle
+- [x] **GOAL-072-T02** — Les composants au vocabulaire du système : contrôle
       segmenté, listes groupées, boutons teintés, barre de lecture, feuille à
       poignée.
-- [ ] **GOAL-072-T03** — Documentation et clôture.
+- [-] **GOAL-072-T03** — Documentation et clôture.
 
 ---
 

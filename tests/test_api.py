@@ -613,6 +613,19 @@ def test_la_page_est_un_verre_monochrome_aux_couleurs_du_systeme() -> None:
         assert teinte not in icone
 
 
+def test_les_commandes_reprennent_le_vocabulaire_du_systeme() -> None:
+    """Les onglets sont un contrôle segmenté, les deux votes des boutons
+    teintés de leur action, et la liste du lecteur une feuille qui porte sa
+    poignée (GOAL-072-T02)."""
+    feuille = client(FakeRadio()).get("/static/style.css").get_data(as_text=True)
+    assert ".onglets button.actif { background: rgba(99, 99, 102, 0.95);" in feuille
+    assert (
+        ".votes .encore { background: rgba(48, 209, 88, 0.16); color: var(--encore); }" in feuille
+    )
+    assert ".votes .passer { background: rgba(255, 69, 58, 0.16); color: var(--stop); }" in feuille
+    assert ".liste::before" in feuille
+
+
 def test_le_lecteur_propose_une_enceinte_seulement_en_ecoute() -> None:
     """Le renvoi vers une enceinte passe par l'API Remote Playback du
     navigateur, sans SDK tiers. Le bouton n'apparaît qu'en écoute et quand une
