@@ -571,25 +571,15 @@ def test_la_feuille_de_style_est_un_fichier_servi_avec_la_page() -> None:
 
 
 def test_la_page_anime_les_onglets_les_chansons_et_les_listes() -> None:
-    """Les transitions sont celles de Vue, les cascades de liste reposent sur
-    un rang posé par le gabarit, et prefers-reduced-motion coupe tout
-    (GOAL-064-T02)."""
+    """Les transitions sont celles de Vue et les cascades de liste reposent sur
+    un rang posé par le gabarit (GOAL-064-T02). Ce que la feuille de style en
+    fait ne se teste pas (AGENTS.md §9)."""
     app = create_app(FakeRadio(), refresh=RAFRAICHISSEMENT)
     app.config.update(TESTING=True)
     page = app.test_client().get("/").get_data(as_text=True)
     assert '<Transition name="onglet" mode="out-in">' in page
     assert page.count('<Transition name="chanson" mode="out-in">') == 2
     assert page.count("'--i': i") == 5
-    feuille = app.test_client().get("/static/style.css").get_data(as_text=True)
-    assert "@keyframes entrer" in feuille
-    assert "prefers-reduced-motion" in feuille
-    # Les lignes de la liste entrent par le haut : par le bas, elles
-    # agrandissaient la zone défilante pendant l'animation.
-    assert (
-        "@keyframes entrer-du-haut { from { opacity: 0; transform: translateY(-0.4rem); }"
-        in feuille
-    )
-    assert ".prochain {\n  animation: entrer-du-haut" in feuille
 
 
 def test_le_lecteur_propose_une_enceinte_seulement_en_ecoute() -> None:

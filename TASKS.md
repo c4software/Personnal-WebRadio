@@ -140,37 +140,31 @@ décennie quand une vague en demande deux à six. **Aucun Goal ouvert.**
 **Reste à écouter** (AGENTS.md §4.1) la plage de 12 h : qu'une vague bornée
 s'entende comme une vague, et non comme un vivier rétréci.
 
-**GOAL-072 est ouvert le 2026-09-03** : l'auteur trouve le jeu de couleurs
-« trop vibecoding » et demande un verre complet, à la manière d'iOS et du
-client Telegram. Le style « verre » de GOAL-062 en avait la forme sans en
-avoir la matière.
+**GOAL-072 est clos le 2026-09-03** : l'auteur trouvait le jeu de couleurs
+« trop vibecoding » — trois halos bleu, violet et vert en fond, une pochette
+en dégradé bleu→violet, des lueurs colorées, des capitales espacées de
+0,2 em. La page passe au verre d'iOS : un fond graphite à une seule teinte,
+des surfaces presque blanches et très transparentes, une arête spéculaire et
+une lentille qui leur donnent une épaisseur, un grain fin, et la couleur
+réservée à ce qui a un sens. L'en-tête flotte au lieu de déborder de la
+colonne — sur un écran large, le bandeau s'arrêtait net au milieu de la page.
+Rendu **validé à l'œil par l'auteur** le 2026-09-03, par retouches
+successives depuis un aperçu servi sur le réseau. **Aucun Goal ouvert.**
 
-**Prochaine tâche** : GOAL-072-T03.
+**Nouvelle règle** (AGENTS.md §4 et §9, décision de l'auteur) : la feuille de
+style ne porte **aucun commentaire**, et **aucun test n'affirme le contenu
+d'une règle CSS** — un test qui fige `background: rgba(…)` se casse à chaque
+réglage sans rien protéger. Les tests écrits pendant ce Goal ont été retirés,
+et ceux de GOAL-064 allégés d'autant.
+
+**Piste ouverte, non planifiée** : la pochette du morceau en cours, floutée,
+en fond de page. C'est ce qui ferait vraiment vivre le verre, puisqu'il
+change à chaque titre — mais cela demande la couverture depuis l'API
+Subsonic, donc noyau, API et page : un Goal à part, pas une retouche.
+
+**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
 
 ---
-
-## GOAL-072 — Le verre, pour de bon : la matière et la palette du système
-
-Le fond posait trois halos bleu, violet et vert ; la pochette un dégradé
-bleu→violet ; les témoins des lueurs colorées ; les micro-titres des capitales
-espacées de 0,2 em. C'est la signature qu'on reproche.
-
-Un verre d'iOS ne tient pas à sa couleur mais à sa **matière** : une seule
-teinte de fond, des surfaces d'une même teinte à opacités croissantes, un flou
-qui sature ce qu'il échantillonne, des filets d'un demi-pixel, et la couleur
-réservée à ce qui a un sens — l'accent, le vert d'un « encore », le rouge d'un
-« passer ».
-
-- [x] **GOAL-072-T01** — La palette et les matériaux : fond monochrome,
-      matériaux étagés (fin, régulier, épais), filets, trois niveaux de texte,
-      couleurs système. `theme-color`, le manifeste et le favicon suivent.
-- [x] **GOAL-072-T02** — Les composants au vocabulaire du système : contrôle
-      segmenté, listes groupées, boutons teintés, barre de lecture, feuille à
-      poignée.
-- [x] **GOAL-072-T04** — Le verre liquide : un en-tête qui flotte au lieu de
-      déborder, des surfaces plus transparentes, une arête spéculaire qui leur
-      donne une épaisseur.
-- [-] **GOAL-072-T03** — Documentation et clôture.
 
 ---
 
@@ -249,6 +243,7 @@ réservée à ce qui a un sens — l'accent, le vert d'un « encore », le rouge
 | GOAL-069 | Le picto de volume est dessiné, comme les autres | `[x]` — clos le 2026-09-02 |
 | GOAL-070 | La liste des prochains titres ne se coupe plus en silence | `[x]` — clos le 2026-09-02 |
 | GOAL-071 | Une plage `era_fan` choisit ses décennies | `[x]` — clos le 2026-09-02 ; **reste à écouter** la plage de 12 h |
+| GOAL-072 | Le verre d'iOS : la matière, la palette du système, un en-tête qui flotte | `[x]` — clos le 2026-09-03, rendu validé à l'œil le même jour |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

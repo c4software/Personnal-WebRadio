@@ -232,6 +232,9 @@ dans TASKS.md.
   **littérales** — y compris malformées, tronquées, vides, ou d'un type
   inattendu. Un serveur Subsonic qui renvoie du HTML d'erreur là où du JSON était
   promis est un cas de test, pas un imprévu.
+- **Aucun test n'affirme le contenu de la feuille de style** : le rendu ne se
+  constate qu'à l'œil, et un test qui fige une règle CSS se casse à chaque
+  réglage sans rien protéger (§9).
 - Cible de couverture : **80 % sur l'ensemble du dépôt**, imposée par
   `pytest --cov-fail-under=80`.
 
@@ -506,6 +509,23 @@ Après :
         # enjambe deux heures en perdrait un (SPECS.md §4.3).
         self._en_attente: deque[str] = deque()
 ```
+
+#### La feuille de style ne se commente pas
+
+**Ajouté le 2026-09-03.** `webradio/adapters/web/static/style.css` ne porte
+**aucun** commentaire, et **aucun test n'affirme le contenu d'une règle CSS**
+(§4).
+
+Une décision visuelle ne se constate qu'à l'œil. Un commentaire y décrit une
+intention que la retouche suivante a déjà démentie, et un test qui fige
+`background: rgba(…)` se casse à chaque réglage sans avoir rien protégé — il
+transforme un essai de deux minutes en modification de deux fichiers. Ce qui
+vaut d'être écrit sur un choix visuel va dans le message de commit, où il est
+daté et rattaché à ce qu'on voyait à ce moment-là.
+
+Ce que les tests de la page continuent de couvrir : que la feuille est
+**servie** avec le bon type, et que la page la **lie** — pas ce qu'elle
+contient.
 
 ### La langue : identifiants en anglais, prose en français
 

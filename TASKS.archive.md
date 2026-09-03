@@ -2262,3 +2262,47 @@ une plage sans musique (SPECS.md §4.4).
 - [x] **GOAL-071-T02** — La clé `eras` du TOML : schéma, chargeur, câblage
       `app/main.py`, SPECS.md §6, `webradio.exemple.toml`. Le test de câblage a
       été vu échouer `eras=p.eras` retiré.
+
+---
+
+## GOAL-072 — Le verre d'iOS : la matière, la palette du système
+
+Ouvert le 2026-09-03 : l'auteur trouve le jeu de couleurs « trop vibecoding »
+et demande un verre complet, à la manière d'iOS et du client Telegram. Le
+style « verre » de GOAL-062 en avait la forme sans en avoir la matière — trois
+halos bleu, violet et vert en fond, une pochette en dégradé bleu→violet, des
+lueurs colorées, des capitales espacées de 0,2 em.
+
+- [x] **GOAL-072-T01** — La palette et les matériaux : fond monochrome,
+      matériaux étagés (fin, régulier, épais), filets, trois niveaux de texte,
+      couleurs système en mode sombre (`#0a84ff`, `#30d158`, `#ff453a`,
+      `#ff9f0a`). `theme-color`, le manifeste et le favicon suivent ; les trois
+      PNG d'icône sont régénérés depuis le SVG.
+- [x] **GOAL-072-T02** — Les composants au vocabulaire du système : contrôle
+      segmenté, listes groupées, boutons ronds à remplissage, barre de lecture,
+      feuille à poignée, bandeaux d'état teintés.
+- [x] **GOAL-072-T04** — Le verre liquide, ouvert le jour même après un premier
+      essai de l'auteur : l'en-tête flotte au lieu de déborder de la colonne par
+      des marges négatives, les surfaces deviennent presque blanches et très
+      transparentes, une arête spéculaire et une lentille oblique leur donnent
+      une épaisseur, et le fond gagne un dégradé graphite, une teinte ardoise
+      unique et un grain désaturé — du noir ne se réfracte pas.
+- [x] **GOAL-072-T03** — AGENTS.md §4 et §9, clôture.
+
+**Retouches de l'auteur, dans l'ordre** : les bords de l'en-tête sur écran
+large (T04) ; les deux votes en bandeaux rouge et vert, qui viraient au brun et
+au sapin sur fond sombre — passés au verre commun, la couleur dans le libellé
+seul ; puis leur contour coloré, retiré à son tour ; puis le fond noir, qui ne
+donnait rien à réfracter.
+
+**Décision de l'auteur, portée en règle (AGENTS.md §4 et §9)** : la feuille de
+style ne porte **aucun commentaire**, et **aucun test n'affirme le contenu
+d'une règle CSS**. Un test qui fige `background: rgba(…)` se casse à chaque
+réglage sans rien protéger, et transforme un essai de deux minutes en
+modification de deux fichiers. Les trois tests écrits pendant ce Goal ont été
+retirés, et celui de GOAL-064 allégé de ses assertions CSS. Ce qui reste
+couvert : que la feuille est servie avec son type, et que la page la lie.
+
+**Piste ouverte, non planifiée** : la pochette du morceau en cours, floutée, en
+fond de page — le fond qui ferait vraiment vivre le verre, puisqu'il change à
+chaque titre. Demande la couverture depuis l'API Subsonic : noyau, API et page.
