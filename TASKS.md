@@ -205,11 +205,18 @@ silence.
 C'est ce délai qui rend la reprise silencieuse (GOAL-074-T02) : le muet dure
 exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
 
-- [ ] **GOAL-075-T01** — Rendre l'entrée dès qu'elle est tirée, et préparer
-      l'avance après avoir répondu. La préparation est déjà décrite comme
-      « une commodité, pas une cause d'arrêt » (`app/playout.py`) et se veut
-      « hors verrou » : reste à établir qu'elle peut l'être hors requête sans
-      course avec la jonction suivante.
+- [x] **GOAL-075-T01** — Rendre l'entrée dès qu'elle est tirée, et préparer
+      l'avance après avoir répondu. Le lanceur est **injecté** : sur place par
+      défaut — ce qui garde tous les tests existants déterministes, sans fil ni
+      attente — et, en production seulement, un fil unique monté dans
+      `main.py`. Unique parce que deux préparations partageraient la file et la
+      fenêtre de non-répétition ; démon, pour ne pas retenir l'arrêt.
+      Établi avant d'écrire : différer ne peut pas produire un 204, car
+      `Queue.next_pick` retombe sur un tirage neuf quand l'avance est vide
+      (`core/queue.py:152-156`). Le premier tirage d'une reprise fait donc
+      **un** tirage au lieu de `lookahead + 1` — neuf en production.
+      **Reste à mesurer à l'antenne** : le gain en secondes ne se constate pas
+      ici, la maquette ayant une fausse bibliothèque. C'est T03.
 - [ ] **GOAL-075-T02** — Que le cache de bibliothèque se réchauffe au réveil
       de l'antenne plutôt qu'au premier tirage. À instruire : `declare_listeners`
       s'exécute déjà avant que l'antenne ne soit rendue, mais dans la requête

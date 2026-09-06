@@ -12,7 +12,8 @@ import os
 import signal
 import sys
 import threading
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import timedelta
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as _version
@@ -470,6 +471,19 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         now_playing=lambda: radio.playing_track(),
     )
 
+    # Un seul fil, pour que deux préparations ne tirent jamais en même temps :
+    # elles partagent la file et la fenêtre de non-répétition. Démon, pour ne
+    # pas retenir l'arrêt — une avance non remplie se retire au tirage suivant.
+    preparations = ThreadPoolExecutor(max_workers=1, thread_name_prefix="avance")
+
+    def _preparer_en_fond(tache: Callable[[], None]) -> None:
+        def _dire_si_ca_casse(fini: Future[None]) -> None:
+            echec = fini.exception()
+            if echec is not None:
+                logger.error("la préparation de l'avance a échoué : %s", echec, exc_info=echec)
+
+        preparations.submit(tache).add_done_callback(_dire_si_ca_casse)
+
     reprise = settings.playout.resume_fresh_seconds
     minutes = settings.draw.max_track_minutes
     playout = LiquidsoapPlayout(
@@ -484,6 +498,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         # rassise ne doit pas revenir (SPECS.md §7 n°30).
         order_requeue=lambda: _ordonner("/requeue", "l'avance rassise partira quand même"),
         order_skip=lambda: _ordonner("/skip", "le reliquat du morceau interrompu passera"),
+        in_background=_preparer_en_fond,
     )
     branche.append(playout)
     return playout, radio, grille_effective

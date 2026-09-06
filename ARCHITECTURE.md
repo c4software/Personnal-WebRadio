@@ -200,6 +200,16 @@ des prochains titres (`GET /api/up-next`) est cette avance, lue sans rien
 décider — avec l'habillage que la jonction rendrait, prévu d'après les
 fichiers présents.
 
+**Et elle se remplit hors de la requête.** Le diffuseur attend la réponse de
+`/playout/next` pour jouer ; remplir l'avance coûte autant de tirages que
+`draw.lookahead`, chacun consultant la bibliothèque. Tant que l'avance est
+pleine, cela ne coûte rien — mais après une purge elle est vide, et le premier
+tirage les payait tous d'un coup. La charnière rend donc l'entrée dès qu'elle
+est tirée et confie la préparation à un fil unique, monté au point
+d'assemblage : deux préparations ne tirent jamais ensemble, puisqu'elles
+partagent la file et la fenêtre de non-répétition. Rien n'est perdu si elle
+tarde : la file retombe sur un tirage neuf quand son avance est vide.
+
 ### 4.2 Couper en le disant
 
 Laissé à lui-même, Liquidsoap réessaie sans fin et sert du silence

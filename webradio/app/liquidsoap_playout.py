@@ -74,6 +74,7 @@ class LiquidsoapPlayout:
         order_requeue: Callable[[], None] | None = None,
         order_skip: Callable[[], None] | None = None,
         max_duration: timedelta | None = None,
+        in_background: Callable[[Callable[[], None]], None] | None = None,
     ) -> None:
         self._programme = programme
         self._radio = radio
@@ -99,6 +100,10 @@ class LiquidsoapPlayout:
         self._ordonner_skip = order_skip
         self._plafond = max_duration
         self._pause_depuis: datetime | None = None
+        # Où faire tourner la préparation de l'avance. `None` la fait sur
+        # place, ce qui garde les tests déterministes ; la production passe un
+        # lanceur qui la sort de la requête (GOAL-075).
+        self._en_fond = in_background
 
     def on_kind(self, kind: Kind, track: Track | None, label: str | None) -> None:
         """À brancher sur `RadioProgramme(on_kind=...)`. Retient sans déclarer."""
@@ -125,8 +130,26 @@ class LiquidsoapPlayout:
             while len(self._en_attente) > PENDING_MAX:
                 oublie = next(iter(self._en_attente))
                 del self._en_attente[oublie]
+        # Hors du verrou, et hors de la requête en production : remplir
+        # l'avance coûte `draw.lookahead` tirages, et le diffuseur attend cette
+        # réponse pour jouer. À la reprise, où l'avance est vide et le cache de
+        # bibliothèque expiré, ces tirages ont valu 4 s le 2026-09-06 et plus
+        # de dix la veille — assez pour qu'il abandonne et coupe.
+        self._preparer_bientot()
+        return entry
+
+    def _preparer_bientot(self) -> None:
+        if self._en_fond is None:
+            self._preparer_l_avance()
+        else:
+            self._en_fond(self._preparer_l_avance)
+
+    def _preparer_l_avance(self) -> None:
+        """Remplit l'avance. L'heure de fin se calcule ici, sous le verrou :
+        d'autres jonctions ont pu passer depuis que la préparation a été
+        demandée."""
+        with self._verrou:
             self._programme.prepare(self._fin_estimee_de_l_avance())
-            return entry
 
     def _fin_estimee_du_courant(self) -> datetime | None:
         """La fin estimée du morceau en cours : son début plus sa durée, coupée

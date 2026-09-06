@@ -32,6 +32,7 @@ def _playout(
     catalogue: list[Track] | None = None,
     bands: list[Band] | None = None,
     lookahead: int = 1,
+    in_background: Callable[[Callable[[], None]], None] | None = None,
 ) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
     clock = FrozenClock(MIDI)
     random = ScriptedRandom([0] * 100)
@@ -64,6 +65,7 @@ def _playout(
         order_requeue=order_requeue,
         order_skip=order_skip,
         max_duration=max_duration,
+        in_background=in_background,
     )
     branche.append(playout)
     return playout, radio, clock
@@ -652,3 +654,47 @@ def test_jeter_l_avance_ne_replace_rien_et_fait_redemander(tmp_path: Path) -> No
     assert ordres == ["requeue"]
     assert playout.upcoming() == []
     assert playout.next_entry() is not None, "le diffuseur redemande, la file retire"
+
+
+def test_le_morceau_suivant_se_rend_sans_attendre_la_preparation_de_l_avance(
+    tmp_path: Path,
+) -> None:
+    """Le diffuseur attend cette réponse pour jouer, et remplir l'avance coûte
+    `draw.lookahead` tirages. À la reprise, où l'avance est vide et le cache
+    de bibliothèque expiré, ils ont valu 4 s le 2026-09-06 et plus de dix la
+    veille — assez pour que le diffuseur abandonne et coupe (GOAL-075)."""
+    reportees: list[Callable[[], None]] = []
+    playout, _, _ = _playout(tmp_path, lookahead=4, in_background=reportees.append)
+
+    entree = playout.next_entry()
+
+    assert entree is not None, "la réponse ne dépend pas de la préparation"
+    # Seul le morceau rendu, que le diffuseur tient déjà : aucune avance
+    # derrière lui, puisque rien n'a été préparé pendant la requête.
+    assert len(playout.upcoming()) == 1
+    assert len(reportees) == 1, "la préparation est reportée, pas abandonnée"
+
+
+def test_l_avance_se_remplit_quand_la_preparation_reportee_s_execute(
+    tmp_path: Path,
+) -> None:
+    """Reportée n'est pas perdue : le lanceur la joue hors de la requête, et
+    l'avance retrouve sa profondeur (GOAL-075)."""
+    reportees: list[Callable[[], None]] = []
+    playout, _, _ = _playout(tmp_path, lookahead=4, in_background=reportees.append)
+    playout.next_entry()
+
+    for preparer in reportees:
+        preparer()
+
+    assert len(playout.upcoming()) == 5, "le morceau rendu, puis les quatre d'avance"
+
+
+def test_sans_lanceur_la_preparation_se_fait_sur_place(tmp_path: Path) -> None:
+    """Le défaut garde le comportement d'avant : c'est ce qui rend tous les
+    autres tests déterministes, sans fil ni attente (GOAL-075)."""
+    playout, _, _ = _playout(tmp_path, lookahead=4)
+
+    playout.next_entry()
+
+    assert len(playout.upcoming()) == 5, "le morceau rendu, puis les quatre d'avance"
