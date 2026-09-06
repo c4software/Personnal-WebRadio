@@ -445,10 +445,14 @@ class LiquidsoapPlayout:
         d'elle-même, et dit si elle a été déclarée.
 
         C'est le chemin du redémarrage (SPECS.md §7 n°42) : l'entrée porte sa
-        nature depuis `next_entry`, et le diffuseur la rend telle quelle. Une
-        musique se déclare sans `Track` : aucune source ne sait retrouver une
-        piste par son identifiant, donc un `stop` coupe mais un `encore` ne
-        pèse rien — il est accepté sans être retenu (`LiveRadio.vote`).
+        nature depuis `next_entry`, et le diffuseur la rend telle quelle. C'est
+        aussi celui d'un épisode que `/skip-fresh` avait mis en vol et qu'une
+        entrée de rang supérieur a fait oublier du registre : sa diffusion
+        s'inscrit ici, sans quoi il resterait repiochable dans la même plage
+        (docs/liquidsoap.md §14). Une musique se déclare sans `Track` : aucune
+        source ne sait retrouver une piste par son identifiant, donc un `stop`
+        coupe mais un `encore` ne pèse rien — il est accepté sans être retenu
+        (`LiveRadio.vote`).
         """
         annotations, _ = _lire_les_annotations(entry)
         annoncee = annotations.get(KIND)
@@ -468,6 +472,8 @@ class LiquidsoapPlayout:
                 kind, None, title or libelle, artist_label=artist, length=length, started_at=debut
             )
         else:
+            if kind is Kind.SHOW:
+                self._programme.show_restored(_adresse(entry))
             self._radio.declare(
                 kind, None, libelle, length=length, started_at=debut, skippable=passable
             )
@@ -482,6 +488,14 @@ class LiquidsoapPlayout:
         direct, qui est une purge (SPECS.md §7 n°22). La garder la ferait
         annoncer dans « À suivre », compter dans les heures estimées, et
         replacer au premier battement après l'heure pleine (décision n°33).
+
+        L'ordre n'est plus garanti depuis `/skip-fresh`, qui met deux entrées
+        en vol : la plus vite résolue passe la première, et l'autre joue quand
+        même (docs/liquidsoap.md §14). Oublier la plus ancienne du registre
+        reste juste — elle ne doit ni s'annoncer ni se replacer —, mais rien
+        n'en conclut qu'elle a été jetée : `_signaler_l_emission` ne la
+        `dropped()` que si c'est bien elle qu'une entrée plus récente remplace,
+        et `_restaurer` l'inscrit si elle finit par prendre l'antenne.
         """
         jetees = [entree for entree, p in self._en_attente.items() if p.rank < rang]
         for entree in jetees:

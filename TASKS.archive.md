@@ -3132,3 +3132,86 @@ tirage : `set_queue` détruit les requêtes qu'on lui repasse.
 - deux « Passer » coup sur coup, jamais essayés, et l'épisode qui joue sans
   s'inscrire quand la musique de rang supérieur démarre la première
   (docs/liquidsoap.md §14).
+
+---
+
+## GOAL-087 — Après un « Passer », les deux entrées en vol sont des épisodes, et chacun s'inscrit
+
+Ouvert le 2026-09-06 au soir, sur constat de la relecture de GOAL-086-T06,
+rejoué sur la pile réelle et consigné en résidu dans docs/liquidsoap.md §14.
+`/skip-fresh` met **deux** entrées en vol — `set_queue([])` réveille le fil
+d'avance, qui demande un `/next`, puis `fetch()` en demande un second — et la
+plus vite résolue prend l'antenne (SPECS.md §7 n°45).
+
+Deux défauts en découlent :
+
+1. `Shows.due()` rend `None` tant qu'un épisode est demandé sans avoir
+   commencé : le second `/next` rend donc une **musique**. Quelques Mo se
+   résolvent bien plus vite que 50 à 120 Mo, et c'est la musique qui prend
+   l'antenne au saut — exactement ce que la décision n°44 voulait éviter.
+2. Quand l'entrée de rang supérieur démarre la première,
+   `_oublier_les_demandes_anterieures` oublie l'épisode de rang inférieur du
+   registre. Il joue ensuite quand même, `_restaurer` le déclare d'après ses
+   annotations, mais **rien ne l'inscrit comme diffusé** : il reste
+   repiochable, et peut repasser dans la même plage.
+
+- [x] **GOAL-087-T01** — Pendant une plage de podcasts, une seconde demande
+      sert un second épisode. `Shows` retient ses demandes dans un dictionnaire
+      indexé par entrée ; `due()` en sert une de plus quand une plage est
+      ouverte et que tout ce qui attend est à elle. L'épisode déjà demandé
+      compte comme diffusé pour la pioche suivante (`_episode_attendu` alimente
+      l'argument `deja` d'`episode_among`) : son flux sort de la sélection,
+      donc le second épisode vient d'un autre flux et jamais le même.
+      `has_another_episode` applique la même exclusion — un épisode en vol
+      n'est pas une pioche possible. `dropped(entry)` nomme ce qu'il abandonne,
+      `None` abandonnant tout pour une reprise à neuf.
+      **Ce que ça change au-delà du saut** : pendant une plage, le diffuseur
+      tient désormais un épisode d'avance plutôt qu'une musique dès qu'un flux
+      a du neuf. Deux tests de GOAL-086-T04 et T05 décrivaient l'ancien état de
+      fait ; ils ont été rejoués sur le cas qui les motivait — une case dont le
+      seul flux est épuisé pour le premier, trois flux pour le second.
+      **Le test bout-en-bout échoue sans le correctif** : constaté en rendant à
+      `due()` son `if self._demandees: return None`, les deux entrées en vol
+      deviennent `a3.mp3` et `fake://2`.
+- [x] **GOAL-087-T02** — Un épisode qui joue après avoir été oublié du
+      registre s'inscrit quand même. `Shows.started_unregistered(entry)` sert
+      la demande si elle tient encore, sinon retrouve l'épisode par son adresse
+      dans les catalogues en cache (`stale_ok`, sans réseau ni hasard) et
+      appelle `record_airing` ; introuvable — cache vide, flux inconnu, vidéo
+      YouTube — rien n'est inscrit et c'est journalisé. `_restaurer` l'appelle
+      quand l'entrée qui prend l'antenne se déclare « émission » sans être au
+      registre, ce qui couvre le saut comme le redémarrage.
+      **Ce que je retiens pour `_oublier_les_demandes_anterieures`** : elle
+      n'est pas touchée, et c'est la forme la plus simple. Son hypothèse de
+      rang ne vaut plus depuis `/skip-fresh`, mais ce qu'elle en fait reste
+      juste — une entrée plus ancienne ne doit ni s'annoncer dans « À suivre »
+      ni se replacer au battement, qu'elle ait été jetée ou qu'elle joue plus
+      tard. C'est d'en **conclure** qu'elle a été jetée qui était faux, et cette
+      conclusion vit ailleurs : dans `_signaler_l_emission`, qui ne
+      `dropped()` que l'émission qu'une entrée plus récente remplace
+      réellement, et que T01 met hors d'atteinte en faisant des deux entrées en
+      vol deux épisodes — la seconde écrase alors `_emission_demandee` au lieu
+      de la faire passer pour perdue. Marquer une entrée « peut-être encore en
+      vol » aurait ajouté un état à tenir pour le même résultat, et les tests de
+      GOAL-083-T05 restent verts sans être assouplis.
+      Les trois tests échouent sans le correctif, constaté en retirant l'appel
+      à `show_restored` de `_restaurer`.
+
+**GOAL-087 est clos le 2026-09-06.** Deux tâches, deux commits, sur le résidu
+que la relecture de GOAL-086-T06 avait consigné sans le corriger. Les deux
+entrées que `/skip-fresh` met en vol sont désormais **deux épisodes** : une
+plage sert une seconde demande pendant qu'une première attend, d'un autre flux
+et jamais le même, faute de quoi la seconde entrée était une musique — qui se
+résout bien plus vite qu'un épisode de cent méga-octets et prenait l'antenne au
+saut, exactement ce que la décision n°44 refusait. Et celle des deux qui joue en
+second s'inscrit comme diffusée même si le registre de la charnière l'a oubliée,
+retrouvée par son adresse dans les catalogues déjà lus : sans quoi
+« jamais deux fois le même » (n°14) ne tenait pas après un saut, ni après un
+redémarrage. Conséquence assumée au-delà du saut : pendant une plage, le
+diffuseur tient un épisode d'avance plutôt qu'une musique dès qu'un flux a du
+neuf.
+
+**Reste à écouter** (AGENTS.md §4.1) : un vrai « Passer » en plage de podcasts,
+l'épisode qui prend l'antenne et celui qui suit — deux téléchargements de 50 à
+120 Mo sont alors en vol en même temps, et rien ne dit ici ce que la bande
+passante en fait.

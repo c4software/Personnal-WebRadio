@@ -310,6 +310,40 @@ class Shows:
             except StateUnavailable as failure:
                 logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
 
+    def started_unregistered(self, entry: str) -> None:
+        """Inscrit une entrée qui prend l'antenne sans être au registre de la
+        charnière.
+
+        C'est le cas d'un épisode que `/skip-fresh` avait mis en vol et qu'une
+        entrée de rang supérieur a fait oublier, et celui d'une entrée demandée
+        avant un redémarrage : elle se déclare par ses annotations, mais rien
+        ne l'inscrivait comme diffusée, donc elle restait repiochable
+        (docs/liquidsoap.md §14).
+
+        Sa demande sert si elle tient encore ; sinon l'épisode se retrouve par
+        son adresse dans les catalogues en cache, sans réseau ni hasard.
+        Introuvable — cache vide, flux inconnu, vidéo YouTube — rien n'est
+        inscrit et c'est journalisé.
+        """
+        if entry in self._demandees:
+            self.started(entry)
+            return
+        for show in self._programme.shows:
+            for address in self._adresses.get(show.name, ()):
+                episodes = self._flux.cached(address, stale_ok=True) or []
+                trouve = next((e for e in episodes if e.audio == entry), None)
+                if trouve is None:
+                    continue
+                try:
+                    self._etat.record_airing(self._cle_de_memoire(show, address), trouve.identifier)
+                except StateUnavailable as failure:
+                    logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
+                return
+        logger.info(
+            "entrée à l'antenne introuvable dans les catalogues en cache, rien n'est inscrit : %s",
+            entry.split("?", 1)[0],
+        )
+
     def dropped(self, entry: str | None = None) -> None:
         """Oublie l'émission demandée qui n'a pas pris l'antenne.
 

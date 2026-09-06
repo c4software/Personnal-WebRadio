@@ -1,8 +1,11 @@
 """Tests de `LiquidsoapPlayout` : une entrée demandée n'est pas encore à l'antenne (GOAL-016)."""
 
+import logging
 from collections.abc import Callable
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
+
+import pytest
 
 from tests.fakes import (
     FakeDiffuseur,
@@ -1924,3 +1927,74 @@ def test_apres_un_passer_les_deux_entrees_en_vol_sont_des_episodes(tmp_path: Pat
         f"les deux entrées en vol sont des épisodes, pas une musique : {adresses}"
     )
     assert len(set(adresses)) == 2, "et jamais deux fois le même"
+
+
+# ── Un épisode oublié du registre s'inscrit quand même (GOAL-087-T02) ────────
+
+
+def test_un_episode_oublie_du_registre_s_inscrit_quand_il_joue(tmp_path: Path) -> None:
+    """L'entrée se déclare par ses annotations, mais rien ne l'inscrivait comme
+    diffusée : elle restait repiochable et pouvait repasser dans la même plage
+    (docs/liquidsoap.md §14). Retrouvée par son adresse dans les catalogues en
+    cache, sans réseau."""
+    ordres: list[str] = []
+    clock = FrozenClock(DIMANCHE_20H)
+    ancien, _ = _playout_du_dimanche(tmp_path, clock, ordres)
+    ancien.declare_listeners(1)
+    entree = ancien.next_entry()
+    assert _sans_annotation(entree) == "https://exemple.test/a1.mp3"
+
+    neuf, etat = _playout_du_dimanche(tmp_path / "neuf", clock, ordres)
+    neuf.declare_listeners(1)
+    assert entree is not None
+    neuf.playing(entree)
+
+    passe = etat.last_airing(ACTUS.name)
+    assert passe is not None and passe.episode == "a1"
+
+
+def test_un_episode_introuvable_dans_les_catalogues_ne_s_inscrit_pas_et_le_dit(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Cache vide ou flux inconnu : il n'y a rien à inscrire, et se taire
+    laisserait croire que la diffusion a été retenue."""
+    ordres: list[str] = []
+    clock = FrozenClock(DIMANCHE_20H)
+    playout, etat = _playout_du_dimanche(tmp_path, clock, ordres)
+    playout.declare_listeners(1)
+    inconnue = 'annotate:radio_kind="emission",radio_label="ailleurs":https://ailleurs.test/x.mp3'
+
+    with caplog.at_level(logging.INFO):
+        playout.playing(inconnue)
+
+    assert "introuvable dans les catalogues" in caplog.text
+    assert etat.last_airing(ACTUS.name) is None
+
+
+def test_apres_un_passer_l_episode_qui_joue_en_second_est_inscrit(tmp_path: Path) -> None:
+    """Les deux entrées en vol d'un « Passer » sont consommées, et la plus vite
+    résolue prend l'antenne (SPECS.md §7 n°45). Celle de rang inférieur joue
+    ensuite : les deux épisodes doivent s'inscrire, sinon le second repasserait
+    dans la même plage (SPECS.md §4.11.1)."""
+    ordres: list[str] = []
+    clock = FrozenClock(DIMANCHE_20H)
+    playout, radio, etat = _radio_du_dimanche(
+        tmp_path, clock, ordres, addresses=ADRESSES_A_TROIS_FLUX
+    )
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    assert playout.next_entry() is not None
+    assert radio.vote(Vote.SKIP).accepted
+
+    ancienne = playout.next_entry()
+    recente = playout.next_entry()
+    assert ancienne is not None and recente is not None
+    clock.advance(timedelta(minutes=1))
+    playout.playing(recente)
+    clock.advance(timedelta(minutes=71))
+    playout.playing(ancienne)
+
+    assert etat.last_airing(f"{ACTUS.name}/{FLUX_ACTUS_TER}") is not None, "la plus ancienne"
+    assert etat.last_airing(f"{ACTUS.name}/{FLUX_ACTUS}") is not None, "la plus récente"

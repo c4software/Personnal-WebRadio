@@ -1080,6 +1080,13 @@ qui rend « Passer » utile — l'ordre `/skip-fresh` met **deux** entrées en v
 vite qu'un épisode de cent méga-octets et prendrait l'antenne au saut. Faute
 d'épisode neuf, c'est la musique qui reprend l'avance, comme avant.
 
+**Un épisode qui prend l'antenne s'inscrit, même après un saut.** Des deux
+entrées en vol, la plus vite résolue passe la première : l'autre n'est pas
+perdue, elle joue ensuite. Elle s'inscrit alors comme diffusée, retrouvée par
+son adresse dans les catalogues déjà lus — sinon « jamais deux fois le même »
+(§7 n°14) ne tiendrait pas, et l'épisode repasserait dans la même plage. Il en
+va de même d'une entrée demandée avant un redémarrage de la radio.
+
 **Une plage peut n'avoir presque rien à jouer**, et c'est voulu : un flux ne
 sert qu'un épisode par publication (§7 n°14), donc une plage de trois heures
 peut n'en tenir que vingt minutes si ses podcasts sont hebdomadaires. La

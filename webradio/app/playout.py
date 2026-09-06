@@ -486,6 +486,12 @@ class RadioProgramme:
         if self._emissions is not None:
             self._emissions.started(entry)
 
+    def show_restored(self, entry: str) -> None:
+        """Une émission prend l'antenne sans que la charnière la connaisse : sa
+        diffusion s'inscrit quand même (docs/liquidsoap.md §14)."""
+        if self._emissions is not None:
+            self._emissions.started_unregistered(entry)
+
     def track_started(self, track: Track) -> None:
         """Un morceau vient de prendre l'antenne : l'encore ne le rendra plus.
 

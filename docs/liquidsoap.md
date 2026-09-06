@@ -626,12 +626,16 @@ qu'un : `fetch()` **d'abord** (la file passe à deux), puis
 - [ ] Un moyen de retirer **une** entrée de la file sans la détruire. Aucune
       primitive de 2.3.3 ne l'offre à notre connaissance ; `queue()` et
       `set_queue()` sont les seules trouvées.
-- [ ] Les deux entrées tirées par la route ne sont **pas** deux épisodes :
+- [x] ~~Les deux entrées tirées par la route ne sont **pas** deux épisodes :
       `Shows.due()` rend `None` tant qu'un épisode demandé n'a pas pris
-      l'antenne, donc la seconde est une musique. Ce que deux téléchargements
-      simultanés feraient à la bande passante ne se pose donc pas ici ; ce qui
-      passe après l'épisode fraîchement pioché n'est pas mesuré à l'antenne.
-- [ ] **Le double tirage contredit le rang des demandes.** Avec `/skip-fresh`,
+      l'antenne, donc la seconde est une musique.~~ **Corrigé par GOAL-087-T01**
+      (SPECS.md §7 n°45 précisée) : pendant une plage, une seconde demande sert
+      un autre épisode, d'un autre flux, jamais le même. La mesure ci-dessus
+      reste valable — elle porte sur la route, pas sur ce qu'elle tire.
+      Reste ouvert : ce que **deux téléchargements simultanés** de 50 à 120 Mo
+      font à la bande passante, et ce qui passe après l'épisode fraîchement
+      pioché, non mesuré à l'antenne.
+- [x] ~~**Le double tirage contredit le rang des demandes.** Avec `/skip-fresh`,
       deux entrées sont en vol, et §12 a mesuré que l'entrée demandée en second
       démarre la première quand la plus ancienne est lente à se résoudre.
       L'hypothèse d'`_oublier_les_demandes_anterieures`
@@ -646,5 +650,16 @@ qu'un : `fetch()` **d'abord** (la file passe à deux), puis
       déclare correctement d'après ses annotations — nature émission, libellé,
       passable —, mais **rien ne l'inscrit comme diffusé** : `started()` ne
       reconnaît plus sa demande, `dropped()` l'ayant déjà oubliée. Il reste
-      repiochable, et peut donc repasser dans la même plage.
-      **Résidu à écouter** (AGENTS.md §4.1) ; rien n'est corrigé ici.
+      repiochable, et peut donc repasser dans la même plage.~~
+      **Corrigé par GOAL-087.** La mesure tient : l'ordre des demandes ne dit
+      plus lequel commence. Ce qui change est ce qu'on en conclut. T01 fait des
+      deux entrées en vol deux épisodes, donc `dropped()` ne s'applique plus à
+      celle de rang inférieur ; T02 ajoute `Shows.started_unregistered`, que
+      `_restaurer` appelle quand une entrée d'émission inconnue du registre
+      prend l'antenne — elle se retrouve par son adresse dans les catalogues en
+      cache et s'inscrit. `_oublier_les_demandes_anterieures` continue d'oublier
+      la plus ancienne du registre local, ce qui reste juste (elle ne doit ni
+      s'annoncer ni se replacer) ; c'est d'en conclure qu'elle a été jetée qui
+      ne l'était pas.
+      **Reste à écouter** (AGENTS.md §4.1) : un vrai « Passer » en plage,
+      l'épisode qui prend l'antenne et celui qui suit.
