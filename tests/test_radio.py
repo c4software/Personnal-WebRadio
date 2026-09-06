@@ -111,10 +111,41 @@ def test_un_vote_sans_piste_courante_agit_sans_s_apprendre() -> None:
     assert retenus == []
 
 
+def test_avant_toute_annonce_du_diffuseur_un_vote_est_refuse_avec_son_motif() -> None:
+    """Le diffuseur n'annonce qu'au début d'une entrée : un processus redémarré
+    en plein épisode ne sait pas ce qui passe (SPECS.md §7 n°42)."""
+    sauts: list[bool] = []
+    radio, counter = _radio(skip=lambda: sauts.append(True))
+    counter.declare(on_air=True)
+    vue = radio.on_air_now()
+    assert vue is not None
+    assert vue.kind is NatureWeb.UNKNOWN
+    assert vue.title is None and vue.artist is None
+
+    verdict = radio.vote(Vote.SKIP)
+
+    assert not verdict.accepted
+    assert verdict.reason is not None and "vient de redémarrer" in verdict.reason
+    assert sauts == []
+
+
+def test_la_premiere_annonce_reouvre_les_votes() -> None:
+    sauts: list[bool] = []
+    radio, counter = _radio(skip=lambda: sauts.append(True))
+    counter.declare(on_air=True)
+    assert not radio.vote(Vote.SKIP).accepted
+
+    radio.declare(Kind.MUSIC, track("1", "Bowie", genre="rock"))
+
+    assert radio.vote(Vote.SKIP).accepted
+    assert sauts == [True]
+
+
 def test_un_stop_accepte_ordonne_le_saut() -> None:
     """Un `stop` accepté passe le morceau en cours (SPECS.md §4.6, GOAL-017)."""
     sauts: list[bool] = []
     radio, _ = _radio(skip=lambda: sauts.append(True))
+    radio.declare(Kind.MUSIC, None)
     verdict = radio.vote(Vote.SKIP)
     assert verdict.accepted
     assert sauts == [True]
@@ -123,6 +154,7 @@ def test_un_stop_accepte_ordonne_le_saut() -> None:
 def test_un_encore_accepte_n_ordonne_aucun_saut() -> None:
     sauts: list[bool] = []
     radio, _ = _radio(skip=lambda: sauts.append(True))
+    radio.declare(Kind.MUSIC, None)
     assert radio.vote(Vote.MORE).accepted
     assert sauts == []
 
@@ -155,6 +187,7 @@ def test_un_encore_accepte_jette_l_avance_du_diffuseur() -> None:
     ordres: list[str] = []
     radio, _ = _radio(skip=lambda: ordres.append("skip"))
     radio._vider_l_avance = lambda: ordres.append("requeue")
+    radio.declare(Kind.MUSIC, None)
     assert radio.vote(Vote.MORE).accepted
     assert ordres == ["requeue"]
     assert radio.vote(Vote.SKIP).accepted

@@ -267,13 +267,15 @@ class LiquidsoapPlayout:
                 return
             # Après un redémarrage de `radio`, Liquidsoap joue encore un ou deux
             # morceaux demandés à l'ancien processus. On affiche les étiquettes
-            # lues du fichier plutôt que rien.
+            # lues du fichier plutôt que rien, mais la nature reste inconnue :
+            # ce peut être une musique comme un épisode, et un vote jugé à
+            # l'aveugle a déjà fait sauter un épisode (SPECS.md §7 n°42).
             logger.info(
                 "entrée demandée avant ce démarrage, affichée d'après ses étiquettes : %s — %s",
                 artist,
                 title,
             )
-            self._radio.declare(Kind.MUSIC, None, title, artist_label=artist)
+            self._radio.declare(Kind.UNKNOWN, None, title, artist_label=artist)
             return
         self._radio.declare(pending.kind, pending.track, pending.label, length=pending.length)
 

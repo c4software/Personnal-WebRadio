@@ -513,7 +513,9 @@ def _programme_pilote(
     # Une seule instance de Jingles, partagée comme dans main.py : le contrôle
     # y marque l'encore, le programme l'y lit.
     jingles = Jingles(clock)
-    control = Control(source=reelle, random=random, jingles=jingles)
+    # Une musique annoncée d'entrée : sans cela le contrôle ne sait pas ce qui
+    # passe et refuse les votes que ces tests honorent.
+    control = Control(source=reelle, random=random, jingles=jingles, kind=Kind.MUSIC)
     programme = RadioProgramme(
         queue=Queue(reelle, random, window if window is not None else Window(width=1)),
         source=reelle,

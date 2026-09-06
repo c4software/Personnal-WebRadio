@@ -336,6 +336,22 @@ deux seraient des surprises.
 **Une voix suffit** : le premier vote reçu s'applique, il n'y a ni quorum ni
 fenêtre de dépouillement. « Vote » est ici un mot pour « bouton ».
 
+**Une radio qui vient de redémarrer refuse les votes** — décision n°42, prise le
+2026-09-06. Le diffuseur n'annonce ce qu'il joue **qu'au début d'une entrée** :
+un processus `radio` redéployé au milieu d'un épisode n'apprend ce qui passe qu'à
+la jonction suivante. Jusque-là, la nature de ce qui passe est **`inconnu`**
+(§4.8), et les deux commandes sont refusées en le disant : « la radio vient de
+redémarrer : elle ne sait pas encore ce qui passe ».
+
+> **Ce que cela coûte, et qui est assumé** : après un déploiement en plein
+> épisode, « Passer » et « Encore » restent morts jusqu'à la jonction suivante —
+> soit, dans le pire des cas, la durée d'un épisode entier. C'est le prix d'un
+> vote jugé à l'aveugle : avant cette décision, le processus neuf se croyait sur
+> de la musique, acceptait un `stop` pendant un épisode, et faisait sauter
+> l'épisode vers le morceau que le diffuseur avait d'avance. Faire redire au
+> diffuseur ce qu'il joue est à l'étude (GOAL-086-T03) ; cela rendra les votes
+> plus tôt, ça ne change pas la règle.
+
 **`encore` s'entend, à la jonction.** Un vote « encore » enregistré fait diffuser
 un **jingle** — `encore.mp3`, dans le même dossier que les jingles horaires —
 **entre le morceau en cours et le suivant**. Il emprunte exactement le même
@@ -440,10 +456,12 @@ de téléphone — sans rien reprendre du cœur.
 L'API doit au minimum :
 
 - dire **ce qui passe** : titre, artiste, et si l'on est dans de la musique, un
-  jingle ou un flash ;
+  jingle ou un flash — ou **`inconnu`** tant que le diffuseur n'a rien annoncé
+  depuis le démarrage du processus (§4.6, §7 n°42) ;
 - accepter un vote **`stop`** et un vote **`encore`** ;
-- **refuser explicitement** un vote pendant un jingle ou un flash (§4.6), en
-  disant pourquoi — un refus muet est indistinguable d'une panne ;
+- **refuser explicitement** un vote pendant un jingle ou un flash (§4.6), ou tant
+  que la nature est `inconnu`, en disant pourquoi — un refus muet est
+  indistinguable d'une panne ;
 - dire **si la chaîne tourne**, donc si quelqu'un écoute.
 
 #### Où en est ce qui passe
@@ -1753,6 +1771,21 @@ elle appelle la même API que tout autre client (§4.8).
 > et `encore` dans le noyau, et d'ajouter un autre point de commande plus tard
 > sans rien reprendre. **Aucun autre client n'est écrit pour autant** — la porte
 > existe, on ne construit pas derrière.
+
+**n°42 — Un processus qui redémarre ne sait pas ce qui passe : il le dit et
+refuse les votes.** Tranchée le 2026-09-06. Au démarrage, et jusqu'à la première
+annonce du diffuseur, la nature de ce qui passe est `inconnu` : l'antenne
+l'affiche telle quelle, avec les étiquettes du fichier quand il y en a, et les
+deux commandes sont refusées avec leur motif (§4.6, §4.8).
+> *Raison* : le diffuseur n'annonce qu'au **début** d'une entrée. Le 2026-09-06 à
+> 21 h 12, le service `radio` a été redéployé pendant un épisode d'une plage de
+> podcasts ; le processus neuf se croyait sur de la musique, a accepté un
+> « Passer », et l'épisode a sauté vers le morceau que le diffuseur avait
+> d'avance. Le vote n'a même rien pesé, faute de piste à retenir.
+> *Ce que cela coûte* : après un déploiement en plein épisode, les deux boutons
+> sont morts jusqu'à la jonction suivante, soit jusqu'à la durée d'un épisode.
+> *Ce qui le réduirait* : faire redire au diffuseur ce qu'il joue après un
+> redémarrage (GOAL-086-T03).
 
 ### Encore ouvert
 

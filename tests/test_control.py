@@ -33,6 +33,9 @@ def control(
         FakeSource(list(tracks)),
         ScriptedRandom(indices if indices is not None else [0] * 20),
         jeu if jeu is not None else jingles(),
+        # Un contrôle neuf ne sait pas ce qui passe et refuse tout : les tests
+        # qui portent sur l'effet d'un vote partent d'une musique annoncée.
+        Kind.MUSIC,
     )
 
 
@@ -96,6 +99,25 @@ def test_un_vote_pendant_autre_chose_que_la_musique_est_refuse_avec_son_motif(
     answer = c.vote(Command.SKIP)
     assert not answer.accepted
     assert attendu in answer.reason
+
+
+def test_avant_toute_annonce_du_diffuseur_un_vote_est_refuse_avec_son_motif() -> None:
+    """Un processus qui vient de démarrer ne sait pas ce qui passe : il refuse
+    plutôt que de juger à l'aveugle (SPECS.md §7 n°42)."""
+    c = Control(FakeSource([BOWIE_1]), ScriptedRandom([0]), jingles())
+    assert c.kind is Kind.UNKNOWN
+    answer = c.vote(Command.SKIP)
+    assert not answer.accepted
+    assert "vient de redémarrer" in answer.reason
+    assert not c.take_skip()
+
+
+def test_la_premiere_annonce_reouvre_les_votes() -> None:
+    c = Control(FakeSource([BOWIE_1]), ScriptedRandom([0]), jingles())
+    assert not c.vote(Command.SKIP).accepted
+    c.declare(Kind.MUSIC)
+    assert c.vote(Command.SKIP).accepted
+    assert c.take_skip()
 
 
 def test_un_vote_refuse_n_est_ni_mis_en_attente_ni_applique_en_douce() -> None:

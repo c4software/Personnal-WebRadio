@@ -51,6 +51,7 @@ class Kind(StrEnum):
     JINGLE = "jingle"
     NEWS = "flash"
     SHOW = "emission"
+    UNKNOWN = "inconnu"
 
 
 class Vote(StrEnum):

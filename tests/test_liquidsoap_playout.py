@@ -7,6 +7,7 @@ from pathlib import Path
 from tests.fakes import FakeProgrammeEpieLeVerrou, FakeSource, FakeSourceEpieLeVerrou, track
 from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
 from webradio.adapters.state.database import SqliteState
+from webradio.adapters.web.api import Kind as NatureWeb
 from webradio.adapters.web.api import Vote
 from webradio.app.liquidsoap_playout import LiquidsoapPlayout
 from webradio.app.playout import RadioProgramme
@@ -272,6 +273,23 @@ def test_une_entree_inconnue_s_affiche_par_ses_etiquettes(tmp_path: Path) -> Non
     assert a_l_antenne is not None
     assert a_l_antenne.title == "Sexy Boy"
     assert a_l_antenne.artist == "Air"
+
+
+def test_une_entree_d_avant_le_redemarrage_refuse_les_votes(tmp_path: Path) -> None:
+    """Ses étiquettes ne disent pas ce qu'elle est : ce peut être une musique
+    comme un épisode de plage. On affiche, on ne vote pas (SPECS.md §7 n°42)."""
+    playout, radio, _ = _playout(tmp_path)
+    playout.declare_listeners(1)
+    playout.playing("/nulle/part.mp3", "Air", "Sexy Boy")
+    a_l_antenne = radio.on_air_now()
+    assert a_l_antenne is not None
+    assert a_l_antenne.kind is NatureWeb.UNKNOWN
+    assert (a_l_antenne.title, a_l_antenne.artist) == ("Sexy Boy", "Air")
+
+    verdict = radio.vote(Vote.SKIP)
+
+    assert not verdict.accepted
+    assert verdict.reason is not None and "vient de redémarrer" in verdict.reason
 
 
 def test_une_entree_inconnue_sans_etiquettes_n_affiche_rien(tmp_path: Path) -> None:

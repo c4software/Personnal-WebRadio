@@ -87,7 +87,9 @@ class LiveRadio(Radio):
         self._ecarter = withdraw
         self._horloge = clock
         self._verrou = threading.Lock()
-        self._nature = Kind.MUSIC
+        # Tant que le diffuseur n'a rien annoncé, la nature est inconnue : les
+        # votes sont refusés plutôt que jugés à l'aveugle (SPECS.md §7 n°42).
+        self._nature = Kind.UNKNOWN
         self._piste: Track | None = None
         self._libelle: str | None = None
         self._artiste_libelle: str | None = None
@@ -125,7 +127,8 @@ class LiveRadio(Radio):
             self._declare_a = None if self._horloge is None else self._horloge.now()
         self._controle.declare(kind)
         # Le journal des titres (SPECS.md §7 n°27) retient ce qui commence,
-        # jingles exclus.
+        # jingles exclus. Une entrée de nature inconnue s'y inscrit avec sa
+        # nature : le titre lu des étiquettes vaut mieux que rien.
         titre = track.title if track is not None else label
         artiste = track.artist if track is not None else (artist_label or "")
         if self._journaliser is not None and kind is not Kind.JINGLE and titre:

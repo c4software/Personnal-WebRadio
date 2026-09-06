@@ -134,6 +134,19 @@ def test_l_api_distingue_les_quatre_natures(kind: Kind) -> None:
     assert answer.get_json()["on_air_now"]["kind"] == str(kind)
 
 
+def test_l_api_dit_inconnu_apres_un_redemarrage() -> None:
+    """Tant que le diffuseur n'a rien annoncé, la nature est « inconnu » : la
+    page n'a pas de quoi croire qu'une musique passe (SPECS.md §7 n°42)."""
+    answer = client(FakeRadio(on_air_now=OnAir(kind=Kind.UNKNOWN))).get("/api/on-air")
+    assert answer.get_json()["on_air_now"] == {
+        "kind": "inconnu",
+        "title": None,
+        "artist": None,
+        "elapsed_seconds": None,
+        "duration_seconds": None,
+    }
+
+
 def test_l_api_dit_quand_la_chaine_ne_tourne_pas() -> None:
     """Sans auditeur, la radio ne tourne pas (SPECS.md §1)."""
     answer = client(FakeRadio()).get("/api/on-air")

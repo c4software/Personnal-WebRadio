@@ -31,6 +31,10 @@ class Kind(Enum):
     JINGLE = "jingle"
     NEWS = "flash"
     SHOW = "emission"
+    # Un processus qui vient de démarrer n'a reçu aucune annonce du diffuseur,
+    # qui n'annonce qu'au début d'une entrée : il ne sait pas ce qui passe et
+    # ne peut pas juger un vote (SPECS.md §7 n°42).
+    UNKNOWN = "inconnu"
 
 
 class Command(Enum):
@@ -48,6 +52,7 @@ REFUSAL_REASONS = {
     Kind.JINGLE: "un jingle est en cours : on ne passe pas un jingle",
     Kind.NEWS: "un flash d'information est en cours : on ne passe pas un flash",
     Kind.SHOW: "une émission est en cours : on ne passe pas une émission",
+    Kind.UNKNOWN: "la radio vient de redémarrer : elle ne sait pas encore ce qui passe",
 }
 
 
@@ -84,7 +89,7 @@ class Control:
         source: MusicSource,
         random: Random,
         jingles: Jingles,
-        kind: Kind = Kind.MUSIC,
+        kind: Kind = Kind.UNKNOWN,
     ) -> None:
         self._source = source
         self._hasard = random

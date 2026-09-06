@@ -504,6 +504,11 @@ C'est le noyau qui sait s'il est dans un jingle, un flash ou de la musique — d
 c'est lui qui refuse. L'API traduit ce refus en réponse HTTP ; elle ne le décide
 pas.
 
+Il y a un quatrième motif : `Kind.UNKNOWN`, la nature d'un `Control` qui n'a
+encore reçu aucune déclaration. Le diffuseur n'annonce qu'au début d'une entrée,
+donc un processus redémarré en plein épisode ne sait pas ce qui passe et refuse
+les votes jusqu'à la première annonce (SPECS.md §7 n°42).
+
 ### 5.2 Les émissions, et l'absence de persistance
 
 Une émission **remplace** la programmation au lieu de s'y insérer
