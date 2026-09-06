@@ -270,7 +270,7 @@ def test_un_direct_du_est_une_instruction_avec_son_heure_de_fin(tmp_path: Path) 
     clock = FrozenClock(VENDREDI_20H + timedelta(minutes=2))
     due = _direct(tmp_path, clock).due()
     assert due is not None
-    show, entry, _titre, _longueur = due
+    show, entry, _titre, _longueur, _passable = due
     assert show is FLASH
     fin = int((VENDREDI_20H + timedelta(minutes=9)).timestamp())
     assert entry == f"live:{fin}:{FRANCEINFO}"
@@ -488,6 +488,12 @@ class FeedParUrl:
             message = f"flux d'essai injoignable : {url}"
             raise PodcastUnavailable(message)
         return list(self._par_url[url])
+
+    def cached(self, url: str, *, stale_ok: bool = False) -> list[EpisodeDuFlux] | None:
+        """Le cache est chaud : une plage relit ses flux à chaque jonction, et
+        `podcast.cache_seconds` vaut 900 s par défaut."""
+        del stale_ok
+        return list(self._par_url.get(url, []))
 
 
 LEGEND_URL = "https://exemple.test/legend.xml"
@@ -910,3 +916,76 @@ def test_une_emission_ordinaire_n_entre_pas_dans_la_cle_de_l_avance(tmp_path: Pa
 
     assert emissions.due() is not None
     assert emissions.open_band_slot() is None
+
+
+# ── Un épisode de plage se passe (GOAL-086-T05) ─────────────────────────────
+
+
+def test_l_episode_d_une_plage_se_dit_passable(tmp_path: Path) -> None:
+    """Une plage enchaîne : il y a de quoi piocher (SPECS.md §7 n°44)."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    due = emissions.due()
+
+    assert due is not None and due[4] is True
+
+
+def test_l_episode_d_un_podcast_seul_ne_se_dit_pas_passable(tmp_path: Path) -> None:
+    """Hors plage, l'épisode est le seul de sa case : rien à piocher."""
+    shows, _ = _emissions(tmp_path, FakeFeed([_episode("ep1")]), FrozenClock(VENDREDI_20H))
+
+    due = shows.due()
+
+    assert due is not None and due[4] is False
+
+
+def test_un_direct_ne_se_dit_pas_passable(tmp_path: Path) -> None:
+    due = _direct(tmp_path, FrozenClock(VENDREDI_20H + timedelta(minutes=2))).due()
+
+    assert due is not None and due[4] is False
+
+
+def test_une_plage_dit_qu_il_reste_un_episode_a_piocher(tmp_path: Path) -> None:
+    """Le premier épisode a pris l'antenne et s'est inscrit ; l'autre flux a
+    encore du neuf, donc « Passer » a de quoi piocher."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    due = emissions.due()
+    assert due is not None
+    emissions.started(due[1])
+
+    assert emissions.has_another_episode()
+
+
+def test_une_plage_dont_les_flux_sont_epuises_n_a_plus_rien_a_piocher(tmp_path: Path) -> None:
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    for _ in range(2):
+        due = emissions.due()
+        assert due is not None
+        emissions.started(due[1])
+
+    assert not emissions.has_another_episode()
+
+
+def test_la_pioche_ne_lit_aucun_flux_ni_ne_consomme_le_hasard(tmp_path: Path) -> None:
+    """Le rappel est lu au vote : il ne peut ni attendre un hébergeur, ni faire
+    dériver la soirée en consommant un tirage (AGENTS.md §2)."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    due = emissions.due()
+    assert due is not None
+    emissions.started(due[1])
+    lues = list(feed.lues)
+
+    assert emissions.has_another_episode()
+    assert feed.lues == lues, "aucune lecture de flux"
+    assert emissions.due() is not None, "le tirage suivant n'a pas dérivé"
+
+
+def test_hors_d_une_plage_ouverte_il_n_y_a_rien_a_piocher(tmp_path: Path) -> None:
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H - timedelta(hours=1)))
+
+    assert not emissions.has_another_episode()

@@ -256,3 +256,75 @@ def test_l_encore_sert_aussi_une_piste_longue() -> None:
     pick = c.track_after_more(courant)
     assert pick.track.identifier == "a2"
     assert pick.fallbacks == ()
+
+
+# ── Passer un épisode d'une plage de podcasts (SPECS.md §7 n°44) ────────────
+
+
+def control_en_episode(*, autre_episode: bool = True) -> Control:
+    c = Control(
+        FakeSource([BOWIE_1]),
+        ScriptedRandom([0]),
+        jingles(),
+        another_episode=lambda: autre_episode,
+    )
+    c.declare(Kind.SHOW, skippable=True)
+    return c
+
+
+def test_un_stop_pendant_un_episode_de_plage_est_accepte() -> None:
+    """Une plage enchaîne des épisodes : « Passer » en pioche un autre au lieu
+    de laisser passer la musique d'avance (SPECS.md §7 n°44)."""
+    c = control_en_episode()
+    answer = c.vote(Command.SKIP)
+    assert answer.accepted
+    assert answer.reason == ""
+
+
+def test_un_stop_pendant_un_podcast_seul_reste_refuse() -> None:
+    """Un podcast hors plage n'a rien à piocher : son épisode est le seul."""
+    c = Control(FakeSource([BOWIE_1]), ScriptedRandom([0]), jingles(), another_episode=lambda: True)
+    c.declare(Kind.SHOW)
+    answer = c.vote(Command.SKIP)
+    assert not answer.accepted
+    assert "on ne passe pas une émission" in answer.reason
+
+
+def test_un_stop_pendant_un_direct_reste_refuse() -> None:
+    """Un direct ne se saute pas : il n'y a pas d'épisode derrière (§4.11)."""
+    c = Control(FakeSource([BOWIE_1]), ScriptedRandom([0]), jingles(), another_episode=lambda: True)
+    c.declare(Kind.NEWS)
+    answer = c.vote(Command.SKIP)
+    assert not answer.accepted
+    assert "on ne passe pas un flash" in answer.reason
+
+
+def test_un_encore_pendant_un_episode_reste_refuse() -> None:
+    """Il n'y a ni artiste ni genre à prolonger derrière un épisode, et le motif
+    le dit plutôt que de parler de saut."""
+    answer = control_en_episode().vote(Command.MORE)
+    assert not answer.accepted
+    assert "on ne demande pas « encore »" in answer.reason
+
+
+def test_sans_autre_episode_neuf_le_stop_est_refuse_avec_son_motif() -> None:
+    """La question se pose au moment du vote, pas à la déclaration : une case
+    peut s'être vidée depuis (SPECS.md §7 n°44)."""
+    answer = control_en_episode(autre_episode=False).vote(Command.SKIP)
+    assert not answer.accepted
+    assert "aucun autre épisode à piocher" in answer.reason
+
+
+def test_sans_rappel_pour_piocher_un_episode_ne_se_passe_pas() -> None:
+    """Sans câblage, rien ne dit qu'il y a de quoi remplacer : on refuse."""
+    c = Control(FakeSource([BOWIE_1]), ScriptedRandom([0]), jingles())
+    c.declare(Kind.SHOW, skippable=True)
+    assert not c.vote(Command.SKIP).accepted
+
+
+def test_l_episode_passable_se_relit_a_chaque_declaration() -> None:
+    """Une musique déclarée après un épisode ne garde pas son drapeau."""
+    c = control_en_episode()
+    assert c.skippable
+    c.declare(Kind.MUSIC)
+    assert not c.skippable

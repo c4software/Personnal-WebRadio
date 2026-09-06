@@ -583,3 +583,49 @@ clés `liq_*` ; rien ne disait ce qu'il fait des autres.
       `radio_` évite la question.
 - [ ] La longueur maximale d'un préfixe `annotate:`. Un titre d'épisode très
       long n'a pas été essayé.
+
+---
+
+## 14. Douzième relevé — remplacer l'avance sans la perdre (GOAL-086-T05, le 2026-09-06)
+
+> Même image (`v2.3.3`), **maquette de §12 réutilisée telle quelle** : la chaîne
+> de `radio.liq` sans le direct, fausse API horodatée à la milliseconde, quatre
+> tons purs de 25 s (a = 440 Hz, b = 660 Hz, c = 880 Hz, d = 1100 Hz), l'épisode
+> lourd simulé par `c.mp3` servi à 50 000 o/s (401 283 o, soit **8 s** de
+> résolution), un auditeur `curl`, flux analysé par fenêtres de 0,25 s.
+
+Motif : la route de §12 (`set_queue([])` → `fetch()` → `skip()`) coûte **deux**
+tirages, le fil d'avance étant réveillé par la purge. On cherchait à n'en payer
+qu'un : `fetch()` **d'abord** (la file passe à deux), puis
+`set_queue([la fraîche seule])` pour retirer l'ancienne avance, puis `skip()`.
+
+| Question | Constat |
+|---|---|
+| `request.id` et `list.mem` existent-ils en 2.3.3 ? | **Oui.** `liquidsoap -h request.id` : « Identifier of a request », type `(request) -> int` ; `list.mem` : `('a, ['a]) -> bool` |
+| Nommer `request` le paramètre d'un gestionnaire harbor | **Il masque le module `request`.** `def on_x(request, response)` puis `request.id(r)` ne compile pas (`Error 5: this value has type (_.{id : _}, ...) -> _`). Le paramètre doit être renommé |
+| `fetch()` puis `set_queue([la fraîche])` | **La file retombe à 0.** Journal : `file avant = 1 [1]`, `fetch() = true, file apres = 2 [1, 2]`, `fraiches = 1 [2]`, puis `set_queue fait, file = 0`. La requête rendue par `queue()` ne survit pas au `set_queue` suivant |
+| `set_queue(programme.queue())`, l'identité | **Vide la file, elle aussi** : `avant = 1`, `apres = 0`. **`set_queue` détruit les requêtes qu'il remplace, y compris celles qu'on lui repasse.** Une entrée lue dans `queue()` ne peut donc pas y être réinstallée |
+| Ce que la variante donne à l'antenne | **Pas de blanc, mais l'entrée fraîche est perdue.** Ton `a` de 0,50 à 16,50 s sans discontinuité (−16,6 dB à l'ordre, −14,7 dB à la fin), fondu à 16,50 s, entrée fraîche à 17,00 s. **Ni `b` (660 Hz) ni `c` (880 Hz)** dans aucune fenêtre : l'ancienne avance a bien été jetée, et `c` — les 8 s de téléchargement de `fetch()` — l'a été aussi. C'est **`d`** qui joue (1100 Hz de 17,00 à 41,00 s), tiré par le `/next` qui suit la purge |
+| Ce que ça coûte | **Deux tirages quand même**, et le gestionnaire bloqué 8,04 s pour rien (`skip-fresh2: code=200 temps=8.038071s`). La file finit à 0 au lieu de 1 |
+
+### Ce que cela change
+
+- **La variante est impossible**, et pour une raison de principe, pas de
+  réglage : `set_queue` détruit les requêtes de la file. `fetch()` ne peut donc
+  pas précéder la purge, et l'ordre de §12 est le seul qui marche.
+- **La route retenue est celle de §12**, avec son double tirage assumé :
+  `set_queue([])`, `fetch()`, `skip()`. Ses deux tirages sont tous les deux
+  **consommés** — le plus vite résolu prend l'antenne, l'autre devient l'avance
+  — alors que la variante en jette un après l'avoir téléchargé.
+- Conséquence pour l'API : elle ne peut pas savoir laquelle des deux entrées
+  passe. Elle poste l'ordre **sans attendre**, et c'est le `/playout/playing`
+  du diffuseur qui lui dit ce qui a réellement commencé.
+
+### Points incertains
+
+- [ ] Un moyen de retirer **une** entrée de la file sans la détruire. Aucune
+      primitive de 2.3.3 ne l'offre à notre connaissance ; `queue()` et
+      `set_queue()` sont les seules trouvées.
+- [ ] Les deux entrées tirées par la route sont deux épisodes téléchargés en
+      même temps. Leur effet conjoint sur la bande passante n'est **pas
+      mesuré** contre de vrais flux.

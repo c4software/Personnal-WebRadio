@@ -82,13 +82,15 @@
         </article>
         <!-- Un jingle, un flash ou une émission refuseraient le vote de toute
              façon (SPECS.md §4.6) : autant griser les boutons plutôt que de
-             récolter un refus. L'API reste le juge — ceci n'est que du confort. -->
+             récolter un refus. Un épisode de plage se passe, l'API le dit par
+             `skippable` (SPECS.md §7 n°44). L'API reste le juge — ceci n'est
+             que du confort. -->
         <div class="votes">
-          <button type="button" class="passer" :disabled="occupe || voteImpossible" @click="voter(urls.stop)">
+          <button type="button" class="passer" :disabled="occupe || passerImpossible" @click="voter(urls.stop)">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.2v9.6a1 1 0 0 0 1.53.85L10.5 9.6v3.2a1 1 0 0 0 1.53.85l1.47-.92V3.27l-1.47-.92A1 1 0 0 0 10.5 3.2v3.2L4.03 2.35A1 1 0 0 0 2.5 3.2z" /></svg>
             Passer
           </button>
-          <button type="button" class="encore" :disabled="occupe || voteImpossible" @click="voter(urls.encore)">
+          <button type="button" class="encore" :disabled="occupe || encoreImpossible" @click="voter(urls.encore)">
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 14.2 2.6 8.9a3.6 3.6 0 0 1 5.1-5.1L8 4.1l.3-.3a3.6 3.6 0 0 1 5.1 5.1L8 14.2z" /></svg>
             Encore
           </button>
@@ -316,9 +318,16 @@
           };
         },
         computed: {
-          voteImpossible() {
+          passerImpossible() {
             // Sans auditeur, rien ne passe : un vote n'aurait rien sur quoi
-            // porter (GOAL-061). Pendant l'habillage, l'API le refuserait.
+            // porter (GOAL-061). Pendant l'habillage, l'API le refuserait. Un
+            // épisode de plage, lui, se passe : c'est l'API qui le dit.
+            if (this.antenne === null) { return true; }
+            return this.antenne.kind !== "musique" && !this.antenne.skippable;
+          },
+          encoreImpossible() {
+            // « Encore » n'a de sens que sur un morceau : il n'y a ni artiste
+            // ni genre à prolonger derrière un épisode.
             return this.antenne === null || this.antenne.kind !== "musique";
           },
           avancement() {

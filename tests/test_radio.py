@@ -365,3 +365,75 @@ def test_sans_horloge_l_antenne_ne_dit_rien_de_l_avancement() -> None:
     assert antenne is not None
     assert antenne.elapsed_seconds is None
     assert antenne.duration_seconds is None
+
+
+# ── Passer un épisode d'une plage de podcasts (SPECS.md §7 n°44) ────────────
+
+
+def _radio_en_plage(
+    ordres: list[str],
+    *,
+    autre_episode: bool = True,
+) -> tuple[LiveRadio, ListenerCount]:
+    clock = FrozenClock(datetime(2026, 8, 30, 12, 0, tzinfo=UTC))
+    control = Control(
+        source=FakeSource([track("1", "Bowie", genre="rock")]),
+        random=ScriptedRandom([0] * 50),
+        jingles=Jingles(clock),
+        another_episode=lambda: autre_episode,
+    )
+    counter = ListenerCount()
+    counter.declare(on_air=True)
+    radio = LiveRadio(
+        control,
+        counter,
+        skip=lambda: ordres.append("skip"),
+        skip_fresh=lambda: ordres.append("skip-fresh"),
+        clock=clock,
+    )
+    return radio, counter
+
+
+def test_passer_un_episode_ordonne_skip_fresh_et_jette_l_avance() -> None:
+    """L'avance du diffuseur est une musique tirée sans voir la case : la route
+    la remplace par un autre épisode avant de sauter (SPECS.md §7 n°45)."""
+    ordres: list[str] = []
+    radio, _ = _radio_en_plage(ordres)
+    radio.declare(Kind.SHOW, None, "Podcasts · un épisode", skippable=True)
+    assert radio.vote(Vote.SKIP).accepted
+    assert ordres == ["skip-fresh"], "un /skip ordinaire laisserait passer la musique d'avance"
+
+
+def test_sans_autre_episode_neuf_rien_n_est_ordonne_au_diffuseur() -> None:
+    ordres: list[str] = []
+    radio, _ = _radio_en_plage(ordres, autre_episode=False)
+    radio.declare(Kind.SHOW, None, "Podcasts · un épisode", skippable=True)
+    verdict = radio.vote(Vote.SKIP)
+    assert not verdict.accepted
+    assert verdict.reason is not None and "aucun autre épisode" in verdict.reason
+    assert ordres == []
+
+
+def test_un_stop_sur_un_episode_ne_pese_sur_aucun_artiste() -> None:
+    """Un épisode n'a pas de piste : rien à retenir, et la pondération de la
+    musique ne doit pas en hériter (SPECS.md §4.12)."""
+    ordres: list[str] = []
+    retenus: list[tuple[Command, Track]] = []
+    radio, _ = _radio_en_plage(ordres)
+    radio._retenir = lambda command, piste: retenus.append((command, piste))
+    radio.declare(Kind.SHOW, None, "Podcasts · un épisode", skippable=True)
+    assert radio.vote(Vote.SKIP).accepted
+    assert retenus == []
+
+
+def test_l_api_dit_si_ce_qui_passe_se_passe() -> None:
+    """La page n'a pas à déduire de la nature ce qui est passable : l'API le
+    dit, et le gabarit s'y fie (AGENTS.md §2)."""
+    ordres: list[str] = []
+    radio, _ = _radio_en_plage(ordres)
+    radio.declare(Kind.SHOW, None, "Podcasts · un épisode", skippable=True)
+    passe = radio.on_air_now()
+    assert passe is not None and passe.skippable
+    radio.declare(Kind.SHOW, None, "A la French · n° 12")
+    seul = radio.on_air_now()
+    assert seul is not None and not seul.skippable

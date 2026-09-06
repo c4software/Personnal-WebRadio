@@ -238,7 +238,20 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         encore_name=settings.jingles.encore,
         expiry=timedelta(seconds=peremption) if peremption > 0 else None,
     )
-    control = Control(source=source, random=random, jingles=jingles)
+    # La case de podcasts ouverte n'existe qu'une fois la grille construite ;
+    # le rappel la lit au moment du vote, pas à la déclaration (SPECS.md §7
+    # n°44). Sans câblage, aucun épisode ne se passe.
+    emissions: list[Shows] = []
+
+    def reste_un_autre_episode() -> bool:
+        return bool(emissions) and emissions[0].has_another_episode()
+
+    control = Control(
+        source=source,
+        random=random,
+        jingles=jingles,
+        another_episode=reste_un_autre_episode,
+    )
     counter = ListenerCount()
 
     def lister_votes() -> "list[VoteScore]":
@@ -276,8 +289,28 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         except (urllib.error.URLError, http.client.HTTPException, OSError) as failure:
             logger.warning("le diffuseur n'a pas pris %s : %s — %s", chemin, failure, consequence)
 
+    def _ordonner_sans_attendre(chemin: str) -> None:
+        """Poste l'ordre dans un fil détaché, sans en attendre la réponse.
+
+        Le gestionnaire du diffuseur reste bloqué toute la résolution de
+        l'entrée fraîche, jusqu'à son propre délai de requête, et un client qui
+        abandonne n'annule rien (docs/liquidsoap.md §12).
+        """
+        logger.info("ordre %s posté sans attendre : le diffuseur résout l'entrée", chemin)
+        threading.Thread(
+            target=lambda: _ordonner(chemin, "le journal du diffuseur dit ce qu'il en a fait"),
+            name="ordre-diffuseur",
+            daemon=True,
+        ).start()
+
     def demander_le_saut() -> None:
         _ordonner("/skip", "le morceau finira")
+
+    def piocher_un_autre_episode() -> None:
+        # La route remplace l'avance elle-même : un `/requeue` de plus ferait
+        # redemander deux fois (SPECS.md §7 n°45).
+        branche[0].drop_advance(requeue=False)
+        _ordonner_sans_attendre("/skip-fresh")
 
     def vider_l_avance() -> None:
         # Replacer l'avance avant que le diffuseur la vide, pour ne rien
@@ -425,6 +458,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         ce_qui_suit,
         journaliser_le_titre,
         lister_l_historique,
+        skip_fresh=piocher_un_autre_episode,
         moment_random=moment_au_hasard,
         redraw=retirer_le_theme,
         upcoming=prochains_titres,
@@ -473,25 +507,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
     # ne divergent pas.
     grille_effective = EffectiveSchedule(grille, programmation, cases_declarees)
 
-    programme = RadioProgramme(
-        queue=Queue(
-            source,
-            random,
-            Window(settings.draw.artist_gap),
-            weigh=learning.weigh,
-            runs=Runs(random),
-            lookahead=settings.draw.lookahead,
-        ),
-        source=source,
-        grille=grille,
-        jingles=jingles,
-        clock=clock,
-        random=random,
-        jingle_folder=Path(settings.jingles.folder),
-        on_kind=lambda kind, track, label, length: branche[0].on_kind(kind, track, label, length),
-        programming=programmation,
-        programme_window=Window(settings.draw.artist_gap),
-        shows=Shows(
+    emissions.append(
+        Shows(
             cases_declarees,
             PodcastFeed(
                 UrllibReader(lock_timeout=timedelta(seconds=settings.podcast.timeout_seconds)),
@@ -516,7 +533,30 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             # celui qui l'a réglé (SPECS.md §6).
             in_background=_preparer_en_fond if garde_des_flux is not None else None,
             preload=garde_des_flux,
+        )
+    )
+
+    programme = RadioProgramme(
+        queue=Queue(
+            source,
+            random,
+            Window(settings.draw.artist_gap),
+            weigh=learning.weigh,
+            runs=Runs(random),
+            lookahead=settings.draw.lookahead,
         ),
+        source=source,
+        grille=grille,
+        jingles=jingles,
+        clock=clock,
+        random=random,
+        jingle_folder=Path(settings.jingles.folder),
+        on_kind=lambda kind, track, label, length, passable: branche[0].on_kind(
+            kind, track, label, length, passable
+        ),
+        programming=programmation,
+        programme_window=Window(settings.draw.artist_gap),
+        shows=emissions[0],
         effective=grille_effective,
         control=control,
         horizon=timedelta(minutes=settings.web.upcoming_horizon_minutes),

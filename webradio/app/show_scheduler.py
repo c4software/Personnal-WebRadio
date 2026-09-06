@@ -115,13 +115,15 @@ class Shows:
         self._lectures_lancees: set[str] = set()
         self._verrou_lectures = threading.Lock()
 
-    def due(self) -> tuple[Show, str, str | None, Length] | None:
-        """L'émission due, l'adresse de son épisode, son titre et sa longueur.
+    def due(self) -> tuple[Show, str, str | None, Length, bool] | None:
+        """L'émission due, l'adresse de son épisode, son titre, sa longueur et
+        si elle se passe.
 
         Le titre (vidéo ou épisode) sert à l'antenne et au journal (GOAL-027) ;
         il vaut `None` s'il n'y en a pas. La longueur est la durée de l'épisode
         quand le flux la donne, la fin de la case pour un direct, et rien
-        sinon (GOAL-085).
+        sinon (GOAL-085). Le dernier champ dit qu'un « Passer » a de quoi
+        piocher : seul un épisode de plage l'a (SPECS.md §7 n°44).
 
         Rend `None` quand il n'y a pas d'émission : aucune case ouverte, flux
         injoignable, épisode déjà diffusé. Aucun de ces cas n'est une panne,
@@ -176,7 +178,52 @@ class Shows:
         demandee = self._demandee is not None and self._demandee.show == case.show.name
         return PodcastSlot(show=case.show.name, start=case.start, awaited=demandee)
 
-    def _direct_de(self, case: Slot) -> tuple[Show, str, str | None, Length] | None:
+    def has_another_episode(self) -> bool:
+        """Reste-t-il un épisode neuf à piocher dans la plage ouverte ?
+
+        Lu au moment du vote, pour que le refus dise l'état d'aujourd'hui et
+        non celui d'il y a une heure (SPECS.md §7 n°44). Rien n'est demandé au
+        réseau : les catalogues sont ceux du cache, périmés acceptés, et le
+        hasard n'est pas consommé — on compte les flux qui ont du neuf, on ne
+        tire pas lequel. L'épisode à l'antenne est déjà inscrit comme diffusé
+        (`started`), donc son flux ne compte plus s'il n'a que celui-là.
+        """
+        ouverte = self.open_band_slot()
+        if ouverte is None:
+            return False
+        show = next((s for s in self._programme.shows if s.name == ouverte.show), None)
+        if show is None:
+            return False
+        connus = 0
+        for address in self._adresses.get(show.name, ()):
+            episodes = self._flux.cached(address, stale_ok=True)
+            if not episodes:
+                continue
+            connus += 1
+            try:
+                passe = self._etat.last_airing(self._cle_de_memoire(show, address))
+            except StateUnavailable as failure:
+                logger.warning("mémoire indisponible, on ne pioche pas : %s", failure)
+                return False
+            candidats = [
+                Episode(
+                    guid=e.identifier,
+                    published_at=e.published_at,
+                    duration=e.duration if e.duration is not None else timedelta(0),
+                    kind="full",
+                )
+                for e in episodes
+            ]
+            if episode_to_air(candidats, passe.episode if passe is not None else None) is not None:
+                return True
+        if connus == 0:
+            # Sans `podcast.cache_seconds`, rien n'est gardé et la seule façon
+            # de savoir serait de relire les flux, ce que le vote ne peut pas
+            # attendre. On refuse alors de piocher.
+            logger.info("« %s » : aucun catalogue en cache, on ne pioche pas", show.name)
+        return False
+
+    def _direct_de(self, case: Slot) -> tuple[Show, str, str | None, Length, bool] | None:
         """Un direct, rendu une fois par case, avec l'heure absolue de sa fin.
 
         L'entrée `live:<fin en secondes Unix>:<url>` est lue par Liquidsoap
@@ -199,7 +246,7 @@ class Shows:
             case.end.astimezone().strftime("%H:%M:%S"),
             url.split("?", 1)[0],
         )
-        return case.show, entry, None, Length(until=case.end)
+        return case.show, entry, None, Length(until=case.end), False
 
     def started(self, entry: str) -> None:
         """Inscrit la diffusion de l'entrée que le diffuseur vient de commencer.
@@ -249,7 +296,7 @@ class Shows:
 
     def _video_de(
         self, show: Show, catalogue: list[EpisodeDuFlux]
-    ) -> tuple[Show, str, str | None, Length] | None:
+    ) -> tuple[Show, str, str | None, Length, bool] | None:
         """La dernière vidéo, servie depuis le cache local, jamais par son URL.
 
         Servir l'URL googlevideo faisait télécharger le diffuseur à la
@@ -278,7 +325,7 @@ class Shows:
             titre = next((e.title for e in catalogue if e.identifier == chosen.guid), None)
             # La longueur reste inconnue : le fichier servi est celui du cache,
             # et sa durée n'est pas relue ici (GOAL-085).
-            return show, str(fichier), titre, Length()
+            return show, str(fichier), titre, Length(), False
         self._telecharger_en_fond(show.name, nom, chosen.guid)
         return None
 
@@ -491,7 +538,7 @@ class Shows:
 
     def _episode_de(
         self, show: Show, par_flux: dict[str, list[EpisodeDuFlux]]
-    ) -> tuple[Show, str, str | None, Length] | None:
+    ) -> tuple[Show, str, str | None, Length, bool] | None:
         """L'épisode à diffuser, tiré parmi les flux qui ont du neuf.
 
         La mémoire est par flux, pas par émission : une plage en a plusieurs, et
@@ -546,7 +593,7 @@ class Shows:
         # La durée qu'un flux ne donne pas est remplacée par zéro plus haut :
         # la longueur reste alors inconnue (docs/podcast.md §1, GOAL-085).
         duree = choisi.duration if choisi.duration > timedelta(0) else None
-        return show, audio, titre, Length(duration=duree)
+        return show, audio, titre, Length(duration=duree), show.chains_episodes
 
     def _cle_de_memoire(self, show: Show, address: str) -> str:
         """Ce sous quoi la base retient une diffusion (ARCHITECTURE.md §5).

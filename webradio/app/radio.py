@@ -9,6 +9,7 @@ Les deux jeux de valeurs coïncident (`"musique"`, `"stop"`), et un test le
 vérifie.
 """
 
+import logging
 import threading
 from collections.abc import Callable
 from datetime import datetime, timedelta
@@ -27,6 +28,8 @@ from webradio.app.length import Length
 from webradio.core.clock import Clock
 from webradio.core.control import Command, Control, Kind
 from webradio.core.models import Track
+
+logger = logging.getLogger(__name__)
 
 # Motif de refus d'un retirage hors d'une plage au hasard, ou sans câblage
 # pour retirer (SPECS.md §4.4).
@@ -64,6 +67,7 @@ class LiveRadio(Radio):
         journal: Callable[[str, str, str], None] | None = None,
         list_history: Callable[[], "list[PlayedEntry]"] | None = None,
         *,
+        skip_fresh: Callable[[], None] | None = None,
         moment_random: Callable[[], bool] | None = None,
         redraw: Callable[[], Verdict] | None = None,
         upcoming: Callable[[], list[UpcomingEntry]] | None = None,
@@ -75,6 +79,7 @@ class LiveRadio(Radio):
         self._retenir = remember
         self._lister_votes = list_votes
         self._passer = skip
+        self._passer_frais = skip_fresh
         self._vider_l_avance = requeue
         self._oublier = forget
         self._moment = moment
@@ -91,6 +96,9 @@ class LiveRadio(Radio):
         # votes sont refusés plutôt que jugés à l'aveugle (SPECS.md §7 n°42).
         self._nature = Kind.UNKNOWN
         self._piste: Track | None = None
+        # Un épisode de plage : « Passer » y pioche un autre épisode
+        # (SPECS.md §7 n°44). L'API le rend, la page en tire ses deux boutons.
+        self._passable = False
         self._libelle: str | None = None
         self._artiste_libelle: str | None = None
         # Ce que la déclaration a dit de la longueur, et quand elle a eu lieu.
@@ -107,6 +115,7 @@ class LiveRadio(Radio):
         *,
         length: Length | None = None,
         started_at: datetime | None = None,
+        skippable: bool = False,
     ) -> None:
         """Appelée par le programme à chaque changement de ce qui passe.
 
@@ -120,16 +129,20 @@ class LiveRadio(Radio):
         cet appel qui sert d'origine à l'écoulé (GOAL-085), sauf si `started_at`
         donne celui du vrai début. Le diffuseur redit ce qu'il joue quand un
         processus neuf le lui demande, donc après le début (SPECS.md §7 n°42).
+
+        `skippable` marque un épisode d'une plage de podcasts, le seul contenu
+        d'émission qu'un « Passer » remplace (SPECS.md §7 n°44).
         """
         with self._verrou:
             self._nature = kind
+            self._passable = skippable
             self._piste = track
             self._libelle = label
             self._artiste_libelle = artist_label
             self._longueur = length
             maintenant = None if self._horloge is None else self._horloge.now()
             self._declare_a = started_at if started_at is not None else maintenant
-        self._controle.declare(kind)
+        self._controle.declare(kind, skippable=skippable)
         # Le journal des titres (SPECS.md §7 n°27) retient ce qui commence,
         # jingles exclus. Une entrée de nature inconnue s'y inscrit avec sa
         # nature : le titre lu des étiquettes vaut mieux que rien.
@@ -147,6 +160,7 @@ class LiveRadio(Radio):
         with self._verrou:
             kind, track, label = self._nature, self._piste, self._libelle
             artist_label = self._artiste_libelle
+            passable = self._passable
             ecoule, duree = self._avancement()
         return OnAir(
             kind=NatureWeb(kind.value),
@@ -154,6 +168,7 @@ class LiveRadio(Radio):
             artist=track.artist if track is not None else artist_label,
             elapsed_seconds=None if ecoule is None else int(ecoule.total_seconds()),
             duration_seconds=None if duree is None else int(duree.total_seconds()),
+            skippable=passable,
         )
 
     def _avancement(self) -> tuple[timedelta | None, timedelta | None]:
@@ -257,8 +272,16 @@ class LiveRadio(Radio):
         command = Command(vote.value)
         with self._verrou:
             courante = self._piste
+            episode_passable = self._nature is Kind.SHOW and self._passable
         answer = self._controle.vote(command, playing=courante)
-        if answer.accepted and command is Command.SKIP and self._passer is not None:
+        if answer.accepted and command is Command.SKIP and episode_passable:
+            # Passer un épisode, c'est en piocher un autre : l'avance du
+            # diffuseur est une musique tirée sans voir la case, et la route
+            # `/skip-fresh` la remplace avant de sauter (SPECS.md §7 n°45). Le
+            # registre local jette la sienne ; l'ordre `/requeue` reste chez la
+            # route, sinon le diffuseur redemanderait deux fois.
+            self._jeter_l_avance_de_l_episode()
+        elif answer.accepted and command is Command.SKIP and self._passer is not None:
             # C'est le diffuseur qui coupe (SPECS.md §4.6). S'il est
             # injoignable, le vote reste enregistré : le morceau finira, mais
             # pèsera moins la prochaine fois.
@@ -271,6 +294,17 @@ class LiveRadio(Radio):
         if answer.accepted and self._retenir is not None and courante is not None:
             self._retenir(command, courante)
         return Verdict(accepted=answer.accepted, reason=answer.reason or None)
+
+    def _jeter_l_avance_de_l_episode(self) -> None:
+        """Ordonne la pioche d'un autre épisode, si elle est câblée.
+
+        Sans câblage, rien ne part : couper par `/skip` laisserait passer la
+        musique d'avance, ce que le vote refuse justement (SPECS.md §7 n°44).
+        """
+        if self._passer_frais is None:
+            logger.warning("aucun câblage pour piocher un autre épisode : rien n'est ordonné")
+            return
+        self._passer_frais()
 
 
 class ListenerCount:

@@ -121,6 +121,7 @@ def test_l_api_dit_ce_qui_passe_et_de_quelle_nature() -> None:
             "artist": "Air",
             "elapsed_seconds": None,
             "duration_seconds": None,
+            "skippable": False,
         },
     }
 
@@ -144,6 +145,7 @@ def test_l_api_dit_inconnu_apres_un_redemarrage() -> None:
         "artist": None,
         "elapsed_seconds": None,
         "duration_seconds": None,
+        "skippable": False,
     }
 
 
@@ -167,6 +169,7 @@ def test_un_jingle_n_a_ni_titre_ni_artiste() -> None:
         "artist": None,
         "elapsed_seconds": None,
         "duration_seconds": None,
+        "skippable": False,
     }
 
 
@@ -182,6 +185,7 @@ def test_l_api_dit_la_duree_et_l_ecoule_de_ce_qui_passe() -> None:
         "artist": "Air",
         "elapsed_seconds": 42,
         "duration_seconds": 210,
+        "skippable": False,
     }
 
 
@@ -232,6 +236,7 @@ def test_le_flux_annonce_l_antenne_des_la_connexion() -> None:
         "artist": "Air",
         "elapsed_seconds": None,
         "duration_seconds": None,
+        "skippable": False,
     }
 
 
@@ -253,6 +258,7 @@ def test_le_flux_repart_des_que_l_antenne_change() -> None:
         "artist": None,
         "elapsed_seconds": None,
         "duration_seconds": None,
+        "skippable": False,
     }
 
 
@@ -549,6 +555,7 @@ def test_l_api_dit_ce_qui_suit() -> None:
         "artist": "Jack Johnson",
         "elapsed_seconds": None,
         "duration_seconds": None,
+        "skippable": False,
     }
 
 
@@ -829,6 +836,17 @@ def test_la_page_montre_ou_en_est_ce_qui_passe() -> None:
     assert 'class="progression-barre"' in page
     assert "a.elapsed_seconds" in page and "a.duration_seconds" in page
     assert "setPositionState" in page
+
+
+def test_la_page_separe_ce_qui_se_passe_de_ce_qui_se_redemande() -> None:
+    """« Passer » suit `skippable`, « Encore » la seule nature : les deux règles
+    se lisent sur l'API, le gabarit ne décide rien (AGENTS.md §2,
+    SPECS.md §7 n°44)."""
+    page = client(FakeRadio()).get("/").get_data(as_text=True)
+    assert 'class="passer" :disabled="occupe || passerImpossible"' in page
+    assert 'class="encore" :disabled="occupe || encoreImpossible"' in page
+    assert "this.antenne.skippable" in page
+    assert "voteImpossible" not in page, "une règle unique regrisait « Passer » sur un épisode"
 
 
 def test_le_lecteur_propose_une_enceinte_seulement_en_ecoute() -> None:

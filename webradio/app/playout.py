@@ -75,7 +75,7 @@ class RadioProgramme:
         random: Random,
         jingle_folder: Path,
         *,
-        on_kind: Callable[[Kind, Track | None, str | None, Length | None], None],
+        on_kind: Callable[[Kind, Track | None, str | None, Length | None, bool], None],
         programming: Programming | None = None,
         programme_window: Window | None = None,
         shows: "Shows | None" = None,
@@ -113,7 +113,9 @@ class RadioProgramme:
         self._en_attente: deque[str] = deque()
         # L'avance écartée par un encore, rejouée telle quelle après le jingle
         # et le titre forcé (GOAL-034).
-        self._a_rejouer: deque[tuple[str, Kind, Track | None, str | None, Length | None]] = deque()
+        self._a_rejouer: deque[tuple[str, Kind, Track | None, str | None, Length | None, bool]] = (
+            deque()
+        )
         # Une émission rendue à la jonction précédente. La suivante lui
         # succède : c'est là que ses heures pleines s'abandonnent, faute de
         # jonction pendant l'émission elle-même (SPECS.md §7 n°15).
@@ -129,14 +131,14 @@ class RadioProgramme:
             return show
         jingle = self._prochain_jingle()
         if jingle is not None:
-            self._sur_nature(Kind.JINGLE, None, None, None)
+            self._sur_nature(Kind.JINGLE, None, None, None, False)
             return str(jingle)
         forced = self._piste_après_encore()
         if forced is not None:
             return forced
         if self._a_rejouer:
-            entry, kind, track, label, length = self._a_rejouer.popleft()
-            self._sur_nature(kind, track, label, length)
+            entry, kind, track, label, length, skippable = self._a_rejouer.popleft()
+            self._sur_nature(kind, track, label, length, skippable)
             return entry
         return self._prochaine_piste()
 
@@ -169,13 +171,14 @@ class RadioProgramme:
         track: Track | None,
         label: str | None,
         length: Length | None = None,
+        skippable: bool = False,
     ) -> None:
         """Replace une entrée déjà demandée, à jouer après l'effet d'un encore."""
-        self._a_rejouer.append((entry, kind, track, label, length))
+        self._a_rejouer.append((entry, kind, track, label, length, skippable))
 
     def take_back_replay(
         self, entry: str
-    ) -> tuple[Kind, Track | None, str | None, Length | None] | None:
+    ) -> tuple[Kind, Track | None, str | None, Length | None, bool] | None:
         """Retire une entrée replacée et rend sa nature, ou `None` si elle n'y
         est pas.
 
@@ -183,10 +186,10 @@ class RadioProgramme:
         commencée : son annonce et le battement qui replace l'avance sont
         concurrents. Elle est alors à l'antenne, pas à rejouer.
         """
-        for index, (candidate, kind, track, label, length) in enumerate(self._a_rejouer):
+        for index, (candidate, kind, track, label, length, passable) in enumerate(self._a_rejouer):
             if candidate == entry:
                 del self._a_rejouer[index]
-                return (kind, track, label, length)
+                return (kind, track, label, length, passable)
         return None
 
     def forget_pending(self) -> None:
@@ -321,7 +324,7 @@ class RadioProgramme:
             items.append(Upcoming(Kind.MUSIC, self._encore_force, None, instant))
             if instant is not None:
                 instant = instant + self._encore_force.duration
-        for _, kind, track, label, _length in self._a_rejouer:
+        for _, kind, track, label, _length, _passable in self._a_rejouer:
             items.append(Upcoming(kind, track, label, instant))
             if track is not None and instant is not None:
                 instant = instant + track.duration
@@ -517,10 +520,10 @@ class RadioProgramme:
         self._en_attente.extend(self._jingles.due_now(during_show=due is not None))
         if due is None:
             return None
-        show, audio, episode, length = due
+        show, audio, episode, length, skippable = due
         libelle = f"{show.name} · {episode}" if episode else show.name
         logger.info("émission « %s » à l'antenne", libelle)
-        self._sur_nature(Kind.SHOW, None, libelle, length)
+        self._sur_nature(Kind.SHOW, None, libelle, length, skippable)
         return audio
 
     def _prochain_jingle(self) -> Path | None:
@@ -596,7 +599,7 @@ class RadioProgramme:
             return None
         for fallback in pick.fallbacks:
             logger.info("repli : %s", fallback)
-        self._sur_nature(Kind.MUSIC, pick.track, None, None)
+        self._sur_nature(Kind.MUSIC, pick.track, None, None, False)
         return self._source.entry(pick.track)
 
     def _piste_après_encore(self) -> str | None:
@@ -606,7 +609,7 @@ class RadioProgramme:
         if track is None:
             return None
         self._encore_force, self._encore_ancre = None, None
-        self._sur_nature(Kind.MUSIC, track, None, None)
+        self._sur_nature(Kind.MUSIC, track, None, None, False)
         return self._source.entry(track)
 
     def _resoudre_encore(self) -> None:
@@ -695,5 +698,5 @@ class RadioProgramme:
             allowed = self._fenetre_programme.filter_out(tracks)
         track = self._hasard.pick(allowed)
         self._fenetre_programme.remember(track)
-        self._sur_nature(Kind.MUSIC, track, None, None)
+        self._sur_nature(Kind.MUSIC, track, None, None, False)
         return self._source.entry(track)

@@ -252,6 +252,32 @@ def on_requeue(request, response) =
 end
 harbor.http.register(port=port, method="POST", "/requeue", on_requeue)
 
+# Passer un épisode de plage : c'en piocher un autre (SPECS.md §7 n°44). Vider
+# l'avance puis sauter laisse 5,75 s de blanc, le temps que l'entrée fraîche se
+# résolve ; remplacer d'abord garde l'antenne pleine jusqu'à la bascule
+# (docs/liquidsoap.md §12). L'ordre est imposé : une requête rendue par
+# `queue()` est détruite par le `set_queue` suivant, donc `fetch()` ne peut pas
+# précéder la purge (§14).
+#
+# `fetch()` bloque ce gestionnaire toute la résolution, jusqu'à
+# `settings.request.timeout` : l'API poste sans attendre la réponse, et ce
+# journal est le seul témoin de ce qui s'est passé.
+def on_skip_fresh(request, response) =
+  ignore(request)
+  if piste_commencee() then
+    log("épisode passé sur ordre de l'API : l'avance est remplacée avant le saut")
+    programme.set_queue([])
+    resolue = programme.fetch()
+    log("entrée fraîche résolue : #{resolue}")
+    sauter()
+    log("épisode passé : le saut est fait")
+  else
+    log("saut demandé à vide : rien ne passe, il mangerait le premier morceau")
+  end
+  response.data("passé")
+end
+harbor.http.register(port=port, method="POST", "/skip-fresh", on_skip_fresh)
+
 # La purge de fin de direct, maintenant que `programme` existe. Le script ne
 # choisit rien : il jette ce qui a rassis et redemande à l'API
 # (ARCHITECTURE.md §4).

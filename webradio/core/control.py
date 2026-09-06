@@ -14,6 +14,7 @@ Trois règles :
 """
 
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 
@@ -55,6 +56,16 @@ REFUSAL_REASONS = {
     Kind.UNKNOWN: "la radio vient de redémarrer : elle ne sait pas encore ce qui passe",
 }
 
+# Un épisode de plage se passe, mais on ne demande pas « encore » d'une
+# émission : il n'y a ni artiste ni genre à prolonger (SPECS.md §7 n°44).
+ENCORE_PENDANT_UNE_EMISSION = (
+    "une émission est en cours : on ne demande pas « encore » d'une émission"
+)
+
+# Passer un épisode, c'est en piocher un autre. Sans autre épisode neuf, il n'y
+# a rien à mettre à la place (SPECS.md §4.11, §7 n°44).
+SANS_AUTRE_EPISODE = "aucun autre épisode à piocher : l'épisode finit"
+
 
 @dataclass(frozen=True, slots=True)
 class Answer:
@@ -90,11 +101,22 @@ class Control:
         random: Random,
         jingles: Jingles,
         kind: Kind = Kind.UNKNOWN,
+        *,
+        another_episode: Callable[[], bool] | None = None,
     ) -> None:
         self._source = source
         self._hasard = random
         self._jingles = jingles
         self._nature = kind
+        # Ce qui passe est-il un épisode de plage, donc passable ? Déclaré avec
+        # la nature, parce que seule la charnière sait d'où vient l'entrée.
+        self._passable = False
+        # Y a-t-il un autre épisode neuf à piocher ? Lu au moment du vote, pas
+        # à la déclaration : une case peut s'être fermée entre-temps, et un
+        # drapeau posé il y a une heure mentirait (SPECS.md §7 n°44). Sans
+        # rappel, un épisode passable ne l'est pas : rien ne garantit qu'il y a
+        # de quoi le remplacer.
+        self._autre_episode = another_episode
         self._saut_demande = False
         self._encore: More | None = None
         self._servis: set[str] = set()
@@ -107,9 +129,18 @@ class Control:
     def kind(self) -> Kind:
         return self._nature
 
-    def declare(self, kind: Kind) -> None:
-        """Déclare ce qui passe maintenant, ce qui permet les refus."""
+    @property
+    def skippable(self) -> bool:
+        return self._passable
+
+    def declare(self, kind: Kind, *, skippable: bool = False) -> None:
+        """Déclare ce qui passe maintenant, ce qui permet les refus.
+
+        `skippable` marque un épisode d'une plage de podcasts : celui-là se
+        passe, en piochant un autre épisode (SPECS.md §7 n°44).
+        """
         self._nature = kind
+        self._passable = skippable
 
     def vote(self, command: Command, playing: Track | None = None) -> Answer:
         """Applique le vote : une voix suffit (SPECS.md §7 n°10).
@@ -118,15 +149,36 @@ class Control:
         `encore` vise (GOAL-067). Deux votes avant la même jonction gardent la
         dernière ancre.
         """
-        reason = REFUSAL_REASONS.get(self._nature)
-        if reason is not None:
-            return Answer(accepted=False, reason=reason)
+        if self._nature is Kind.SHOW:
+            refus = self._refus_pendant_une_emission(command)
+            if refus is not None:
+                return refus
+        else:
+            reason = REFUSAL_REASONS.get(self._nature)
+            if reason is not None:
+                return Answer(accepted=False, reason=reason)
         if command is Command.SKIP:
             self._saut_demande = True
         else:
             self._encore = More(playing)
             self._jingles.mark_more()
         return Answer(accepted=True)
+
+    def _refus_pendant_une_emission(self, command: Command) -> Answer | None:
+        """Le refus qui s'applique pendant une émission, ou `None` si le vote
+        passe.
+
+        Seul un `stop` sur un épisode de plage passe, et seulement s'il reste
+        un épisode neuf à piocher : la question se pose au réseau de la
+        charnière, pas ici (SPECS.md §7 n°44).
+        """
+        if command is Command.MORE:
+            return Answer(accepted=False, reason=ENCORE_PENDANT_UNE_EMISSION)
+        if not self._passable:
+            return Answer(accepted=False, reason=REFUSAL_REASONS[Kind.SHOW])
+        if self._autre_episode is None or not self._autre_episode():
+            return Answer(accepted=False, reason=SANS_AUTRE_EPISODE)
+        return None
 
     def take_skip(self) -> bool:
         """Vrai s'il y a un `stop` à honorer. L'appel le consomme."""

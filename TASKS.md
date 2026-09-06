@@ -231,9 +231,10 @@ sur la musique que le diffuseur avait d'avance. Deux défauts distincts, le
 redémarrage aveugle (T02, close) et l'avance qui ne connaît pas les cases de
 podcasts (T04, T05).
 
-**Prochaine tâche** : GOAL-086-T05, `stop` pendant un épisode de plage qui
-pioche un autre épisode (T01, T02, T03 et T04 sont faites). Puis GOAL-082-T04,
-le seuil de vivier appliqué ou non à l'ancre d'`artist_fan`.
+**Prochaine tâche** : GOAL-086-T06, la documentation finale et l'**écoute
+réelle** de la manœuvre pendant une vraie plage de podcasts (T01 à T05 sont
+faites). Puis GOAL-082-T04, le seuil de vivier appliqué ou non à l'ancre
+d'`artist_fan`.
 
 ---
 
@@ -551,11 +552,42 @@ L'analyse, rejouée sur la pile réelle avec `FrozenClock`, sépare **deux défa
       commencerait après demanderait une durée que la case n'a pas ; c'est le
       rejugement qui jette l'épisode demandé mais pas commencé. Décision n°43
       (SPECS.md §7), qui amende la n°33 et la n°35.
-- [ ] **GOAL-086-T05** — `stop` pendant un épisode de plage pioche un autre
-      épisode : `Control.declare(kind, skippable)`, `Shows` marque l'épisode
-      d'une plage passable, refus motivé sans autre épisode neuf, l'API dit
-      `skippable`, la page sépare Passer et Encore, le diffuseur remplace
-      l'avance avant de sauter (mécanisme selon T01).
+- [x] **GOAL-086-T05** — `stop` pendant un épisode de plage pioche un autre
+      épisode. `Control.declare(kind, skippable=…)` : `stop` accepté sur un
+      épisode de plage, `encore` refusé sur toute émission avec son propre
+      motif, et refus motivé — « aucun autre épisode à piocher : l'épisode
+      finit » — quand aucun flux n'a plus de neuf. La question se lit au
+      **moment du vote**, par un rappel injecté (`Shows.has_another_episode`)
+      qui compte les flux **en cache** ayant du neuf : ni hasard ni réseau
+      consommés, et un test le constate.
+      **Le drapeau voyage** : `Shows.due()` le rend, `RadioProgramme.on_kind`
+      et `Pending` le portent, l'annotation `radio_skippable` s'ajoute aux clés
+      de T03 pour qu'un processus neuf retrouve un épisode passable, et
+      `OnAir.skippable` le rend à l'API — la page en tire deux règles
+      distinctes, Passer sur `musique` ou `skippable`, Encore sur `musique`
+      seul.
+      **Le diffuseur remplace avant de sauter** : route `POST /skip-fresh`
+      (`set_queue([])`, `fetch()`, `skip()`), refusée à vide comme `/skip`,
+      journalisée à chaque étape ; `LiveRadio` l'ordonne au lieu de `/skip` et
+      jette son avance sans `/requeue` supplémentaire ; l'ordre part d'un fil
+      détaché, sans attendre une réponse que `fetch()` retient toute la
+      résolution. Décisions n°44 et n°45 (SPECS.md §7).
+      **Mesuré sur la maquette de §12** (docs/liquidsoap.md §14) : la variante
+      qui devait éviter le double tirage — `fetch()` d'abord, puis
+      `set_queue([la fraîche])` — **ne marche pas**. `set_queue` détruit les
+      requêtes de la file, y compris celle qu'on lui repasse : `set_queue
+      (queue())` fait tomber la file de 1 à 0, et la variante perd l'entrée
+      fraîche après avoir bloqué le gestionnaire 8,04 s pour la télécharger.
+      À l'antenne : pas de blanc (ton `a` de 0,50 à 16,50 s sans
+      discontinuité), mais ni `b` ni `c` ne passent et c'est `d`, tiré par le
+      `/next` d'après, qui prend l'antenne à 17,00 s — **deux tirages quand
+      même**, dont un jeté. C'est donc la route de §12 qui est retenue, son
+      double tirage assumé : ses deux entrées sont toutes deux consommées.
+      **Résidus** : sans `podcast.cache_seconds`, rien n'est gardé et le vote
+      est refusé comme s'il n'y avait plus rien à piocher ; l'API ne sait pas
+      laquelle des deux entrées tirées prend l'antenne, c'est le `/playing` qui
+      le lui dit ; deux « Passer » coup sur coup ne sont toujours pas mesurés
+      (docs/liquidsoap.md §12).
 - [ ] **GOAL-086-T06** — Documentation (SPECS.md §4.6, §4.8, §4.11 ;
       ARCHITECTURE.md ; README) et **écoute réelle** de la manœuvre pendant une
       vraie plage de podcasts (AGENTS.md §4.1).

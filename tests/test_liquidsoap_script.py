@@ -123,7 +123,7 @@ def test_un_saut_a_antenne_vide_ne_laisse_aucun_reliquat_au_premier_auditeur() -
     assert "if listeners() == 0 then reliquat_a_taire := true end" in saut.group()
     assert "programme.skip()" in saut.group()
     appels = re.findall(r"(?<!def )sauter\(\)", code)
-    assert len(appels) == 2, "le saut de l'API et celui de fin de direct passent par là"
+    assert len(appels) == 3, "le saut de l'API, celui d'un épisode et celui de fin de direct"
     transition = re.search(r"def enchainer\(a, b\).*?\nend\n", code, re.DOTALL)
     assert transition is not None
     assert re.search(
@@ -184,6 +184,30 @@ def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
     code = _code()
     assert '"/requeue"' in code
     assert "set_queue([])" in code
+
+
+def test_passer_un_episode_remplace_l_avance_avant_de_sauter() -> None:
+    """Vider l'avance puis sauter laisse 5,75 s de blanc, le temps que l'entrée
+    fraîche se résolve ; `fetch()` avant le saut garde l'antenne pleine. L'ordre
+    est imposé : `set_queue` détruit les requêtes de la file, donc une entrée
+    fraîche obtenue avant lui ne survivrait pas (docs/liquidsoap.md §12 et §14,
+    GOAL-086-T05)."""
+    code = _code()
+    assert '"/skip-fresh"' in code
+    route = re.search(r"def on_skip_fresh.*?\nend\n", code, re.DOTALL)
+    assert route is not None
+    corps = route.group()
+    assert corps.index("programme.set_queue([])") < corps.index("programme.fetch()")
+    assert corps.index("programme.fetch()") < corps.index("sauter()")
+
+
+def test_passer_un_episode_se_refuse_a_vide_comme_un_saut() -> None:
+    """Un saut sans piste en cours consomme l'entrée fraîche
+    (docs/liquidsoap.md §9) : la route combinée n'y échappe pas."""
+    route = re.search(r"def on_skip_fresh.*?\nend\n", _code(), re.DOTALL)
+    assert route is not None
+    assert "if piste_commencee() then" in route.group()
+    assert "else" in route.group(), "un refus muet serait indistinguable d'une panne"
 
 
 def test_le_script_redit_ce_qu_il_joue_sur_ordre_de_l_api() -> None:

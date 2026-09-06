@@ -176,6 +176,17 @@ GOAL-085) : une durée, ou la fin absolue d'un direct, ou rien. Elle voyage de
 ce qui choisit l'entrée jusqu'à `app/radio.py`, et c'est l'instant de l'annonce
 du diffuseur qui sert d'origine à l'écoulé rendu par l'API (SPECS.md §4.8).
 
+**Et cette avance peut être remplacée à la demande.** Un « Passer » voté pendant
+un épisode d'une plage de podcasts doit mener à un autre épisode, pas à la
+musique tirée avant que la case ne s'ouvre (SPECS.md §7 n°44). La charnière
+ordonne alors `/skip-fresh` plutôt que `/skip` : le script y vide sa file,
+résout une entrée fraîche, puis saute — dans cet ordre, `set_queue` détruisant
+les requêtes qu'il remplace (docs/liquidsoap.md §14). Le registre local jette
+son avance sans ordonner de `/requeue`, la route s'en chargeant elle-même, et
+l'ordre part **sans attendre la réponse** : `fetch()` bloque le gestionnaire du
+diffuseur toute la résolution de l'épisode. Le prix est un tirage de plus — la
+purge réveille le fil d'avance, qui tire lui aussi (SPECS.md §7 n°45).
+
 **Et cette avance a une durée de vie.** Elle survit telle quelle à une pause
 sans auditeur (docs/liquidsoap.md §5.bis) — c'est ainsi qu'un jingle de 19 h
 s'est entendu à 22 h 28. Au retour d'un auditeur après plus de
@@ -540,6 +551,21 @@ Il y a un quatrième motif : `Kind.UNKNOWN`, la nature d'un `Control` qui n'a
 encore reçu aucune déclaration. Le diffuseur n'annonce qu'au début d'une entrée,
 donc un processus redémarré en plein épisode ne sait pas ce qui passe et refuse
 les votes jusqu'à la première annonce (SPECS.md §7 n°42).
+
+Une émission n'est plus un motif unique. `Control.declare(kind, skippable=…)`
+marque l'épisode d'une plage de podcasts, et trois motifs s'y distinguent
+(SPECS.md §7 n°44) :
+
+| Vote | Sur un épisode de plage | Sur une autre émission |
+|---|---|---|
+| `stop` | accepté, s'il reste un épisode neuf ; sinon « aucun autre épisode à piocher : l'épisode finit » | « on ne passe pas une émission » |
+| `encore` | « on ne demande pas “encore” d'une émission » | idem |
+
+« Reste-t-il un épisode neuf ? » ne se répond pas dans le noyau : c'est un
+**rappel injecté** (`Shows.has_another_episode`), lu au moment du vote plutôt
+qu'à la déclaration — une case peut s'être vidée depuis. Il ne consomme ni le
+hasard ni le réseau : il compte les flux du cache qui ont du neuf, il ne tire
+pas lequel.
 
 ### 5.2 Les émissions, et l'absence de persistance
 

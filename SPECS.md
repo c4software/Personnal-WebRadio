@@ -328,6 +328,29 @@ Deux commandes, adressées à la station en cours de diffusion :
 jingle horaire ou un flash d'information**, elles ne s'appliquent pas. On ne
 passe pas un flash, et on ne demande pas « encore » d'un jingle.
 
+**Un épisode d'une plage de podcasts se passe** — décision n°44, prise le
+2026-09-06. Une plage enchaîne des épisodes (§7 n°35) : « Passer » y **pioche un
+autre épisode**, comme il pioche un autre morceau dans la musique. Le refus ne
+subsiste que là où il n'y a rien à mettre à la place :
+
+| Ce qui passe | « Passer » | « Encore » |
+|---|---|---|
+| Un épisode d'une plage, avec du neuf ailleurs | **accepté** : un autre épisode prend l'antenne | refusé |
+| Un épisode d'une plage, sans autre épisode neuf | refusé : « aucun autre épisode à piocher : l'épisode finit » | refusé |
+| Un podcast seul, une vidéo | refusé : il n'y a qu'un épisode dans la case | refusé |
+| Un direct, un flash | refusé : un direct ne se saute pas | refusé |
+
+« Encore » reste refusé sur **toute** émission, avec son propre motif : il n'y a
+ni artiste ni genre à prolonger derrière un épisode.
+
+L'épisode passé **reste inscrit comme diffusé** : il a réellement pris l'antenne,
+et le repasser à la jonction suivante serait pire que de l'avoir passé (§4.11.1).
+Un « Passer » sur un épisode **ne pèse sur aucun artiste** : il n'y a pas de piste
+à retenir, la pondération (§4.12) ne connaît que la musique.
+
+L'API dit lequel des deux boutons est actif (`skippable`, §4.8) : la page ne le
+déduit pas de la nature.
+
 Une commande reçue pendant un jingle ou un flash n'est pas perdue en silence :
 elle est **refusée explicitement**, et celui qui l'a envoyée l'apprend (§4.8).
 Elle n'est ni mise en attente, ni appliquée au morceau suivant en douce — les
@@ -494,12 +517,16 @@ Quand la durée est inconnue, l'écoulé reste annoncé : on sait depuis quand �
 passe, pas jusqu'à quand. Quand personne n'écoute, il n'y a pas d'antenne, donc
 rien à dire.
 
-`GET /api/on-air` et le flux `GET /api/events` portent `elapsed_seconds` et
-`duration_seconds` à côté de `kind`, `title` et `artist`, dans `on_air_now`
-comme dans `up_next` (nuls des deux côtés quand rien ne les donne, et toujours
+`GET /api/on-air` et le flux `GET /api/events` portent `elapsed_seconds`,
+`duration_seconds` et `skippable` à côté de `kind`, `title` et `artist`, dans
+`on_air_now` comme dans `up_next` (nuls des deux côtés quand rien ne les donne, et toujours
 pour ce qui suit, qui n'a pas commencé). Le flux **n'émet pas** pour l'écoulé
 seul : il pousserait un message par tour. C'est la page qui fait avancer la
 barre entre deux messages, et qui la recale sur l'écoulé du message suivant.
+
+`skippable` dit qu'un « Passer » a de quoi piocher autre chose : seul un épisode
+d'une plage de podcasts le porte (§4.6, §7 n°44). La page en tire l'état de son
+bouton « Passer » ; « Encore » ne s'active, lui, que sur `kind = "musique"`.
 
 > **La position annoncée est celle du diffuseur, pas celle de l'oreille.** Elle
 > est en avance de tout ce qui tamponne entre les deux — le navigateur, le
@@ -881,7 +908,8 @@ même raison : ne rien couper.
   la musique et journalise. Elle ne diffuse jamais une émission incomplète.
 - **`stop` et `encore` n'y sont pas applicables** : ils sont refusés
   explicitement, comme pendant un jingle ou un flash (§4.6). On ne passe pas une
-  émission.
+  émission — **sauf un épisode d'une plage**, qui pioche un autre épisode
+  (§4.6, §7 n°44). « Encore » y reste refusé dans tous les cas.
 
 #### Ce qu'une émission a de différent
 
@@ -1840,6 +1868,46 @@ de case de plage : leur avance ne se rejuge pas de ce fait.
 > Elle ne change qu'à l'ouverture et à la fermeture d'une case, et au passage
 > de demandé à commencé, faute de quoi un `/requeue` partirait à chaque
 > battement.
+
+**n°44 — Un épisode d'une plage de podcasts se passe, en en piochant un autre.**
+Tranchée le 2026-09-06, sur demande de l'auteur. Pendant un épisode d'une plage
+(une émission à `feeds` et `end`, n°35), « Passer » est **accepté** et fait
+piocher un autre épisode. Il reste refusé sur un podcast seul, une vidéo et un
+direct — rien à piocher, et un direct ne se saute pas — et refusé, avec un motif
+qui le dit, quand aucun flux de la plage n'a plus d'épisode neuf. « Encore »
+reste refusé sur toute émission, avec son propre motif. L'épisode passé reste
+inscrit comme diffusé, et le vote ne pèse sur aucun artiste.
+> *Raison* : le 2026-09-06 à 21 h 12, un « Passer » accepté à tort pendant un
+> épisode a envoyé l'antenne sur la musique que le diffuseur tenait d'avance
+> (n°42). Refuser tout net aurait suffi à corriger le défaut ; l'auteur a
+> demandé l'inverse — puisqu'une plage enchaîne, passer doit y mener au tour
+> suivant, comme il mène au morceau suivant dans la musique.
+> *Ce que cela coûte* : la question « reste-t-il un épisode neuf ? » se pose au
+> moment du vote, et se lit dans le **cache** des flux (`podcast.cache_seconds`)
+> pour ne pas faire attendre l'auditeur un hébergeur. Sans cache — `cache_seconds
+> = 0` — rien n'est gardé, la question n'a pas de réponse sans réseau, et le vote
+> est refusé comme s'il n'y avait plus rien à piocher.
+
+**n°45 — Passer un épisode remplace l'avance avant de sauter, et coûte deux
+tirages.** Tranchée le 2026-09-06, d'après mesure (docs/liquidsoap.md §12
+et §14). Le diffuseur reçoit un ordre `/skip-fresh` qui, dans cet ordre, vide sa
+file, en résout une entrée fraîche, puis saute. L'API poste cet ordre **sans
+attendre la réponse**.
+> *Raison* : le diffuseur tient une entrée d'avance, tirée avant que la case
+> ne s'ouvre — une musique. Vider l'avance puis sauter aussitôt laisse **5,75 s
+> de blanc** pour un épisode de 8 s de résolution ; remplacer d'abord garde
+> l'antenne pleine jusqu'à la bascule, sans aucun blanc mesuré. L'entrée fraîche
+> entre au même instant dans les deux cas : ce qu'on gagne, on le gagne en
+> épisode en cours plutôt qu'en silence.
+> *Ce que cela coûte* : `set_queue([])` réveille le fil d'avance, qui tire lui
+> aussi — un « Passer » vaut donc **deux** tirages, et c'est le plus vite résolu
+> qui prend l'antenne, l'autre devenant l'avance. Les deux sont consommés.
+> L'ordre inverse — résoudre d'abord, ne garder que la fraîche — a été mesuré et
+> **ne marche pas** : `set_queue` détruit les requêtes de la file, y compris
+> celle qu'on lui repasse (docs/liquidsoap.md §14). Enfin, `fetch()` bloque le
+> gestionnaire du diffuseur toute la résolution, jusqu'à 120 s pour un épisode
+> lourd : l'API n'attend pas la réponse, et le journal du diffuseur est le seul
+> témoin de ce que l'ordre a fait.
 
 ### Encore ouvert
 

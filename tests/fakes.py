@@ -186,9 +186,10 @@ class FakeProgrammeEpieLeVerrou(RadioProgramme):
         track: Track | None,
         label: str | None,
         length: Length | None = None,
+        skippable: bool = False,
     ) -> None:
         self._tenu("replay_later")
-        super().replay_later(entry, kind, track, label, length)
+        super().replay_later(entry, kind, track, label, length, skippable)
 
 
 class FakeEtatQuiCompteSesLectures(SqliteState):

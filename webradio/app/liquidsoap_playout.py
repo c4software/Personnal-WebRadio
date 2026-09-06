@@ -42,6 +42,10 @@ LIVE = "live:"
 KIND = "radio_kind"
 LABEL = "radio_label"
 DURATION = "radio_duration"
+# Un épisode de plage se passe, contrairement au reste des émissions : sans
+# cette clé, une restauration après redémarrage le rendrait non passable
+# (SPECS.md §7 n°44).
+SKIPPABLE = "radio_skippable"
 
 # Un jingle court ne doit pas être mangé par le fondu de deux secondes des
 # morceaux : il porte ses propres durées via les métadonnées `liq_fade_*` que
@@ -156,6 +160,9 @@ class Pending:
     moment: object = None
     decided_at: datetime | None = None
     rank: int = 0
+    # Un épisode d'une plage de podcasts : « Passer » y pioche un autre
+    # épisode au lieu d'être refusé (SPECS.md §7 n°44).
+    skippable: bool = False
 
 
 class LiquidsoapPlayout:
@@ -184,11 +191,12 @@ class LiquidsoapPlayout:
         # file, que la préparation de fond lit dans un autre fil (GOAL-083-T06).
         # Les ordres vers le diffuseur restent hors verrou : ce sont des POST.
         self._verrou = threading.RLock()
-        self._derniere: tuple[Kind, Track | None, str | None, Length | None] = (
+        self._derniere: tuple[Kind, Track | None, str | None, Length | None, bool] = (
             Kind.MUSIC,
             None,
             None,
             None,
+            False,
         )
         self._en_attente: dict[str, Pending] = {}
         # Dossier des fichiers à usage unique (cache YouTube) : un fichier lu
@@ -232,20 +240,21 @@ class LiquidsoapPlayout:
         track: Track | None,
         label: str | None,
         length: Length | None = None,
+        skippable: bool = False,
     ) -> None:
         """À brancher sur `RadioProgramme(on_kind=...)`. Retient sans déclarer."""
         with self._verrou:
-            self._derniere = (kind, track, label, length)
+            self._derniere = (kind, track, label, length, skippable)
 
     def next_entry(self) -> str | None:
         with self._verrou:
             entry = self._programme.next_entry()
             if entry is None:
                 return None
-            kind, track, label, length = self._derniere
+            kind, track, label, length, skippable = self._derniere
             if kind is Kind.MUSIC and track is not None:
                 length = Length(duration=self._duree_coupee(track))
-            entry = self._decrire(entry, kind, track, label, length)
+            entry = self._decrire(entry, kind, track, label, length, skippable)
             self._rang += 1
             self._en_attente[entry] = Pending(
                 kind,
@@ -255,6 +264,7 @@ class LiquidsoapPlayout:
                 moment=self._programme.current_moment(),
                 decided_at=None if self._horloge is None else self._horloge.now(),
                 rank=self._rang,
+                skippable=skippable,
             )
             if kind is Kind.SHOW:
                 self._emission_demandee = (entry, self._rang)
@@ -331,6 +341,7 @@ class LiquidsoapPlayout:
         track: Track | None,
         label: str | None,
         length: Length | None,
+        skippable: bool,
     ) -> str:
         """L'entrée, préfixée de ce qu'elle doit dire d'elle-même.
 
@@ -361,6 +372,8 @@ class LiquidsoapPlayout:
         if length is not None and length.duration is not None:
             secondes = length.duration.total_seconds()
             annotations.append(f"{DURATION}={_citer(f'{secondes:g}')}")
+        if skippable:
+            annotations.append(f"{SKIPPABLE}={_citer('oui')}")
         return ANNOTATE + ",".join(annotations) + ":" + entry
 
     def playing(
@@ -414,7 +427,12 @@ class LiquidsoapPlayout:
             self._radio.declare(Kind.UNKNOWN, None, title, artist_label=artist, started_at=debut)
             return
         self._radio.declare(
-            pending.kind, pending.track, pending.label, length=pending.length, started_at=debut
+            pending.kind,
+            pending.track,
+            pending.label,
+            length=pending.length,
+            started_at=debut,
+            skippable=pending.skippable,
         )
 
     def _maintenant(self) -> datetime | None:
@@ -443,13 +461,16 @@ class LiquidsoapPlayout:
             return False
         libelle = annotations.get(LABEL)
         length = _longueur_lue(annotations.get(DURATION))
+        passable = annotations.get(SKIPPABLE) is not None
         logger.info("entrée d'avant ce démarrage, restaurée par ce qu'elle dit : %s", kind.value)
         if kind is Kind.MUSIC:
             self._radio.declare(
                 kind, None, title or libelle, artist_label=artist, length=length, started_at=debut
             )
         else:
-            self._radio.declare(kind, None, libelle, length=length, started_at=debut)
+            self._radio.declare(
+                kind, None, libelle, length=length, started_at=debut, skippable=passable
+            )
         return True
 
     def _oublier_les_demandes_anterieures(self, rang: int) -> None:
@@ -486,8 +507,8 @@ class LiquidsoapPlayout:
         # Une émission replacée n'a plus de rang (`stash_for_replay`) ; c'est
         # ici qu'elle s'inscrit si c'est elle qui prend l'antenne.
         self._programme.show_started(_adresse(entry))
-        kind, track, label, length = nature
-        return Pending(kind, track, label, length=length)
+        kind, track, label, length, skippable = nature
+        return Pending(kind, track, label, length=length, skippable=skippable)
 
     def _signaler_l_emission(self, entry: str, rang: int | None) -> None:
         """Dit au programme ce qu'il est advenu de l'émission demandée.
@@ -635,7 +656,12 @@ class LiquidsoapPlayout:
                 if self._emission_demandee is not None and self._emission_demandee[0] == entry:
                     self._emission_demandee = None
                 self._programme.replay_later(
-                    entry, pending.kind, pending.track, pending.label, pending.length
+                    entry,
+                    pending.kind,
+                    pending.track,
+                    pending.label,
+                    pending.length,
+                    pending.skippable,
                 )
         # Sans attendre que le diffuseur redemande, pour que la liste des
         # prochains titres montre le morceau forcé dès le vote (GOAL-067), mais
@@ -644,11 +670,16 @@ class LiquidsoapPlayout:
         # (GOAL-075).
         self._preparer_bientot()
 
-    def drop_advance(self) -> None:
+    def drop_advance(self, *, requeue: bool = True) -> None:
         """Jette l'avance sans rien replacer, chez le diffuseur comme dans la
         file, et fait redemander : ce qui a été tiré sous une suite rompue ne
         doit pas revenir (GOAL-059). Le morceau en cours finit, l'habillage dû
-        reste dû."""
+        reste dû.
+
+        `requeue=False` pour l'appelant dont l'ordre vide déjà la file du
+        diffuseur : `/skip-fresh` remplace l'avance lui-même, et un `/requeue`
+        de plus ferait redemander deux fois (SPECS.md §7 n°45).
+        """
         with self._verrou:
             jetees = [e for e in self._en_attente if e != self._entree_en_cours]
             for entry in jetees:
@@ -658,7 +689,7 @@ class LiquidsoapPlayout:
         logger.info("l'avance est jetée : la suite est rompue, le diffuseur redemande")
         # Le `/requeue` reste hors du verrou : c'est un POST vers le diffuseur,
         # et `/playout/next` attendrait ce voyage.
-        if self._ordonner_requeue is not None:
+        if requeue and self._ordonner_requeue is not None:
             self._ordonner_requeue()
 
     def declare_listeners(self, count: int) -> None:

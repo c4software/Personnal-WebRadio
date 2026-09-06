@@ -72,6 +72,10 @@ class OnAir:
     (SPECS.md §4.8, GOAL-085). Nuls quand rien ne permet de les connaître : une
     vidéo, un jingle, un épisode sans durée dans son flux. La durée peut
     manquer alors que l'écoulé est connu.
+
+    `skippable` dit qu'un « Passer » a de quoi piocher autre chose : seul un
+    épisode d'une plage de podcasts l'a (SPECS.md §7 n°44). La page en tire
+    l'état de son bouton, elle ne le déduit pas de la nature.
     """
 
     kind: Kind
@@ -79,6 +83,7 @@ class OnAir:
     artist: str | None = None
     elapsed_seconds: int | None = None
     duration_seconds: int | None = None
+    skippable: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -225,7 +230,7 @@ class Radio(Protocol):
         ...
 
 
-def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | int | None] | None:
+def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | int | bool | None] | None:
     if on_air_now is None:
         return None
     return {
@@ -234,6 +239,7 @@ def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | int | None]
         "artist": on_air_now.artist,
         "elapsed_seconds": on_air_now.elapsed_seconds,
         "duration_seconds": on_air_now.duration_seconds,
+        "skippable": on_air_now.skippable,
     }
 
 
