@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
+from webradio.app.length import Length
 from webradio.app.playout import RadioProgramme, Upcoming
 from webradio.app.radio import ListenerCount, LiveRadio
 from webradio.core.clock import Clock
@@ -55,6 +56,9 @@ class Pending:
     kind: Kind
     track: Track | None
     label: str | None
+    # Ce que l'entrée doit durer, quand on le sait : la façade en tire
+    # l'écoulé annoncé à l'antenne (GOAL-085).
+    length: Length | None = None
     moment: object = None
     decided_at: datetime | None = None
     rank: int = 0
@@ -85,7 +89,12 @@ class LiquidsoapPlayout:
         # file, que la préparation de fond lit dans un autre fil (GOAL-083-T06).
         # Les ordres vers le diffuseur restent hors verrou : ce sont des POST.
         self._verrou = threading.RLock()
-        self._derniere: tuple[Kind, Track | None, str | None] = (Kind.MUSIC, None, None)
+        self._derniere: tuple[Kind, Track | None, str | None, Length | None] = (
+            Kind.MUSIC,
+            None,
+            None,
+            None,
+        )
         self._en_attente: dict[str, Pending] = {}
         # Dossier des fichiers à usage unique (cache YouTube) : un fichier lu
         # s'efface dès que la suite commence (GOAL-028).
@@ -117,10 +126,16 @@ class LiquidsoapPlayout:
         # lanceur qui la sort de la requête (GOAL-075).
         self._en_fond = in_background
 
-    def on_kind(self, kind: Kind, track: Track | None, label: str | None) -> None:
+    def on_kind(
+        self,
+        kind: Kind,
+        track: Track | None,
+        label: str | None,
+        length: Length | None = None,
+    ) -> None:
         """À brancher sur `RadioProgramme(on_kind=...)`. Retient sans déclarer."""
         with self._verrou:
-            self._derniere = (kind, track, label)
+            self._derniere = (kind, track, label, length)
 
     def next_entry(self) -> str | None:
         with self._verrou:
@@ -131,12 +146,15 @@ class LiquidsoapPlayout:
                 entry = JINGLE_FADES + entry
             else:
                 entry = self._couper_au_plafond(entry)
-            kind, track, label = self._derniere
+            kind, track, label, length = self._derniere
+            if kind is Kind.MUSIC and track is not None:
+                length = Length(duration=self._duree_coupee(track))
             self._rang += 1
             self._en_attente[entry] = Pending(
                 kind,
                 track,
                 label,
+                length=length,
                 moment=self._programme.current_moment(),
                 decided_at=None if self._horloge is None else self._horloge.now(),
                 rank=self._rang,
@@ -182,9 +200,7 @@ class LiquidsoapPlayout:
         track = self._en_cours.track
         if self._en_cours.kind is not Kind.MUSIC or track is None:
             return None
-        duree = track.duration
-        if self._plafond is not None and duree > self._plafond:
-            duree = self._plafond
+        duree = self._duree_coupee(track)
         # Jamais dans le passé : après une pause sans auditeur, le morceau
         # commencé avant la pause finira au plus tôt maintenant.
         return max(self._commence_a + duree, self._horloge.now())
@@ -201,6 +217,16 @@ class LiquidsoapPlayout:
                     instant = instant + pending.track.duration
         return instant
 
+    def _duree_coupee(self, track: Track) -> timedelta:
+        """La durée d'une piste, ramenée au plafond quand elle le dépasse.
+
+        Seule règle de plafond du module : la fin estimée, l'annotation de coupe
+        et la longueur annoncée à l'antenne en dépendent (SPECS.md §7 n°32).
+        """
+        if self._plafond is not None and track.duration > self._plafond:
+            return self._plafond
+        return track.duration
+
     def _couper_au_plafond(self, entry: str) -> str:
         """L'entrée, annotée pour se couper au plafond si sa piste le dépasse.
 
@@ -208,19 +234,14 @@ class LiquidsoapPlayout:
         §4.11), un jingle est court. Une entrée replacée après un encore revient
         déjà annotée, on ne la double pas.
         """
-        kind, track, _ = self._derniere
-        if (
-            self._plafond is None
-            or kind is not Kind.MUSIC
-            or track is None
-            or track.duration <= self._plafond
-            or entry.startswith("annotate:")
-        ):
+        kind, track, _label, _length = self._derniere
+        if kind is not Kind.MUSIC or track is None or entry.startswith("annotate:"):
             return entry
-        logger.info(
-            "« %s » dure %s : coupé au plafond (%s)", track.title, track.duration, self._plafond
-        )
-        return CUT_AT.format(seconds=self._plafond.total_seconds()) + entry
+        duree = self._duree_coupee(track)
+        if duree == track.duration:
+            return entry
+        logger.info("« %s » dure %s : coupé au plafond (%s)", track.title, track.duration, duree)
+        return CUT_AT.format(seconds=duree.total_seconds()) + entry
 
     def playing(self, entry: str, artist: str | None = None, title: str | None = None) -> None:
         with self._verrou:
@@ -254,7 +275,7 @@ class LiquidsoapPlayout:
             )
             self._radio.declare(Kind.MUSIC, None, title, artist_label=artist)
             return
-        self._radio.declare(pending.kind, pending.track, pending.label)
+        self._radio.declare(pending.kind, pending.track, pending.label, length=pending.length)
 
     def _oublier_les_demandes_anterieures(self, rang: int) -> None:
         """Oublie ce qui a été demandé avant l'entrée qui commence.
@@ -290,8 +311,8 @@ class LiquidsoapPlayout:
         # Une émission replacée n'a plus de rang (`stash_for_replay`) ; c'est
         # ici qu'elle s'inscrit si c'est elle qui prend l'antenne.
         self._programme.show_started(entry)
-        kind, track, label = nature
-        return Pending(kind, track, label)
+        kind, track, label, length = nature
+        return Pending(kind, track, label, length=length)
 
     def _signaler_l_emission(self, entry: str, rang: int | None) -> None:
         """Dit au programme ce qu'il est advenu de l'émission demandée.
@@ -438,7 +459,9 @@ class LiquidsoapPlayout:
                 # seconde fois ; `next_entry` réarme le rang en la resservant.
                 if self._emission_demandee is not None and self._emission_demandee[0] == entry:
                     self._emission_demandee = None
-                self._programme.replay_later(entry, pending.kind, pending.track, pending.label)
+                self._programme.replay_later(
+                    entry, pending.kind, pending.track, pending.label, pending.length
+                )
         # Sans attendre que le diffuseur redemande, pour que la liste des
         # prochains titres montre le morceau forcé dès le vote (GOAL-067), mais
         # hors de la requête : `on_connect` l'attend avant de rendre l'antenne,

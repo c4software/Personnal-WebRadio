@@ -66,11 +66,18 @@ class OnAir:
 
     `title` et `artist` sont facultatifs : un jingle horaire ou un flash n'ont
     ni l'un ni l'autre, et l'adaptateur n'invente pas de libellé.
+
+    `elapsed_seconds` et `duration_seconds` disent où en est la lecture
+    (SPECS.md §4.8, GOAL-085). Nuls quand rien ne permet de les connaître : une
+    vidéo, un jingle, un épisode sans durée dans son flux. La durée peut
+    manquer alors que l'écoulé est connu.
     """
 
     kind: Kind
     title: str | None = None
     artist: str | None = None
+    elapsed_seconds: int | None = None
+    duration_seconds: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

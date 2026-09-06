@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from tests.fakes import FakeSource, track
 from webradio.adapters.web.api import Kind as NatureWeb
 from webradio.adapters.web.api import Verdict, Vote
+from webradio.app.length import Length
 from webradio.app.radio import ListenerCount, LiveRadio
 from webradio.core.clock import FrozenClock
 from webradio.core.control import Command, Control, Kind
@@ -258,3 +259,76 @@ def test_la_musique_retrouve_le_moment_apres_une_emission() -> None:
     assert radio.moment() == "Moment · rock"
     assert radio.moment_random()
     assert radio.redraw_moment().accepted
+
+
+def _radio_avec_horloge() -> tuple[LiveRadio, FrozenClock]:
+    clock = FrozenClock(datetime(2026, 9, 6, 12, 0, tzinfo=UTC))
+    control = Control(
+        source=FakeSource([track("1", "Bowie", genre="rock")]),
+        random=ScriptedRandom([0] * 50),
+        jingles=Jingles(clock),
+    )
+    counter = ListenerCount()
+    counter.declare(on_air=True)
+    return LiveRadio(control, counter, clock=clock), clock
+
+
+def test_un_morceau_declare_dit_son_ecoule_et_sa_duree() -> None:
+    radio, clock = _radio_avec_horloge()
+    radio.declare(Kind.MUSIC, track("1", "Bowie"), length=Length(duration=timedelta(seconds=200)))
+    clock.advance(timedelta(seconds=30))
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.elapsed_seconds == 30
+    assert antenne.duration_seconds == 200
+
+
+def test_l_ecoule_ne_depasse_pas_la_duree_annoncee() -> None:
+    """Le morceau est fini, le diffuseur n'a pas encore annoncé le suivant."""
+    radio, clock = _radio_avec_horloge()
+    radio.declare(Kind.MUSIC, track("1", "Bowie"), length=Length(duration=timedelta(seconds=200)))
+    clock.advance(timedelta(minutes=4))
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.elapsed_seconds == 200
+
+
+def test_un_direct_dure_jusqu_a_la_fin_de_sa_case() -> None:
+    radio, clock = _radio_avec_horloge()
+    clock.advance(timedelta(minutes=1))
+    fin = datetime(2026, 9, 6, 12, 10, tzinfo=UTC)
+    radio.declare(Kind.SHOW, None, label="Le flash", length=Length(until=fin))
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.duration_seconds == 540
+    assert antenne.elapsed_seconds == 0
+
+
+def test_un_episode_sans_duree_dans_le_flux_dit_quand_meme_son_ecoule() -> None:
+    radio, clock = _radio_avec_horloge()
+    radio.declare(Kind.SHOW, None, label="A la French", length=Length())
+    clock.advance(timedelta(seconds=45))
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.duration_seconds is None
+    assert antenne.elapsed_seconds == 45
+
+
+def test_un_jingle_n_annonce_aucune_duree() -> None:
+    radio, clock = _radio_avec_horloge()
+    radio.declare(Kind.JINGLE, None)
+    clock.advance(timedelta(seconds=5))
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.duration_seconds is None
+    assert antenne.elapsed_seconds == 5
+
+
+def test_sans_horloge_l_antenne_ne_dit_rien_de_l_avancement() -> None:
+    radio, counter = _radio()
+    counter.declare(on_air=True)
+    radio.declare(Kind.MUSIC, track("1", "Bowie"), length=Length(duration=timedelta(seconds=200)))
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.elapsed_seconds is None
+    assert antenne.duration_seconds is None

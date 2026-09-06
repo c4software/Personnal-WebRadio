@@ -21,6 +21,7 @@ from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
 from webradio.adapters.podcast.feed import PodcastFeed, PodcastUnavailable
 from webradio.adapters.state.database import SqliteState, StateUnavailable
 from webradio.adapters.youtube.channel import YoutubeChannel, YoutubeUnavailable
+from webradio.app.length import Length
 from webradio.core.clock import Clock
 from webradio.core.rng import Random
 from webradio.core.shows import (
@@ -101,11 +102,13 @@ class Shows:
         self._lectures_lancees: set[str] = set()
         self._verrou_lectures = threading.Lock()
 
-    def due(self) -> tuple[Show, str, str | None] | None:
-        """L'émission due, l'adresse de son épisode, et le titre de l'épisode.
+    def due(self) -> tuple[Show, str, str | None, Length] | None:
+        """L'émission due, l'adresse de son épisode, son titre et sa longueur.
 
         Le titre (vidéo ou épisode) sert à l'antenne et au journal (GOAL-027) ;
-        il vaut `None` s'il n'y en a pas.
+        il vaut `None` s'il n'y en a pas. La longueur est la durée de l'épisode
+        quand le flux la donne, la fin de la case pour un direct, et rien
+        sinon (GOAL-085).
 
         Rend `None` quand il n'y a pas d'émission : aucune case ouverte, flux
         injoignable, épisode déjà diffusé. Aucun de ces cas n'est une panne,
@@ -134,7 +137,7 @@ class Shows:
             return self._video_de(case.show, next(iter(par_flux.values()), []))
         return self._episode_de(case.show, par_flux)
 
-    def _direct_de(self, case: Slot) -> tuple[Show, str, str | None] | None:
+    def _direct_de(self, case: Slot) -> tuple[Show, str, str | None, Length] | None:
         """Un direct, rendu une fois par case, avec l'heure absolue de sa fin.
 
         L'entrée `live:<fin en secondes Unix>:<url>` est lue par Liquidsoap
@@ -157,7 +160,7 @@ class Shows:
             case.end.astimezone().strftime("%H:%M:%S"),
             url.split("?", 1)[0],
         )
-        return case.show, entry, None
+        return case.show, entry, None, Length(until=case.end)
 
     def started(self, entry: str) -> None:
         """Inscrit la diffusion de l'entrée que le diffuseur vient de commencer.
@@ -207,7 +210,7 @@ class Shows:
 
     def _video_de(
         self, show: Show, catalogue: list[EpisodeDuFlux]
-    ) -> tuple[Show, str, str | None] | None:
+    ) -> tuple[Show, str, str | None, Length] | None:
         """La dernière vidéo, servie depuis le cache local, jamais par son URL.
 
         Servir l'URL googlevideo faisait télécharger le diffuseur à la
@@ -234,7 +237,9 @@ class Shows:
                 show=show.name, entry=str(fichier), airing=(show.name, chosen.guid)
             )
             titre = next((e.title for e in catalogue if e.identifier == chosen.guid), None)
-            return show, str(fichier), titre
+            # La longueur reste inconnue : le fichier servi est celui du cache,
+            # et sa durée n'est pas relue ici (GOAL-085).
+            return show, str(fichier), titre, Length()
         self._telecharger_en_fond(show.name, nom, chosen.guid)
         return None
 
@@ -447,7 +452,7 @@ class Shows:
 
     def _episode_de(
         self, show: Show, par_flux: dict[str, list[EpisodeDuFlux]]
-    ) -> tuple[Show, str, str | None] | None:
+    ) -> tuple[Show, str, str | None, Length] | None:
         """L'épisode à diffuser, tiré parmi les flux qui ont du neuf.
 
         La mémoire est par flux, pas par émission : une plage en a plusieurs, et
@@ -499,7 +504,10 @@ class Shows:
             entry=audio,
             airing=(self._cle_de_memoire(show, address), choisi.guid),
         )
-        return show, audio, titre
+        # La durée qu'un flux ne donne pas est remplacée par zéro plus haut :
+        # la longueur reste alors inconnue (docs/podcast.md §1, GOAL-085).
+        duree = choisi.duration if choisi.duration > timedelta(0) else None
+        return show, audio, titre, Length(duration=duree)
 
     def _cle_de_memoire(self, show: Show, address: str) -> str:
         """Ce sous quoi la base retient une diffusion (ARCHITECTURE.md §5).

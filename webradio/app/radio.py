@@ -11,6 +11,7 @@ vérifie.
 
 import threading
 from collections.abc import Callable
+from datetime import datetime, timedelta
 
 from webradio.adapters.web.api import Kind as NatureWeb
 from webradio.adapters.web.api import (
@@ -22,6 +23,8 @@ from webradio.adapters.web.api import (
     Vote,
     VoteScore,
 )
+from webradio.app.length import Length
+from webradio.core.clock import Clock
 from webradio.core.control import Command, Control, Kind
 from webradio.core.models import Track
 
@@ -65,6 +68,7 @@ class LiveRadio(Radio):
         redraw: Callable[[], Verdict] | None = None,
         upcoming: Callable[[], list[UpcomingEntry]] | None = None,
         withdraw: Callable[[str], bool] | None = None,
+        clock: Clock | None = None,
     ) -> None:
         self._controle = control
         self._station = on_air
@@ -81,11 +85,16 @@ class LiveRadio(Radio):
         self._retirer = redraw
         self._prochains = upcoming
         self._ecarter = withdraw
+        self._horloge = clock
         self._verrou = threading.Lock()
         self._nature = Kind.MUSIC
         self._piste: Track | None = None
         self._libelle: str | None = None
         self._artiste_libelle: str | None = None
+        # Ce que la déclaration a dit de la longueur, et quand elle a eu lieu.
+        # Sans horloge, aucun écoulé n'est annoncé (SPECS.md §4.8, GOAL-085).
+        self._longueur: Length | None = None
+        self._declare_a: datetime | None = None
 
     def declare(
         self,
@@ -93,6 +102,8 @@ class LiveRadio(Radio):
         track: Track | None,
         label: str | None = None,
         artist_label: str | None = None,
+        *,
+        length: Length | None = None,
     ) -> None:
         """Appelée par le programme à chaque changement de ce qui passe.
 
@@ -101,12 +112,17 @@ class LiveRadio(Radio):
         émission : le flux ne porte aucune métadonnée (docs/franceinfo.md
         §1.bis), ce qui s'affiche est ce qui a été déclaré (SPECS.md §4.8,
         GOAL-015).
+
+        `length` dit ce que ça doit durer quand on le sait ; c'est l'instant de
+        cet appel qui sert d'origine à l'écoulé (GOAL-085).
         """
         with self._verrou:
             self._nature = kind
             self._piste = track
             self._libelle = label
             self._artiste_libelle = artist_label
+            self._longueur = length
+            self._declare_a = None if self._horloge is None else self._horloge.now()
         self._controle.declare(kind)
         # Le journal des titres (SPECS.md §7 n°27) retient ce qui commence,
         # jingles exclus.
@@ -124,11 +140,30 @@ class LiveRadio(Radio):
         with self._verrou:
             kind, track, label = self._nature, self._piste, self._libelle
             artist_label = self._artiste_libelle
+            ecoule, duree = self._avancement()
         return OnAir(
             kind=NatureWeb(kind.value),
             title=track.title if track is not None else label,
             artist=track.artist if track is not None else artist_label,
+            elapsed_seconds=None if ecoule is None else int(ecoule.total_seconds()),
+            duration_seconds=None if duree is None else int(duree.total_seconds()),
         )
+
+    def _avancement(self) -> tuple[timedelta | None, timedelta | None]:
+        """L'écoulé et la durée de ce qui passe, sous le verrou déjà tenu.
+
+        L'écoulé se compte depuis la déclaration : sans horloge, il n'existe
+        pas. Il ne recule pas sous zéro ni ne dépasse la durée quand elle est
+        connue, sinon la barre de la page sortirait de sa piste. La durée reste
+        `None` quand rien ne la donne, l'écoulé pouvant rester connu.
+        """
+        if self._horloge is None or self._declare_a is None:
+            return None, None
+        duree = None if self._longueur is None else self._longueur.since(self._declare_a)
+        ecoule = max(self._horloge.now() - self._declare_a, timedelta(0))
+        if duree is not None:
+            ecoule = min(ecoule, duree)
+        return ecoule, duree
 
     def vote_scores(self) -> list[VoteScore]:
         """Sans base, aucune mémoire : liste vide (SPECS.md §4.12)."""

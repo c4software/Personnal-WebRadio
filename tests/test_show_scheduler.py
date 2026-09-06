@@ -270,7 +270,7 @@ def test_un_direct_du_est_une_instruction_avec_son_heure_de_fin(tmp_path: Path) 
     clock = FrozenClock(VENDREDI_20H + timedelta(minutes=2))
     due = _direct(tmp_path, clock).due()
     assert due is not None
-    show, entry, _titre = due
+    show, entry, _titre, _longueur = due
     assert show is FLASH
     fin = int((VENDREDI_20H + timedelta(minutes=9)).timestamp())
     assert entry == f"live:{fin}:{FRANCEINFO}"
@@ -833,3 +833,45 @@ def test_une_chaine_youtube_se_lit_aussi_hors_de_la_requete(tmp_path: Path) -> N
         lire()
 
     assert yt.lues == 1
+
+
+def test_une_emission_due_rend_la_duree_de_son_episode(tmp_path: Path) -> None:
+    feed = FakeFeed([_episode("ep1", minutes=42)])
+    shows, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    due = shows.due()
+
+    assert due is not None
+    assert due[3].duration == timedelta(minutes=42)
+    assert due[3].until is None
+
+
+def test_un_episode_sans_duree_dans_le_flux_ne_rend_aucune_longueur(tmp_path: Path) -> None:
+    """Rien n'est inventé quand le flux ne donne pas `itunes:duration`
+    (docs/podcast.md §1). Seule une plage y arrive : une émission ordinaire
+    sans durée n'ouvre pas sa case."""
+    sans_duree = EpisodeDuFlux(
+        identifier="l1",
+        title="épisode l1",
+        published_at=VENDREDI_20H,
+        audio="https://exemple.test/l1.mp3",
+        duration=None,
+    )
+    feed = FeedParUrl({LEGEND_URL: [sans_duree]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    due = emissions.due()
+
+    assert due is not None
+    assert due[3].duration is None
+    assert due[3].until is None
+
+
+def test_un_direct_rend_la_fin_de_sa_case_comme_longueur(tmp_path: Path) -> None:
+    clock = FrozenClock(VENDREDI_20H + timedelta(minutes=2))
+
+    due = _direct(tmp_path, clock).due()
+
+    assert due is not None
+    assert due[3].until == VENDREDI_20H + timedelta(minutes=9)
+    assert due[3].duration is None

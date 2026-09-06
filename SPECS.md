@@ -446,6 +446,33 @@ L'API doit au minimum :
   disant pourquoi — un refus muet est indistinguable d'une panne ;
 - dire **si la chaîne tourne**, donc si quelqu'un écoute.
 
+#### Où en est ce qui passe
+
+**Depuis le 2026-09-06** (GOAL-085), l'antenne dit aussi **la durée de ce qui
+passe et ce qui en est écoulé**, pour que la page fasse avancer une barre.
+
+L'écoulé se compte depuis l'instant où le diffuseur a annoncé le début : c'est
+la seule origine que la radio connaisse. La durée, elle, vient de ce qui a été
+déclaré :
+
+| Ce qui passe | Ce que la radio sait de sa durée |
+|---|---|
+| Un morceau | Celle de la bibliothèque, **coupée au plafond** (§7 n°32) : c'est bien à cette heure-là qu'il s'arrêtera |
+| Un direct | Sa **fin absolue**, celle de la case (§7 n°22) — la durée annoncée est ce qui restait à l'annonce |
+| Un épisode de podcast | `itunes:duration`, quand le flux le donne (docs/podcast.md §1) |
+| Une vidéo YouTube | **Rien** : le fichier servi vient du cache, sa durée n'est pas relue |
+| Un jingle, un générique | **Rien** : quelques secondes, il n'y a pas de barre à faire |
+| Une entrée d'avant le redémarrage | **Rien** : elle n'a que les étiquettes lues du fichier |
+
+Quand la durée est inconnue, l'écoulé reste annoncé : on sait depuis quand ça
+passe, pas jusqu'à quand. Quand personne n'écoute, il n'y a pas d'antenne, donc
+rien à dire.
+
+> **La position annoncée est celle du diffuseur, pas celle de l'oreille.** Elle
+> est en avance de tout ce qui tamponne entre les deux — le navigateur, le
+> lecteur, le reverse proxy. L'écart n'est pas mesuré, et il n'est pas corrigé :
+> l'antenne dit ce qu'elle diffuse, pas ce qu'on entend.
+
 #### L'antenne poussée, plutôt que redemandée
 
 **Depuis le 2026-09-03** (GOAL-073), `GET /api/events` **pousse** ce que rend

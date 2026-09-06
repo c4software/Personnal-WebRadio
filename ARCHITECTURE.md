@@ -170,6 +170,11 @@ Liquidsoap **demande toujours un morceau d'avance** (`prefetch=1` est le
 minimum, docs/liquidsoap.md §3). *Demandé* n'est donc pas *à l'antenne* — l'API
 n'affiche un morceau que lorsque Liquidsoap dit l'avoir commencé.
 
+**La déclaration porte aussi la longueur attendue** (`app/length.py`,
+GOAL-085) : une durée, ou la fin absolue d'un direct, ou rien. Elle voyage de
+ce qui choisit l'entrée jusqu'à `app/radio.py`, et c'est l'instant de l'annonce
+du diffuseur qui sert d'origine à l'écoulé rendu par l'API (SPECS.md §4.8).
+
 **Et cette avance a une durée de vie.** Elle survit telle quelle à une pause
 sans auditeur (docs/liquidsoap.md §5.bis) — c'est ainsi qu'un jingle de 19 h
 s'est entendu à 22 h 28. Au retour d'un auditeur après plus de
@@ -761,6 +766,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │       ├── main.py ...... le point d'entrée : construit, branche, attend
 │       ├── playout.py ... noyau → ffmpeg : la piste suivante, et les jingles à la jonction
 │       ├── radio.py ..... noyau → API : la façade que l'interface interroge
+│       ├── length.py .... la longueur attendue de ce qui passe, portée par la déclaration
 │       ├── learning.py .. votes → poids : la base vue par le noyau
 │       ├── show_scheduler.py  émission due → épisode à diffuser
 │       └── liquidsoap_playout.py  demandé ≠ à l'antenne, et le compteur d'auditeurs

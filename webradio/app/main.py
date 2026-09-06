@@ -429,6 +429,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         redraw=retirer_le_theme,
         upcoming=prochains_titres,
         withdraw=retirer_le_titre,
+        clock=clock,
     )
     # Le programme déclare la nature de ce qu'il choisit ; la chaîne ne la
     # transmet à la façade que quand Liquidsoap commence réellement le morceau.
@@ -487,7 +488,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         clock=clock,
         random=random,
         jingle_folder=Path(settings.jingles.folder),
-        on_kind=lambda kind, track, label: branche[0].on_kind(kind, track, label),
+        on_kind=lambda kind, track, label, length: branche[0].on_kind(kind, track, label, length),
         programming=programmation,
         programme_window=Window(settings.draw.artist_gap),
         shows=Shows(

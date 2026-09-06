@@ -52,7 +52,7 @@ def _playout(
     control = Control(source=source, random=random, jingles=jingles)
     branche: list[LiquidsoapPlayout] = []
     # Même câblage que main.py : un encore replace l'avance du diffuseur.
-    radio = LiveRadio(control, counter, requeue=lambda: branche[0].stash_for_replay())
+    radio = LiveRadio(control, counter, requeue=lambda: branche[0].stash_for_replay(), clock=clock)
     programme = programme_class(
         queue=Queue(source, random, Window(width=1), lookahead=lookahead),
         source=source,
@@ -62,7 +62,7 @@ def _playout(
         random=random,
         jingle_folder=folder,
         horizon=HORIZON,
-        on_kind=lambda kind, piste, e: branche[0].on_kind(kind, piste, e),
+        on_kind=lambda kind, piste, e, longueur: branche[0].on_kind(kind, piste, e, longueur),
         control=control,
         shows=shows,
     )
@@ -314,7 +314,7 @@ def test_plus_rien_a_jouer_rend_none(tmp_path: Path) -> None:
         random=random,
         jingle_folder=tmp_path,
         horizon=HORIZON,
-        on_kind=lambda _kind, _piste, _e: None,
+        on_kind=lambda _kind, _piste, _e, _longueur: None,
     )
     assert LiquidsoapPlayout(programme, radio, counter).next_entry() is None
 
@@ -1207,3 +1207,50 @@ def test_la_bibliotheque_se_parcourt_hors_du_verrou_avant_de_tirer(tmp_path: Pat
     playout.next_entry()
 
     assert ("rock", False) in source.parcours, "la bibliothèque n'est parcourue que sous le verrou"
+
+
+def test_la_duree_du_morceau_demande_voyage_jusqu_a_l_antenne(tmp_path: Path) -> None:
+    """L'antenne ne sait où en est la lecture que si la longueur a suivi la
+    déclaration (GOAL-085)."""
+    playout, radio, clock = _playout(tmp_path)
+    playout.declare_listeners(1)
+    entry = playout.next_entry()
+    assert entry is not None
+
+    playout.playing(entry)
+    clock.advance(timedelta(seconds=20))
+
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.duration_seconds == 180
+    assert antenne.elapsed_seconds == 20
+
+
+def test_une_piste_plus_longue_que_le_plafond_annonce_le_plafond(tmp_path: Path) -> None:
+    """Elle sera coupée par `liq_cue_out` : annoncer sa durée entière ferait
+    une barre qui n'atteint jamais sa fin (SPECS.md §7 n°32)."""
+    longue = [track("long", "Air", genre="électro", secondes=2400)]
+    playout, radio, _ = _playout(tmp_path, max_duration=timedelta(minutes=20), catalogue=longue)
+    playout.declare_listeners(1)
+    entry = playout.next_entry()
+    assert entry is not None
+
+    playout.playing(entry)
+
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.duration_seconds == 1200
+
+
+def test_une_entree_inconnue_n_annonce_aucune_duree(tmp_path: Path) -> None:
+    """Après un redémarrage, le diffuseur joue une entrée demandée à l'ancien
+    processus : ses étiquettes s'affichent, sa durée reste inconnue."""
+    playout, radio, _ = _playout(tmp_path)
+    playout.declare_listeners(1)
+
+    playout.playing("fake://inconnue", artist="Air", title="titre inconnu")
+
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.title == "titre inconnu"
+    assert antenne.duration_seconds is None

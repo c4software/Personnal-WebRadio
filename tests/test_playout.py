@@ -58,7 +58,7 @@ def _programme(
             clock=montre,
             random=random,
             jingle_folder=folder,
-            on_kind=lambda n, p, e: vues.append((n, p, e)),
+            on_kind=lambda n, p, e, _l: vues.append((n, p, e)),
             programming=programmation if programmes else None,
             effective=EffectiveSchedule(grille, programmation, ShowSchedule(shows or []))
             if effective
@@ -215,7 +215,7 @@ def _avec_programme(
             random=random,
             jingle_folder=folder,
             horizon=HORIZON,
-            on_kind=lambda n, p, e: vues.append((n, p, e)),
+            on_kind=lambda n, p, e, _l: vues.append((n, p, e)),
             programming=Programming(programmes, clock),
             programme_window=Window(width=1),
         ),
@@ -315,7 +315,7 @@ def test_une_source_illisible_pendant_un_programme_replie_aussi(
         random=random,
         jingle_folder=tmp_path,
         horizon=HORIZON,
-        on_kind=lambda _n, _p, _e: None,
+        on_kind=lambda _n, _p, _e, _l: None,
         programming=Programming([PROG], clock),
     )
     with caplog.at_level(logging.WARNING):
@@ -341,7 +341,7 @@ def test_une_liste_courte_ne_bloque_pas_le_programme(tmp_path: Path) -> None:
         random=random,
         jingle_folder=tmp_path,
         horizon=HORIZON,
-        on_kind=lambda _n, _p, _e: None,
+        on_kind=lambda _n, _p, _e, _l: None,
         programming=Programming([PROG], clock),
         programme_window=Window(width=3),
     )
@@ -405,7 +405,7 @@ def test_un_jingle_du_passe_meme_quand_les_emissions_sont_cablees(tmp_path: Path
         random=random,
         jingle_folder=tmp_path,
         horizon=HORIZON,
-        on_kind=lambda n, p, e: vues.append((n, p, e)),
+        on_kind=lambda n, p, e, _l: vues.append((n, p, e)),
         shows=aucune_emission,
     )
     clock.advance(timedelta(hours=1))
@@ -455,7 +455,7 @@ def _avec_un_direct(
             random=random,
             jingle_folder=folder,
             horizon=HORIZON,
-            on_kind=lambda n, p, e: vues.append((n, p, e)),
+            on_kind=lambda n, p, e, _l: vues.append((n, p, e)),
             shows=emissions,
         ),
         vues,
@@ -523,7 +523,7 @@ def _programme_pilote(
         random=random,
         jingle_folder=tmp_path,
         horizon=HORIZON,
-        on_kind=lambda _n, _p, _e: None,
+        on_kind=lambda _n, _p, _e, _l: None,
         programming=programming,
         control=control,
     )
@@ -680,7 +680,7 @@ def _matinale(tmp_path: Path) -> tuple[RadioProgramme, FrozenClock]:
         random=random,
         jingle_folder=tmp_path,
         horizon=HORIZON,
-        on_kind=lambda _n, _p, _e: None,
+        on_kind=lambda _n, _p, _e, _l: None,
     )
     return programme, clock
 
@@ -812,7 +812,7 @@ def test_un_programme_sert_aussi_ses_titres_longs(tmp_path: Path) -> None:
         random=random,
         jingle_folder=tmp_path,
         horizon=HORIZON,
-        on_kind=lambda _n, _p, _e: None,
+        on_kind=lambda _n, _p, _e, _l: None,
         programming=Programming([PROG], clock),
     )
     assert programme.next_entry() == "fake://long"

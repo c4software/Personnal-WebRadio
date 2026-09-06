@@ -220,9 +220,13 @@ derrière elle les périodes de la grille effective, jusqu'à
 `web.upcoming_horizon_minutes` (180 par défaut). **Reste à écouter** la liste
 pendant l'émission de dimanche prochain.
 
-**Prochaine tâche** : GOAL-082-T04, le seuil de vivier appliqué ou non à
-l'ancre d'`artist_fan`. GOAL-075 attend sa mesure à l'antenne (T03), qui
-demande le déploiement.
+**GOAL-085 est ouvert le 2026-09-06** sur demande de l'auteur : l'antenne dira
+la durée et l'avancement de ce qui passe, et la page en fera une barre.
+
+**Prochaine tâche** : GOAL-085-T02, `duration_seconds` et `elapsed_seconds`
+dans le JSON et le flux d'événements. Puis GOAL-082-T04, le seuil de vivier
+appliqué ou non à l'ancre d'`artist_fan`. GOAL-075 attend sa mesure à l'antenne
+(T03), qui demande le déploiement.
 
 ---
 
@@ -446,6 +450,57 @@ verrouillage pendant l'émission de dimanche prochain.
 
 ---
 
+## GOAL-085 — L'antenne dit où en est ce qui passe
+
+Ouvert le 2026-09-06 sur demande de l'auteur : « Possible également dans le
+on-air de diffuser la durée et l'avancement dans la lecture en cours, pour
+l'afficher dans l'interface web ? » Réponse retenue : oui — l'API rendra
+`duration_seconds` et `elapsed_seconds`, nuls quand rien ne permet de les
+connaître, et la page fera avancer une barre en local entre deux messages.
+
+**Ce que la radio sait déjà.** Le diffuseur annonce l'heure du début de chaque
+entrée, et c'est déjà cet instant qui date l'avance (décision n°33). La durée
+d'une piste vient de la bibliothèque, coupée au plafond (n°32) — c'est bien à
+cette heure-là qu'elle s'arrêtera. Un épisode de podcast porte sa durée quand
+le flux donne `itunes:duration` (docs/podcast.md §1). Un direct connaît la fin
+absolue de sa case (n°22).
+
+**Ce qu'elle ne sait pas.** Une vidéo YouTube servie depuis le cache, dont la
+durée n'est pas relue ; un jingle ou un générique, trop courts pour une barre ;
+un épisode dont le flux ne donne pas sa durée ; une entrée demandée avant le
+redémarrage, qui n'a que les étiquettes lues du fichier. Dans tous ces cas la
+durée reste nulle, et l'écoulé seul est annoncé.
+
+**La réserve, consignée avant d'écrire une ligne.** La position annoncée est
+celle du diffuseur, pas celle de l'oreille : elle est en avance de tout ce qui
+tamponne entre les deux — navigateur, lecteur, reverse proxy. Rien n'est
+mesuré, et rien n'est corrigé.
+
+- [x] **GOAL-085-T01** — La longueur attendue voyage avec la déclaration, et la
+      façade sait dire l'écoulé. `app/length.py` porte un `Length` à deux
+      champs exclusifs (`duration`, `until`) ; `Shows.due()` le rend,
+      `RadioProgramme` le passe au rappel `on_kind`, `Pending` le garde, et
+      `LiquidsoapPlayout.playing()` le donne à `LiveRadio.declare()`. Pour la
+      musique il est calculé à la demande, par la seule règle de plafond du
+      module (`_duree_coupee`, que la fin estimée et l'annotation `liq_cue_out`
+      partagent désormais). `LiveRadio` reçoit une horloge injectée : sans
+      elle, aucun écoulé. `OnAir` gagne `elapsed_seconds` et
+      `duration_seconds` ; **rien n'est encore rendu au JSON ni au flux SSE**,
+      c'est T02. Vérifié : `_antenne_en_donnees` est inchangé, les tests d'API
+      existants passent, et l'écoulé est borné à zéro comme à la durée connue.
+- [ ] **GOAL-085-T02** — L'API et le flux d'événements rendent
+      `duration_seconds` et `elapsed_seconds`, sans que l'écoulé fasse émettre
+      un message à chaque tour : le flux ne pousse que sur changement, et un
+      compteur qui avance à la seconde le ferait pousser en continu.
+- [ ] **GOAL-085-T03** — La page : une barre d'avancement sur la carte
+      « Antenne » et dans le lecteur, qui avance en local et se recale à chaque
+      message.
+
+**Reste à écouter** (AGENTS.md §4.1) : le décalage entre la barre et l'oreille,
+qui ne se constate qu'à l'œil, une fois la page en place.
+
+---
+
 ## Vue d'ensemble
 
 | Goal | Titre | État |
@@ -534,6 +589,7 @@ verrouillage pendant l'émission de dimanche prochain.
 | GOAL-079 | Les commentaires du code reviennent au ton d'un développeur | `[x]` — clos le 2026-09-06 ; `radio.liq` et cinq fichiers Python |
 | GOAL-083 | Ce que la relecture du 2026-09-06 a trouvé | `[x]` — clos le 2026-09-06 ; la configuration de production doit déclarer `liquidsoap.url` |
 | GOAL-084 | L'antenne n'annonce plus la plage pendant une émission | `[x]` — clos le 2026-09-06 ; **reste à écouter** la barre et l'écran de verrouillage pendant une émission |
+| GOAL-085 | L'antenne dit où en est ce qui passe | `[-]` — ouvert le 2026-09-06 sur demande de l'auteur ; T02 et T03 restent |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

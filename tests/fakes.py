@@ -10,6 +10,7 @@ from datetime import datetime, timedelta
 from webradio.adapters.state.database import Scope as PorteeBase
 from webradio.adapters.state.database import Scores as ScoresBase
 from webradio.adapters.state.database import SqliteState
+from webradio.app.length import Length
 from webradio.app.playout import RadioProgramme
 from webradio.core.control import Kind
 from webradio.core.models import Track
@@ -157,9 +158,16 @@ class FakeProgrammeEpieLeVerrou(RadioProgramme):
         self._tenu("current_moment")
         return super().current_moment()
 
-    def replay_later(self, entry: str, kind: Kind, track: Track | None, label: str | None) -> None:
+    def replay_later(
+        self,
+        entry: str,
+        kind: Kind,
+        track: Track | None,
+        label: str | None,
+        length: Length | None = None,
+    ) -> None:
         self._tenu("replay_later")
-        super().replay_later(entry, kind, track, label)
+        super().replay_later(entry, kind, track, label, length)
 
 
 class FakeEtatQuiCompteSesLectures(SqliteState):
