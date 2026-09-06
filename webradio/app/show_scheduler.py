@@ -42,20 +42,25 @@ class _Demandee:
 
     `airing` porte la clé de mémoire et le guid à inscrire pour un podcast ou
     une vidéo ; `slot` la case à retenir pour un direct. L'un ou l'autre.
+
+    `feed` est l'adresse du flux d'où l'épisode a été tiré : c'est par elle
+    qu'une seconde demande écarte ce qui attend déjà (SPECS.md §7 n°45).
     """
 
     show: str
     entry: str
     airing: tuple[str, str] | None = None
     slot: tuple[str, datetime] | None = None
+    feed: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class PodcastSlot:
     """La case ouverte d'une plage de podcasts, telle qu'elle date l'avance.
 
-    `awaited` dit qu'un épisode de cette case est demandé sans avoir commencé :
-    c'est ce qui fait changer la clé à sa prise d'antenne (décision n°43).
+    `awaited` dit qu'au moins un épisode de cette case est demandé sans avoir
+    commencé : c'est ce qui fait changer la clé quand le dernier prend
+    l'antenne (décision n°43).
     """
 
     show: str
@@ -102,10 +107,12 @@ class Shows:
         self._telechargements: set[str] = set()
         self._verrou_telechargements = threading.Lock()
         self._cases_rendues: set[tuple[str, datetime]] = set()
-        # Ce qui a été rendu au diffuseur sans avoir encore commencé. Rien ne
-        # s'inscrit avant `started()` : l'entrée n'est que l'avance du
-        # diffuseur, et une purge peut la jeter (SPECS.md §4.11.1).
-        self._demandee: _Demandee | None = None
+        # Ce qui a été rendu au diffuseur sans avoir encore commencé, par
+        # entrée. Rien ne s'inscrit avant `started()` : l'entrée n'est que
+        # l'avance du diffuseur, et une purge peut la jeter (SPECS.md §4.11.1).
+        # Plusieurs à la fois pour une plage seulement : `/skip-fresh` met deux
+        # entrées en vol, et les deux doivent être des épisodes (§7 n°45).
+        self._demandees: dict[str, _Demandee] = {}
         # Où lire les flux, et combien de temps avant l'ouverture d'une case.
         # `None` lit sur place, ce qui garde les tests déterministes ; la
         # production passe un fil, pour que le diffuseur n'attende jamais un
@@ -131,8 +138,9 @@ class Shows:
         """
         # Une émission déjà rendue attend son tour : le diffuseur peut
         # redemander avant de l'avoir commencée (docs/liquidsoap.md §3), et la
-        # rendre deux fois la ferait passer deux fois.
-        if self._demandee is not None:
+        # rendre deux fois la ferait passer deux fois. Une plage fait
+        # exception : elle sert un autre épisode (SPECS.md §7 n°45).
+        if self._demandees and not self._sert_une_demande_de_plus():
             return None
         instant = self._horloge.now()
         catalogues = self._catalogues(instant)
@@ -151,6 +159,18 @@ class Shows:
         if case.show.name in self._youtube:
             return self._video_de(case.show, next(iter(par_flux.values()), []))
         return self._episode_de(case.show, par_flux)
+
+    def _sert_une_demande_de_plus(self) -> bool:
+        """Peut-on rendre une entrée alors qu'une autre attend déjà ?
+
+        Seule une plage le peut, et seulement si tout ce qui attend est à elle.
+        Rien n'est lu ici : la case d'une plage se connaît sans réseau, donc un
+        podcast seul ou un direct n'en paie pas la lecture de ses flux.
+        """
+        ouverte = self.open_band_slot()
+        if ouverte is None:
+            return False
+        return all(demandee.show == ouverte.show for demandee in self._demandees.values())
 
     def open_band_slot(self) -> PodcastSlot | None:
         """La case ouverte d'une plage de podcasts, ou `None`.
@@ -175,8 +195,8 @@ class Shows:
         if not ouvertes:
             return None
         case = min(ouvertes, key=lambda c: c.start)
-        demandee = self._demandee is not None and self._demandee.show == case.show.name
-        return PodcastSlot(show=case.show.name, start=case.start, awaited=demandee)
+        attendus = any(d.show == case.show.name for d in self._demandees.values())
+        return PodcastSlot(show=case.show.name, start=case.start, awaited=attendus)
 
     def has_another_episode(self) -> bool:
         """Reste-t-il un épisode neuf à piocher dans la plage ouverte ?
@@ -186,7 +206,9 @@ class Shows:
         réseau : les catalogues sont ceux du cache, périmés acceptés, et le
         hasard n'est pas consommé — on compte les flux qui ont du neuf, on ne
         tire pas lequel. L'épisode à l'antenne est déjà inscrit comme diffusé
-        (`started`), donc son flux ne compte plus s'il n'a que celui-là.
+        (`started`), donc son flux ne compte plus s'il n'a que celui-là. Un
+        épisode déjà demandé et pas encore commencé ne compte pas non plus :
+        il est en vol chez le diffuseur (SPECS.md §7 n°45).
         """
         ouverte = self.open_band_slot()
         if ouverte is None:
@@ -205,6 +227,9 @@ class Shows:
             except StateUnavailable as failure:
                 logger.warning("mémoire indisponible, on ne pioche pas : %s", failure)
                 return False
+            deja = self._episode_attendu(show.name, address)
+            if deja is None and passe is not None:
+                deja = passe.episode
             candidats = [
                 Episode(
                     guid=e.identifier,
@@ -214,7 +239,7 @@ class Shows:
                 )
                 for e in episodes
             ]
-            if episode_to_air(candidats, passe.episode if passe is not None else None) is not None:
+            if episode_to_air(candidats, deja) is not None:
                 return True
         if connus == 0:
             # Sans `podcast.cache_seconds`, rien n'est gardé et la seule façon
@@ -222,6 +247,18 @@ class Shows:
             # attendre. On refuse alors de piocher.
             logger.info("« %s » : aucun catalogue en cache, on ne pioche pas", show.name)
         return False
+
+    def _episode_attendu(self, show_name: str, address: str) -> str | None:
+        """Le guid de l'épisode déjà demandé sur ce flux, ou `None`.
+
+        Il vaut « déjà diffusé » pour la pioche suivante : le rendre une
+        seconde fois ferait passer le même épisode deux fois dans la plage
+        (SPECS.md §7 n°14).
+        """
+        for demandee in self._demandees.values():
+            if demandee.show == show_name and demandee.feed == address and demandee.airing:
+                return demandee.airing[1]
+        return None
 
     def _direct_de(self, case: Slot) -> tuple[Show, str, str | None, Length, bool] | None:
         """Un direct, rendu une fois par case, avec l'heure absolue de sa fin.
@@ -239,7 +276,7 @@ class Shows:
         if url is None or case.end is None:
             return None
         entry = f"live:{int(case.end.timestamp())}:{url}"
-        self._demandee = _Demandee(show=case.show.name, entry=entry, slot=cle)
+        self._demandees[entry] = _Demandee(show=case.show.name, entry=entry, slot=cle)
         logger.info(
             "direct « %s » jusqu'à %s — %s",
             case.show.name,
@@ -259,10 +296,9 @@ class Shows:
         Une entrée qui n'est pas celle attendue ne fait rien : c'est à
         l'appelant de dire qu'une émission a été jetée (`dropped`).
         """
-        demandee = self._demandee
-        if demandee is None or demandee.entry != entry:
+        demandee = self._demandees.pop(entry, None)
+        if demandee is None:
             return
-        self._demandee = None
         if demandee.slot is not None:
             limite = self._horloge.now() - timedelta(days=2)
             self._cases_rendues = {c for c in self._cases_rendues if c[1] > limite}
@@ -274,18 +310,26 @@ class Shows:
             except StateUnavailable as failure:
                 logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
 
-    def dropped(self) -> None:
+    def dropped(self, entry: str | None = None) -> None:
         """Oublie l'émission demandée qui n'a pas pris l'antenne.
 
         Une purge de l'avance (SPECS.md §7 n°22, n°30) ou une adresse que le
         diffuseur n'arrive pas à ouvrir la jettent. Rien n'ayant été inscrit,
         la case peut la redemander tant que sa fenêtre de rattrapage est
         ouverte (SPECS.md §4.11).
+
+        L'appelant nomme l'entrée qu'il abandonne : une plage en a plusieurs en
+        vol, et oublier les autres les rendrait repiochables alors qu'elles
+        vont passer. `None` les oublie toutes, pour une reprise à neuf.
         """
-        demandee, self._demandee = self._demandee, None
-        if demandee is None:
-            return
-        logger.info("« %s » n'a pas pris l'antenne : elle reste à diffuser", demandee.show)
+        if entry is None:
+            abandonnees = list(self._demandees.values())
+            self._demandees.clear()
+        else:
+            demandee = self._demandees.pop(entry, None)
+            abandonnees = [demandee] if demandee is not None else []
+        for abandonnee in abandonnees:
+            logger.info("« %s » n'a pas pris l'antenne : elle reste à diffuser", abandonnee.show)
 
     @staticmethod
     def _nom_de_cache(show_name: str) -> str:
@@ -319,7 +363,7 @@ class Shows:
             fichier.is_file() and temoin.is_file() and temoin.read_text().strip() == chosen.guid
         )
         if est_la_bonne:
-            self._demandee = _Demandee(
+            self._demandees[str(fichier)] = _Demandee(
                 show=show.name, entry=str(fichier), airing=(show.name, chosen.guid)
             )
             titre = next((e.title for e in catalogue if e.identifier == chosen.guid), None)
@@ -545,6 +589,10 @@ class Shows:
         ce qu'elle a déjà passé de l'un ne dit rien de l'autre (SPECS.md §7
         n°35). D'où la clé `<émission>/<flux>` dès qu'il y en a plusieurs ; une
         émission à flux unique garde le nom seul.
+
+        Un épisode déjà demandé compte comme diffusé pour cette pioche : son
+        flux sort de la sélection, donc une seconde demande sert un autre flux
+        et jamais le même épisode (SPECS.md §7 n°45).
         """
         if not par_flux:
             return None
@@ -562,7 +610,10 @@ class Shows:
                     "mémoire indisponible, émission « %s » sautée : %s", show.name, failure
                 )
                 return None
-            if passe is not None:
+            attendu = self._episode_attendu(show.name, address)
+            if attendu is not None:
+                deja[address] = attendu
+            elif passe is not None:
                 deja[address] = passe.episode
             catalogues[address] = [
                 Episode(
@@ -585,10 +636,11 @@ class Shows:
             )
         audio = next(e.audio for e in catalogue if e.identifier == choisi.guid)
         titre = next((e.title for e in catalogue if e.identifier == choisi.guid), None)
-        self._demandee = _Demandee(
+        self._demandees[audio] = _Demandee(
             show=show.name,
             entry=audio,
             airing=(self._cle_de_memoire(show, address), choisi.guid),
+            feed=address,
         )
         # La durée qu'un flux ne donne pas est remplacée par zéro plus haut :
         # la longueur reste alors inconnue (docs/podcast.md §1, GOAL-085).

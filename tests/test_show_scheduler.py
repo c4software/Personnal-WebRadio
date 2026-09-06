@@ -989,3 +989,83 @@ def test_hors_d_une_plage_ouverte_il_n_y_a_rien_a_piocher(tmp_path: Path) -> Non
     emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H - timedelta(hours=1)))
 
     assert not emissions.has_another_episode()
+
+
+# ── Une plage sert plusieurs demandes à la fois (GOAL-087-T01) ───────────────
+
+
+def test_pendant_une_plage_une_seconde_demande_sert_un_autre_episode(tmp_path: Path) -> None:
+    """`/skip-fresh` met deux entrées en vol, et les deux doivent être des
+    épisodes : une musique se résout bien plus vite qu'un épisode de 50 à
+    120 Mo, et prendrait l'antenne au saut (SPECS.md §7 n°45)."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    premier = emissions.due()
+    second = emissions.due()
+
+    assert premier is not None and second is not None
+    assert premier[1] != second[1], "deux flux, deux épisodes"
+
+
+def test_le_meme_episode_n_est_jamais_demande_deux_fois(tmp_path: Path) -> None:
+    """Un épisode déjà demandé compte comme diffusé pour la pioche suivante :
+    son flux en sort, sinon la plage passerait deux fois le même."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    servis = [emissions.due(), emissions.due(), emissions.due()]
+
+    adresses = [due[1] for due in servis if due is not None]
+    assert len(adresses) == 2, "deux flux, deux épisodes, puis plus rien"
+    assert len(set(adresses)) == 2
+
+
+def test_sans_autre_episode_la_seconde_demande_rend_none(tmp_path: Path) -> None:
+    """Un seul flux avec du neuf : la seconde demande n'a rien à servir, et la
+    musique reprend comme pour toute case sans épisode (SPECS.md §4.11)."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    assert emissions.due() is not None
+    assert emissions.due() is None
+
+
+def test_un_podcast_seul_ne_sert_qu_une_demande_par_case(tmp_path: Path) -> None:
+    """Hors plage, la case n'enchaîne rien : une demande à la fois, comme
+    avant (SPECS.md §7 n°14)."""
+    feed = FakeFeed([_episode("ep1"), _episode("ep0", days=7)])
+    shows, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    assert shows.due() is not None
+    assert shows.due() is None
+
+
+def test_un_episode_demande_ne_compte_pas_comme_une_pioche_possible(tmp_path: Path) -> None:
+    """Il est déjà en vol chez le diffuseur : le proposer au vote ferait
+    piocher ce que le diffuseur tient déjà (SPECS.md §7 n°44)."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    premier = emissions.due()
+    assert premier is not None
+    emissions.started(premier[1])
+    assert emissions.due() is not None, "l'autre flux est demandé d'avance"
+
+    assert not emissions.has_another_episode()
+
+
+def test_une_demande_abandonnee_ne_fait_pas_oublier_les_autres(tmp_path: Path) -> None:
+    """`dropped` nomme l'entrée qu'il abandonne : les autres sont encore en vol
+    et vont passer (SPECS.md §7 n°45)."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions, state = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    premier = emissions.due()
+    second = emissions.due()
+    assert premier is not None and second is not None
+
+    # Les flux se piochent dans l'ordre de leur nom : konbini d'abord, legend
+    # ensuite (`episode_among`).
+    emissions.dropped(premier[1])
+    emissions.started(second[1])
+
+    assert state.last_airing(f"{PLAGE.name}/{LEGEND_URL}") is not None

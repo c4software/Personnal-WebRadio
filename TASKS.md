@@ -459,6 +459,49 @@ verrouillage pendant l'émission de dimanche prochain.
 
 ---
 
+## GOAL-087 — Après un « Passer », les deux entrées en vol sont des épisodes, et chacun s'inscrit
+
+Ouvert le 2026-09-06 au soir, sur constat de la relecture de GOAL-086-T06,
+rejoué sur la pile réelle et consigné en résidu dans docs/liquidsoap.md §14.
+`/skip-fresh` met **deux** entrées en vol — `set_queue([])` réveille le fil
+d'avance, qui demande un `/next`, puis `fetch()` en demande un second — et la
+plus vite résolue prend l'antenne (SPECS.md §7 n°45).
+
+Deux défauts en découlent :
+
+1. `Shows.due()` rend `None` tant qu'un épisode est demandé sans avoir
+   commencé : le second `/next` rend donc une **musique**. Quelques Mo se
+   résolvent bien plus vite que 50 à 120 Mo, et c'est la musique qui prend
+   l'antenne au saut — exactement ce que la décision n°44 voulait éviter.
+2. Quand l'entrée de rang supérieur démarre la première,
+   `_oublier_les_demandes_anterieures` oublie l'épisode de rang inférieur du
+   registre. Il joue ensuite quand même, `_restaurer` le déclare d'après ses
+   annotations, mais **rien ne l'inscrit comme diffusé** : il reste
+   repiochable, et peut repasser dans la même plage.
+
+- [x] **GOAL-087-T01** — Pendant une plage de podcasts, une seconde demande
+      sert un second épisode. `Shows` retient ses demandes dans un dictionnaire
+      indexé par entrée ; `due()` en sert une de plus quand une plage est
+      ouverte et que tout ce qui attend est à elle. L'épisode déjà demandé
+      compte comme diffusé pour la pioche suivante (`_episode_attendu` alimente
+      l'argument `deja` d'`episode_among`) : son flux sort de la sélection,
+      donc le second épisode vient d'un autre flux et jamais le même.
+      `has_another_episode` applique la même exclusion — un épisode en vol
+      n'est pas une pioche possible. `dropped(entry)` nomme ce qu'il abandonne,
+      `None` abandonnant tout pour une reprise à neuf.
+      **Ce que ça change au-delà du saut** : pendant une plage, le diffuseur
+      tient désormais un épisode d'avance plutôt qu'une musique dès qu'un flux
+      a du neuf. Deux tests de GOAL-086-T04 et T05 décrivaient l'ancien état de
+      fait ; ils ont été rejoués sur le cas qui les motivait — une case dont le
+      seul flux est épuisé pour le premier, trois flux pour le second.
+      **Le test bout-en-bout échoue sans le correctif** : constaté en rendant à
+      `due()` son `if self._demandees: return None`, les deux entrées en vol
+      deviennent `a3.mp3` et `fake://2`.
+- [ ] **GOAL-087-T02** — Un épisode qui joue après avoir été oublié du registre
+      s'inscrit quand même.
+
+---
+
 ## Vue d'ensemble
 
 | Goal | Titre | État |

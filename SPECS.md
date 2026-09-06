@@ -1072,6 +1072,14 @@ catalogue dont la garde a expiré sert quand même, le temps de le relire : sans
 cela l'expiration tombait au milieu d'un épisode long et intercalait un
 morceau de musique entre chaque épisode d'une plage.
 
+**Pendant une plage, ce que le diffuseur tient d'avance est un épisode**, tant
+qu'un flux en a un de neuf : la radio en sert un second alors que le premier
+n'a pas encore commencé, d'un autre flux, et jamais deux fois le même. C'est ce
+qui rend « Passer » utile — l'ordre `/skip-fresh` met **deux** entrées en vol
+(§7 n°45), et si la seconde était une musique, elle se résoudrait bien plus
+vite qu'un épisode de cent méga-octets et prendrait l'antenne au saut. Faute
+d'épisode neuf, c'est la musique qui reprend l'avance, comme avant.
+
 **Une plage peut n'avoir presque rien à jouer**, et c'est voulu : un flux ne
 sert qu'un épisode par publication (§7 n°14), donc une plage de trois heures
 peut n'en tenir que vingt minutes si ses podcasts sont hebdomadaires. La
@@ -1912,6 +1920,13 @@ attendre la réponse**.
 > gestionnaire du diffuseur toute la résolution, jusqu'à 120 s pour un épisode
 > lourd : l'API n'attend pas la réponse, et le journal du diffuseur est le seul
 > témoin de ce que l'ordre a fait.
+> **Précisée le 2026-09-06** (GOAL-087) : les deux entrées en vol sont **deux
+> épisodes**. Pendant une plage, la radio sert un second épisode alors que le
+> premier est demandé sans avoir commencé — d'un autre flux, jamais le même —,
+> et `None` quand il ne reste rien de neuf. Sans cela la seconde entrée était
+> une musique, qui se résout bien plus vite qu'un épisode de cent méga-octets
+> et prenait l'antenne au saut. La première résolue passe, l'autre devient
+> l'avance et sera jetée à `end` si elle n'a pas commencé (n°43).
 
 ### Encore ouvert
 

@@ -1349,6 +1349,7 @@ ACTUS = Show(name="Podcasts - actus", days=("sunday",), hour=time(20, 0), end=ti
 LONGS = Show(name="Podcasts - longs formats", days=("sunday",), hour=time(21, 0), end=time(23, 0))
 FLUX_ACTUS = "https://exemple.test/actus.xml"
 FLUX_ACTUS_BIS = "https://exemple.test/actus-bis.xml"
+FLUX_ACTUS_TER = "https://exemple.test/actus-ter.xml"
 FLUX_LONGS = "https://exemple.test/longs.xml"
 ADRESSES_DU_DIMANCHE: dict[str, tuple[str, ...]] = {
     ACTUS.name: (FLUX_ACTUS,),
@@ -1356,6 +1357,12 @@ ADRESSES_DU_DIMANCHE: dict[str, tuple[str, ...]] = {
 }
 ADRESSES_A_DEUX_FLUX: dict[str, tuple[str, ...]] = {
     ACTUS.name: (FLUX_ACTUS, FLUX_ACTUS_BIS),
+    LONGS.name: (FLUX_LONGS,),
+}
+# Trois flux : un épisode à l'antenne, un demandé d'avance, et encore un à
+# piocher — ce qu'un « Passer » demande pour être accepté (SPECS.md §7 n°45).
+ADRESSES_A_TROIS_FLUX: dict[str, tuple[str, ...]] = {
+    ACTUS.name: (FLUX_ACTUS, FLUX_ACTUS_BIS, FLUX_ACTUS_TER),
     LONGS.name: (FLUX_LONGS,),
 }
 # La plage musicale du soir : la même occurrence à 20 h 01 et à 21 h 10, donc
@@ -1414,6 +1421,7 @@ def _playout_du_dimanche(
             {
                 FLUX_ACTUS: [_episode_de_soiree("a1")],
                 FLUX_ACTUS_BIS: [_episode_de_soiree("a2")],
+                FLUX_ACTUS_TER: [_episode_de_soiree("a3")],
                 FLUX_LONGS: [_episode_de_soiree("l1")],
             }
         ),  # type: ignore[arg-type]
@@ -1454,6 +1462,7 @@ def _radio_du_dimanche(
             {
                 FLUX_ACTUS: [_episode_de_soiree("a1")],
                 FLUX_ACTUS_BIS: [_episode_de_soiree("a2")],
+                FLUX_ACTUS_TER: [_episode_de_soiree("a3")],
                 FLUX_LONGS: [_episode_de_soiree("l1")],
             }
         ),  # type: ignore[arg-type]
@@ -1510,19 +1519,18 @@ def test_l_ouverture_d_une_plage_de_podcasts_jette_la_musique_d_avance(tmp_path:
 def test_l_avance_tiree_pendant_qu_un_episode_attend_est_rejugee_quand_il_commence(
     tmp_path: Path,
 ) -> None:
-    """`Shows.due()` rend `None` tant qu'un épisode est demandé sans avoir
-    commencé (GOAL-083-T02) : le `/next` qui suit rend une musique. Elle doit
-    être rejugée à la prise d'antenne de l'épisode, sinon elle s'intercale
-    entre deux épisodes de la plage."""
+    """Une plage dont le seul flux n'a plus rien de neuf tire une musique
+    pendant qu'un épisode attend. Elle doit être rejugée à la prise d'antenne
+    de l'épisode, sinon elle s'intercale entre deux épisodes de la plage."""
     ordres: list[str] = []
     clock = FrozenClock(DIMANCHE_20H)
-    playout, _state = _playout_du_dimanche(tmp_path, clock, ordres, addresses=ADRESSES_A_DEUX_FLUX)
+    playout, _state = _playout_du_dimanche(tmp_path, clock, ordres)
     playout.declare_listeners(1)
     episode = playout.next_entry()
     assert episode is not None and (_sans_annotation(episode) or "").endswith(".mp3")
     avance = playout.next_entry()
     assert avance is not None and (_sans_annotation(avance) or "").startswith("fake://"), (
-        "un épisode est déjà demandé"
+        "le seul flux de la case n'a plus rien de neuf"
     )
 
     clock.advance(timedelta(minutes=1))
@@ -1530,8 +1538,7 @@ def test_l_avance_tiree_pendant_qu_un_episode_attend_est_rejugee_quand_il_commen
     playout.declare_listeners(1)
 
     assert ordres == ["requeue"]
-    second = playout.next_entry()
-    assert second is not None and second.endswith(".mp3") and second != episode
+    assert playout.next_entry() != avance, "l'avance rassie a été jetée"
 
 
 def test_un_episode_demande_avant_end_mais_pas_commence_est_jete_a_end(tmp_path: Path) -> None:
@@ -1804,11 +1811,11 @@ def test_un_titre_a_guillemets_et_virgules_traverse_l_annotation(tmp_path: Path)
 def test_passer_un_episode_de_plage_pioche_un_autre_episode(tmp_path: Path) -> None:
     """La soirée du dimanche, sur la pile réelle : l'épisode « actus » passe,
     le vote est accepté, `/skip-fresh` part, et le `/next` suivant rend
-    l'épisode de l'autre flux — pas la musique d'avance (SPECS.md §7 n°44)."""
+    l'épisode d'un autre flux — pas la musique d'avance (SPECS.md §7 n°44)."""
     ordres: list[str] = []
     clock = FrozenClock(DIMANCHE_20H)
     playout, radio, _state = _radio_du_dimanche(
-        tmp_path, clock, ordres, addresses=ADRESSES_A_DEUX_FLUX
+        tmp_path, clock, ordres, addresses=ADRESSES_A_TROIS_FLUX
     )
     playout.declare_listeners(1)
     premier = playout.next_entry()
@@ -1823,7 +1830,7 @@ def test_passer_un_episode_de_plage_pioche_un_autre_episode(tmp_path: Path) -> N
     assert ordres == ["skip-fresh"], "un /requeue de plus ferait redemander deux fois"
 
     suivant = playout.next_entry()
-    assert _sans_annotation(suivant) == "https://exemple.test/a1.mp3"
+    assert _sans_annotation(suivant) == "https://exemple.test/a3.mp3"
 
 
 def test_l_episode_passe_reste_inscrit_comme_diffuse(tmp_path: Path) -> None:
@@ -1832,7 +1839,7 @@ def test_l_episode_passe_reste_inscrit_comme_diffuse(tmp_path: Path) -> None:
     ordres: list[str] = []
     clock = FrozenClock(DIMANCHE_20H)
     playout, radio, state = _radio_du_dimanche(
-        tmp_path, clock, ordres, addresses=ADRESSES_A_DEUX_FLUX
+        tmp_path, clock, ordres, addresses=ADRESSES_A_TROIS_FLUX
     )
     playout.declare_listeners(1)
     premier = playout.next_entry()
@@ -1886,3 +1893,34 @@ def test_un_episode_restaure_apres_redemarrage_reste_passable(tmp_path: Path) ->
     assert antenne is not None
     assert antenne.kind is NatureWeb.SHOW
     assert antenne.skippable
+
+
+# ── Les deux entrées en vol d'un « Passer » (GOAL-087-T01) ───────────────────
+
+
+def test_apres_un_passer_les_deux_entrees_en_vol_sont_des_episodes(tmp_path: Path) -> None:
+    """`/skip-fresh` vide la file puis en résout une entrée fraîche : le fil
+    d'avance demande un `/next`, `fetch()` un second, et les deux sont
+    consommés (docs/liquidsoap.md §12 et §14). Si le second rendait une
+    musique, elle se résoudrait la première et prendrait l'antenne au saut —
+    exactement ce que la décision n°44 refuse."""
+    ordres: list[str] = []
+    clock = FrozenClock(DIMANCHE_20H)
+    playout, radio, _state = _radio_du_dimanche(
+        tmp_path, clock, ordres, addresses=ADRESSES_A_TROIS_FLUX
+    )
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    assert playout.next_entry() is not None, "l'avance tirée pendant l'épisode"
+
+    verdict = radio.vote(Vote.SKIP)
+    assert verdict.accepted, verdict.reason
+
+    en_vol = [playout.next_entry(), playout.next_entry()]
+    adresses = [_sans_annotation(entree) for entree in en_vol]
+    assert all(adresse is not None and adresse.endswith(".mp3") for adresse in adresses), (
+        f"les deux entrées en vol sont des épisodes, pas une musique : {adresses}"
+    )
+    assert len(set(adresses)) == 2, "et jamais deux fois le même"

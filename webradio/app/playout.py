@@ -208,8 +208,9 @@ class RadioProgramme:
         self._en_attente.clear()
         self._a_rejouer.clear()
         self._moment_vu = ...
-        # L'émission demandée part avec l'avance : rien n'ayant été inscrit,
-        # elle reste à diffuser si sa fenêtre de rattrapage est encore ouverte.
+        # Les émissions demandées partent avec l'avance : rien n'ayant été
+        # inscrit, elles restent à diffuser si leur fenêtre de rattrapage est
+        # encore ouverte.
         self.show_dropped()
         # `next_pick` sert l'avance sans regarder la contrainte : un morceau
         # tiré à 19 h passerait à 7 h le lendemain (SPECS.md §7 n°30).
@@ -494,10 +495,14 @@ class RadioProgramme:
         if self._controle is not None:
             self._controle.played(track)
 
-    def show_dropped(self) -> None:
-        """L'émission demandée a été jetée sans passer : elle reste à diffuser."""
+    def show_dropped(self, entry: str | None = None) -> None:
+        """L'émission demandée a été jetée sans passer : elle reste à diffuser.
+
+        `entry` nomme celle qu'on abandonne, une plage pouvant en avoir
+        plusieurs en vol ; `None` les abandonne toutes (SPECS.md §7 n°45).
+        """
         if self._emissions is not None:
-            self._emissions.dropped()
+            self._emissions.dropped(entry)
 
     def _prochaine_emission(self) -> str | None:
         """L'émission due, ou `None`. Elle l'emporte sur tout le reste.

@@ -528,7 +528,7 @@ class LiquidsoapPlayout:
             self._programme.show_started(_adresse(entry))
         elif rang is not None and rang > rang_demande:
             self._emission_demandee = None
-            self._programme.show_dropped()
+            self._programme.show_dropped(_adresse(entree))
 
     def _oublier_l_emission(self, jetees: list[str]) -> None:
         """Oublie l'émission demandée quand son entrée est jetée sans avoir
@@ -536,7 +536,7 @@ class LiquidsoapPlayout:
         demandee = self._emission_demandee
         if demandee is not None and demandee[0] in jetees:
             self._emission_demandee = None
-            self._programme.show_dropped()
+            self._programme.show_dropped(_adresse(demandee[0]))
 
     def _effacer_si_ephemere(self, entry: str | None) -> None:
         """Efface un fichier du dossier éphémère quand la suite commence.
