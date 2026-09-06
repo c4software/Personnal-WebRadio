@@ -59,10 +59,6 @@ class Pending:
     decided_at: datetime | None = None
     rank: int = 0
 
-    @property
-    def nature(self) -> tuple[Kind, Track | None, str | None]:
-        return (self.kind, self.track, self.label)
-
 
 class LiquidsoapPlayout:
     """Le `Playout` de `adapters/web/playout_api.py`, câblé au programme."""

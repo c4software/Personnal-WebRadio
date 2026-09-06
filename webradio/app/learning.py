@@ -62,8 +62,8 @@ class Learning:
         À n'appeler que si le vote a produit un effet : un vote refusé pendant
         un jingle ou une émission ne doit rien enregistrer (SPECS.md §4.6).
         """
-        sur_la_piste = vote_weight(command, Scope.TRACK)
-        sur_l_artiste = vote_weight(command, Scope.ARTIST)
+        sur_la_piste = vote_weight(Scope.TRACK)
+        sur_l_artiste = vote_weight(Scope.ARTIST)
         try:
             # Le libellé est retenu au moment du vote : l'identifiant Subsonic
             # est opaque et illisible sur la page des votes (GOAL-020).

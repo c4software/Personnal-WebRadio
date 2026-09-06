@@ -61,10 +61,6 @@ class FakeSource:
         self._verifier()
         return [p for p in self._catalogue if p.artist == artist]
 
-    def genres(self) -> list[str]:
-        self._verifier()
-        return sorted({p.genre for p in self._catalogue if p.genre is not None})
-
     def tracks_from_playlist(self, name: str) -> list[Track]:
         """Une liste inconnue rend une liste vide, comme une vraie source ; le
         repli se décide au-dessus."""

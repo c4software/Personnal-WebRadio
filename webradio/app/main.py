@@ -8,7 +8,6 @@ construit, branche et attend.
 
 import argparse
 import logging
-import os
 import signal
 import sys
 import threading
@@ -254,9 +253,9 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             return []
 
     # Le saut s'ordonne au diffuseur par la route qu'il enregistre (`radio.liq`,
-    # GOAL-017). L'adresse vient de l'environnement, comme tout le câblage
-    # entre services (docker-compose.yml).
-    liquidsoap = os.environ.get("LIQUIDSOAP_URL", "http://127.0.0.1:8000")
+    # GOAL-017). L'adresse et le délai viennent du TOML (SPECS.md §6).
+    liquidsoap = settings.liquidsoap.url
+    delai_ordre = settings.liquidsoap.order_timeout_seconds
 
     def _ordonner(chemin: str, consequence: str) -> None:
         import http.client
@@ -265,7 +264,8 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
 
         try:
             with urllib.request.urlopen(
-                urllib.request.Request(f"{liquidsoap}{chemin}", method="POST"), timeout=3
+                urllib.request.Request(f"{liquidsoap}{chemin}", method="POST"),
+                timeout=delai_ordre,
             ):
                 pass
         except (urllib.error.URLError, http.client.HTTPException, OSError) as failure:
@@ -506,7 +506,6 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         ),
         effective=grille_effective,
         control=control,
-        now_playing=lambda: radio.playing_track(),
     )
 
     reprise = settings.playout.resume_fresh_seconds

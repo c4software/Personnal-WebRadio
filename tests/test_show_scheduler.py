@@ -245,19 +245,22 @@ FLASH = Show(name="Flash", days=("all",), hour=time(20), duration=timedelta(minu
 FRANCEINFO = "https://icecast.radiofrance.fr/franceinfo-midfi.mp3"
 
 
-def _direct(tmp_path: Path, clock: FrozenClock) -> Shows:
+def _direct(tmp_path: Path, clock: FrozenClock, feed: FakeFeed | None = None) -> Shows:
     state = SqliteState(
         tmp_path / "etat.sqlite3",
         clock,
         lock_timeout=timedelta(seconds=5),
         vote_half_life=timedelta(days=90),
     )
+    # La case porte AUSSI un flux de podcast, joignable et non vide : un direct
+    # qui irait le lire rendrait l'épisode au lieu de l'antenne, et le compteur
+    # de lectures du Fake le dirait.
     return Shows(
         ShowSchedule([FLASH]),
-        FakeFeed([], injoignable=True),  # type: ignore[arg-type]
+        feed if feed is not None else FakeFeed([_episode("ep1")]),  # type: ignore[arg-type]
         state,
         clock,
-        {},
+        {"Flash": ("https://exemple.test/flux.xml",)},
         ScriptedRandom([0] * 50),
         streams={"Flash": FRANCEINFO},
     )
@@ -316,10 +319,16 @@ def test_une_case_de_direct_finie_est_sautee_sans_rattrapage(tmp_path: Path) -> 
 
 def test_un_direct_ne_lit_aucun_flux_et_ne_laisse_aucune_trace(tmp_path: Path) -> None:
     clock = FrozenClock(VENDREDI_20H)
-    shows = _direct(tmp_path, clock)
-    assert shows.due() is not None
-    # Le flux d'essai est injoignable : s'il avait été lu, la case aurait été
-    # sautée. La base ne doit connaître aucune diffusion.
+    feed = FakeFeed([_episode("ep1")])
+    shows = _direct(tmp_path, clock, feed)
+
+    due = shows.due()
+
+    assert due is not None
+    fin = int((VENDREDI_20H + timedelta(minutes=9)).timestamp())
+    assert due[1] == f"live:{fin}:{FRANCEINFO}", "l'antenne, pas l'épisode du flux"
+    assert feed.lectures == 0
+    # La base ne doit connaître aucune diffusion : un direct ne se mémorise pas.
     state = SqliteState(
         tmp_path / "etat.sqlite3",
         clock,

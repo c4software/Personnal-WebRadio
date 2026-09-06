@@ -25,8 +25,10 @@ from webradio.adapters.config.schema import (
     DEFAULT_ARTIST_RESULTS,
     DEFAULT_CACHE_SECONDS,
     DEFAULT_JINGLE_EXPIRY_SECONDS,
+    DEFAULT_LIQUIDSOAP_URL,
     DEFAULT_LOOKAHEAD,
     DEFAULT_MAX_TRACK_MINUTES,
+    DEFAULT_ORDER_TIMEOUT,
     DEFAULT_RESUME_FRESH_SECONDS,
 )
 
@@ -305,6 +307,45 @@ def test_une_reprise_a_zero_dit_que_la_pause_ne_perime_jamais() -> None:
     content = TOML_MINIMAL + "\n[playout]\nresume_fresh_seconds = 0\n"
 
     assert _valider(content).playout.resume_fresh_seconds == 0.0
+
+
+def test_l_adresse_du_diffuseur_et_son_delai_ont_un_defaut_declare() -> None:
+    reglages = _valider(TOML_MINIMAL).liquidsoap
+
+    assert reglages.url == DEFAULT_LIQUIDSOAP_URL
+    assert reglages.order_timeout_seconds == DEFAULT_ORDER_TIMEOUT
+
+
+def test_l_adresse_du_diffuseur_et_son_delai_se_lisent_dans_le_toml() -> None:
+    content = (
+        TOML_MINIMAL
+        + '\n[liquidsoap]\nurl = "http://liquidsoap:8000"\norder_timeout_seconds = 1.5\n'
+    )
+
+    reglages = _valider(content).liquidsoap
+
+    assert reglages.url == "http://liquidsoap:8000"
+    assert reglages.order_timeout_seconds == 1.5
+
+
+def test_un_delai_d_ordre_nul_est_refuse_en_nommant_liquidsoap() -> None:
+    # À 0, chaque POST vers le diffuseur expire : /skip et /requeue seraient
+    # journalisés en échec sans jamais partir.
+    content = TOML_MINIMAL + "\n[liquidsoap]\norder_timeout_seconds = 0\n"
+
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "liquidsoap.order_timeout_seconds" in str(refus.value)
+
+
+def test_une_cle_inconnue_de_liquidsoap_est_nommee() -> None:
+    content = TOML_MINIMAL + '\n[liquidsoap]\naddress = "http://ailleurs:8000"\n'
+
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "liquidsoap.address" in str(refus.value)
 
 
 def test_une_cle_inconnue_de_playout_est_nommee() -> None:

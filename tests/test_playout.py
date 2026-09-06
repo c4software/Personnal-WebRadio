@@ -489,7 +489,11 @@ def test_l_heure_franchie_apres_une_emission_passe_quand_meme(tmp_path: Path) ->
 
 
 def _programme_pilote(
-    tmp_path: Path, *, source: FakeSource | None = None, programming: Programming | None = None
+    tmp_path: Path,
+    *,
+    source: FakeSource | None = None,
+    programming: Programming | None = None,
+    window: Window | None = None,
 ) -> tuple[RadioProgramme, Control]:
     reelle = source if source is not None else FakeSource(CATALOGUE)
     clock = FrozenClock(MIDI)
@@ -499,7 +503,7 @@ def _programme_pilote(
     jingles = Jingles(clock)
     control = Control(source=reelle, random=random, jingles=jingles)
     programme = RadioProgramme(
-        queue=Queue(reelle, random, Window(width=1)),
+        queue=Queue(reelle, random, window if window is not None else Window(width=1)),
         source=reelle,
         grille=Schedule([], clock),
         jingles=jingles,
@@ -509,7 +513,6 @@ def _programme_pilote(
         on_kind=lambda _n, _p, _e: None,
         programming=programming,
         control=control,
-        now_playing=lambda: None,
     )
     return programme, control
 
@@ -532,6 +535,31 @@ def test_un_encore_force_le_prochain_morceau_chez_le_meme_artiste(tmp_path: Path
     suivant = programme.next_entry()
 
     assert suivant == "fake://3"  # l'autre Bowie, jamais Air
+
+
+def test_le_morceau_force_par_un_encore_n_entre_pas_dans_la_fenetre(tmp_path: Path) -> None:
+    """La fenêtre est nourrie par la file, pas par l'encore : le morceau forcé
+    est servi sans passer par `Queue.next_pick`, donc sans y inscrire son
+    artiste (SPECS.md §4.6). Sinon un enchaînement d'encores bloquerait
+    l'artiste longtemps après.
+    """
+    source = FakeSource(
+        [
+            track("1", "Bowie", genre="rock"),
+            track("2", "Air", genre="électro"),
+            track("3", "Bowie", genre="rock"),
+        ]
+    )
+    fenetre = Window(width=3)
+    programme, control = _programme_pilote(tmp_path, source=source, window=fenetre)
+    assert programme.next_entry() == "fake://1"
+    assert programme.next_entry() == "fake://2"
+    assert fenetre.artists == ("Air", "Bowie")
+    assert control.vote(Command.MORE, playing=source.tracks(None)[0]).accepted
+
+    assert programme.next_entry() == "fake://3"  # l'autre Bowie, forcé
+
+    assert fenetre.artists == ("Air", "Bowie"), "l'encore n'a pas remonté Bowie dans la fenêtre"
 
 
 def test_l_encore_vise_la_chanson_entendue_pas_le_morceau_d_avance(tmp_path: Path) -> None:

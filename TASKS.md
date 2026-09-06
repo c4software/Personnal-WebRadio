@@ -450,12 +450,23 @@ Deux bloquants, douze corrections bornées, et une décision de l'auteur
 - [x] **GOAL-083-T09** — `timeout_seconds = 0` est refusé à la validation pour
       `state`, `podcast` et `youtube`, comme pour `subsonic` : il passait puis
       plantait l'assemblage, ou perdait chaque émission YouTube en silence.
-- [ ] **GOAL-083-T10** — Interdits d'AGENTS.md §2 et tests creux : code mort
-      (`_dans_la_plage`, `Pending.nature`, `MusicSource.genres()`), paramètres
-      ignorés (`now_playing`, `command` de `vote_weight`), `timeout=3` et URL
-      de Liquidsoap en dur dans `main.py` (vers le TOML, SPECS.md §6) ; tests
-      renommés ou réécrits (`test_weighting`, `test_control:136`,
-      `test_show_scheduler:200`).
+- [x] **GOAL-083-T10** — Interdits d'AGENTS.md §2 et tests creux : code mort
+      (`_dans_la_plage`, `Pending.nature`, `MusicSource.genres()` — aucun
+      appelant hors des tests, retiré du `Protocol`, de Subsonic et du Fake),
+      paramètres ignorés (`now_playing`, reliquat de GOAL-067 ; `command` de
+      `vote_weight`, le barème étant le même pour les deux gestes depuis la
+      n°16 révisée), `timeout=3` et URL de Liquidsoap en dur dans `main.py`
+      passés au TOML sous `[liquidsoap]` (SPECS.md §6) ; les deux tests de
+      `test_weighting` fondus en un, nommé d'après ce qu'il affirme (1 sur
+      l'artiste, 0 sur la piste) ; le test tautologique de `test_control`
+      remplacé dans `test_playout` (le morceau forcé par un encore n'entre pas
+      dans la fenêtre) ; le direct de `test_show_scheduler` a désormais un vrai
+      flux de podcast, donc « il n'en lit aucun » peut échouer.
+      **Conséquence de déploiement** : la configuration de production doit
+      déclarer `liquidsoap.url = "http://liquidsoap:8000"`. La variable
+      d'environnement `LIQUIDSOAP_URL` a disparu du Compose ; sans cette clé,
+      `/skip` et `/requeue` partent sur `127.0.0.1` et sont journalisés en
+      échec.
 - [ ] **GOAL-083-T11** — L'encore connaît ce que la file a joué (décision de
       l'auteur, SPECS.md §4.6 « non joué ») : `Control` reçoit les titres
       passés, fusionnés avec ceux qu'il a lui-même servis.

@@ -75,7 +75,6 @@ class RadioProgramme:
         shows: "Shows | None" = None,
         effective: EffectiveSchedule | None = None,
         control: Control | None = None,
-        now_playing: Callable[[], Track | None] | None = None,
     ) -> None:
         self._file = queue
         self._source = source
@@ -90,7 +89,6 @@ class RadioProgramme:
         # Facultative : sans elle, l'avance s'estime sur les seules plages.
         self._effective = effective
         self._controle = control
-        self._a_l_antenne = now_playing
         # Le morceau forcé par un encore, résolu dès la préparation pour que la
         # liste des prochains titres le montre (GOAL-067). L'ancre est gardée
         # pour en tirer un autre du même artiste si on le retire.

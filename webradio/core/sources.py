@@ -52,10 +52,6 @@ class MusicSource(Protocol):
         """
         ...
 
-    def genres(self) -> list[str]:
-        """Les genres que cette source connaît."""
-        ...
-
     def entry(self, track: Track) -> str:
         """Ce que la chaîne de diffusion doit ouvrir pour jouer cette piste.
 

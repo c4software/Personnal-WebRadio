@@ -18,8 +18,6 @@ from dataclasses import dataclass
 from datetime import timedelta
 from enum import Enum
 
-from webradio.core.control import Command
-
 DEFAULT_HALF_LIFE = timedelta(days=90)
 DEFAULT_FLOOR = 0.25
 DEFAULT_CEILING = 4.0
@@ -55,14 +53,14 @@ class Scores:
             raise ValueError(message)
 
 
-def vote_weight(command: Command, scope: Scope) -> float:
+def vote_weight(scope: Scope) -> float:
     """Le poids d'un vote sur une portée : 1 sur l'artiste, 0 sur la piste.
 
-    Le barème est le même pour `stop` et `encore`. Compter aussi sur la piste
-    surpondérait : un artiste très présent finissait par écraser le tirage
-    (SPECS.md §7 n°16). Un poids nul ne s'enregistre pas.
+    Le barème ne dépend pas du geste : `stop` et `encore` pèsent pareil, dans
+    des sens opposés. Compter aussi sur la piste surpondérait, un artiste très
+    présent finissant par écraser le tirage (SPECS.md §7 n°16). Un poids nul ne
+    s'enregistre pas.
     """
-    del command  # le barème est le même pour les deux gestes
     return POIDS_DIRECT if scope is Scope.ARTIST else 0.0
 
 

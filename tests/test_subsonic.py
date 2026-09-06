@@ -87,16 +87,6 @@ RECHERCHE_ARTISTE = """
 ]}}}
 """
 
-GENRES = """
-{"subsonic-response": {"status": "ok", "version": "1.16.1", "genres": {"genre": [
-  {"value": "Chanson française", "songCount": 1280, "albumCount": 120},
-  {"value": "Rock", "songCount": 357, "albumCount": 40},
-  {"value": "Rock", "songCount": 357, "albumCount": 40},
-  {"songCount": 12},
-  {"value": "", "songCount": 0}
-]}}}
-"""
-
 PAGE_HTML_EN_200 = """<!DOCTYPE html>
 <html><head><title>502 Bad Gateway</title></head>
 <body><h1>502 Bad Gateway</h1><p>nginx</p></body></html>
@@ -203,9 +193,9 @@ def test_un_echec_sans_detail_leve_quand_meme() -> None:
     source = _source(ECHEC_SANS_DETAIL)
 
     with pytest.raises(SourceUnavailable) as failure:
-        source.genres()
+        source.tracks_by("Un artiste")
 
-    assert "getGenres" in str(failure.value)
+    assert "search3" in str(failure.value)
 
 
 def test_aucun_secret_ne_parait_dans_les_journaux_ni_dans_le_message_de_panne(
@@ -503,23 +493,6 @@ def test_un_serveur_injoignable_devient_une_source_indisponible() -> None:
         source.tracks()
 
     assert "injoignable" in str(failure.value)
-
-
-# ── Les genres connus ──────────────────────────────────────────────────────
-
-
-def test_les_genres_sont_rendus_dedoublonnes_et_ordonnes() -> None:
-    assert _source(GENRES).genres() == ["Chanson française", "Rock"]
-
-
-def test_une_reponse_sans_genres_rend_une_liste_vide() -> None:
-    assert _source('{"subsonic-response": {"status": "ok"}}').genres() == []
-
-
-def test_des_genres_d_un_type_inattendu_rendent_une_liste_vide() -> None:
-    body = '{"subsonic-response": {"status": "ok", "genres": {"genre": "Rock"}}}'
-
-    assert _source(body).genres() == []
 
 
 # ── Le transport réel, sans réseau ─────────────────────────────────────────

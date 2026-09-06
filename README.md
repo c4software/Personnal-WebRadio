@@ -149,6 +149,10 @@ http://<la-machine>:8080/
 > **`webradio.toml` doit être lisible par le conteneur** (`chmod 644`) : il tourne
 > sans privilège. Et `folder` des jingles y vaut `/var/lib/local-webradio/jingles`,
 > le chemin où le Compose les monte dans les deux services.
+>
+> **En conteneur, déclarez `liquidsoap.url = "http://liquidsoap:8000"`** : le
+> défaut est `http://127.0.0.1:8000`, qui ne désigne pas le service voisin, et
+> `/skip` comme `/requeue` seraient journalisés en échec.
 
 ---
 

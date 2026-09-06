@@ -48,8 +48,7 @@ def _playout(
     counter = ListenerCount()
     control = Control(source=source, random=random, jingles=jingles)
     branche: list[LiquidsoapPlayout] = []
-    # Même câblage que main.py : un encore replace l'avance du diffuseur, et
-    # le programme connaît le morceau en cours.
+    # Même câblage que main.py : un encore replace l'avance du diffuseur.
     radio = LiveRadio(control, counter, requeue=lambda: branche[0].stash_for_replay())
     programme = programme_class(
         queue=Queue(source, random, Window(width=1), lookahead=lookahead),
@@ -61,7 +60,6 @@ def _playout(
         jingle_folder=folder,
         on_kind=lambda kind, piste, e: branche[0].on_kind(kind, piste, e),
         control=control,
-        now_playing=radio.playing_track,
         shows=shows,
     )
     playout = LiquidsoapPlayout(

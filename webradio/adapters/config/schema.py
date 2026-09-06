@@ -98,6 +98,12 @@ DEFAULT_PODCAST_TIMEOUT = 15.0
 # Toutes les interfaces : la radio est jointe depuis le réseau local et n'est
 # jamais exposée sur Internet (SPECS.md §3).
 DEFAULT_WEB_ADDRESS = "0.0.0.0"
+# Le diffuseur sur la même machine. En conteneur, c'est le nom du service
+# (docker-compose.yml).
+DEFAULT_LIQUIDSOAP_URL = "http://127.0.0.1:8000"
+# Un ordre au diffuseur est un POST local sans corps. Court : la requête qui
+# l'émet répond à l'auditeur (SPECS.md §5.1).
+DEFAULT_ORDER_TIMEOUT = 3.0
 # Le serveur web est distinct de celui du flux ; ils ne peuvent pas partager
 # le port (GOAL-011-T04).
 DEFAULT_WEB_PORT = 8080
@@ -181,6 +187,19 @@ class PlayoutSettings:
     """
 
     resume_fresh_seconds: float = DEFAULT_RESUME_FRESH_SECONDS
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidsoapSettings:
+    """Où joindre le diffuseur pour lui passer un ordre (SPECS.md §5.1).
+
+    `url` est la base des routes que `radio.liq` enregistre, `/skip` et
+    `/requeue`. `order_timeout_seconds` est l'attente maximale de ce POST : un
+    diffuseur muet ne doit pas retenir la requête de l'auditeur.
+    """
+
+    url: str = DEFAULT_LIQUIDSOAP_URL
+    order_timeout_seconds: float = DEFAULT_ORDER_TIMEOUT
 
 
 @dataclass(frozen=True, slots=True)
@@ -317,6 +336,7 @@ class Settings:
     podcast: PodcastSettings
     youtube: YoutubeSettings
     playout: PlayoutSettings
+    liquidsoap: LiquidsoapSettings
 
 
 @dataclass(frozen=True, slots=True, repr=False)
@@ -810,13 +830,6 @@ def _lendemain(jour: str) -> str:
     return ordre[(ordre.index(jour) + 1) % len(ordre)] if jour in ordre else jour
 
 
-def _dans_la_plage(heure: time, debut: time, fin: time) -> bool:
-    """Une plage dont la fin précède le début enjambe minuit."""
-    if debut < fin:
-        return debut <= heure < fin
-    return heure >= debut or heure < fin
-
-
 def _subsonic(brut: Mapping[str, Any]) -> SubsonicSettings:
     table = _table_optionnelle(brut, "subsonic", "")
     _verifier_cles(table, ("artist_results", "timeout_seconds", "cache_seconds"), "subsonic")
@@ -854,6 +867,7 @@ def validate(brut: Mapping[str, Any]) -> Settings:
             "youtube",
             "programmes",
             "playout",
+            "liquidsoap",
         ),
         "",
     )
@@ -867,6 +881,8 @@ def validate(brut: Mapping[str, Any]) -> Settings:
     _verifier_cles(podcast, ("timeout_seconds", "cache_seconds"), "podcast")
     playout = _table_optionnelle(brut, "playout", "")
     _verifier_cles(playout, ("resume_fresh_seconds",), "playout")
+    liquidsoap = _table_optionnelle(brut, "liquidsoap", "")
+    _verifier_cles(liquidsoap, ("url", "order_timeout_seconds"), "liquidsoap")
     return Settings(
         draw=_tirage(brut),
         jingles=JingleSettings(
@@ -926,6 +942,16 @@ def validate(brut: Mapping[str, Any]) -> Settings:
         playout=PlayoutSettings(
             resume_fresh_seconds=_reel(
                 playout, "resume_fresh_seconds", "playout", default=DEFAULT_RESUME_FRESH_SECONDS
+            ),
+        ),
+        liquidsoap=LiquidsoapSettings(
+            url=_texte(liquidsoap, "url", "liquidsoap", default=DEFAULT_LIQUIDSOAP_URL),
+            order_timeout_seconds=_reel(
+                liquidsoap,
+                "order_timeout_seconds",
+                "liquidsoap",
+                default=DEFAULT_ORDER_TIMEOUT,
+                minimum=MIN_TIMEOUT_SECONDS,
             ),
         ),
     )

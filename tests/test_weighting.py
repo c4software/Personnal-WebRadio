@@ -4,7 +4,6 @@ from datetime import timedelta
 
 import pytest
 
-from webradio.core.control import Command
 from webradio.core.weighting import (
     DEFAULT_CEILING,
     DEFAULT_FLOOR,
@@ -25,15 +24,10 @@ def test_la_demi_vie_par_defaut_est_de_trois_mois() -> None:
     assert DEFAULT_HALF_LIFE == TROIS_MOIS
 
 
-def test_un_stop_compte_plein_sur_la_piste_et_un_quart_sur_l_artiste() -> None:
-    """On passe un morceau, on redemande un artiste (SPECS.md §7 n°16)."""
-    assert vote_weight(Command.SKIP, Scope.ARTIST) == 1.0
-    assert vote_weight(Command.SKIP, Scope.TRACK) == 0.0
-
-
-def test_un_encore_compte_plein_sur_l_artiste_et_un_quart_sur_la_piste() -> None:
-    assert vote_weight(Command.MORE, Scope.ARTIST) == 1.0
-    assert vote_weight(Command.MORE, Scope.TRACK) == 0.0
+def test_un_vote_compte_plein_sur_l_artiste_et_pas_du_tout_sur_la_piste() -> None:
+    """Le vote porte sur l'artiste, quel que soit le geste (SPECS.md §7 n°16)."""
+    assert vote_weight(Scope.ARTIST) == 1.0
+    assert vote_weight(Scope.TRACK) == 0.0
 
 
 def test_un_vote_d_hier_compte_encore_plein() -> None:
@@ -124,7 +118,7 @@ def test_les_deux_portees_s_additionnent_avant_d_etre_bornees() -> None:
 
 def test_dix_stop_sur_des_titres_differents_du_meme_artiste_finissent_par_se_voir() -> None:
     """Le poids croisé est ce qui fait qu'un signal répété porte (SPECS.md §4.12)."""
-    artist = Scores(stop=10 * vote_weight(Command.SKIP, Scope.ARTIST))
+    artist = Scores(stop=10 * vote_weight(Scope.ARTIST))
     assert track_weight(Scores(), artist) < 0.5
 
 

@@ -93,8 +93,8 @@ class RandomTheme:
         try:
             tracks = self._source.tracks(None)
             if theme == "genre":
-                # Les genres sont comptés sur le parcours plutôt que pris de
-                # `genres()` : c'est le seul décompte fiable, un genre pouvant
+                # Les genres sont comptés sur le parcours plutôt que demandés
+                # à la source : c'est le seul décompte fiable, un genre pouvant
                 # être déclaré sans piste (GOAL-049).
                 assez = self._assez_fournis(tracks, occurrence, lambda t: t.genre)
                 genres = sorted({t.genre for t in assez if t.genre})

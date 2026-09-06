@@ -1155,6 +1155,12 @@ Ce que le TOML doit décrire, au minimum :
 - **La reprise** : `playout.resume_fresh_seconds`, la pause sans auditeur
   au-delà de laquelle le retour repart sur un tirage neuf (§4.7, 900 par
   défaut, `0` = jamais) ;
+- **Le diffuseur** : `liquidsoap.url`, où joindre Liquidsoap pour lui ordonner
+  `/skip` et `/requeue` (§5.1, `http://127.0.0.1:8000` par défaut — en
+  conteneur, `http://liquidsoap:8000`), et `liquidsoap.order_timeout_seconds`,
+  l'attente maximale de cet ordre (3 par défaut, au moins 0,1). Une adresse
+  fausse ne fait pas taire la radio : l'ordre est journalisé en échec et le
+  morceau finit ;
 - **Les podcasts** : le délai au-delà duquel un flux est réputé injoignable —
   il reste court, une émission qui ne répond pas ne bloque pas la radio, elle
   est perdue et la musique continue (§4.11) — et `podcast.cache_seconds`, la

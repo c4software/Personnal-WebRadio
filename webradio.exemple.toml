@@ -166,6 +166,14 @@ timeout_seconds = 60.0
 # Au-delà de cette pause sans auditeur, le retour repart sur un tirage neuf. 0 = jamais.
 resume_fresh_seconds = 900.0
 
+# ── Le diffuseur ───────────────────────────────────────────────────────────
+[liquidsoap]
+# Où joindre le diffuseur pour lui ordonner /skip et /requeue.
+# En conteneur : http://liquidsoap:8000 (docker-compose.yml).
+url                   = "http://127.0.0.1:8000"
+# Attente maximale de cet ordre.
+order_timeout_seconds = 3.0
+
 # ── Subsonic (hors identifiants, qui sont dans .env) ───────────────────────
 [subsonic]
 # Le tirage voit la bibliothèque entière (GOAL-039). `artist_results` ne borne

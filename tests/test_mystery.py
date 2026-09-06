@@ -24,7 +24,7 @@ def test_un_genre_est_tire_dans_toute_la_bibliotheque() -> None:
     tirage = RandomTheme(FakeSource(CATALOGUE), ScriptedRandom([1]))
     contrainte = tirage.constraint_for(SOIREE, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))
     assert contrainte is not None
-    assert contrainte.genre == "jazz"  # genres() rend electro, jazz, techno triés
+    assert contrainte.genre == "jazz"  # le parcours rend electro, jazz, techno triés
     assert contrainte.artist is None
 
 

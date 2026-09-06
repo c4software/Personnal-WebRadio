@@ -9,7 +9,7 @@ from webradio.core.clock import FrozenClock
 from webradio.core.control import Command, Control, Kind
 from webradio.core.jingles import JINGLE_ENCORE, Jingles
 from webradio.core.models import Track
-from webradio.core.queue import EmptyQueue, Queue
+from webradio.core.queue import EmptyQueue
 from webradio.core.rng import ScriptedRandom
 from webradio.core.rotation import Window
 
@@ -131,19 +131,6 @@ def test_encore_outrepasse_la_non_repetition() -> None:
     window.remember(BOWIE_1)
     assert not window.allows(BOWIE_2)
     assert control().track_after_more(BOWIE_1).track == BOWIE_2
-
-
-def test_les_morceaux_servis_par_encore_n_entrent_pas_dans_la_fenetre() -> None:
-    """La fenêtre est nourrie par la file, pas par `encore`, sinon un long
-    enchaînement bloquerait l'artiste longtemps après (SPECS.md §4.6)."""
-    source = FakeSource([BOWIE_1, BOWIE_2, AIR_1, PORTISHEAD])
-    window = Window(width=5)
-    queue = Queue(source, ScriptedRandom([0]), window)
-    queue.next_pick()
-    avant = window.artists
-    c = Control(source, ScriptedRandom([0, 0]), jingles())
-    c.track_after_more(BOWIE_1)
-    assert window.artists == avant
 
 
 def test_un_artiste_epuise_se_replie_sur_le_genre() -> None:

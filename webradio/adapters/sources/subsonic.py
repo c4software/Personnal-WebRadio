@@ -238,23 +238,6 @@ class SubsonicSource:
             )
         return retenues
 
-    def genres(self) -> list[str]:
-        """Les genres connus du serveur, dédoublonnés et triés.
-
-        L'ordre du serveur n'est pas garanti stable.
-        """
-        envelope = self._appeler("getGenres", {})
-        content = envelope.get("genres")
-        entrees = content.get("genre") if isinstance(content, Mapping) else None
-        if not isinstance(entrees, Sequence) or isinstance(entrees, str):
-            return []
-        names = {
-            entry["value"]
-            for entry in entrees
-            if isinstance(entry, Mapping) and isinstance(entry.get("value"), str) and entry["value"]
-        }
-        return sorted(names)
-
     def tracks_from_playlist(self, name: str) -> list[Track]:
         """Les pistes d'une liste de lecture désignée par son nom.
 

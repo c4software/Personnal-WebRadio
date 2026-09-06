@@ -84,6 +84,7 @@ fichier devrait porter.
 | L'API Subsonic : `salt`, `token`, `u`, `p`, `v`, `c`, la forme des réponses | `adapters/sources/subsonic.py` |
 | Le langage de Liquidsoap, l'encodage, les fondus, les en-têtes du flux, les connexions | `adapters/liquidsoap/radio.liq` |
 | Les deux routes que Liquidsoap appelle, et leur contrat en texte brut | `adapters/web/playout_api.py` |
+| L'adresse du diffuseur, où `/skip` et `/requeue` s'ordonnent | Le TOML (`adapters/config/`, clé `liquidsoap.url`) — `app/main.py` la lit, personne d'autre |
 | L'adresse du direct France Info | Le TOML (`adapters/config/`) — et c'est tout : un direct est une entrée ffmpeg comme une autre (`docs/franceinfo.md` §1.bis, `GOAL-015`) |
 | Le format RSS d'un podcast, ses `enclosure`, ses redirections | `adapters/podcast/` |
 | La syntaxe TOML et le nom des clés | `adapters/config/` |
