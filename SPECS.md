@@ -1039,6 +1039,16 @@ sert qu'un épisode par publication (§7 n°14), donc une plage de trois heures
 peut n'en tenir que vingt minutes si ses podcasts sont hebdomadaires. La
 musique reprend pour le reste, sans que cela se signale comme une panne.
 
+**La musique tirée pendant une plage est remise en question à la jonction
+suivante** (§7 n°43) : l'avance du diffuseur est datée par la case de podcasts
+ouverte, et par le fait qu'un épisode soit demandé sans avoir commencé. Une
+case qui s'ouvre, une case qui se ferme, un épisode qui prend l'antenne : dans
+ces trois cas la musique d'avance est jetée et le diffuseur redemande. Un
+épisode simplement **demandé** avant `end` suit le même sort — il n'a rien
+entamé, et le servir après la fermeture de la case le ferait passer hors de sa
+plage. Tant que la case ne change pas, l'avance tient : une plage sans rien de
+neuf ne fait pas redemander le diffuseur toutes les quinze secondes.
+
 Un flux lu est gardé `podcast.cache_seconds` (900 s par défaut, `0` = jamais) :
 une plage relit tous ses flux à chaque jonction, et six d'entre eux pèsent
 21,6 Mo (docs/podcast.md §4.bis). Un épisode publié n'apparaît qu'à
@@ -1739,6 +1749,11 @@ chaque flux : c'est le `full` le plus récent non diffusé, on ne redescend pas.
 > *Conséquence assumée* : un épisode médian de soixante-dix-sept minutes lancé
 > peu avant `end` déborde sur ce qui suit. C'est le prix de la n°5, et il
 > s'entend — la plage suivante commence en retard.
+> **Précisée le 2026-09-06** (n°43) : « l'épisode en cours finit » vaut pour
+> celui qui a **commencé**. Un épisode seulement demandé au diffuseur avant
+> `end`, et qui n'a pas encore pris l'antenne quand la case ferme, est jeté ;
+> rien n'ayant été inscrit, il reste à diffuser. La musique tirée pendant la
+> plage, elle, est rejugée à chaque changement de case.
 
 **n°36 — Une carte blanche ne tire qu'un thème assez fourni.** Tranchée le
 2026-09-06 par l'auteur, sur constat à l'antenne. Une plage `random` n'a le
@@ -1786,6 +1801,30 @@ deux commandes sont refusées avec leur motif (§4.6, §4.8).
 > sont morts jusqu'à la jonction suivante, soit jusqu'à la durée d'un épisode.
 > *Ce qui le réduirait* : faire redire au diffuseur ce qu'il joue après un
 > redémarrage (GOAL-086-T03).
+
+**n°43 — L'avance d'une plage de podcasts se juge à la jonction, pas à la
+demande.** Tranchée le 2026-09-06, et elle amende la n°33 et la n°35. La clé
+qui date une entrée d'avance gagne, à côté de la période (programme ou
+occurrence de plage), **la case de plage de podcasts ouverte** et le fait qu'un
+épisode y soit demandé sans avoir commencé. Une entrée tirée sous une autre clé
+est rassise, comme n'importe quelle autre : la musique tirée à l'ouverture
+d'une plage est jetée, celle tirée pendant qu'un épisode attendait l'est à sa
+prise d'antenne, et un épisode **demandé** avant `end` mais qui n'a pas
+commencé quand la case ferme est jeté sans rien inscrire — la n°5 ne protège
+que ce qui a réellement commencé. Un direct et un podcast seul ne portent pas
+de case de plage : leur avance ne se rejuge pas de ce fait.
+> *Raison* : le 2026-09-06, la musique demandée d'avance à 20 h 01 a pris
+> l'antenne à 21 h 12, entre deux épisodes, alors que « Podcasts - longs
+> formats » était ouverte depuis 21 h. La période, elle, n'avait pas bougé —
+> une seule plage rock de 20 h à 22 h — et l'heure pleine de 21 h ne compte pas
+> pendant une émission (n°15). Rien ne remettait donc cette avance en question
+> pendant soixante-dix minutes. Les cases d'émission manquaient à la clé, pas
+> un mécanisme de plus : aucun ordre nouveau n'est envoyé au diffuseur.
+> *Ce que cela coûte* : la clé est relue à chaque battement, donc les cases se
+> calculent quinze secondes durant — sans réseau, une plage déclarant sa fin.
+> Elle ne change qu'à l'ouverture et à la fermeture d'une case, et au passage
+> de demandé à commencé, faute de quoi un `/requeue` partirait à chaque
+> battement.
 
 ### Encore ouvert
 

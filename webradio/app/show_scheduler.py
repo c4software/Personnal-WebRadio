@@ -50,6 +50,19 @@ class _Demandee:
     slot: tuple[str, datetime] | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class PodcastSlot:
+    """La case ouverte d'une plage de podcasts, telle qu'elle date l'avance.
+
+    `awaited` dit qu'un épisode de cette case est demandé sans avoir commencé :
+    c'est ce qui fait changer la clé à sa prise d'antenne (décision n°43).
+    """
+
+    show: str
+    start: datetime
+    awaited: bool
+
+
 class Shows:
     """L'émission due à l'antenne, et l'adresse audio à ouvrir pour la diffuser."""
 
@@ -136,6 +149,32 @@ class Shows:
         if case.show.name in self._youtube:
             return self._video_de(case.show, next(iter(par_flux.values()), []))
         return self._episode_de(case.show, par_flux)
+
+    def open_band_slot(self) -> PodcastSlot | None:
+        """La case ouverte d'une plage de podcasts, ou `None`.
+
+        Elle entre dans la clé qui date l'avance (décision n°43, qui étend la
+        n°33) : sans elle, la clé ne connaît que les plages et les programmes,
+        et une musique tirée à 20 h 01 restait à l'antenne jusqu'à la fin de la
+        plage musicale, par-dessus les cases de podcasts ouvertes entre-temps.
+
+        Rien n'est lu ici : une plage déclare sa fin, sa case se connaît sans
+        catalogue et sans réseau. Deux cases ouvertes, la première commencée
+        l'emporte, comme dans `ShowSchedule.due`.
+        """
+        instant = self._horloge.now()
+        ouvertes = [
+            case
+            for show in self._programme.shows
+            if show.chains_episodes
+            for case in [self._programme.open_slot(show, None, instant)]
+            if case is not None
+        ]
+        if not ouvertes:
+            return None
+        case = min(ouvertes, key=lambda c: c.start)
+        demandee = self._demandee is not None and self._demandee.show == case.show.name
+        return PodcastSlot(show=case.show.name, start=case.start, awaited=demandee)
 
     def _direct_de(self, case: Slot) -> tuple[Show, str, str | None, Length] | None:
         """Un direct, rendu une fois par case, avec l'heure absolue de sa fin.

@@ -19,6 +19,7 @@ from pathlib import Path
 from webradio.app.length import Length
 from webradio.app.playout import RadioProgramme, Upcoming
 from webradio.app.radio import ListenerCount, LiveRadio
+from webradio.app.show_scheduler import PodcastSlot
 from webradio.core.clock import Clock
 from webradio.core.control import Kind
 from webradio.core.models import Track
@@ -538,7 +539,7 @@ class LiquidsoapPlayout:
             en_avance = [
                 pending
                 for entry, pending in self._en_attente.items()
-                if entry != self._entree_en_cours and pending.kind is Kind.MUSIC
+                if entry != self._entree_en_cours and self._rejugeable(pending)
             ]
         if not en_avance:
             return
@@ -559,6 +560,23 @@ class LiquidsoapPlayout:
         )
         self.stash_for_replay()
         self._ordonner_requeue()
+
+    @staticmethod
+    def _rejugeable(pending: Pending) -> bool:
+        """Ce qu'un battement peut remettre en question.
+
+        La musique, toujours. Un épisode demandé sous une plage de podcasts
+        aussi : sa case peut fermer avant qu'il commence, et il est alors jeté
+        plutôt que servi en retard (décision n°43). Un direct et un podcast
+        seul ne portent pas de case de plage dans leur clé : leur case est à
+        eux, et l'épisode entamé avant `end` finit (n°5).
+        """
+        if pending.kind is Kind.MUSIC:
+            return True
+        moment = pending.moment
+        return pending.kind is Kind.SHOW and (
+            isinstance(moment, tuple) and any(isinstance(part, PodcastSlot) for part in moment)
+        )
 
     def _repartir_a_neuf(self, pause: timedelta) -> None:
         """Après une longue pause, tout repart d'un tirage neuf.

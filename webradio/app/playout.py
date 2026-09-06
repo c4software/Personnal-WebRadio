@@ -141,12 +141,21 @@ class RadioProgramme:
         return self._prochaine_piste()
 
     def current_moment(self) -> object:
-        """Ce qui tire la musique en ce moment : le programme ouvert, sinon
-        l'occurrence de plage, sinon `None` (tirage libre).
+        """La clé qui date une entrée d'avance : `(période, case de podcasts)`.
 
-        Sert de clé pour dater une entrée d'avance (décision n°33) : la chaîne
-        la retient avec chaque entrée demandée, puis compare à la jonction.
+        La période est le programme ouvert, sinon l'occurrence de plage, sinon
+        `None` (tirage libre). La case est celle d'une plage de podcasts
+        ouverte, `None` ailleurs (décision n°43, qui étend la n°33) : une
+        période ne connaît pas les cases d'émission, et l'avance tirée sous
+        l'une d'elles n'était jamais rejugée.
+
+        La chaîne retient cette clé avec chaque entrée demandée, puis compare à
+        la jonction et au battement.
         """
+        case = None if self._emissions is None else self._emissions.open_band_slot()
+        return (self._periode(), case)
+
+    def _periode(self) -> object:
         if self._programmation is not None:
             programme = self._programmation.current_programme()
             if programme is not None:

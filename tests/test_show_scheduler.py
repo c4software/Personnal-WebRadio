@@ -11,7 +11,7 @@ from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
 from webradio.adapters.podcast.feed import PodcastUnavailable
 from webradio.adapters.state.database import SqliteState, StateUnavailable
 from webradio.adapters.youtube.channel import YoutubeUnavailable
-from webradio.app.show_scheduler import Shows
+from webradio.app.show_scheduler import PodcastSlot, Shows
 from webradio.core.clock import FrozenClock
 from webradio.core.rng import ScriptedRandom
 from webradio.core.shows import Show, ShowSchedule
@@ -875,3 +875,38 @@ def test_un_direct_rend_la_fin_de_sa_case_comme_longueur(tmp_path: Path) -> None
     assert due is not None
     assert due[3].until == VENDREDI_20H + timedelta(minutes=9)
     assert due[3].duration is None
+
+
+def test_la_cle_de_l_avance_ne_bouge_pas_pendant_un_episode(tmp_path: Path) -> None:
+    """La clé qui date l'avance ne change qu'à l'ouverture ou à la fermeture
+    d'une case, et au passage de demandé à commencé (décision n°43). Si elle
+    bougeait au fil du temps, le battement de quinze secondes ordonnerait un
+    `/requeue` de plus à chaque passage."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    horloge = FrozenClock(VENDREDI_20H)
+    emissions, _ = _plage(tmp_path, feed, horloge)
+
+    assert emissions.open_band_slot() == PodcastSlot(PLAGE.name, VENDREDI_20H, awaited=False)
+    due = emissions.due()
+    assert due is not None
+    demandee = emissions.open_band_slot()
+    assert demandee is not None and demandee.awaited, "il est demandé, il n'a pas commencé"
+
+    emissions.started(due[1])
+    en_cours = emissions.open_band_slot()
+    assert en_cours == PodcastSlot(PLAGE.name, VENDREDI_20H, awaited=False)
+    horloge.advance(timedelta(minutes=15))
+    assert emissions.open_band_slot() == en_cours, "quinze minutes plus tard, la même case"
+
+    horloge.advance(timedelta(hours=3))
+    assert emissions.open_band_slot() is None, "la plage est fermée"
+
+
+def test_une_emission_ordinaire_n_entre_pas_dans_la_cle_de_l_avance(tmp_path: Path) -> None:
+    """Seule une plage y entre : la case d'un podcast seul ou d'un direct est à
+    elle, et l'épisode entamé avant sa fin finit (SPECS.md §7 n°5)."""
+    feed = FakeFeed([_episode("ep1")])
+    emissions, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    assert emissions.due() is not None
+    assert emissions.open_band_slot() is None

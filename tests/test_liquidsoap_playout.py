@@ -1272,3 +1272,230 @@ def test_une_entree_inconnue_n_annonce_aucune_duree(tmp_path: Path) -> None:
     assert antenne is not None
     assert antenne.title == "titre inconnu"
     assert antenne.duration_seconds is None
+
+
+# ── L'avance datée connaît les cases de podcasts (GOAL-086-T04) ──────────────
+
+DIMANCHE_20H = datetime(2026, 9, 6, 20, 0, tzinfo=UTC)  # 2026-09-06 est un dimanche
+ACTUS = Show(name="Podcasts - actus", days=("sunday",), hour=time(20, 0), end=time(21, 0))
+LONGS = Show(name="Podcasts - longs formats", days=("sunday",), hour=time(21, 0), end=time(23, 0))
+FLUX_ACTUS = "https://exemple.test/actus.xml"
+FLUX_ACTUS_BIS = "https://exemple.test/actus-bis.xml"
+FLUX_LONGS = "https://exemple.test/longs.xml"
+ADRESSES_DU_DIMANCHE: dict[str, tuple[str, ...]] = {
+    ACTUS.name: (FLUX_ACTUS,),
+    LONGS.name: (FLUX_LONGS,),
+}
+ADRESSES_A_DEUX_FLUX: dict[str, tuple[str, ...]] = {
+    ACTUS.name: (FLUX_ACTUS, FLUX_ACTUS_BIS),
+    LONGS.name: (FLUX_LONGS,),
+}
+# La plage musicale du soir : la même occurrence à 20 h 01 et à 21 h 10, donc
+# la même clé tant que les cases de podcasts n'y entrent pas.
+ROCK_DU_SOIR = [Band(start=time(20, 0), end=time(22, 0), genres=("rock",))]
+CATALOGUE_DU_SOIR = [
+    track("1", "Air", genre="électro"),
+    track("2", "Bowie", genre="rock"),
+    track("3", "Blur", genre="rock"),
+    track("4", "Oasis", genre="rock"),
+]
+
+
+def _episode_de_soiree(guid: str) -> EpisodeDuFlux:
+    return EpisodeDuFlux(
+        identifier=guid,
+        title=f"épisode {guid}",
+        published_at=DIMANCHE_20H,
+        audio=f"https://exemple.test/{guid}.mp3",
+        duration=timedelta(minutes=71),
+    )
+
+
+class FluxParAdresse:
+    """Un flux d'essai qui rend un catalogue différent selon l'adresse."""
+
+    def __init__(self, par_url: dict[str, list[EpisodeDuFlux]]) -> None:
+        self._par_url = par_url
+
+    def episodes(self, url: str) -> list[EpisodeDuFlux]:
+        return list(self._par_url.get(url, []))
+
+
+def _playout_du_dimanche(
+    folder: Path,
+    clock: FrozenClock,
+    ordres: list[str],
+    *,
+    addresses: dict[str, tuple[str, ...]] | None = None,
+) -> tuple[LiquidsoapPlayout, SqliteState]:
+    state = SqliteState(
+        folder / "etat.sqlite3",
+        clock,
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    emissions = Shows(
+        ShowSchedule([ACTUS, LONGS]),
+        FluxParAdresse(
+            {
+                FLUX_ACTUS: [_episode_de_soiree("a1")],
+                FLUX_ACTUS_BIS: [_episode_de_soiree("a2")],
+                FLUX_LONGS: [_episode_de_soiree("l1")],
+            }
+        ),  # type: ignore[arg-type]
+        state,
+        clock,
+        addresses if addresses is not None else ADRESSES_DU_DIMANCHE,
+        ScriptedRandom([0] * 50),
+    )
+    playout, _radio, _clock = _playout(
+        folder,
+        clock=clock,
+        shows=emissions,
+        bands=ROCK_DU_SOIR,
+        catalogue=CATALOGUE_DU_SOIR,
+        order_requeue=lambda: ordres.append("requeue"),
+    )
+    return playout, state
+
+
+def test_l_ouverture_d_une_plage_de_podcasts_jette_la_musique_d_avance(tmp_path: Path) -> None:
+    """La soirée du 2026-09-06 : « actus » n'a plus rien de neuf à 20 h 01, la
+    musique d'avance est tirée, et elle passait à 21 h 12 alors que
+    « longs formats » était ouverte depuis 21 h. La plage musicale ne change
+    pas entre les deux : c'est la case qui doit rassir l'avance (décision n°43).
+    """
+    ordres: list[str] = []
+    clock = FrozenClock(DIMANCHE_20H - timedelta(minutes=3))
+    playout, _state = _playout_du_dimanche(tmp_path, clock, ordres)
+    playout.declare_listeners(1)
+    musique = playout.next_entry()
+    assert musique is not None
+    playout.playing(musique)
+    assert playout.next_entry() is not None, "l'avance de 19 h 57"
+
+    clock.advance(timedelta(minutes=3))
+    assert playout.next_entry() == "https://exemple.test/a1.mp3"
+    clock.advance(timedelta(minutes=1))
+    playout.playing("https://exemple.test/a1.mp3")
+    avance = playout.next_entry()
+    assert avance is not None and avance.startswith("fake://"), "« actus » n'a plus rien de neuf"
+
+    clock.advance(timedelta(minutes=59, seconds=5))
+    playout.declare_listeners(1)
+
+    assert ordres == ["requeue"], "« longs formats » s'ouvre : l'avance est rassise"
+    assert playout.next_entry() == "https://exemple.test/l1.mp3"
+
+
+def test_l_avance_tiree_pendant_qu_un_episode_attend_est_rejugee_quand_il_commence(
+    tmp_path: Path,
+) -> None:
+    """`Shows.due()` rend `None` tant qu'un épisode est demandé sans avoir
+    commencé (GOAL-083-T02) : le `/next` qui suit rend une musique. Elle doit
+    être rejugée à la prise d'antenne de l'épisode, sinon elle s'intercale
+    entre deux épisodes de la plage."""
+    ordres: list[str] = []
+    clock = FrozenClock(DIMANCHE_20H)
+    playout, _state = _playout_du_dimanche(tmp_path, clock, ordres, addresses=ADRESSES_A_DEUX_FLUX)
+    playout.declare_listeners(1)
+    episode = playout.next_entry()
+    assert episode is not None and episode.endswith(".mp3")
+    avance = playout.next_entry()
+    assert avance is not None and avance.startswith("fake://"), "un épisode est déjà demandé"
+
+    clock.advance(timedelta(minutes=1))
+    playout.playing(episode)
+    playout.declare_listeners(1)
+
+    assert ordres == ["requeue"]
+    second = playout.next_entry()
+    assert second is not None and second.endswith(".mp3") and second != episode
+
+
+def test_un_episode_demande_avant_end_mais_pas_commence_est_jete_a_end(tmp_path: Path) -> None:
+    """L'épisode entamé avant `end` finit (SPECS.md §7 n°35), mais celui qui
+    n'a fait qu'être demandé n'a rien entamé : la case fermée, il est jeté et
+    rien ne s'inscrit (SPECS.md §4.11.1)."""
+    ordres: list[str] = []
+    clock = FrozenClock(DIMANCHE_20H + timedelta(hours=2, minutes=59, seconds=50))
+    playout, state = _playout_du_dimanche(tmp_path, clock, ordres)
+    playout.declare_listeners(1)
+    assert playout.next_entry() == "https://exemple.test/l1.mp3", "l'épisode attend, seul"
+
+    clock.advance(timedelta(seconds=15))
+    playout.declare_listeners(1)
+
+    assert ordres == ["requeue"]
+    assert state.last_airing(LONGS.name) is None, "il n'a pas passé, rien n'est inscrit"
+    suivante = playout.next_entry()
+    assert suivante is not None and suivante.startswith("fake://"), "la case est fermée"
+
+
+def test_la_musique_tiree_faute_d_episode_neuf_n_est_pas_rejugee_a_chaque_battement(
+    tmp_path: Path,
+) -> None:
+    """Une case qui n'a rien de neuf reste ouverte : la musique tirée dessous
+    porte la même clé qu'elle, et le battement de quinze secondes ne doit pas
+    ordonner un `/requeue` de plus à chaque passage."""
+    ordres: list[str] = []
+    clock = FrozenClock(DIMANCHE_20H)
+    playout, _state = _playout_du_dimanche(tmp_path, clock, ordres)
+    playout.declare_listeners(1)
+    episode = playout.next_entry()
+    assert episode is not None
+    clock.advance(timedelta(minutes=1))
+    playout.playing(episode)
+    playout.declare_listeners(1)
+    ordres.clear()
+    avance = playout.next_entry()
+    assert avance is not None and avance.startswith("fake://")
+
+    for _ in range(4):
+        clock.advance(timedelta(seconds=15))
+        playout.declare_listeners(1)
+
+    assert ordres == [], "la case n'a pas changé, l'avance tient"
+
+
+def test_un_podcast_seul_et_un_direct_ne_sont_pas_rejuges(tmp_path: Path) -> None:
+    """Leur case est à eux : elle n'entre pas dans la clé de l'avance, et un
+    changement de plage musicale ne doit pas les jeter avant qu'ils commencent
+    (SPECS.md §7 n°5)."""
+    ordres: list[str] = []
+    podcast = tmp_path / "podcast"
+    podcast.mkdir()
+    clock = FrozenClock(MIDI + timedelta(minutes=1))
+    playout, _radio, state = _playout_avec_emission(
+        podcast,
+        clock,
+        bands=PLAGES_AUTOUR_DU_DIRECT,
+        order_requeue=lambda: ordres.append("requeue"),
+    )
+    playout.declare_listeners(1)
+    assert playout.next_entry() == EPISODE
+
+    clock.advance(timedelta(minutes=5))
+    playout.declare_listeners(1)
+
+    assert ordres == [], "la plage musicale a changé, l'épisode demandé reste dû"
+    playout.playing(EPISODE)
+    assert state.last_airing("A la French") is not None
+
+    direct = tmp_path / "direct"
+    direct.mkdir()
+    horloge = FrozenClock(MIDI + timedelta(minutes=1))
+    en_direct, _radio = _playout_avec_direct(
+        direct,
+        horloge,
+        bands=PLAGES_AUTOUR_DU_DIRECT,
+        order_requeue=lambda: ordres.append("requeue"),
+    )
+    en_direct.declare_listeners(1)
+    entree = en_direct.next_entry()
+    assert entree is not None and entree.startswith("live:")
+
+    horloge.advance(timedelta(minutes=5))
+    en_direct.declare_listeners(1)
+
+    assert ordres == [], "le direct demandé n'est pas remis en question"

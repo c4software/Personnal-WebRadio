@@ -198,6 +198,13 @@ le chemin de l'encore) — ce qui est rassi est jeté, le reste se ressert
 derrière le jingle dû. C'est ce qui fait tomber le jingle horaire à la jonction
 qui suit l'heure, et non un morceau plus tard.
 
+Le moment de la charnière est `(période, case de podcasts)` (SPECS.md §7 n°43) :
+`RadioProgramme.current_moment()` reste la charnière, la période vient de la
+grille ou de la programmation, et la case de `Shows.open_band_slot()` — une
+plage déclare sa fin, donc elle se lit sans réseau. Le battement rejuge la
+musique, et l'épisode d'une plage demandé mais pas commencé ; un direct et un
+podcast seul ne portent pas de case, leur avance ne se rejuge pas.
+
 **Et elle regarde devant elle** (SPECS.md §7 n°34). La charnière sait quand le
 morceau en cours a commencé et combien il dure : elle estime la jonction
 suivante, et le programme tire chaque titre d'avance sous la plage de son

@@ -232,8 +232,8 @@ redémarrage aveugle (T02, close) et l'avance qui ne connaît pas les cases de
 podcasts (T04, T05).
 
 **Prochaine tâche** : GOAL-086-T03, la ré-annonce de la piste en cours après un
-redémarrage — ou GOAL-086-T04 si le relevé de T01 tranche contre T03. Puis
-GOAL-082-T04, le seuil de vivier appliqué ou non à l'ancre d'`artist_fan`.
+redémarrage (T04 est faite). Puis GOAL-082-T04, le seuil de vivier appliqué ou
+non à l'ancre d'`artist_fan`.
 
 ---
 
@@ -499,12 +499,25 @@ L'analyse, rejouée sur la pile réelle avec `FrozenClock`, sépare **deux défa
       le script re-poste sa dernière annonce, `playing()` ignore une entrée égale
       à celle en cours. Ne rouvre pas les votes par elle-même : elle raccourcit
       seulement la fenêtre d'ignorance.
-- [ ] **GOAL-086-T04** — L'avance datée connaît les cases de podcasts :
-      `RadioProgramme.current_moment()` inclut la case ouverte d'une plage et
-      l'attente d'un épisode demandé ; à l'ouverture d'une plage, la musique
-      d'avance est rassise et remplacée par un épisode ; le rejugement couvre
-      aussi les épisodes d'avance ; garde-fou contre le `/requeue` à chaque
-      battement.
+- [x] **GOAL-086-T04** — L'avance datée connaît les cases de podcasts.
+      `RadioProgramme.current_moment()` rend `(période, case)`, où la case vient
+      de `Shows.open_band_slot()` : `PodcastSlot(show, start, awaited)`, lue sans
+      réseau — une plage déclare sa fin. `awaited` dit qu'un épisode est demandé
+      sans avoir commencé, ce qui fait changer la clé à son `/playing`. Le
+      rejugement du battement s'élargit aux `Kind.SHOW` qui portent une case de
+      plage ; un direct et un podcast seul n'en portent pas.
+      **Vérifié par rejeu** sur la pile réelle (`RadioProgramme` +
+      `LiquidsoapPlayout` + `Shows`, `FrozenClock`) : la soirée du dimanche
+      (19 h 57 musique, 20 h 00 épisode A, 20 h 01 musique faute de neuf,
+      21 h 00 `/requeue` et épisode « longs formats ») **échoue sans le
+      correctif** — la clé réduite à sa période ne rassit rien, et trois des six
+      tests tombent. Le garde-fou est testé : quatre battements sous une case
+      inchangée n'ordonnent aucun `/requeue`.
+      **Ce qu'on retient de `core/shows.py`** : `open_slot` n'a pas bougé. Elle
+      ne connaît pas les durées d'une plage, et refuser à `end` un épisode qui
+      commencerait après demanderait une durée que la case n'a pas ; c'est le
+      rejugement qui jette l'épisode demandé mais pas commencé. Décision n°43
+      (SPECS.md §7), qui amende la n°33 et la n°35.
 - [ ] **GOAL-086-T05** — `stop` pendant un épisode de plage pioche un autre
       épisode : `Control.declare(kind, skippable)`, `Shows` marque l'épisode
       d'une plage passable, refus motivé sans autre épisode neuf, l'API dit
