@@ -74,6 +74,17 @@ def test_rien_n_est_cousu_au_dela_de_l_horizon(tmp_path: Path) -> None:
     assert programme.upcoming(None) == []
 
 
+def test_un_horizon_nul_ne_coud_aucune_periode(tmp_path: Path) -> None:
+    """`web.upcoming_horizon_minutes = 0` : la période en cours elle-même n'est
+    pas annoncée."""
+    montre = FrozenClock(DIMANCHE_20H)
+    programme, _ = _programme(
+        tmp_path, bands=[SOIREE, NUIT], clock=montre, shows=[ACTUS], horizon=timedelta(0)
+    )
+
+    assert programme.upcoming(None) == []
+
+
 def test_sans_grille_effective_la_liste_ne_coud_rien(tmp_path: Path) -> None:
     """La grille effective est facultative : sans elle, la liste s'arrête à ce
     qu'elle a tiré."""

@@ -30,6 +30,7 @@ from webradio.adapters.config.schema import (
     DEFAULT_MAX_TRACK_MINUTES,
     DEFAULT_ORDER_TIMEOUT,
     DEFAULT_RESUME_FRESH_SECONDS,
+    DEFAULT_UPCOMING_HORIZON_MINUTES,
 )
 
 TOML_MINIMAL = """
@@ -307,6 +308,25 @@ def test_une_reprise_a_zero_dit_que_la_pause_ne_perime_jamais() -> None:
     content = TOML_MINIMAL + "\n[playout]\nresume_fresh_seconds = 0\n"
 
     assert _valider(content).playout.resume_fresh_seconds == 0.0
+
+
+def test_l_horizon_des_prochains_titres_a_un_defaut_declare() -> None:
+    assert _valider(TOML_MINIMAL).web.upcoming_horizon_minutes == DEFAULT_UPCOMING_HORIZON_MINUTES
+
+
+def test_un_horizon_nul_dit_que_la_liste_ne_coud_rien() -> None:
+    content = TOML_MINIMAL + "\n[web]\nupcoming_horizon_minutes = 0\n"
+
+    assert _valider(content).web.upcoming_horizon_minutes == 0
+
+
+def test_un_horizon_negatif_est_refuse_en_le_nommant() -> None:
+    content = TOML_MINIMAL + "\n[web]\nupcoming_horizon_minutes = -1\n"
+
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "web.upcoming_horizon_minutes" in str(refus.value)
 
 
 def test_l_adresse_du_diffuseur_et_son_delai_ont_un_defaut_declare() -> None:

@@ -23,6 +23,7 @@ from webradio.core.rotation import Window
 from webradio.core.shows import Show, ShowSchedule
 
 MIDI = datetime(2026, 8, 30, 12, 0, tzinfo=UTC)
+HORIZON = timedelta(hours=3)
 CATALOGUE = [track("1", "Air", genre="électro"), track("2", "Bowie", genre="rock")]
 
 
@@ -60,6 +61,7 @@ def _playout(
         clock=clock,
         random=random,
         jingle_folder=folder,
+        horizon=HORIZON,
         on_kind=lambda kind, piste, e: branche[0].on_kind(kind, piste, e),
         control=control,
         shows=shows,
@@ -311,6 +313,7 @@ def test_plus_rien_a_jouer_rend_none(tmp_path: Path) -> None:
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
+        horizon=HORIZON,
         on_kind=lambda _kind, _piste, _e: None,
     )
     assert LiquidsoapPlayout(programme, radio, counter).next_entry() is None

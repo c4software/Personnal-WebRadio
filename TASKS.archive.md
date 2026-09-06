@@ -2782,3 +2782,85 @@ diffuseur tenait (SPECS.md §7 n°30).
 tombée pendant l'émission ne doit plus passer ; la reprise de la musique à la
 fin d'un direct ; et un morceau qui commence pendant un battement d'heure
 pleine.
+
+---
+
+## GOAL-078 — La liste des prochains titres coud la grille derrière elle
+
+Ouvert le 2026-09-06, demande de l'auteur, forme tranchée le même jour
+(SPECS.md §7 **n°34 amendée**). Après GOAL-077 : la plage podcasts ajoute à la
+grille une émission **dont la fin est déclarée**, et c'est précisément ce que
+la liste sait dater. Écrite avant, la couture le serait contre des émissions
+sans fin, puis retouchée.
+
+Aujourd'hui la liste s'arrête à ~30 min, et devant un programme ou un podcast
+elle s'arrête net — on ne continue qu'après ce qu'on sait **nommer et dater**
+(GOAL-070). Rien ne relie les titres tirés au Planning, qui sait pourtant tout.
+
+**Rien n'est tiré de plus : zéro décision, zéro tirage jeté.** La profondeur de
+l'avance ne bouge pas.
+
+- [x] **GOAL-078-T01** — Le noyau : `core/planning.py` rend les périodes
+      effectives **entre deux instants**, celle en cours comprise. `day()` ne
+      rend que celles qui commencent dans la journée : une période ouverte à
+      l'instant demandé et commencée la veille n'y figure pas.
+      `EffectiveSchedule.between(depuis, jusqu_a)` sélectionne sur le
+      recouvrement au lieu du début, en réutilisant la fusion de `day()`
+      (`_periodes`, même balayage veille→lendemain, `day()` inchangé). Une
+      période sans fin commencée avant `depuis` n'est retenue que si aucune
+      autre n'a commencé entre son début et `depuis`. Vérifié sur la grille
+      réelle du dimanche soir : `between(20:05, 23:30)` rend la plage de
+      podcasts en cours, celle de 21 h, puis la musique qui reprend à 23 h.
+- [x] **GOAL-078-T02** — `upcoming()` coud ces périodes derrière ce qu'il
+      liste déjà. Tranché en écrivant : pas de nature de plus, mais un champ
+      `Upcoming.period` qui porte le `Segment` — la fin s'y lit, et une plage
+      s'y met en mots comme au Planning. `at` vaut le début de la période, ou
+      `None` si elle est déjà en cours à l'instant de couture. Le départ est
+      l'heure estimée après le dernier titre daté, sinon maintenant : c'est le
+      cas du dimanche, où un épisode de podcast ne date rien.
+      `_annonce_du_remplacement` porte désormais sa période, ce qui évite le
+      doublon et rend sa fin lisible. Horizon de 3 h en constante de module,
+      injectable ; T04 la fera venir du TOML.
+      Vérifié en retirant la couture : le test du dimanche rend `[]` au lieu
+      des trois entrées attendues. Six tests existants ont changé de sortie —
+      la liste continue là où elle s'arrêtait, dont deux dont le nom disait
+      « s'arrête » et « ne promet rien ».
+- [x] **GOAL-078-T03** — L'API les rend, et la page les met en mots avec les
+      fonctions du Planning. Aucun calcul dans le gabarit, et surtout pas une
+      reconstruction à partir de `/api/planning` : il est figé à l'assemblage,
+      l'heure de couture dépend de l'antenne.
+      `UpcomingEntry.period` porte le dictionnaire de `main._periode`, celui-là
+      même que le Planning rend, et `GET /api/up-next` le sort tel quel
+      (`null` sur une ligne de titre). Le gabarit rend une période sur une
+      ligne à part (`prochain periode`), nommée par `nomDeLaPeriode` et
+      détaillée par `detailDeLaPeriode` — les fonctions du Planning, aucune
+      réécrite —, l'heure de début à gauche ou « → » si elle est en cours, sa
+      fin à droite quand la grille la connaît, et pas de ✕.
+      Le dictionnaire des émissions déclarées est passé par `_declarees`, une
+      seule fois pour le Planning et pour la liste.
+      **Décision prise en attendant l'auteur** (T02) : la période d'un
+      programme s'annonce comme période, comme au Planning ; seule sa musique
+      n'est pas listée.
+      **Une question à l'auteur en chemin** : SPECS.md §4.8 dit que pendant un
+      programme, rien n'est annoncé. Cela visait sa musique — la **période**
+      « Programme · Le vendredi de Chloé 18:00–20:00 » s'annonce-t-elle ?
+      Tranchée provisoirement par « oui » ; la renverser ne coûte qu'un filtre.
+- [x] **GOAL-078-T04** — L'horizon de la couture vient du TOML :
+      `web.upcoming_horizon_minutes`, entier, 180 par défaut, refusé sous 0.
+      C'est une affaire de vue, pas de tirage, d'où la table `[web]`. `0` ne
+      coud rien, pas même la période en cours — la garde est explicite, sinon
+      `between(t, t)` rendrait la période qui recouvre `t`. `DEFAULT_HORIZON`
+      disparaît de `app/playout.py` et `horizon` y devient obligatoire : plus
+      aucune durée en dur dans `app/`.
+
+**GOAL-078 est clos le 2026-09-06.** La liste ne s'arrête plus à ce qu'elle sait
+tirer : derrière son dernier titre daté, elle coud les périodes de la grille
+effective jusqu'à trois heures, la période en cours d'abord avec sa fin, les
+suivantes avec leur heure de début. Rien de plus n'est tiré, la grille est lue.
+L'API les rend sous la clé `period` de `GET /api/up-next`, avec les mêmes
+données que le Planning, et la page les met en mots avec les mêmes fonctions.
+Une question reste posée à l'auteur (T03) : une période de programme
+s'annonce-t-elle ? Tranchée par « oui », la renverser ne coûte qu'un filtre.
+
+**Reste à écouter** (AGENTS.md §4.1) : la liste pendant l'émission de dimanche
+prochain, et son rendu à l'œil.

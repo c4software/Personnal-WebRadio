@@ -518,6 +518,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         ),
         effective=grille_effective,
         control=control,
+        horizon=timedelta(minutes=settings.web.upcoming_horizon_minutes),
     )
 
     reprise = settings.playout.resume_fresh_seconds

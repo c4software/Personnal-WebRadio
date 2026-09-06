@@ -538,8 +538,9 @@ seules plages :
   moment même de reprendre.
 
 **Depuis le 2026-09-06** (§7 n°34 amendée, GOAL-078), la liste **coud** derrière
-son dernier titre les périodes de la **grille effective**, jusqu'à un horizon de
-trois heures (GOAL-078-T04 le rendra configurable). La période **en cours** y
+son dernier titre les périodes de la **grille effective**, jusqu'à l'horizon de
+`web.upcoming_horizon_minutes` (§6, trois heures par défaut, `0` pour ne rien
+coudre). La période **en cours** y
 figure la première, sans heure de début — c'est sa fin qui compte, « en cours
 → 21:00 » — puis les suivantes avec la leur. La liste ne s'arrête donc plus net
 après une émission sans fin déclarée : elle nomme ce que la grille annonce
@@ -1195,6 +1196,8 @@ démarrage, et toute clé ajoutée est documentée ici dans le même incrément
 - **Le web** (`[web]`) : `address` et `port` de l'interface et de l'API
   (`0.0.0.0` et 8080 par défaut) ; `refresh_seconds`, l'intervalle auquel le
   serveur regarde si l'antenne a changé (5 par défaut, au moins 0,5) ;
+  `upcoming_horizon_minutes`, jusqu'où la liste des prochains titres coud la
+  grille derrière son dernier titre (§4.8 — 180 par défaut, `0` ne coud rien) ;
   `stream_url`, l'adresse du flux que le lecteur de la page ouvre (§4.8) —
   absente, pas de lecteur ; `:8000/flux` désigne l'hôte de la page ;
 - **Le diffuseur** (`[liquidsoap]`) : `url`, où joindre Liquidsoap pour lui

@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from tests.fakes import FakeSource, track
-from webradio.app.playout import DEFAULT_HORIZON, RadioProgramme
+from webradio.app.playout import RadioProgramme
 from webradio.core.bands import Band, Schedule
 from webradio.core.clock import FrozenClock
 from webradio.core.control import Command, Control, Kind
@@ -27,6 +27,7 @@ CATALOGUE = [
     track("3", "Portishead", genre="trip-hop"),
 ]
 MIDI = datetime(2026, 8, 30, 12, 0, tzinfo=UTC)
+HORIZON = timedelta(hours=3)
 
 
 def _programme(
@@ -39,7 +40,7 @@ def _programme(
     programmes: list[Programme] | None = None,
     shows: list[ShowCase] | None = None,
     draws: list[int] | None = None,
-    horizon: timedelta = DEFAULT_HORIZON,
+    horizon: timedelta = HORIZON,
     effective: bool = True,
 ) -> tuple[RadioProgramme, list[tuple[Kind, Track | None, str | None]]]:
     reelle = source if source is not None else FakeSource(CATALOGUE)
@@ -213,6 +214,7 @@ def _avec_programme(
             clock=clock,
             random=random,
             jingle_folder=folder,
+            horizon=HORIZON,
             on_kind=lambda n, p, e: vues.append((n, p, e)),
             programming=Programming(programmes, clock),
             programme_window=Window(width=1),
@@ -312,6 +314,7 @@ def test_une_source_illisible_pendant_un_programme_replie_aussi(
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
+        horizon=HORIZON,
         on_kind=lambda _n, _p, _e: None,
         programming=Programming([PROG], clock),
     )
@@ -337,6 +340,7 @@ def test_une_liste_courte_ne_bloque_pas_le_programme(tmp_path: Path) -> None:
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
+        horizon=HORIZON,
         on_kind=lambda _n, _p, _e: None,
         programming=Programming([PROG], clock),
         programme_window=Window(width=3),
@@ -400,6 +404,7 @@ def test_un_jingle_du_passe_meme_quand_les_emissions_sont_cablees(tmp_path: Path
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
+        horizon=HORIZON,
         on_kind=lambda n, p, e: vues.append((n, p, e)),
         shows=aucune_emission,
     )
@@ -449,6 +454,7 @@ def _avec_un_direct(
             clock=clock,
             random=random,
             jingle_folder=folder,
+            horizon=HORIZON,
             on_kind=lambda n, p, e: vues.append((n, p, e)),
             shows=emissions,
         ),
@@ -516,6 +522,7 @@ def _programme_pilote(
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
+        horizon=HORIZON,
         on_kind=lambda _n, _p, _e: None,
         programming=programming,
         control=control,
@@ -672,6 +679,7 @@ def _matinale(tmp_path: Path) -> tuple[RadioProgramme, FrozenClock]:
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
+        horizon=HORIZON,
         on_kind=lambda _n, _p, _e: None,
     )
     return programme, clock
@@ -803,6 +811,7 @@ def test_un_programme_sert_aussi_ses_titres_longs(tmp_path: Path) -> None:
         clock=clock,
         random=random,
         jingle_folder=tmp_path,
+        horizon=HORIZON,
         on_kind=lambda _n, _p, _e: None,
         programming=Programming([PROG], clock),
     )

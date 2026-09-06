@@ -143,6 +143,9 @@ port    = 8080
 # Intervalle auquel le flux d'événements regarde si l'antenne a changé. Trop
 # long, un « encore » semble sans effet.
 refresh_seconds = 5.0
+# Jusqu'où la liste des prochains titres coud la grille derrière son dernier
+# titre. 0 : elle ne coud rien.
+upcoming_horizon_minutes = 180
 # L'adresse du flux pour le lecteur de la page. Absente : pas de lecteur.
 # « :8000/flux » désigne l'hôte de la page, quel que soit le poste.
 stream_url = ":8000/flux"

@@ -34,10 +34,6 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Jusqu'où la liste coud la grille derrière son dernier titre (SPECS.md §7
-# n°34 amendée). GOAL-078-T04 la fera venir du TOML.
-DEFAULT_HORIZON = timedelta(hours=3)
-
 
 @dataclass(frozen=True, slots=True)
 class Upcoming:
@@ -84,7 +80,7 @@ class RadioProgramme:
         shows: "Shows | None" = None,
         effective: EffectiveSchedule | None = None,
         control: Control | None = None,
-        horizon: timedelta = DEFAULT_HORIZON,
+        horizon: timedelta,
     ) -> None:
         self._file = queue
         self._source = source
@@ -99,6 +95,7 @@ class RadioProgramme:
         # Facultative : sans elle, l'avance s'estime sur les seules plages.
         self._effective = effective
         self._controle = control
+        # Jusqu'où la couture lit la grille (`web.upcoming_horizon_minutes`).
         self._horizon = horizon
         # Le morceau forcé par un encore, résolu dès la préparation pour que la
         # liste des prochains titres le montre (GOAL-067). L'ancre est gardée
@@ -359,9 +356,10 @@ class RadioProgramme:
         Rien n'y est décidé ni tiré : la grille est lue, pas interrogée. La
         couture part de l'heure estimée après le dernier titre daté ; quand
         rien ne se date, de maintenant. Une période déjà annoncée par la liste
-        n'est pas répétée. Sans grille effective, rien n'est cousu.
+        n'est pas répétée. Sans grille effective, rien n'est cousu, et un
+        horizon nul non plus.
         """
-        if self._effective is None:
+        if self._effective is None or not self._horizon:
             return []
         depart = instant if instant is not None else self._horloge.now()
         portees = {item.period for item in items if item.period is not None}

@@ -110,6 +110,9 @@ DEFAULT_WEB_PORT = 8080
 # Intervalle auquel la page redemande ce qui passe. Trop court, elle interroge
 # pour rien ; trop long, un « encore » semble sans effet.
 DEFAULT_REFRESH = 5.0
+# Jusqu'où la liste des prochains titres coud la grille derrière son dernier
+# titre (SPECS.md §4.8). À 0, elle ne coud rien.
+DEFAULT_UPCOMING_HORIZON_MINUTES = 180
 
 
 class SettingsError(Exception):
@@ -226,6 +229,9 @@ class WebSettings:
     address: str
     port: int
     refresh_seconds: float
+    # Jusqu'où la liste des prochains titres coud la grille (voir
+    # `DEFAULT_UPCOMING_HORIZON_MINUTES`). À 0, elle ne coud rien.
+    upcoming_horizon_minutes: int
     # L'adresse du flux pour le lecteur de la page (GOAL-060). Vide : pas de
     # lecteur. Une valeur comme `:8000/flux` désigne l'hôte de la page.
     stream_url: str = ""
@@ -876,7 +882,11 @@ def validate(brut: Mapping[str, Any]) -> Settings:
     state = _table(brut, "state", "")
     _verifier_cles(state, ("database", "timeout_seconds"), "state")
     web = _table_optionnelle(brut, "web", "")
-    _verifier_cles(web, ("address", "port", "refresh_seconds", "stream_url"), "web")
+    _verifier_cles(
+        web,
+        ("address", "port", "refresh_seconds", "upcoming_horizon_minutes", "stream_url"),
+        "web",
+    )
     podcast = _table_optionnelle(brut, "podcast", "")
     _verifier_cles(podcast, ("timeout_seconds", "cache_seconds"), "podcast")
     playout = _table_optionnelle(brut, "playout", "")
@@ -915,6 +925,13 @@ def validate(brut: Mapping[str, Any]) -> Settings:
                 "web",
                 default=DEFAULT_REFRESH,
                 minimum=0.5,
+            ),
+            upcoming_horizon_minutes=_entier(
+                web,
+                "upcoming_horizon_minutes",
+                "web",
+                default=DEFAULT_UPCOMING_HORIZON_MINUTES,
+                minimum=0,
             ),
             stream_url=_texte(web, "stream_url", "web", default=""),
         ),
