@@ -303,8 +303,10 @@ volume (témoin : −inf → −3,6 dB en une fenêtre). Comment fondre cette ba
 
 ### Points incertains
 
-- [ ] **`request.dynamic` peut-il commencer une entrée demandée avant une
-      autre déjà commencée ?** Non observé, et l'API en dépend depuis
+- [x] ~~**`request.dynamic` peut-il commencer une entrée demandée avant une
+      autre déjà commencée ?**~~ **Oui, mesuré en §12** dès que deux
+      résolutions sont en vol — ce qui n'arrive qu'avec un `fetch()`. Ce qui
+      suit reste la description du doute. Non observé alors, et l'API en dépend depuis
       GOAL-083-T05 : elle tient qu'une entrée plus ancienne qui n'a pas
       commencé a été jetée, faute de route pour l'apprendre de la purge de
       fin de direct. Ce qui est observé ici est plus étroit : après
@@ -455,3 +457,87 @@ la rampe et il entrait à froid.
       muette d'un morceau. Non constaté en production, non expliqué.
 - [ ] Combien de temps de silence un auditeur accepte à la reprise avant de
       croire la radio en panne. Seule l'écoute le dira (AGENTS.md §4.1).
+
+---
+
+## 12. Dixième relevé — passer un épisode de plage (GOAL-086-T01, le 2026-09-06)
+
+> Même image (`v2.3.3`), en Docker sur la machine de développement. Maquette de
+> §11 adaptée : la chaîne de `radio.liq` sans le direct — `request.dynamic
+> (prefetch=1)` → `normalize` → `cross(duration=2.)` → `switch` sur les
+> auditeurs → `amplify` — devant une fausse API qui horodate à la milliseconde,
+> quatre tons purs de 25 s (a = 440 Hz, b = 660 Hz, c = 880 Hz, d = 1100 Hz),
+> un auditeur `curl`. Le poids d'un épisode est simulé par un petit serveur
+> HTTP Python qui sert `c.mp3` (401 283 o) à 50 000 o/s, soit **8 s** de
+> résolution. Le flux MP3 reçu est mesuré par fenêtres de 0,25 s : RMS, et
+> fréquence dominante par passages à zéro — c'est elle qui dit **quel** morceau
+> passe.
+
+Motif : une plage de podcasts (SPECS.md §7 n°35) enchaîne des épisodes ; un
+« Passer » doit mener à un autre épisode, pas à l'avance déjà en file. Le
+diffuseur tient une entrée d'avance et n'expose que `/skip` et `/requeue`.
+
+| Question | Constat |
+|---|---|
+| `programme.fetch()` existe-t-il en 2.3.3 ? | **Oui**, et documenté. `liquidsoap -h request.dynamic` dans l'image le donne parmi les méthodes : « `fetch : () -> bool` — Try feeding the queue with a new request. Returns `true` if successful. This method can take long to return and should usually be run in a separate thread. » `liquidsoap --check` accepte un script qui l'appelle depuis un gestionnaire `harbor.http.register` |
+| Est-il synchrone ? | **Oui, et il bloque le gestionnaire harbor.** Route `/fetch` appelée alors que `/playout/next` attend 6 s avant de répondre : `curl` mesure `code=200 temps=6.014s`, et le journal donne `[T] …077.9 /fetch : appel` puis `[T] …083.91 /fetch : rendu true` — 6,01 s. Il rend **`true`** quand la requête est résolue. Il **ne bloque pas la diffusion** : le ton à l'antenne continue sans accroc pendant l'attente (mesuré, aucune fenêtre sous −17 dB) |
+| Que fait `fetch()` de la file ? | **Il ajoute une entrée par-dessus `prefetch`.** Après un `fetch()` seul, `programme.queue()` rend **2** au lieu de 1. Aucune entrée n'est perdue : la surnuméraire passe simplement au morceau suivant |
+| Route combinée `/skip-fresh` (`set_queue([])` + `fetch()` + `skip()`), avec l'entrée fraîche lente | **L'épisode en cours continue jusqu'à la bascule, sans blanc.** Ordre à 8,05 s ; réponse HTTP à **8,048 s** (le gestionnaire est bloqué toute la résolution) ; le ton `a` tient de 0,50 à **16,50 s** sans discontinuité (−16,6 dB à l'ordre, −14,7 dB à la fin), le fondu de `cross` s'entend à 16,50 s, l'entrée fraîche à **17,00 s**. **Aucune trace de `b`** (660 Hz absent de toutes les fenêtres) : l'avance a bien été jetée, pas jouée |
+| Mais quelle entrée fraîche ? | **Pas forcément celle que `fetch()` a résolue.** `set_queue([])` réveille aussitôt le fil d'avance de `request.dynamic`, qui tire lui aussi : deux `/next` partent dans la même milliseconde (journal : `suivant : http://…/c.mp3` puis `suivant : /liq/d.mp3`). `fetch()` tenait `c` (8 s de téléchargement), le fil d'avance a résolu `d` sur-le-champ — c'est **`d`** qui démarre au saut (1100 Hz à 17,00 s), et `c` joue ensuite. Un « Passer » coûte donc **deux tirages**, et l'ordre suit la fin de résolution, pas l'ordre des appels |
+| `/requeue` puis `/skip` à ~50 ms, comme le ferait l'API | **Un blanc de 5,75 s.** `requeue` répond en 9,8 ms, `skip` en 4,6 ms. Ton `a` jusqu'à 10,25 s (les ~2 s que `cross` tient d'avance), puis **−99 dB de 10,50 à 16,00 s**, puis `c` à 16,25 s sous une rampe (−42 → −21 dB) — le `switch` était retombé sur `blank()` (`Switch to blank with transition`), comme en §11. Un seul tirage, et c'est bien l'entrée tirée qui joue |
+| `/requeue`, 3 s d'attente, `/skip` | **Le blanc se réduit d'autant, sans rien avancer.** Ton `a` jusqu'à 13,00 s, silence de 13,25 à 16,00 s (**2,75 s**), `c` à 16,25 s. Les trois manches font entrer l'entrée fraîche à **16,25–17,00 s** : c'est le téléchargement qui commande, pas la méthode. Attendre ne fait qu'échanger du silence contre de l'épisode en cours |
+| Au début d'une piste, qui part le premier : `/playing` ou le `/next` de recomplètement ? | **`/playing`, d'une milliseconde ou moins — et ce n'est pas garanti.** Trois jonctions d'une manche : `PLAYING` à 13.189 / `NEXT` à 13.190 ; 17.228 / 17.229 ; 21.230 / 21.231. Sur une autre manche, la **première** piste s'est annoncée dans l'autre sens (`NEXT` 9.170, `PLAYING` 9.171). Les deux appels sont **concurrents** : `on_track` poste depuis le fil de diffusion, le recomplètement depuis le fil d'avance |
+| Le recomplètement attend-il la réponse de `/playing` ? | **Non.** Avec un `/playout/playing` qui met 3 s à répondre, le `/next` part quand même dans la milliseconde : `PLAYING` 13.067 / `NEXT` 13.067, puis `PLAYING repond apres 3.0s` à 16.067. Une API qui répondrait à `/next` en s'appuyant sur avoir déjà traité `/playing` n'a **aucune marge** |
+| Ré-annoncer la piste en cours depuis un `ref` | **Oui.** Le corps du dernier `on_track` gardé dans un `ref`, re-posté par une route `/replay-playing` : le POST repart, avec **les mêmes métadonnées** (`/liq/s1.mp3 \| Episode \| Un`), en 8,7 ms. Après la jonction, c'est la nouvelle piste qui est re-postée (`… \| Deux`) |
+| Une primitive qui rend les métadonnées de la piste en cours | **`source.last_metadata` existe** (`liquidsoap --list-functions` la donne ; `-h` : « Return the last metadata from the source », type `(source('a)) -> [string * string]?`), et `request.dynamic` la porte aussi comme méthode `last_metadata : () -> [string * string]?`. Mesuré sur la même manche : elle rend **exactement** ce que le `ref` gardait, `initial_uri` compris. Le `ref` n'est donc pas nécessaire — mais il ne coûte rien et ne dépend pas de l'endroit de la chaîne où on le lit |
+| Le client qui abandonne pendant un `/skip-fresh` | **N'annule rien.** `curl --max-time 2` sur une route qui bloque 8 s : le client rend `000` à 2,00 s, le gestionnaire va jusqu'au bout (`fetch() = true` à +8,06 s) et le saut a lieu. L'API peut poster sans attendre |
+
+### Ce que cela change
+
+- Le choix n'est pas entre « avec » et « sans blanc », mais entre **un blanc** et
+  **de l'épisode en trop**. L'entrée fraîche entre au même instant dans les
+  trois manches (16,25–17,00 s pour 8 s de téléchargement) : ce que la route
+  combinée gagne, elle le gagne en gardant l'antenne pleine pendant l'attente,
+  pas en allant plus vite.
+- `set_queue([])` **tire** dès qu'un auditeur écoute — nuance par rapport à
+  §5.bis, qui l'avait mesuré au repos, source non tirée. Ajouter `fetch()`
+  par-dessus fait donc **deux** tirages concurrents, et le plus rapide gagne
+  l'antenne.
+- Un gestionnaire harbor qui appelle `fetch()` est bloqué pour toute la
+  résolution. Sur un épisode de 50 à 120 Mo, cela peut aller jusqu'à
+  `settings.request.timeout` — **120 s** dans `radio.liq`. La route doit être
+  postée sans attendre la réponse, et le journal du diffuseur reste le seul
+  témoin de ce qu'elle a fait.
+
+### Points incertains
+
+- [x] ~~**`request.dynamic` peut-il commencer une entrée demandée avant une
+      autre déjà commencée ?** (§9)~~ **Mesuré ici : oui, quand deux
+      résolutions sont en vol.** L'entrée demandée en second (`d`, résolue en
+      100 ms) a démarré avant celle demandée en premier (`c`, 8 s de
+      téléchargement). Avec `prefetch=1` et le script tel qu'il est, une seule
+      résolution est en vol à la fois et le cas ne se présente pas ; il
+      n'apparaît **que** si l'on ajoute un `fetch()`. Ce que l'API tient depuis
+      GOAL-083-T05 cesse donc de valoir le jour où la route combinée est
+      adoptée.
+- [ ] Ce que l'auditeur préfère entendre après un « Passer » : quelques
+      secondes de plus de l'épisode qu'il vient de refuser, ou un blanc de la
+      même durée. Aucune mesure ne le dira (AGENTS.md §4.1).
+- [ ] Le temps réel de résolution d'un épisode de 50 à 120 Mo. Simulé ici à
+      8 s ; **non mesuré** contre un vrai flux de podcast.
+- [ ] Deux « Passer » coup sur coup, ou un `/skip-fresh` pendant qu'un autre
+      bloque encore. **Non essayé.**
+
+### Annexe — la route combinée de la maquette
+
+```liquidsoap
+def on_skip_fresh(request, response) =
+  ignore(request)
+  programme.set_queue([])
+  ok = programme.fetch()
+  log("fetch() = #{ok}")
+  if piste_commencee() then sauter() end
+  response.data("passe")
+end
+harbor.http.register(port=port, method="POST", "/skip-fresh", on_skip_fresh)
+```
