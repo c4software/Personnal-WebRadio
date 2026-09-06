@@ -115,7 +115,13 @@ def test_l_api_dit_ce_qui_passe_et_de_quelle_nature() -> None:
         "moment": None,
         "moment_random": False,
         "up_next": None,
-        "on_air_now": {"kind": "musique", "title": "Sexy Boy", "artist": "Air"},
+        "on_air_now": {
+            "kind": "musique",
+            "title": "Sexy Boy",
+            "artist": "Air",
+            "elapsed_seconds": None,
+            "duration_seconds": None,
+        },
     }
 
 
@@ -146,7 +152,33 @@ def test_un_jingle_n_a_ni_titre_ni_artiste() -> None:
         "kind": "jingle",
         "title": None,
         "artist": None,
+        "elapsed_seconds": None,
+        "duration_seconds": None,
     }
+
+
+def test_l_api_dit_la_duree_et_l_ecoule_de_ce_qui_passe() -> None:
+    """La page en fait une barre d'avancement (SPECS.md §4.8, GOAL-085)."""
+    passe = OnAir(
+        kind=Kind.MUSIC, title="Sexy Boy", artist="Air", elapsed_seconds=42, duration_seconds=210
+    )
+    answer = client(FakeRadio(on_air_now=passe)).get("/api/on-air")
+    assert answer.get_json()["on_air_now"] == {
+        "kind": "musique",
+        "title": "Sexy Boy",
+        "artist": "Air",
+        "elapsed_seconds": 42,
+        "duration_seconds": 210,
+    }
+
+
+def test_l_api_dit_l_ecoule_sans_la_duree_quand_elle_est_inconnue() -> None:
+    """Une vidéo ou un épisode sans durée : on sait depuis quand, pas jusqu'à quand."""
+    passe = OnAir(kind=Kind.SHOW, title="Épisode", elapsed_seconds=90)
+    answer = client(FakeRadio(on_air_now=passe)).get("/api/on-air")
+    donnees = answer.get_json()["on_air_now"]
+    assert donnees["elapsed_seconds"] == 90
+    assert donnees["duration_seconds"] is None
 
 
 # ── Le flux d'événements (GOAL-073) ─────────────────────────────────────────
@@ -169,6 +201,14 @@ def charge(message: str) -> dict[str, object]:
     return donnees
 
 
+def antenne(message: str) -> dict[str, object]:
+    """Le bloc `on_air_now` d'un message du flux."""
+    donnees = charge(message)["on_air_now"]
+    assert isinstance(donnees, dict)
+    bloc: dict[str, object] = donnees
+    return bloc
+
+
 def test_le_flux_annonce_l_antenne_des_la_connexion() -> None:
     """Un client qui se branche ne doit pas attendre le premier changement."""
     premier = messages(FakeRadio(on_air_now=MORCEAU), 1)[0]
@@ -177,6 +217,8 @@ def test_le_flux_annonce_l_antenne_des_la_connexion() -> None:
         "kind": "musique",
         "title": "Sexy Boy",
         "artist": "Air",
+        "elapsed_seconds": None,
+        "duration_seconds": None,
     }
 
 
@@ -192,7 +234,13 @@ def test_le_flux_repart_des_que_l_antenne_change() -> None:
     radio._antenne = OnAir(kind=Kind.JINGLE)
     suivant = next(flux)
     assert suivant.startswith("event: antenne\n")
-    assert charge(suivant)["on_air_now"] == {"kind": "jingle", "title": None, "artist": None}
+    assert charge(suivant)["on_air_now"] == {
+        "kind": "jingle",
+        "title": None,
+        "artist": None,
+        "elapsed_seconds": None,
+        "duration_seconds": None,
+    }
 
 
 def test_le_flux_regarde_l_antenne_a_l_intervalle_configure() -> None:
@@ -207,6 +255,39 @@ def test_le_flux_dit_ce_que_dit_la_route_de_l_antenne() -> None:
     """La route et le flux ne doivent pas pouvoir diverger."""
     radio = FakeRadio(on_air_now=MORCEAU)
     assert charge(messages(radio, 1)[0]) == client(radio).get("/api/on-air").get_json()
+
+
+def test_le_flux_ne_repart_pas_quand_seul_l_ecoule_a_avance() -> None:
+    """Un compteur qui avance à la seconde ferait pousser un message par tour."""
+    radio = FakeRadio(
+        on_air_now=OnAir(kind=Kind.MUSIC, title="Sexy Boy", elapsed_seconds=3, duration_seconds=210)
+    )
+    flux = diffuser_antenne(radio, interval=5.0, sleep=lambda _: None)
+    next(flux)
+    radio._antenne = OnAir(
+        kind=Kind.MUSIC, title="Sexy Boy", elapsed_seconds=8, duration_seconds=210
+    )
+    assert next(flux) == ": maintien\n\n"
+
+
+def test_le_flux_repart_quand_la_duree_change() -> None:
+    """La durée fait partie de l'état : elle ne bouge qu'avec ce qui passe."""
+    radio = FakeRadio(on_air_now=OnAir(kind=Kind.MUSIC, title="Sexy Boy", duration_seconds=210))
+    flux = diffuser_antenne(radio, interval=5.0, sleep=lambda _: None)
+    next(flux)
+    radio._antenne = OnAir(kind=Kind.MUSIC, title="Sexy Boy", duration_seconds=185)
+    assert antenne(next(flux))["duration_seconds"] == 185
+
+
+def test_le_message_du_flux_porte_l_ecoule_du_moment_de_l_emission() -> None:
+    """L'écoulé émis est celui de l'instant du message ; la page s'y recale."""
+    radio = FakeRadio(
+        on_air_now=OnAir(kind=Kind.MUSIC, title="Sexy Boy", elapsed_seconds=3, duration_seconds=210)
+    )
+    flux = diffuser_antenne(radio, interval=5.0, sleep=lambda _: None)
+    next(flux)
+    radio._antenne = OnAir(kind=Kind.MUSIC, title="Kelly", elapsed_seconds=61, duration_seconds=225)
+    assert antenne(next(flux))["elapsed_seconds"] == 61
 
 
 def test_le_flux_s_annonce_comme_un_flux_d_evenements() -> None:
@@ -449,6 +530,8 @@ def test_l_api_dit_ce_qui_suit() -> None:
         "kind": "musique",
         "title": "Radiate",
         "artist": "Jack Johnson",
+        "elapsed_seconds": None,
+        "duration_seconds": None,
     }
 
 

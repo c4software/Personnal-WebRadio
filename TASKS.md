@@ -223,8 +223,8 @@ pendant l'émission de dimanche prochain.
 **GOAL-085 est ouvert le 2026-09-06** sur demande de l'auteur : l'antenne dira
 la durée et l'avancement de ce qui passe, et la page en fera une barre.
 
-**Prochaine tâche** : GOAL-085-T02, `duration_seconds` et `elapsed_seconds`
-dans le JSON et le flux d'événements. Puis GOAL-082-T04, le seuil de vivier
+**Prochaine tâche** : GOAL-085-T03, la barre d'avancement sur la carte
+« Antenne » et dans le lecteur. Puis GOAL-082-T04, le seuil de vivier
 appliqué ou non à l'ancre d'`artist_fan`. GOAL-075 attend sa mesure à l'antenne
 (T03), qui demande le déploiement.
 
@@ -488,10 +488,17 @@ mesuré, et rien n'est corrigé.
       `duration_seconds` ; **rien n'est encore rendu au JSON ni au flux SSE**,
       c'est T02. Vérifié : `_antenne_en_donnees` est inchangé, les tests d'API
       existants passent, et l'écoulé est borné à zéro comme à la durée connue.
-- [ ] **GOAL-085-T02** — L'API et le flux d'événements rendent
+- [x] **GOAL-085-T02** — L'API et le flux d'événements rendent
       `duration_seconds` et `elapsed_seconds`, sans que l'écoulé fasse émettre
       un message à chaque tour : le flux ne pousse que sur changement, et un
       compteur qui avance à la seconde le ferait pousser en continu.
+      `_antenne_en_donnees` porte les deux champs, donc `on_air_now` et
+      `up_next` ont la même forme — nuls pour ce qui suit, qui n'a pas
+      commencé. `diffuser_antenne` compare un état passé par `_sans_ecoule`
+      et émet l'état complet. Vérifié : `/api/on-air` rend les deux champs et
+      `null` quand ils sont inconnus ; le flux ne rend qu'un commentaire de
+      maintien quand seul l'écoulé a avancé, repart quand la durée ou le titre
+      change, et le message porte l'écoulé du moment.
 - [ ] **GOAL-085-T03** — La page : une barre d'avancement sur la carte
       « Antenne » et dans le lecteur, qui avance en local et se recale à chaque
       message.

@@ -468,6 +468,13 @@ Quand la durée est inconnue, l'écoulé reste annoncé : on sait depuis quand �
 passe, pas jusqu'à quand. Quand personne n'écoute, il n'y a pas d'antenne, donc
 rien à dire.
 
+`GET /api/on-air` et le flux `GET /api/events` portent `elapsed_seconds` et
+`duration_seconds` à côté de `kind`, `title` et `artist`, dans `on_air_now`
+comme dans `up_next` (nuls des deux côtés quand rien ne les donne, et toujours
+pour ce qui suit, qui n'a pas commencé). Le flux **n'émet pas** pour l'écoulé
+seul : il pousserait un message par tour. C'est la page qui fait avancer la
+barre entre deux messages, et qui la recale sur l'écoulé du message suivant.
+
 > **La position annoncée est celle du diffuseur, pas celle de l'oreille.** Elle
 > est en avance de tout ce qui tamponne entre les deux — le navigateur, le
 > lecteur, le reverse proxy. L'écart n'est pas mesuré, et il n'est pas corrigé :

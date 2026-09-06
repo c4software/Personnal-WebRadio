@@ -488,6 +488,12 @@ deux changements, il émet un commentaire de maintien — une connexion muette s
 fait fermer par les intermédiaires, et c'est l'écriture qui fait constater un
 client parti.
 
+**Le changement se juge sans l'écoulé** (GOAL-085). `elapsed_seconds` avance à
+chaque tour : le comparer ferait pousser un message par tour, ce que le flux
+existe précisément pour éviter. `_sans_ecoule` en donne un état comparable,
+tandis que le message émis porte l'écoulé de l'instant où il part. La durée,
+elle, reste dans la comparaison : elle ne bouge qu'avec ce qui passe.
+
 ### 6.1 Ce que l'API doit refuser
 
 Pendant un jingle ou un flash, un vote n'est pas applicable (SPECS.md §4.6). Le

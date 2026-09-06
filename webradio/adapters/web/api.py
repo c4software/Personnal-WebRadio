@@ -224,13 +224,15 @@ class Radio(Protocol):
         ...
 
 
-def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | None] | None:
+def _antenne_en_donnees(on_air_now: OnAir | None) -> dict[str, str | int | None] | None:
     if on_air_now is None:
         return None
     return {
         "kind": str(on_air_now.kind),
         "title": on_air_now.title,
         "artist": on_air_now.artist,
+        "elapsed_seconds": on_air_now.elapsed_seconds,
+        "duration_seconds": on_air_now.duration_seconds,
     }
 
 
@@ -249,6 +251,21 @@ def _etat_antenne(radio: Radio) -> dict[str, object]:
     }
 
 
+def _sans_ecoule(etat: dict[str, object]) -> dict[str, object]:
+    """L'état privé de l'écoulé, pour décider s'il a changé.
+
+    L'écoulé avance à chaque tour : le comparer ferait émettre un message par
+    tour alors que rien d'autre n'a bougé (GOAL-085). La durée, elle, reste
+    dans la comparaison : elle ne change qu'avec ce qui passe.
+    """
+    comparable = dict(etat)
+    for cle in ("on_air_now", "up_next"):
+        antenne = comparable[cle]
+        if isinstance(antenne, dict):
+            comparable[cle] = {k: v for k, v in antenne.items() if k != "elapsed_seconds"}
+    return comparable
+
+
 def diffuser_antenne(
     radio: Radio,
     *,
@@ -263,15 +280,20 @@ def diffuser_antenne(
     connexion muette se fait fermer par les intermédiaires, et l'écriture est ce
     qui fait constater un client parti.
 
+    Le changement se juge sur l'état privé de `elapsed_seconds` (`_sans_ecoule`),
+    sinon le compteur ferait pousser un message à chaque tour. Le message émis
+    porte l'écoulé de l'instant où il part, ce que la page recale.
+
     `sleep` est injecté pour que les tests ne dorment pas (AGENTS.md §4).
     """
     dernier: dict[str, object] | None = None
     while True:
         etat = _etat_antenne(radio)
-        if etat == dernier:
+        comparable = _sans_ecoule(etat)
+        if comparable == dernier:
             yield ": maintien\n\n"
         else:
-            dernier = etat
+            dernier = comparable
             yield f"event: {EVENT_ANTENNE}\ndata: {json.dumps(etat)}\n\n"
         sleep(interval)
 
