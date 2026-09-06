@@ -228,12 +228,15 @@ class ShowSchedule:
         Sert à préparer ce qu'une case demandera — lire ses flux, par exemple —
         avant qu'elle ne s'ouvre, pour qu'elle n'attende rien à son heure.
         """
-        for avance in (0, 1):
-            jour = (instant + delay + timedelta(days=avance)).date()
+        # Le jour de `instant` ET celui de la fin de fenêtre : ils diffèrent
+        # quand elle franchit minuit, et c'est le premier qui porte une case de
+        # 23 h 55 vue depuis 23 h 50.
+        limite = instant + delay
+        for jour in {instant.date(), limite.date()}:
             if not show.a_lieu_le(jour):
                 continue
             debut = datetime.combine(jour, show.hour, tzinfo=instant.tzinfo)
-            if instant < debut <= instant + delay:
+            if instant < debut <= limite:
                 return True
         return False
 

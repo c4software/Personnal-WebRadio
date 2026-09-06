@@ -150,7 +150,7 @@ stream_url = ":8000/flux"
 [podcast]
 timeout_seconds = 15.0
 # Un flux lu est gardé ce temps-là : une plage relit les siens à chaque
-# jonction, et six flux pèsent 21,5 Mo. 0 = relire à chaque fois.
+# jonction, et six flux pèsent 21,6 Mo. 0 = relire à chaque fois.
 cache_seconds   = 900.0
 
 # ── YouTube ────────────────────────────────────────────────────────────────

@@ -437,6 +437,12 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
 
         en_fond.submit(tache).add_done_callback(_dire_si_ca_casse)
 
+    garde_des_flux = (
+        timedelta(seconds=settings.podcast.cache_seconds)
+        if settings.podcast.cache_seconds > 0
+        else None
+    )
+
     cases = [
         Show(
             name=e.name,
@@ -477,9 +483,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             PodcastFeed(
                 UrllibReader(lock_timeout=timedelta(seconds=settings.podcast.timeout_seconds)),
                 clock,
-                timedelta(seconds=settings.podcast.cache_seconds)
-                if settings.podcast.cache_seconds > 0
-                else None,
+                garde_des_flux,
             ),
             state,
             clock,
@@ -489,10 +493,12 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             youtube_channels={e.name: e.youtube for e in settings.shows if e.youtube is not None},
             youtube=YoutubeChannel(timedelta(seconds=settings.youtube.timeout_seconds)),
             youtube_cache=Path(settings.state.database).parent / "cache",
-            in_background=_preparer_en_fond,
-            preload=timedelta(seconds=settings.podcast.cache_seconds)
-            if settings.podcast.cache_seconds > 0
-            else None,
+            # Sans cache, différer la lecture ne rend jamais rien : il n'y a
+            # rien à servir en attendant. `cache_seconds = 0` retrouve donc la
+            # lecture sur place, et le délai d'attente redevient à la charge de
+            # celui qui l'a réglé (SPECS.md §6).
+            in_background=_preparer_en_fond if garde_des_flux is not None else None,
+            preload=garde_des_flux,
         ),
         effective=grille_effective,
         control=control,

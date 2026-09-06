@@ -1019,3 +1019,17 @@ def test_une_plage_qui_enjambe_minuit_voit_le_lendemain() -> None:
             + 'days = ["sunday"]\ntime = "01:00"\n'
         )
     assert "Avalée" in str(refus.value)
+
+
+def test_une_emission_avant_une_plage_qui_enjambe_minuit_reste_acceptee() -> None:
+    """Une plage du samedi 22 h à 2 h occupe le samedi de 22 h à minuit, et le
+    dimanche de minuit à 2 h. Les confondre refusait une émission du samedi
+    1 h, qui n'y est pas (GOAL-081)."""
+    config = _valider(
+        TOML_MINIMAL
+        + '\n[[shows]]\nname = "Nuit"\nfeeds = ["https://a.test/rss"]\n'
+        + 'days = ["saturday"]\ntime = "22:00"\nend = "02:00"\n'
+        + '\n[[shows]]\nname = "Petit matin"\nfeed = "https://b.test/rss"\n'
+        + 'days = ["saturday"]\ntime = "01:00"\n'
+    )
+    assert len([s for s in config.shows if s.name in ("Nuit", "Petit matin")]) == 2

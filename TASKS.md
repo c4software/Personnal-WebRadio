@@ -195,7 +195,7 @@ un test, jamais entendu. Et une émission peut tenir plusieurs flux et déclarer
 sa fin : les six podcasts demandés par l'auteur tiennent en deux plages le
 week-end, groupées par longueur.
 
-**Prochaine tâche** : GOAL-078-T01, la couture de la grille derrière les
+**Prochaine tâche** : GOAL-081-T04, puis GOAL-078-T01, la couture de la grille derrière les
 titres. GOAL-075 attend sa mesure à l'antenne (T03), qui demande le
 déploiement ; GOAL-079 est une réécriture de ton, à prendre quand elle
 n'interrompt rien.
@@ -257,6 +257,40 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
 ---
 
 ---
+
+---
+
+## GOAL-081 — Ce que la lecture de fond a cassé, et deux fenêtres fausses
+
+Ouvert et clos le 2026-09-06, sur revue de clôture. GOAL-080 fermait une
+coupure d'antenne ; il en a ouvert une régression audible.
+
+- [x] **GOAL-081-T01** — Une plage n'intercale plus de musique entre deux
+      épisodes. Le cache dure 900 s, un épisode long en dure 4 600 : la garde
+      expirait **au milieu**, la jonction suivante ne trouvait rien et rendait
+      la main à la musique. Motif mesuré sur trois flux de soixante-dix
+      minutes : `épisode, musique, épisode, musique, épisode`. Le catalogue
+      périmé sert désormais pendant qu'on le relit, et la relecture part au
+      même instant — sans quoi un épisode publié n'apparaîtrait jamais.
+      Le Fake des tests ne pouvait pas voir ce défaut : son cache n'expirait
+      jamais. Il expire maintenant, comme le vrai.
+- [x] **GOAL-081-T02** — `podcast.cache_seconds = 0` ne diffusait plus jamais
+      un podcast : sans cache, il n'y a rien à servir en attendant, et la
+      lecture différée rendait `None` à chaque jonction. L'option documentée
+      était silencieusement morte. Sans cache, on lit donc sur place.
+- [x] **GOAL-081-T03** — Deux fenêtres fausses autour de minuit. La
+      préparation d'une case (`opens_within`) regardait le lendemain — qui ne
+      peut pas porter une case déjà passée — et manquait le jour de l'instant :
+      une case de 23 h 55 n'était pas vue depuis 23 h 50. Et la règle de
+      recouvrement appariait un jour et une tranche qui ne se rencontrent pas,
+      refusant une émission du samedi 1 h sous une plage du samedi 22 h à 2 h.
+- [ ] **GOAL-081-T04** — Une chaîne YouTube se lit encore dans la requête que
+      le diffuseur attend, et `yt-dlp` s'y résout : deux appels bornés par
+      `youtube.timeout_seconds` (60 s en production) contre les 10 s du
+      diffuseur, sans cache, à chaque jonction pendant deux jours. C'est la
+      classe de défaut que GOAL-080 vient de fermer pour les podcasts, avec un
+      budget pire. SPECS §4.11 et docs/podcast.md le disent maintenant, faute
+      de le corriger.
 
 ---
 
@@ -397,6 +431,7 @@ mimétisme. §9 dit que cela « ne doit pas revenir ».
 | GOAL-075 | Le premier tirage d'une reprise ne fait plus attendre l'antenne | `[ ]` — ouvert le 2026-09-06 par GOAL-074-T05 |
 | GOAL-076 | Le thème d'une plage « au hasard » ne se retire plus tout seul | `[x]` — clos le 2026-09-06 ; défaut constaté par un test avant correction, jamais entendu à l'antenne |
 | GOAL-077 | Une plage « podcasts » : plusieurs flux, tirés au hasard | `[x]` — clos le 2026-09-06 ; **reste à écouter** l'enchaînement et le débordement |
+| GOAL-081 | Ce que la lecture de fond a cassé, et deux fenêtres fausses | `[-]` — ouvert le 2026-09-06 ; T04 (YouTube) reste |
 | GOAL-078 | La liste des prochains titres coud la grille derrière elle | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°34 amendée) |
 | GOAL-080 | Ce qu'une plage podcasts expose, et que la revue a trouvé | `[x]` — clos le 2026-09-06 ; **reste à écouter** le début d'une plage |
 | GOAL-079 | `radio.liq` reçoit la réécriture du ton que les autres ont eue | `[ ]` — ouvert le 2026-09-06, sur revue : le fichier a échappé à `ea20e20` |

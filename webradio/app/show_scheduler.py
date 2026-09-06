@@ -276,13 +276,14 @@ class Shows:
         L'avance est celle du cache : lire plus tôt ne servirait à rien, la
         garde aurait expiré (SPECS.md §6).
         """
-        if self._en_fond is None or self._avance_de_lecture is None:
+        en_fond = self._en_fond
+        if en_fond is None or self._avance_de_lecture is None:
             return
         if not self._programme.opens_within(show, instant, self._avance_de_lecture):
             return
         for address in self._adresses.get(show.name, ()):
             if self._flux.cached(address) is None:
-                self._lire_en_fond(address, show.name)
+                self._lire_en_fond(address, show.name, en_fond)
 
     def _episodes_de(self, address: str, show_name: str) -> list[EpisodeDuFlux] | None:
         """Le catalogue de ce flux, sans jamais attendre le réseau quand un fil
@@ -294,13 +295,17 @@ class Shows:
         tâche de fond, et la case attend la jonction suivante plutôt que
         l'hébergeur.
         """
-        if self._en_fond is None:
+        en_fond = self._en_fond
+        if en_fond is None:
             return self._lire(address, show_name)
         connu = self._flux.cached(address)
         if connu is not None:
             return connu
-        self._lire_en_fond(address, show_name)
-        return None
+        self._lire_en_fond(address, show_name, en_fond)
+        # Le catalogue périmé, le temps que la relecture aboutisse : la garde
+        # expire au milieu d'un épisode long, et sans cela un morceau de
+        # musique s'intercalait entre chaque épisode d'une plage.
+        return self._flux.cached(address, stale_ok=True)
 
     def _lire(self, address: str, show_name: str) -> list[EpisodeDuFlux] | None:
         try:
@@ -316,9 +321,15 @@ class Shows:
             )
             return None
 
-    def _lire_en_fond(self, address: str, show_name: str) -> None:
-        """Une lecture à la fois par flux : les jonctions se suivent plus vite
-        qu'un hébergeur lent ne répond."""
+    def _lire_en_fond(
+        self, address: str, show_name: str, en_fond: Callable[[Callable[[], None]], None]
+    ) -> None:
+        """Une lecture à la fois par flux.
+
+        Le fil de fond est unique et partagé : plusieurs flux muets y attendent
+        chacun leur délai, et sans ce témoin chaque jonction en empilerait une
+        de plus sur la file.
+        """
         with self._verrou_lectures:
             if address in self._lectures_lancees:
                 return
@@ -331,8 +342,7 @@ class Shows:
                 with self._verrou_lectures:
                     self._lectures_lancees.discard(address)
 
-        if self._en_fond is not None:
-            self._en_fond(au_travail)
+        en_fond(au_travail)
 
     def _episode_de(
         self, show: Show, par_flux: dict[str, list[EpisodeDuFlux]]

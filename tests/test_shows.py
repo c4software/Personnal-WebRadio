@@ -343,3 +343,17 @@ def test_a_graine_fixee_la_meme_soiree_pioche_les_memes_flux() -> None:
 
     assert premiere is not None
     assert premiere == seconde
+
+
+def test_une_case_de_fin_de_soiree_est_vue_avant_minuit() -> None:
+    """La fenêtre de préparation franchit minuit : elle regardait alors le
+    lendemain, qui ne peut pas porter une case déjà passée, et manquait le jour
+    de l'instant lui-même (GOAL-081)."""
+    tardive = Show(name="Tardive", days=("friday",), hour=time(23, 55), end=time(1))
+    grille = ShowSchedule([tardive])
+    quart = timedelta(minutes=15)
+
+    assert grille.opens_within(tardive, le_vendredi(23, 41), quart)
+    assert grille.opens_within(tardive, le_vendredi(23, 50), quart), "manqué avant la correction"
+    assert not grille.opens_within(tardive, le_vendredi(23, 30), quart), "encore trop tôt"
+    assert not grille.opens_within(tardive, le_vendredi(23, 56), quart), "déjà ouverte"

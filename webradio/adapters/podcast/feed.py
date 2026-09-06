@@ -156,17 +156,26 @@ class PodcastFeed:
         self._duree_cache = cache
         self._cache: dict[str, tuple[datetime, list[Episode]]] = {}
 
-    def cached(self, url: str) -> list[Episode] | None:
+    def cached(self, url: str, *, stale_ok: bool = False) -> list[Episode] | None:
         """Ce que le cache tient de ce flux, sans aller au réseau.
 
-        Rend `None` quand rien n'est gardé ou que la garde a expiré. C'est ce
-        qui permet de décider sans jamais attendre un hébergeur : la lecture
-        part alors en tâche de fond (SPECS.md §4.11).
+        Rend `None` quand rien n'est gardé, ou que la garde a expiré et que
+        l'appelant veut du frais. C'est ce qui permet de décider sans jamais
+        attendre un hébergeur : la lecture part alors en tâche de fond
+        (SPECS.md §4.11).
+
+        `stale_ok` sert celui qui a déjà lancé cette relecture et ne peut pas
+        l'attendre : un catalogue vieux de quelques minutes vaut mieux qu'une
+        case sautée. Sans lui, l'expiration tombait au milieu d'un épisode long
+        et intercalait un morceau de musique entre chaque épisode d'une plage —
+        mesuré sur trois flux de soixante-dix minutes.
         """
         if self._horloge is None or self._duree_cache is None:
             return None
         connu = self._cache.get(url)
-        if connu is None or self._horloge.now() - connu[0] >= self._duree_cache:
+        if connu is None:
+            return None
+        if not stale_ok and self._horloge.now() - connu[0] >= self._duree_cache:
             return None
         return list(connu[1])
 
@@ -178,12 +187,10 @@ class PodcastFeed:
         `PodcastUnavailable`.
 
         Le flux est relu à chaque jonction de la case, et une plage en a
-        plusieurs : les six de l'auteur pèsent 21,5 Mo et ~1,9 s, dans la
-        requête que le diffuseur attend (docs/podcast.md §4.bis). D'où ce cache,
-        une entrée par adresse. Seule une lecture réussie y entre — une panne se
-        propage telle quelle (SPECS.md §5) — et un épisode publié n'apparaît
-        qu'à l'expiration, ce qui est sans conséquence : la case ne se rouvre
-        pas plus vite.
+        plusieurs : ceux d'une plage se comptent en dizaines de mégaoctets
+        (docs/podcast.md §4.bis). D'où ce cache, une entrée par adresse. Seule
+        une lecture réussie y entre — une panne se propage telle quelle
+        (SPECS.md §5) — et un épisode publié n'apparaît qu'à l'expiration.
         """
         maintenant = None if self._horloge is None else self._horloge.now()
         if maintenant is not None and self._duree_cache is not None:

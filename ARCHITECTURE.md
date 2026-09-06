@@ -207,7 +207,9 @@ pleine, cela ne coûte rien — mais après une purge elle est vide, et le premi
 tirage les payait tous d'un coup. La charnière rend donc l'entrée dès qu'elle
 est tirée et confie la préparation à un fil unique, monté au point
 d'assemblage : deux préparations ne tirent jamais ensemble, puisqu'elles
-partagent la file et la fenêtre de non-répétition. Rien n'est perdu si elle
+partagent la file et la fenêtre de non-répétition. **Ce même fil lit les flux
+de podcast** (SPECS.md §4.11) : ce qui ne doit pas faire attendre le diffuseur
+y passe, et l'unicité du fil borne ce que l'on empile. Rien n'est perdu si elle
 tarde : la file retombe sur un tirage neuf quand son avance est vide.
 
 ### 4.2 Couper en le disant

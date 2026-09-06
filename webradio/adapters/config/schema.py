@@ -75,7 +75,7 @@ DEFAULT_JINGLE_EXPIRY_SECONDS = 900.0
 # sur un tirage neuf (SPECS.md §7 n°30). 0 = jamais.
 DEFAULT_RESUME_FRESH_SECONDS = 900.0
 # Durée de mise en cache d'un flux de podcast lu. Les six flux d'une plage
-# pèsent 21,5 Mo, relus à chaque jonction sans cela (docs/podcast.md §4.bis).
+# pèsent 21,6 Mo, relus à chaque jonction sans cela (docs/podcast.md §4.bis).
 # 0 = relire à chaque fois.
 DEFAULT_PODCAST_CACHE_SECONDS = 900.0
 
@@ -219,7 +219,7 @@ class PodcastSettings:
     musique continue (SPECS.md §4.11).
 
     `cache_seconds` évite de relire les mêmes flux à chaque jonction d'une
-    plage — les six flux relevés pèsent 21,5 Mo (docs/podcast.md §4.bis). `0`
+    plage — les six flux relevés pèsent 21,6 Mo (docs/podcast.md §4.bis). `0`
     relit à chaque fois.
     """
 
@@ -755,25 +755,37 @@ def _refuser_les_collisions(shows: Sequence[Show]) -> None:
         if plage.end is None:
             continue
         for autre in shows:
-            if autre is plage or not _memes_jours(plage, autre):
+            if autre is plage:
                 continue
-            if _dans_la_plage(autre.hour, plage.hour, plage.end):
-                debut = plage.hour.isoformat("minutes")
-                fin = plage.end.isoformat("minutes")
-                _refuser(
-                    "shows",
-                    f"« {autre.name} » commence à {autre.hour.isoformat('minutes')}, "
-                    f"pendant « {plage.name} » (de {debut} à {fin})",
-                )
+            if not _recouvre(plage, autre):
+                continue
+            debut = plage.hour.isoformat("minutes")
+            fin = plage.end.isoformat("minutes")
+            _refuser(
+                "shows",
+                f"« {autre.name} » commence à {autre.hour.isoformat('minutes')}, "
+                f"pendant « {plage.name} » (de {debut} à {fin})",
+            )
 
 
-def _memes_jours(une: Show, autre: Show) -> bool:
-    """Deux émissions qui partagent au moins un jour. Une plage qui enjambe
-    minuit déborde sur le lendemain : ce jour-là compte aussi."""
-    jours = set(une.days)
-    if une.end is not None and une.end <= une.hour:
-        jours |= {_lendemain(j) for j in une.days}
-    return bool(jours & set(autre.days))
+def _recouvre(plage: Show, autre: Show) -> bool:
+    """L'heure de `autre` tombe-t-elle dans `plage`, un jour où les deux ont
+    lieu ?
+
+    Le jour et la tranche s'apparient : une plage du samedi 22 h à 2 h occupe
+    le samedi de 22 h à minuit, et le **dimanche** de minuit à 2 h. Les
+    confondre refusait une émission du samedi 1 h, qui n'y est pas.
+    """
+    if plage.end is None:
+        return False
+    enjambe = plage.end <= plage.hour
+    for jour in plage.days:
+        avant_minuit = plage.hour <= autre.hour and (not enjambe or autre.hour >= plage.hour)
+        if jour in autre.days and avant_minuit and (enjambe or autre.hour < plage.end):
+            return True
+        if enjambe and _lendemain(jour) in autre.days and autre.hour < plage.end:
+            return True
+    return False
 
 
 def _lendemain(jour: str) -> str:

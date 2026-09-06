@@ -917,13 +917,19 @@ finit (§7 n°5) : une plage déborde donc d'autant plus que ses flux sont longs
 rien — et une émission dont l'heure tombe **pendant** une plage du même jour
 fait échouer le démarrage, comme deux émissions à la même heure.
 
-**Les flux se lisent hors du chemin de la diffusion.** Le diffuseur attend la
-réponse pour jouer et abandonne au bout de son propre délai ; trois flux lus
+**Les flux de podcast se lisent hors du chemin de la diffusion.** Le diffuseur
+attend la réponse pour jouer et abandonne au bout de son propre délai ; trois
+flux lus
 l'un après l'autre le dépassaient, et un hébergeur qui n'accuse rien suffisait
 à couper l'antenne. La radio ne sert donc que ce qu'elle a déjà lu, et lance
 la lecture en fond : les flux d'une case sont lus **avant** son ouverture, et
 une case dont les flux ne sont pas encore là attend la jonction suivante — la
-musique continue, comme pour tout ce qui manque à une émission (§4.11).
+musique continue, comme pour tout ce qui manque à une émission (§4.11). Un
+catalogue dont la garde a expiré sert quand même, le temps de le relire : sans
+cela l'expiration tombait au milieu d'un épisode long et intercalait un
+morceau de musique entre chaque épisode d'une plage. **Une chaîne YouTube ne
+suit pas encore cette règle** : elle se lit dans la requête, et sa résolution
+avec.
 
 **Une plage peut n'avoir presque rien à jouer**, et c'est voulu : un flux ne
 sert qu'un épisode par publication (§7 n°14), donc une plage de trois heures
@@ -932,7 +938,7 @@ musique reprend pour le reste, sans que cela se signale comme une panne.
 
 Un flux lu est gardé `podcast.cache_seconds` (900 s par défaut, `0` = jamais) :
 une plage relit tous ses flux à chaque jonction, et six d'entre eux pèsent
-21,5 Mo (docs/podcast.md §4.bis). Un épisode publié n'apparaît qu'à
+21,6 Mo (docs/podcast.md §4.bis). Un épisode publié n'apparaît qu'à
 l'expiration, ce qui est sans conséquence — la case ne se rouvre pas plus vite.
 
 `jours` vaut `"tous"` ou une liste de jours de la semaine ; `heure` est un moment

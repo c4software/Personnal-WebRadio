@@ -233,14 +233,18 @@ pas une norme, mais elle tient chez trois hébergeurs sur trois.
 de case, contre 3,9 Mo pour les deux flux d'avant. Et cette lecture est dans
 `next_entry`, la requête que le diffuseur attend pour jouer (GOAL-075).
 
-**Ce qui borne vraiment cette lecture n'est pas sa taille, c'est `api_timeout`.**
+**Ce qui bornait cette lecture n'était pas sa taille, c'était `api_timeout`.**
 Le diffuseur abandonne une requête au bout de 10 s et coupe au deuxième échec
-(§3, radio.liq). Les flux sont lus **l'un après l'autre**, chacun avec
-`podcast.timeout_seconds` : trois flux à 15 s font 45 s dans le pire cas — bien
-au-delà de ce que le diffuseur accepte. Un hébergeur qui absorbe les paquets,
-sans refuser ni répondre, suffit donc à faire couper l'antenne, et une panne
-n'entre pas au cache. **Le produit `nombre de flux × délai d'attente` doit
-tenir sous `api_timeout` ; rien ne le contrôle aujourd'hui.**
+(§3, radio.liq). Les flux étaient lus **l'un après l'autre**, chacun avec
+`podcast.timeout_seconds` : trois flux à 15 s font 45 s dans le pire cas, et un
+hébergeur qui absorbe les paquets — sans refuser ni répondre — suffisait à
+faire couper l'antenne.
+
+**Corrigé le 2026-09-06** : la radio ne sert que ce qu'elle a déjà lu, et la
+lecture part dans un fil de fond (SPECS.md §4.11). Le produit `nombre de flux
+× délai d'attente` n'a donc plus à tenir sous `api_timeout` — pour les
+**podcasts**. Une chaîne YouTube, elle, se lit toujours dans la requête, et
+`yt-dlp` s'y ajoute : c'est GOAL-081-T04.
 
 **Les durées sont extrêmement hétérogènes** : de 6 minutes à 1 h 17 de médiane,
 et jusqu'à 2 h pour l'épisode le plus récent de LEGEND. Une pioche uniforme

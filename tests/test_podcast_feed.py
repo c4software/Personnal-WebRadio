@@ -19,6 +19,7 @@ from webradio.core.clock import FrozenClock
 
 URL = "https://feeds.acast.com/public/shows/a-la-french"
 UNE_HEURE = timedelta(hours=1)
+NOW = datetime(2026, 9, 5, 20, tzinfo=UTC)
 
 ENTETE = (
     '<?xml version="1.0" encoding="UTF-8"?>'
@@ -212,9 +213,8 @@ def test_un_delai_d_attente_nul_est_refuse() -> None:
 
 
 def test_un_flux_relu_dans_la_duree_du_cache_n_est_pas_redemande() -> None:
-    """Une plage relit ses flux à chaque jonction : les six de l'auteur pèsent
-    21,5 Mo (docs/podcast.md §4.bis), dans la requête que le diffuseur attend.
-    """
+    """Une plage relit ses flux à chaque jonction, et ceux d'une plage se
+    comptent en dizaines de mégaoctets (docs/podcast.md §4.bis)."""
     lecteur = FakeReader(feed(item()))
     horloge = FrozenClock(datetime(2026, 9, 5, 20, tzinfo=UTC))
     flux = PodcastFeed(lecteur, horloge, timedelta(minutes=15))
@@ -273,3 +273,33 @@ def test_sans_horloge_ni_duree_le_flux_est_relu_a_chaque_fois() -> None:
     flux.episodes(URL)
 
     assert lecteur.appels == [URL, URL]
+
+
+def test_le_cache_perime_se_sert_quand_on_l_accepte() -> None:
+    """Celui qui a déjà lancé la relecture ne peut pas l'attendre : un
+    catalogue vieux de quelques minutes vaut mieux qu'une case sautée
+    (GOAL-081)."""
+    lecteur = FakeReader(feed(item()))
+    horloge = FrozenClock(datetime(2026, 9, 5, 20, tzinfo=UTC))
+    flux = PodcastFeed(lecteur, horloge, timedelta(minutes=15))
+    flux.episodes(URL)
+    horloge.advance(timedelta(minutes=20))
+
+    assert flux.cached(URL) is None, "périmé pour qui veut du frais"
+    assert flux.cached(URL, stale_ok=True) == flux.episodes(URL)
+
+
+def test_sans_cache_rien_n_est_jamais_tenu() -> None:
+    """`cache_seconds = 0` : `cached()` ne rend rien, même en acceptant le
+    périmé. C'est pourquoi la lecture ne se diffère pas dans ce cas."""
+    flux = PodcastFeed(FakeReader(feed(item())))
+    flux.episodes(URL)
+
+    assert flux.cached(URL) is None
+    assert flux.cached(URL, stale_ok=True) is None
+
+
+def test_un_flux_jamais_lu_n_a_rien_en_cache() -> None:
+    flux = PodcastFeed(FakeReader(feed(item())), FrozenClock(NOW), UNE_HEURE)
+    assert flux.cached(URL) is None
+    assert flux.cached(URL, stale_ok=True) is None

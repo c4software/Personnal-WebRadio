@@ -496,22 +496,44 @@ def test_une_plage_sans_memoire_saute_sa_case() -> None:
 
 
 class FeedLent:
-    """Un flux qui compte ses lectures et sait tenir un cache, comme le vrai."""
+    """Un flux d'essai fidèle au vrai : un cache qui **expire**, et une panne
+    qui n'y entre pas.
 
-    def __init__(self, par_url: dict[str, list[EpisodeDuFlux]]) -> None:
+    Un faux cache éternel aurait caché le défaut que ce fichier teste plus bas :
+    la garde expire au milieu d'un épisode long."""
+
+    def __init__(
+        self,
+        par_url: dict[str, list[EpisodeDuFlux]],
+        clock: FrozenClock | None = None,
+        garde: timedelta | None = None,
+    ) -> None:
         self._par_url = par_url
-        self._garde: dict[str, list[EpisodeDuFlux]] = {}
+        self._horloge = clock
+        self._garde_duree = garde
+        self._garde: dict[str, tuple[datetime, list[EpisodeDuFlux]]] = {}
         self.lues: list[str] = []
 
-    def cached(self, url: str) -> list[EpisodeDuFlux] | None:
-        return list(self._garde[url]) if url in self._garde else None
+    def cached(self, url: str, *, stale_ok: bool = False) -> list[EpisodeDuFlux] | None:
+        connu = self._garde.get(url)
+        if connu is None:
+            return None
+        expire = (
+            self._horloge is not None
+            and self._garde_duree is not None
+            and self._horloge.now() - connu[0] >= self._garde_duree
+        )
+        if expire and not stale_ok:
+            return None
+        return list(connu[1])
 
     def episodes(self, url: str) -> list[EpisodeDuFlux]:
         self.lues.append(url)
         if url not in self._par_url:
             message = f"flux d'essai injoignable : {url}"
             raise PodcastUnavailable(message)
-        self._garde[url] = list(self._par_url[url])
+        quand = self._horloge.now() if self._horloge is not None else VENDREDI_20H
+        self._garde[url] = (quand, list(self._par_url[url]))
         return list(self._par_url[url])
 
 
@@ -586,3 +608,45 @@ def test_les_flux_se_lisent_avant_l_ouverture_de_la_case(tmp_path: Path) -> None
 
     assert emissions.due() is None, "la case n'est pas encore ouverte"
     assert len(reportees) == 2, "ses flux sont déjà partis en lecture"
+
+
+def test_une_plage_n_intercale_pas_de_musique_entre_deux_episodes(tmp_path: Path) -> None:
+    """La garde du cache expire au milieu d'un épisode long — soixante-dix
+    minutes contre quinze de garde. Sans servir le catalogue périmé pendant la
+    relecture, la jonction suivante ne trouvait rien et rendait la main à la
+    musique : un morceau s'intercalait entre chaque épisode (GOAL-081)."""
+    horloge = FrozenClock(VENDREDI_20H)
+    feed = FeedLent(
+        {LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]},
+        horloge,
+        timedelta(minutes=15),
+    )
+    reportees: list[Callable[[], None]] = []
+    emissions = _plage_en_fond(tmp_path, feed, horloge, reportees)
+    emissions.due()
+    for lire in list(reportees):
+        lire()
+    reportees.clear()
+
+    assert emissions.due() is not None, "le premier épisode part"
+    horloge.advance(timedelta(minutes=70))
+
+    assert emissions.due() is not None, "le second aussi, la garde a pourtant expiré"
+
+
+def test_le_catalogue_perime_est_relu_en_fond_pendant_qu_il_sert(tmp_path: Path) -> None:
+    """Servir du périmé n'est acceptable que si la relecture part aussitôt :
+    sinon un épisode publié n'apparaîtrait jamais."""
+    horloge = FrozenClock(VENDREDI_20H)
+    feed = FeedLent({LEGEND_URL: [_episode("l1")]}, horloge, timedelta(minutes=15))
+    reportees: list[Callable[[], None]] = []
+    emissions = _plage_en_fond(tmp_path, feed, horloge, reportees)
+    emissions.due()
+    for lire in list(reportees):
+        lire()
+    reportees.clear()
+    horloge.advance(timedelta(minutes=20))
+
+    emissions.due()
+
+    assert reportees, "la relecture est partie en même temps que le périmé était servi"
