@@ -252,12 +252,24 @@ def test_un_seuil_qu_aucun_artiste_n_atteint_se_relache(
     assert "seuil est relâché" in caplog.text
 
 
-def test_le_seuil_ne_touche_pas_le_tirage_d_un_genre() -> None:
-    """Un genre n'est pas un artiste : son vivier se juge autrement, et rien
-    n'a été constaté de ce côté."""
-    tirage = RandomTheme(FakeSource(BIBLIOTHEQUE), ScriptedRandom([2]), 15)
+def test_le_seuil_vaut_aussi_pour_un_genre() -> None:
+    """Une heure demande autant de titres, que le thème soit un artiste ou un
+    genre. Le tirage d'un genre est de surcroît uniforme, donc un genre maigre
+    sortirait aussi souvent qu'un autre (SPECS.md §7 n°36)."""
+    tirage = RandomTheme(FakeSource(BIBLIOTHEQUE), ScriptedRandom([0]), 15)
 
     contrainte = tirage.constraint_for(SOIREE, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))
 
     assert contrainte is not None
-    assert contrainte.genre == "rap", "genres triés : jazz, pop, rap"
+    assert contrainte.genre == "pop", "seul genre à quinze titres"
+
+
+def test_un_genre_se_compte_sur_les_pistes_pas_sur_la_liste_des_genres() -> None:
+    """Un genre peut être déclaré sans piste (GOAL-049) : le seul décompte
+    fiable est celui du parcours."""
+    tirage = RandomTheme(FakeSource(BIBLIOTHEQUE), ScriptedRandom([0]), 0)
+
+    contrainte = tirage.constraint_for(SOIREE, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))
+
+    assert contrainte is not None
+    assert contrainte.genre == "jazz", "genres des pistes, triés : jazz, pop, rap"

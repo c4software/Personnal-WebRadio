@@ -343,7 +343,7 @@ qu'un titre. Le tirage se fait par une piste, donc pondéré : une carte blanche
 sur cinq tombait sur un artiste à titre unique.
 
 - [x] **GOAL-082-T01** — Une carte blanche n'a le droit de tirer qu'un artiste
-      ayant au moins `draw.min_artist_tracks` titres (SPECS.md §7 n°36, 15 par
+      ayant au moins `draw.min_theme_tracks` titres (SPECS.md §7 n°36, 15 par
       défaut). Le seuil vient de la mesure : 3,6 minutes de médiane, donc une
       heure demande une quinzaine de titres, et 15 laisse encore 61 artistes
       éligibles. Aucun artiste au-dessus du seuil : il est relâché plutôt que
@@ -357,11 +357,14 @@ sur cinq tombait sur un artiste à titre unique.
       cinq artistes. Trouvé en analysant, jamais entendu. Elle ne rétrécit
       plus que si c'est bien elle qui bloque ; le test échoue sans le
       correctif, vérifié en le retirant.
-- [ ] **GOAL-082-T03** — Le même trou pour `random = "genre"`, latent : aucune
+- [x] **GOAL-082-T03** — Le même trou pour `random = "genre"`, latent : aucune
       plage ne l'utilise aujourd'hui. Il serait **pire** — le tirage d'un genre
       est uniforme, pas pondéré par les titres, et 110 des 227 genres de la
       bibliothèque n'ont qu'un ou deux titres : près d'une occurrence sur deux
-      tomberait dans le vide. Mesuré le 2026-09-06.
+      tomberait dans le vide. Le seuil de T01 s'y applique donc aussi, et la
+      clé devient `draw.min_theme_tracks` : elle ne dépend pas de la nature du
+      vivier mais de ce qu'une occurrence consomme. Le décompte se fait sur le
+      parcours, pas sur `genres()`, qui peut annoncer un genre sans piste.
 - [ ] **GOAL-082-T04** — Dire si le seuil doit valoir aussi pour l'ancre
       d'`artist_fan` (n°31). L'analyse dit que le cas y est **borné** : une
       ancre à un seul titre rompt la suite au lieu de la répéter, et la vague

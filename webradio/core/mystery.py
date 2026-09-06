@@ -15,6 +15,7 @@ redémarre retire.
 
 import logging
 from collections import Counter
+from collections.abc import Callable
 from datetime import datetime
 
 from webradio.core.bands import Band, Constraint
@@ -33,12 +34,12 @@ MEMOIRE_MAX = 32
 class RandomTheme:
     """Tire le genre ou l'artiste d'une plage, une fois par occurrence."""
 
-    def __init__(self, source: MusicSource, random: Random, min_artist_tracks: int = 0) -> None:
+    def __init__(self, source: MusicSource, random: Random, min_theme_tracks: int = 0) -> None:
         self._source = source
         self._random = random
         # Titres exigés d'un artiste pour qu'une carte blanche le tire
         # (SPECS.md §7 n°36).
-        self._vivier_minimal = min_artist_tracks
+        self._vivier_minimal = min_theme_tracks
         self._tirages: dict[tuple[Band, datetime], Constraint] = {}
         self._reported: datetime | None = None
 
@@ -90,8 +91,13 @@ class RandomTheme:
         self, theme: str, occurrence: datetime, exclude: str | None = None
     ) -> Constraint | None:
         try:
+            tracks = self._source.tracks(None)
             if theme == "genre":
-                genres = self._source.genres()
+                # Les genres sont comptés sur le parcours plutôt que pris de
+                # `genres()` : c'est le seul décompte fiable, un genre pouvant
+                # être déclaré sans piste (GOAL-049).
+                assez = self._assez_fournis(tracks, occurrence, lambda t: t.genre)
+                genres = sorted({t.genre for t in assez if t.genre})
                 candidates = [g for g in genres if g != exclude] or genres
                 if candidates:
                     return Constraint(genre=self._random.pick(candidates))
@@ -100,8 +106,7 @@ class RandomTheme:
                 # listage des artistes ajoutée au `Protocol` : une piste tirée
                 # librement est déjà un échantillon de la bibliothèque, et une
                 # méthode de plus aurait coûté à toutes les sources.
-                tracks = self._source.tracks(None)
-                assez = self._assez_fournis(tracks, occurrence)
+                assez = self._assez_fournis(tracks, occurrence, lambda t: t.artist)
                 others = [t for t in assez if t.artist != exclude] or assez
                 if others:
                     return Constraint(artist=self._random.pick(others).artist)
@@ -111,25 +116,27 @@ class RandomTheme:
         self._report(occurrence, "la bibliothèque est vide")
         return None
 
-    def _assez_fournis(self, tracks: list[Track], occurrence: datetime) -> list[Track]:
-        """Les pistes des artistes ayant assez de titres pour tenir une
-        occurrence (SPECS.md §7 n°36).
+    def _assez_fournis(
+        self, tracks: list[Track], occurrence: datetime, cle: Callable[[Track], str | None]
+    ) -> list[Track]:
+        """Les pistes dont le thème a assez de titres pour tenir une occurrence
+        (SPECS.md §7 n°36). `cle` dit ce qu'est le thème : l'artiste, le genre.
 
         Le comptage ne coûte rien : le parcours est déjà chargé.
 
-        Si aucun artiste n'atteint le seuil, la contrainte est relâchée plutôt
-        que la plage abandonnée, comme la non-répétition le fait déjà
+        Si aucun thème n'atteint le seuil, la contrainte est relâchée plutôt que
+        la plage abandonnée, comme la non-répétition le fait déjà
         (SPECS.md §4.2). C'est journalisé une fois par occurrence.
         """
         if self._vivier_minimal <= 1:
             return tracks
-        compte = Counter(t.artist for t in tracks)
-        assez = [t for t in tracks if compte[t.artist] >= self._vivier_minimal]
+        compte = Counter(cle(t) for t in tracks)
+        assez = [t for t in tracks if compte[cle(t)] >= self._vivier_minimal]
         if assez:
             return assez
         self._report(
             occurrence,
-            f"aucun artiste n'a {self._vivier_minimal} titres, le seuil est relâché",
+            f"aucun thème n'a {self._vivier_minimal} titres, le seuil est relâché",
         )
         return tracks
 

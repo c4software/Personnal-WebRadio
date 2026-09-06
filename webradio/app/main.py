@@ -207,7 +207,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         transport=UrllibTransport(settings.subsonic.timeout_seconds),
         clock=clock,
     )
-    theme_au_hasard = RandomTheme(source, random, settings.draw.min_artist_tracks)
+    theme_au_hasard = RandomTheme(source, random, settings.draw.min_theme_tracks)
     grille = Schedule(
         [
             Band(
