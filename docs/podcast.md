@@ -199,6 +199,41 @@ Non observé pendant ce relevé : le flux a répondu à chaque appel, aucun épi
 n'était tronqué, aucune page HTML n'est apparue. Ces cas restent **dus**
 (§5).
 
+## 4.bis Ce que coûte la lecture de plusieurs flux (GOAL-077-T01, le 2026-09-06)
+
+> Mesuré depuis la machine de développement, contre les deux flux réellement
+> configurés en production. `curl` pour la taille, l'adaptateur `PodcastFeed`
+> pour le coût complet — téléchargement et analyse — au meilleur de trois.
+
+Une plage podcasts (SPECS.md §7 n°35) lit **tous** ses flux à chaque jonction
+de la case, sans cache : `Shows._catalogues` les relit « avant de savoir si on
+s'en servira », parce que sans la durée on ne peut pas dire si la case est
+encore ouverte (n°13). Aujourd'hui la case ne porte qu'un épisode, donc une
+jonction ; enchaînée sur deux heures, elle en porte une par épisode.
+
+| Flux | Épisodes | Taille | `episodes()` complet |
+|---|---|---|---|
+| A la French | 30 | 306 Ko | 0,05 s |
+| LEGEND | 729 | **3,59 Mo** | 0,13 s |
+| Les deux | | 3,9 Mo | **0,18 s** |
+
+**Ce que cela dit** : le coût est en **octets**, pas en secondes. Deux flux
+tiennent en un cinquième de seconde ; cinq flux resteraient sous la
+demi-seconde. Mais 3,9 Mo par jonction et par case, c'est du volume répété —
+une soirée de deux heures en compte deux ou trois.
+
+**Et cette lecture est dans la requête.** `Shows.due()` est appelée depuis
+`next_entry`, celle que le diffuseur attend pour jouer (GOAL-075). Un flux lent
+ou muet y coûte son délai d'attente entier. Le catalogue ne se lit toutefois
+que pour les émissions dont une case a pu commencer : hors de leurs créneaux,
+aucune lecture.
+
+**Ce qui n'est pas mesuré** : le même essai depuis `frontal`, dont la liaison
+n'est pas celle-ci ; et le comportement d'un hébergeur autre qu'Acast, faute
+de savoir lesquels l'auteur veut.
+
+---
+
 ## 5. Points incertains
 
 **Établis** : le format du flux, la fiabilité de `pubDate` et de
@@ -217,8 +252,13 @@ durées réelles.
 - [ ] La **stabilité des URL d'enclosure** : `livestitches` suggère qu'elles sont
       calculées à la demande. Une URL mise de côté vaut-elle encore une heure
       plus tard ?
-- [ ] Ce relevé porte sur **un seul flux**. Un second podcast, chez un autre
-      hébergeur, n'aura pas les mêmes garanties — et « RSS avec des enclosure »
-      reste une convention, pas une norme.
+- [ ] Ce relevé porte sur **deux flux, tous deux chez Acast**. Un podcast
+      chez un autre hébergeur n'aura pas les mêmes garanties — et « RSS avec
+      des enclosure » reste une convention, pas une norme. La plage podcasts
+      (SPECS.md §7 n°35) en demandera d'autres : **lesquels reste à dire**, et
+      le relevé de GOAL-077-T01 s'arrête là faute de cette réponse.
+- [ ] **Faut-il un cache de flux ?** 3,9 Mo par jonction pour deux flux
+      (§4.bis) est supportable ; le seuil au-delà duquel il ne l'est plus n'est
+      pas établi, et dépend du nombre de flux que l'auteur déclarera.
 
 Aucun point n'a été remplacé par une supposition.

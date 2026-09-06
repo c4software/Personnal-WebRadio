@@ -258,13 +258,18 @@ plage. Entre `time` et `end`, on tire un flux au hasard parmi ceux qui ont du
 neuf, on joue son épisode, on recommence ; à `end`, l'épisode en cours **finit**
 (n°5), quitte à déborder.
 
-- [ ] **GOAL-077-T01** — Relever ce qu'exposent réellement les flux voulus par
-      l'auteur (AGENTS.md §3). `docs/podcast.md` §5 le dit lui-même : le relevé
-      ne porte que sur **un** hébergeur, Acast, et « un second podcast, chez un
-      autre hébergeur, n'aura pas les mêmes garanties ». Relever aussi le coût
-      de lecture : `_catalogues` relit **tous** les flux à chaque jonction,
-      sans cache — 3,5 Mo pour LEGEND seul, donc ~17 Mo par jonction à cinq
-      flux. Si le coût est réel, il devient une tâche.
+- [!] **GOAL-077-T01** — Relever ce qu'exposent réellement les flux voulus par
+      l'auteur (AGENTS.md §3). **Fait pour ce qui pouvait l'être ; bloqué sur
+      une réponse.** Le coût de lecture est mesuré et écrit
+      (`docs/podcast.md` §4.bis) : 306 Ko / 30 épisodes pour A la French,
+      **3,59 Mo / 729 épisodes** pour LEGEND, 0,18 s pour les deux, analyse
+      comprise. Le coût est donc en **octets**, pas en secondes — et cette
+      lecture est dans la requête que le diffuseur attend, ce qui la met sur le
+      chemin que GOAL-075 vient de dégager.
+      **Ce qui manque : quels flux.** Les deux configurés sont tous deux chez
+      Acast, donc déjà couverts. Une plage « plusieurs sources » en demandera
+      d'autres, et un hébergeur non relevé ne s'invente pas (AGENTS.md §3).
+      La tâche reprend dès que l'auteur nomme ses flux.
 - [ ] **GOAL-077-T02** — Le noyau : `core/shows.py` choisit parmi plusieurs
       catalogues, avec une mémoire **par flux** et une pioche uniforme entre
       flux, par le hasard injecté. Une case à fin déclarée est ouverte jusqu'à
