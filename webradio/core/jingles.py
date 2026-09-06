@@ -79,6 +79,16 @@ class Jingles:
         """
         self._encore_du = True
 
+    def forget_hours(self) -> None:
+        """Abandonne les heures pleines franchies depuis le dernier appel, sans rien rendre.
+
+        La jonction qui suit une émission s'en sert : une émission n'a pas de
+        jonction à elle, et sans cet oubli ses heures pleines ressortiraient
+        derrière elle, ce que la décision n°15 refuse. L'encore n'est pas
+        touché, il répond à un vote et non à l'horloge.
+        """
+        self._repere = self._horloge.now()
+
     def due_now(self, *, during_show: bool = False) -> tuple[str, ...]:
         """Les jingles à diffuser maintenant, dans l'ordre, l'encore en dernier.
 

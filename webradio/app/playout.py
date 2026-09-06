@@ -107,6 +107,10 @@ class RadioProgramme:
         # L'avance écartée par un encore, rejouée telle quelle après le jingle
         # et le titre forcé (GOAL-034).
         self._a_rejouer: deque[tuple[str, Kind, Track | None, str | None]] = deque()
+        # Une émission rendue à la jonction précédente. La suivante lui
+        # succède : c'est là que ses heures pleines s'abandonnent, faute de
+        # jonction pendant l'émission elle-même (SPECS.md §7 n°15).
+        self._emission_rendue = False
         # Le moment effectif (programme, sinon plage) vu à la dernière
         # jonction. `...` tant qu'aucune jonction n'a eu lieu : une chaîne qui
         # démarre au milieu d'un moment ne rejoue pas son générique (GOAL-029).
@@ -154,6 +158,10 @@ class RadioProgramme:
         valable. Le repère des moments repart comme au démarrage : une chaîne
         qui reprend au milieu d'un moment ne rejoue pas son générique
         (GOAL-029). L'encore voté n'est pas touché, il survit à la pause.
+
+        La reprise ne rouvre pas les heures pleines d'une émission en cours au
+        moment de la pause : elles restent abandonnées, comme les heures de la
+        pause elle-même (SPECS.md §7 n°30).
         """
         self._en_attente.clear()
         self._a_rejouer.clear()
@@ -345,11 +353,16 @@ class RadioProgramme:
 
         Elle remplace la programmation, habillage compris (SPECS.md §4.11).
         Les jingles dus pendant sa durée sont abandonnés par `core/jingles.py`,
-        à qui on signale simplement qu'une émission passe.
+        à qui on signale qu'une émission passe, puis qu'une émission vient de
+        se terminer : une émission n'a aucune jonction à elle, et c'est celle
+        qui la suit qui doit oublier ses heures pleines (SPECS.md §7 n°15).
         """
         if self._emissions is None:
             return None
         due = self._emissions.due()
+        if due is None and self._emission_rendue:
+            self._jingles.forget_hours()
+        self._emission_rendue = due is not None
         # `due_now()` consomme : garder ce qu'il rend, sinon les jingles dus
         # sont perdus à chaque jonction (GOAL-014-T01). Pendant une émission,
         # il rend () et c'est voulu.

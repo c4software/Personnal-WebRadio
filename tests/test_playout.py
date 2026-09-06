@@ -408,6 +408,83 @@ class _FeedSansEpisode:
         return []
 
 
+def _avec_un_direct(
+    folder: Path, clock: FrozenClock, case: ShowCase
+) -> tuple[RadioProgramme, list[tuple[Kind, Track | None, str | None]]]:
+    """Un `RadioProgramme` câblé sur un direct, la seule émission qu'on peut
+    déclarer sans flux ni épisode."""
+    from webradio.adapters.state.database import SqliteState
+    from webradio.app.show_scheduler import Shows
+
+    state = SqliteState(
+        folder / "etat.sqlite3",
+        clock,
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    emissions = Shows(
+        ShowSchedule([case]),
+        _FeedSansEpisode(),  # type: ignore[arg-type]
+        state,
+        clock,
+        {},
+        ScriptedRandom([0] * 50),
+        streams={case.name: "http://exemple.test/direct"},
+    )
+    source = FakeSource(CATALOGUE)
+    random = ScriptedRandom([0] * 200)
+    vues: list[tuple[Kind, Track | None, str | None]] = []
+    return (
+        RadioProgramme(
+            queue=Queue(source, random, Window(width=1)),
+            source=source,
+            grille=Schedule([], clock),
+            jingles=Jingles(clock),
+            clock=clock,
+            random=random,
+            jingle_folder=folder,
+            on_kind=lambda n, p, e: vues.append((n, p, e)),
+            shows=emissions,
+        ),
+        vues,
+    )
+
+
+def test_l_heure_franchie_pendant_une_emission_ne_passe_pas_a_la_jonction_qui_suit(
+    tmp_path: Path,
+) -> None:
+    """Une émission n'a pas de jonction à elle : celle qui la suit rendait
+    `21h.mp3` une heure après l'heure pile (SPECS.md §7 n°15)."""
+    (tmp_path / "hours").mkdir()
+    (tmp_path / "hours" / "21h.mp3").write_bytes(b"faux jingle")
+    clock = FrozenClock(datetime(2026, 8, 30, 20, 1, tzinfo=UTC))
+    direct = ShowCase("Le direct", ("all",), time(20, 0), duration=timedelta(hours=1))
+    programme, vues = _avec_un_direct(tmp_path, clock, direct)
+
+    entree = programme.next_entry()
+    assert entree is not None and entree.startswith("live:")
+    clock.advance(timedelta(hours=1, minutes=9))
+
+    assert programme.next_entry() == "fake://1"
+    assert vues[-1][0] is Kind.MUSIC
+
+
+def test_l_heure_franchie_apres_une_emission_passe_quand_meme(tmp_path: Path) -> None:
+    """L'oubli porte sur les heures de l'émission, pas sur les suivantes."""
+    (tmp_path / "hours").mkdir()
+    (tmp_path / "hours" / "22h.mp3").write_bytes(b"faux jingle")
+    clock = FrozenClock(datetime(2026, 8, 30, 20, 1, tzinfo=UTC))
+    direct = ShowCase("Le direct", ("all",), time(20, 0), duration=timedelta(hours=1))
+    programme, _ = _avec_un_direct(tmp_path, clock, direct)
+
+    programme.next_entry()
+    clock.advance(timedelta(hours=1, minutes=9))
+    programme.next_entry()
+    clock.advance(timedelta(minutes=55))
+
+    assert programme.next_entry() == str(tmp_path / "hours" / "22h.mp3")
+
+
 # ── L'effet d'un « encore » sur le tirage (GOAL-024) ────────────────────────
 
 

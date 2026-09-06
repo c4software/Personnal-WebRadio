@@ -396,12 +396,15 @@ Deux bloquants, douze corrections bornées, et une décision de l'auteur
       jetée à chaque préparation (`bands.py`) ; `Runs` n'a qu'un état, et
       préparer un titre sous l'occurrence suivante effaçait la suite en cours
       sans journal — la mémoire s'indexe par occurrence, comme `mystery.py`.
-- [ ] **GOAL-083-T03** — Le jingle d'une heure tombée **pendant** une émission
+- [x] **GOAL-083-T03** — Le jingle d'une heure tombée **pendant** une émission
       ne passe plus à la jonction qui la suit (SPECS.md n°15). `due_now` n'est
       appelé qu'aux jonctions, et une émission n'en a pas : les heures pleines
-      entre le début et la fin de l'émission sont abandonnées. Le test de
-      `test_jingles.py` qui appelait `during_show=True` pendant l'émission
-      testait une séquence qui n'existe pas.
+      entre le début et la fin de l'émission sont abandonnées. `Jingles` reçoit
+      `forget_hours()`, que `RadioProgramme` appelle à la jonction qui suit une
+      émission rendue ; l'encore n'est pas touché, il répond à un vote. Le test
+      de `test_jingles.py` qui appelait `during_show=True` pendant l'émission
+      testait une séquence qui n'existe pas : il est réécrit, et la vraie
+      séquence est couverte au niveau de `RadioProgramme`.
 - [ ] **GOAL-083-T04** — Un épisode s'inscrit comme diffusé quand Liquidsoap
       dit l'avoir commencé, pas quand il le demande. L'entrée rendue par
       `/playout/next` n'est que l'avance ; la reprise à neuf, « Autre thème »

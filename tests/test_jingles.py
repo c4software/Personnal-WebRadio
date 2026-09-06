@@ -83,15 +83,35 @@ def test_les_jingles_dus_pendant_une_emission_sont_abandonnes() -> None:
     assert jingles.due_now(during_show=True) == ()
 
 
-def test_une_emission_ne_differe_pas_les_jingles_qu_elle_a_abandonnes() -> None:
-    """Les différer produirait un `21h.mp3` après trois heures d'émission, ce que
-    la décision n°15 refuse."""
+def test_les_heures_franchies_pendant_une_emission_s_oublient_a_la_jonction_qui_suit() -> None:
+    """Une émission n'a pas de jonction à elle : la seule occasion d'abandonner
+    ses heures pleines est la jonction qui la suit. Les rendre là produirait un
+    `21h.mp3` après l'émission, ce que la décision n°15 refuse."""
     h = clock(19, 50)
     jingles = Jingles(h)
-    h.advance(timedelta(hours=2))
+    h.advance(timedelta(minutes=11))
     assert jingles.due_now(during_show=True) == ()
-    h.advance(timedelta(minutes=5))
+    h.advance(timedelta(hours=1, minutes=9))
+    jingles.forget_hours()
     assert jingles.due_now() == ()
+
+
+def test_l_oubli_des_heures_ne_porte_que_sur_le_passe() -> None:
+    """L'heure pleine qui suit l'oubli tombe normalement : on abandonne ce qui a
+    été franchi, on n'éteint pas l'horloge."""
+    h = clock(21, 10)
+    jingles = Jingles(h)
+    jingles.forget_hours()
+    h.advance(timedelta(minutes=55))
+    assert jingles.due_now() == ("hours/22h.mp3",)
+
+
+def test_l_oubli_des_heures_ne_touche_pas_l_encore() -> None:
+    """L'encore répond à un vote, pas à l'horloge (SPECS.md §4.6)."""
+    jingles = Jingles(clock(21, 10))
+    jingles.mark_more()
+    jingles.forget_hours()
+    assert jingles.due_now() == (JINGLE_ENCORE,)
 
 
 def test_la_radio_ne_rattrape_pas_les_heures_d_avant_son_demarrage() -> None:
