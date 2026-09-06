@@ -467,6 +467,7 @@
             if (p.kind === "moment") { return this.libelleMode(p.mode); }
             if (p.kind === "programme") { return "liste « " + p.playlist + " »"; }
             if (p.live) { return "direct · " + p.duration_minutes + " min"; }
+            if (p.feeds) { return "podcasts · " + p.feeds + " au hasard"; }
             return p.youtube ? "chaîne YouTube" : "podcast";
           },
           enCours(e) {

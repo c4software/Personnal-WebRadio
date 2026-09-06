@@ -120,7 +120,7 @@ class EffectiveSchedule:
         serait jeté à la jonction, et la file serait vide à la reprise. On
         tire donc pour l'heure où le créneau commencera vraiment (GOAL-068).
 
-        Une émission sans durée déclarée ne se saute pas : sa fin est
+        Une émission sans durée ni fin déclarée ne se saute pas : sa fin est
         inconnue.
         """
         # Borner à une itération par période déclarée : un programme quotidien
@@ -136,11 +136,12 @@ class EffectiveSchedule:
     def _fin_de_ce_qui_remplace(self, instant: datetime) -> datetime | None:
         """La fin de l'émission ou du programme qui occupe cet instant, sinon `None`."""
         for emission in self._emissions.shows:
-            if emission.duration is None:
-                continue
             debut = self._emissions.slot_start(emission, instant)
-            if debut is not None and instant < debut + emission.duration:
-                return debut + emission.duration
+            if debut is None:
+                continue
+            fin = self._fin_de(emission, debut)
+            if fin is not None and instant < fin:
+                return fin
         programme = self._programmes.programme_at(instant)
         if programme is None:
             return None
@@ -225,8 +226,9 @@ class EffectiveSchedule:
     def _emissions_de(self, depuis: datetime, jusqu_a: datetime) -> list[Segment]:
         """Les cases d'émission de la fenêtre, telles que déclarées.
 
-        Seul un direct connaît sa fin d'avance (SPECS.md §4.11) ; sinon la
-        durée vient du flux et `end` reste `None`.
+        Un direct connaît sa fin par sa durée déclarée, une plage de podcasts
+        par son heure de fin (SPECS.md §4.11, §7 n°35) ; sinon la durée vient
+        du flux et `end` reste `None`.
         """
         cases: list[Segment] = []
         jour = depuis.date()
@@ -237,10 +239,21 @@ class EffectiveSchedule:
                 debut = datetime.combine(jour, emission.hour, tzinfo=depuis.tzinfo)
                 if not depuis <= debut < jusqu_a:
                     continue
-                fin = None if emission.duration is None else debut + emission.duration
-                cases.append(Segment(emission, debut, fin))
+                cases.append(Segment(emission, debut, self._fin_de(emission, debut)))
             jour += timedelta(days=1)
         return cases
+
+    @staticmethod
+    def _fin_de(emission: Show, debut: datetime) -> datetime | None:
+        """La fin déclarée de cette occurrence, `None` si l'émission n'en
+        annonce pas — sa durée vient alors du flux, et personne ne la sait
+        d'avance."""
+        if emission.duration is not None:
+            return debut + emission.duration
+        if emission.end is None:
+            return None
+        fin = datetime.combine(debut.date(), emission.end, tzinfo=debut.tzinfo)
+        return fin if fin > debut else fin + timedelta(days=1)
 
     def _interrompre(self, musique: list[_Music], emission: Segment) -> list[_Music]:
         """La musique une fois l'émission passée devant elle.

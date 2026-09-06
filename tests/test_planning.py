@@ -264,3 +264,22 @@ def test_un_programme_recouvert_par_un_plus_court_ne_coupe_rien() -> None:
     coupure = grille.next_replacement(MERCREDI.replace(hour=17), MERCREDI.replace(hour=19))
 
     assert coupure is not None and coupure.content is courte
+
+
+def test_une_plage_de_podcasts_borne_la_musique_comme_un_direct() -> None:
+    """Une plage connaît sa fin par son heure de fin, un direct par sa durée :
+    dans les deux cas la musique reprend après, et non `after_show`
+    (SPECS.md §7 n°35, GOAL-068)."""
+    horloge = FrozenClock(SAMEDI)
+    soiree = Band(start=time(19), end=time(23), genres=("Rock",))
+    plage = Show(name="Podcasts", days=("saturday",), hour=time(20), end=time(22))
+    grille = EffectiveSchedule(
+        Schedule([soiree], horloge), Programming([], horloge), ShowSchedule([plage])
+    )
+
+    journee = grille.day(SAMEDI)
+
+    bornes = [(f"{s.start:%H:%M}", None if s.end is None else f"{s.end:%H:%M}") for s in journee]
+    assert ("20:00", "22:00") in bornes, "la plage borne sa propre case"
+    assert ("22:00", "23:00") in bornes, "la musique reprend à la fin déclarée"
+    assert not any(s.after_show for s in journee), "rien n'est laissé en suspens"

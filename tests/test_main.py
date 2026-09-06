@@ -283,6 +283,7 @@ def test_la_semaine_du_planning_est_deja_fusionnee() -> None:
             "live": False,
             "youtube": True,
             "duration_minutes": None,
+            "feeds": 0,
         },
         {
             "start": "20:00",
@@ -322,3 +323,37 @@ def test_la_semaine_du_planning_couvre_les_sept_jours_depuis_aujourd_hui() -> No
         ]
         for journee in jours.values()
     )
+
+
+def test_une_plage_de_podcasts_se_lit_comme_telle_dans_le_planning() -> None:
+    """La page nomme un podcast, un direct et une chaîne ; elle doit pouvoir
+    nommer une plage aussi, et dire combien de flux elle tire (GOAL-077)."""
+    horloge = FrozenClock(datetime(2026, 9, 5, 14, 30, tzinfo=UTC))
+    plage = ShowCase(name="Podcasts", days=("saturday",), hour=time(20), end=time(23))
+    grille = EffectiveSchedule(
+        Schedule([], horloge), Programming([], horloge), ShowSchedule([plage])
+    )
+    declaree = ShowSettings(
+        name="Podcasts",
+        days=("saturday",),
+        hour=time(20),
+        end=time(23),
+        feeds=("https://a.test/rss", "https://b.test/rss", "https://c.test/rss"),
+    )
+
+    jours = semaine_effective(grille, [declaree], horloge)["days"]
+
+    assert isinstance(jours, dict)
+    assert jours["saturday"] == [
+        {
+            "start": "20:00",
+            "end": "23:00",
+            "after_show": False,
+            "kind": "emission",
+            "name": "Podcasts",
+            "live": False,
+            "youtube": False,
+            "duration_minutes": None,
+            "feeds": 3,
+        }
+    ]

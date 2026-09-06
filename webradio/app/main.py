@@ -136,6 +136,9 @@ def _periode(segment: Segment, shows: Mapping[str, ShowSettings]) -> dict[str, o
         "live": declaree.stream is not None,
         "youtube": declaree.youtube is not None,
         "duration_minutes": declaree.duration_minutes,
+        # Une plage de podcasts enchaîne plusieurs épisodes tirés au sort
+        # (SPECS.md §7 n°35) : le nombre de flux suffit à la page pour le dire.
+        "feeds": len(declaree.addresses) if declaree.end is not None else 0,
     }
 
 

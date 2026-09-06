@@ -289,7 +289,7 @@ neuf, on joue son épisode, on recommence ; à `end`, l'épisode en cours **fini
       la détection de collision juge aujourd'hui « la case déclarée » ; une
       plage de deux heures qui contient l'heure d'une autre émission n'est
       plus vue. `webradio.exemple.toml`, SPECS.md §6 et §4.11.
-- [ ] **GOAL-077-T05** — La grille et la page : `core/planning.py` lit déjà
+- [x] **GOAL-077-T05** — La grille et la page : `core/planning.py` lit déjà
       `Show.duration` — une case à fin déclarée s'y insère sans règle
       nouvelle ; `app/main.py::_periode` doit nommer « podcasts » comme il
       nomme `live` et `youtube`.
