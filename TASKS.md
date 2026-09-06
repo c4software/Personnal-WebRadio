@@ -258,18 +258,19 @@ plage. Entre `time` et `end`, on tire un flux au hasard parmi ceux qui ont du
 neuf, on joue son épisode, on recommence ; à `end`, l'épisode en cours **finit**
 (n°5), quitte à déborder.
 
-- [!] **GOAL-077-T01** — Relever ce qu'exposent réellement les flux voulus par
-      l'auteur (AGENTS.md §3). **Fait pour ce qui pouvait l'être ; bloqué sur
-      une réponse.** Le coût de lecture est mesuré et écrit
-      (`docs/podcast.md` §4.bis) : 306 Ko / 30 épisodes pour A la French,
-      **3,59 Mo / 729 épisodes** pour LEGEND, 0,18 s pour les deux, analyse
-      comprise. Le coût est donc en **octets**, pas en secondes — et cette
-      lecture est dans la requête que le diffuseur attend, ce qui la met sur le
-      chemin que GOAL-075 vient de dégager.
-      **Ce qui manque : quels flux.** Les deux configurés sont tous deux chez
-      Acast, donc déjà couverts. Une plage « plusieurs sources » en demandera
-      d'autres, et un hébergeur non relevé ne s'invente pas (AGENTS.md §3).
-      La tâche reprend dès que l'auteur nomme ses flux.
+- [x] **GOAL-077-T01** — Relever ce qu'exposent réellement les flux voulus par
+      l'auteur (AGENTS.md §3). Six flux, **trois hébergeurs** — Acast,
+      Audiomeans, Saooti — dont deux jamais relevés. Adresses résolues par
+      l'API d'Apple plutôt que devinées, puis passées à notre propre
+      adaptateur. `docs/podcast.md` §4.bis.
+      Trois constats qui pèsent sur la suite : **aucun** épisode sans durée ni
+      sans audio sur 3 131, donc les deux nouveaux hébergeurs tiennent ; les
+      six pèsent **21,5 Mo et ~1,9 s** par jonction, dans la requête que le
+      diffuseur attend — le cache de flux devient une tâche (T06) ; et les
+      durées médianes vont de **6 min à 1 h 17**, ce qui fera déborder une
+      plage de deux heures d'autant plus souvent (n°5).
+      À dire à l'auteur : « Les Grosses Têtes » est le flux d'**extraits**,
+      6 minutes de médiane, pas les deux heures d'antenne.
 - [ ] **GOAL-077-T02** — Le noyau : `core/shows.py` choisit parmi plusieurs
       catalogues, avec une mémoire **par flux** et une pioche uniforme entre
       flux, par le hasard injecté. Une case à fin déclarée est ouverte jusqu'à
@@ -295,6 +296,11 @@ neuf, on joue son épisode, on recommence ; à `end`, l'épisode en cours **fini
       **À écouter** (AGENTS.md §4.1) : la jonction d'entrée, l'enchaînement de
       deux épisodes d'éditeurs différents — les niveaux ne se ressemblent
       pas — et le débordement à `end`.
+- [ ] **GOAL-077-T06** — Un cache de flux, comme celui de la bibliothèque.
+      Mesuré par T01 : 21,5 Mo et ~1,9 s pour les six flux de l'auteur, à
+      chaque jonction de la case, dans la requête que le diffuseur attend. Sa
+      durée vient du TOML avec son défaut déclaré, comme
+      `subsonic.cache_seconds`.
 
 ---
 

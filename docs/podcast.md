@@ -199,38 +199,48 @@ Non observé pendant ce relevé : le flux a répondu à chaque appel, aucun épi
 n'était tronqué, aucune page HTML n'est apparue. Ces cas restent **dus**
 (§5).
 
-## 4.bis Ce que coûte la lecture de plusieurs flux (GOAL-077-T01, le 2026-09-06)
+## 4.bis Les six flux d'une plage podcasts, et ce qu'ils coûtent (GOAL-077-T01, le 2026-09-06)
 
-> Mesuré depuis la machine de développement, contre les deux flux réellement
-> configurés en production. `curl` pour la taille, l'adaptateur `PodcastFeed`
-> pour le coût complet — téléchargement et analyse — au meilleur de trois.
+> Les six flux nommés par l'auteur, résolus par l'API de recherche d'Apple
+> (`itunes.apple.com/lookup`) plutôt que devinés, puis passés à **notre propre
+> adaptateur** `PodcastFeed` — seul juge qui compte, puisque c'est lui qui
+> devra les lire. Taille par `curl`, coût complet (téléchargement et analyse)
+> au meilleur de trois, depuis la machine de développement.
 
-Une plage podcasts (SPECS.md §7 n°35) lit **tous** ses flux à chaque jonction
-de la case, sans cache : `Shows._catalogues` les relit « avant de savoir si on
-s'en servira », parce que sans la durée on ne peut pas dire si la case est
-encore ouverte (n°13). Aujourd'hui la case ne porte qu'un épisode, donc une
-jonction ; enchaînée sur deux heures, elle en porte une par épisode.
+| Flux | Hébergeur | Épisodes | Taille | Coût | Durée médiane |
+|---|---|---|---|---|---|
+| Les Grosses Têtes | Audiomeans | 102 | 339 Ko | 0,06 s | **6 min 09** |
+| Entrez dans l'Histoire | Audiomeans | 101 | 449 Ko | 0,12 s | 20 min 31 |
+| Small Talk — Konbini | Audiomeans | 105 | 886 Ko | 0,15 s | 1 h 01 |
+| C dans l'air | Saooti / Octopus | 200 | 613 Ko | 0,40 s | 12 min 33 |
+| LEGEND | Acast | 729 | 3,59 Mo | 0,67 s | 1 h 17 |
+| HugoDécrypte — Actus | Acast | 1 894 | **15,68 Mo** | 0,47 s | 10 min 48 |
+| **Les six** | trois hébergeurs | 3 131 | **21,5 Mo** | **~1,9 s** | |
 
-| Flux | Épisodes | Taille | `episodes()` complet |
-|---|---|---|---|
-| A la French | 30 | 306 Ko | 0,05 s |
-| LEGEND | 729 | **3,59 Mo** | 0,13 s |
-| Les deux | | 3,9 Mo | **0,18 s** |
+### Ce que cela établit
 
-**Ce que cela dit** : le coût est en **octets**, pas en secondes. Deux flux
-tiennent en un cinquième de seconde ; cinq flux resteraient sous la
-demi-seconde. Mais 3,9 Mo par jonction et par case, c'est du volume répété —
-une soirée de deux heures en compte deux ou trois.
+**Trois hébergeurs, et les trois tiennent.** Audiomeans et Saooti n'avaient
+jamais été relevés ; sur 3 131 épisodes, **aucun** n'est sans `itunes:duration`
+ni sans `enclosure`. Ce que §1 et §2 disaient d'Acast vaut donc aussi pour eux,
+sur ce que nous lisons. La convention « RSS avec des enclosure » n'est toujours
+pas une norme, mais elle tient chez trois hébergeurs sur trois.
 
-**Et cette lecture est dans la requête.** `Shows.due()` est appelée depuis
-`next_entry`, celle que le diffuseur attend pour jouer (GOAL-075). Un flux lent
-ou muet y coûte son délai d'attente entier. Le catalogue ne se lit toutefois
-que pour les émissions dont une case a pu commencer : hors de leurs créneaux,
-aucune lecture.
+**Le coût est en octets, et il n'est plus négligeable.** 21,5 Mo par jonction
+de case, contre 3,9 Mo pour les deux flux d'avant. Et cette lecture est dans
+`next_entry`, la requête que le diffuseur attend pour jouer (GOAL-075) : ~1,9 s
+depuis cette machine, davantage depuis une liaison plus lente, et le délai
+d'attente entier si un hébergeur ne répond pas. **Un cache de flux n'est plus
+une commodité** — c'est une tâche.
 
-**Ce qui n'est pas mesuré** : le même essai depuis `frontal`, dont la liaison
-n'est pas celle-ci ; et le comportement d'un hébergeur autre qu'Acast, faute
-de savoir lesquels l'auteur veut.
+**Les durées sont extrêmement hétérogènes** : de 6 minutes à 1 h 17 de médiane,
+et jusqu'à 2 h pour l'épisode le plus récent de LEGEND. Une pioche uniforme
+entre flux (SPECS.md §7 n°35) donnera donc des épisodes de longueurs très
+inégales, et la n°5 — l'épisode entamé finit — fera déborder une plage de deux
+heures d'autant plus souvent que LEGEND ou Small Talk sortent au tirage.
+
+**« Les Grosses Têtes » n'est pas l'émission**, c'est le flux d'extraits :
+6 minutes de médiane, un épisode par jour à 9 h. À dire à l'auteur, qui
+attendait probablement les deux heures d'antenne.
 
 ---
 
@@ -252,13 +262,15 @@ durées réelles.
 - [ ] La **stabilité des URL d'enclosure** : `livestitches` suggère qu'elles sont
       calculées à la demande. Une URL mise de côté vaut-elle encore une heure
       plus tard ?
-- [ ] Ce relevé porte sur **deux flux, tous deux chez Acast**. Un podcast
-      chez un autre hébergeur n'aura pas les mêmes garanties — et « RSS avec
-      des enclosure » reste une convention, pas une norme. La plage podcasts
-      (SPECS.md §7 n°35) en demandera d'autres : **lesquels reste à dire**, et
-      le relevé de GOAL-077-T01 s'arrête là faute de cette réponse.
-- [ ] **Faut-il un cache de flux ?** 3,9 Mo par jonction pour deux flux
-      (§4.bis) est supportable ; le seuil au-delà duquel il ne l'est plus n'est
-      pas établi, et dépend du nombre de flux que l'auteur déclarera.
+- [x] ~~Ce relevé porte sur un seul flux, chez Acast.~~ **Trois hébergeurs
+      relevés le 2026-09-06** (§4.bis) : Acast, Audiomeans, Saooti. Aucun
+      épisode sans durée ni sans audio sur 3 131. Reste vrai qu'un quatrième
+      hébergeur ne s'invente pas.
+- [ ] **Le comportement d'Audiomeans et de Saooti quand ça se passe mal.** §4
+      ne décrit que les pannes vues chez Acast. Les deux nouveaux n'ont été
+      observés qu'en marche.
+- [ ] **L'insertion publicitaire chez Audiomeans et Saooti.** §2.1 l'a mesurée
+      chez Acast (écart de 2 % entre durée annoncée et servie). Non mesurée
+      ailleurs : il faudrait décoder un épisode entier.
 
 Aucun point n'a été remplacé par une supposition.
