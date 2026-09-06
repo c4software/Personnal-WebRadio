@@ -215,10 +215,10 @@ variable d'environnement ayant disparu du Compose.
 **GOAL-084 est clos le 2026-09-06** : l'antenne annonçait la plage de la grille
 pendant une émission, alors que l'émission la remplace.
 
-**Prochaine tâche** : GOAL-082-T04, le seuil de vivier appliqué ou non à
-l'ancre d'`artist_fan`, puis GOAL-078-T01, la couture de la grille derrière les
-titres. GOAL-075 attend sa mesure à l'antenne (T03), qui demande le
-déploiement.
+**Prochaine tâche** : GOAL-078-T02, `upcoming()` qui coud ces périodes après le
+dernier titre daté, puis GOAL-082-T04, le seuil de vivier appliqué ou non à
+l'ancre d'`artist_fan`. GOAL-075 attend sa mesure à l'antenne (T03), qui
+demande le déploiement.
 
 ---
 
@@ -393,10 +393,17 @@ elle s'arrête net — on ne continue qu'après ce qu'on sait **nommer et dater*
 **Rien n'est tiré de plus : zéro décision, zéro tirage jeté.** La profondeur de
 l'avance ne bouge pas.
 
-- [ ] **GOAL-078-T01** — Le noyau : `core/planning.py` rend les périodes
+- [x] **GOAL-078-T01** — Le noyau : `core/planning.py` rend les périodes
       effectives **entre deux instants**, celle en cours comprise. `day()` ne
       rend que celles qui commencent dans la journée : une période ouverte à
       l'instant demandé et commencée la veille n'y figure pas.
+      `EffectiveSchedule.between(depuis, jusqu_a)` sélectionne sur le
+      recouvrement au lieu du début, en réutilisant la fusion de `day()`
+      (`_periodes`, même balayage veille→lendemain, `day()` inchangé). Une
+      période sans fin commencée avant `depuis` n'est retenue que si aucune
+      autre n'a commencé entre son début et `depuis`. Vérifié sur la grille
+      réelle du dimanche soir : `between(20:05, 23:30)` rend la plage de
+      podcasts en cours, celle de 21 h, puis la musique qui reprend à 23 h.
 - [ ] **GOAL-078-T02** — `upcoming()` ajoute ces périodes après le dernier
       titre daté, et ne s'arrête plus net sur ce qu'il ne sait pas dater : il
       le nomme, puis reprend à la période suivante. Comment une période se

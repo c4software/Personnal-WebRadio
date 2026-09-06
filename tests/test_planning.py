@@ -283,3 +283,95 @@ def test_une_plage_de_podcasts_borne_la_musique_comme_un_direct() -> None:
     assert ("20:00", "22:00") in bornes, "la plage borne sa propre case"
     assert ("22:00", "23:00") in bornes, "la musique reprend à la fin déclarée"
     assert not any(s.after_show for s in journee), "rien n'est laissé en suspens"
+
+
+# ── Les périodes entre deux instants, celle en cours comprise (GOAL-078) ───
+
+
+def test_la_periode_en_cours_figure_en_tete_meme_commencee_avant() -> None:
+    """`day()` ne rend que ce qui commence dans la journée ; `between` rend
+    aussi la plage déjà ouverte à l'instant demandé."""
+    entre = _grille(bands=[GUITARES, ELECTRIQUE]).between(
+        MERCREDI.replace(hour=20, minute=40), MERCREDI.replace(hour=23)
+    )
+
+    assert _lu(entre) == [("20:00", "22:00", "Rock"), ("22:00", "23:30", "Électronique")]
+
+
+def test_une_plage_qui_enjambe_minuit_figure_apres_minuit() -> None:
+    velours = Band(start=time(23, 30), end=time(1), genres=("Soul",))
+    entre = _grille(bands=[velours]).between(
+        MERCREDI.replace(day=3, hour=0, minute=20), MERCREDI.replace(day=3, hour=2)
+    )
+
+    assert _lu(entre) == [("23:30", "01:00", "Soul")]
+
+
+def test_les_emissions_de_la_fenetre_gardent_leur_fin_declaree() -> None:
+    entre = _grille(bands=[TABLE], shows=[FLASH]).between(
+        MERCREDI.replace(hour=11), MERCREDI.replace(hour=13)
+    )
+
+    assert _lu(entre) == [
+        ("11:57", "12:10", "Flash franceinfo"),
+        ("12:10", "13:30", "Pop"),
+    ]
+
+
+def test_un_intervalle_vide_rend_au_plus_la_periode_en_cours() -> None:
+    grille = _grille(bands=[GUITARES])
+    instant = MERCREDI.replace(hour=21)
+
+    assert _lu(grille.between(instant, instant)) == [("20:00", "22:00", "Rock")]
+    assert grille.between(MERCREDI.replace(hour=15), MERCREDI.replace(hour=15)) == []
+
+
+def test_les_periodes_sont_rendues_dans_l_ordre_de_passage() -> None:
+    entre = _grille(bands=[TABLE, GUITARES, ELECTRIQUE], shows=[FLASH]).between(
+        MERCREDI.replace(hour=11), MERCREDI.replace(hour=23, minute=59)
+    )
+
+    assert [f"{s.start:%H:%M}" for s in entre] == ["11:57", "12:10", "20:00", "22:00"]
+
+
+def test_une_emission_sans_fin_reste_en_cours_tant_que_rien_ne_lui_succede() -> None:
+    """Sa durée vient du flux : elle occupe l'antenne jusqu'à la période
+    suivante, et pas au-delà."""
+    grille = _grille(bands=[GUITARES], shows=[HARDISK])
+
+    en_cours = grille.between(MERCREDI.replace(hour=21), MERCREDI.replace(hour=21))
+
+    assert ("20:00", "?", "Hardisk") in _lu(en_cours)
+
+
+def test_une_emission_sans_fin_s_efface_devant_la_periode_qui_a_commence_depuis() -> None:
+    tardive = Show(name="Tardive", days=("wednesday",), hour=time(21))
+    grille = _grille(bands=[GUITARES], shows=[HARDISK, tardive])
+
+    en_cours = grille.between(MERCREDI.replace(hour=21, minute=30), MERCREDI.replace(hour=22))
+
+    assert ("20:00", "?", "Hardisk") not in _lu(en_cours)
+    assert ("21:00", "?", "Tardive") in _lu(en_cours)
+
+
+def test_une_soiree_de_podcasts_annonce_l_emission_en_cours_puis_la_suite() -> None:
+    """Le cas de la grille réelle : deux plages de podcasts d'affilée, puis la
+    musique qui reprend (SPECS.md §7 n°35)."""
+    horloge = FrozenClock(DIMANCHE)
+    actus = Show(name="Podcasts - actus", days=("sunday",), hour=time(20), end=time(21))
+    longs = Show(name="Podcasts - longs formats", days=("sunday",), hour=time(21), end=time(23))
+    grille = EffectiveSchedule(
+        Schedule([GUITARES, ELECTRIQUE], horloge),
+        Programming([], horloge),
+        ShowSchedule([actus, longs]),
+    )
+
+    entre = grille.between(
+        DIMANCHE.replace(hour=20, minute=5), DIMANCHE.replace(hour=23, minute=30)
+    )
+
+    assert _lu(entre) == [
+        ("20:00", "21:00", "Podcasts - actus"),
+        ("21:00", "23:00", "Podcasts - longs formats"),
+        ("23:00", "23:30", "Électronique"),
+    ]

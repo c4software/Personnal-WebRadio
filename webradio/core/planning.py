@@ -62,6 +62,10 @@ class _Music:
     after_show: bool = False
 
 
+def _minuit(instant: datetime) -> datetime:
+    return datetime.combine(instant.date(), time(), tzinfo=instant.tzinfo)
+
+
 class EffectiveSchedule:
     """La grille des périodes qui passeront, journée par journée."""
 
@@ -88,8 +92,45 @@ class EffectiveSchedule:
         """
         veille = midnight - timedelta(days=1)
         lendemain = midnight + timedelta(days=2)
-        musique = self._musique(veille, lendemain)
-        emissions = self._emissions_de(veille, lendemain)
+        fin = midnight + timedelta(days=1)
+        return [p for p in self._periodes(veille, lendemain) if midnight <= p.start < fin]
+
+    def between(self, depuis: datetime, jusqu_a: datetime) -> list[Segment]:
+        """Les périodes effectives qui recouvrent `[depuis, jusqu_a)`, dans l'ordre.
+
+        Même fusion que `day()`, mais la sélection se fait sur le recouvrement
+        et non sur le début : la période en cours à `depuis` est rendue en
+        tête, même commencée la veille. C'est elle qui dit jusqu'à quand
+        l'antenne reste occupée (SPECS.md §7 n°34).
+
+        Une période sans fin — une émission dont la durée vient du flux —
+        commencée avant `depuis` n'est retenue que si aucune autre période n'a
+        commencé entre son début et `depuis` : passé ce point, c'est la
+        suivante qui occupe l'antenne.
+
+        Un intervalle vide rend au plus la période en cours.
+        """
+        veille = _minuit(depuis) - timedelta(days=1)
+        lendemain = _minuit(jusqu_a) + timedelta(days=2)
+        periodes = self._periodes(veille, lendemain)
+        debuts = [p.start for p in periodes]
+        return [
+            p for p in periodes if depuis <= p.start < jusqu_a or self._occupe(p, depuis, debuts)
+        ]
+
+    @staticmethod
+    def _occupe(periode: Segment, instant: datetime, debuts: list[datetime]) -> bool:
+        """La période occupe-t-elle l'antenne à cet instant ?"""
+        if periode.start > instant:
+            return False
+        if periode.end is not None:
+            return periode.end > instant
+        return not any(periode.start < debut <= instant for debut in debuts)
+
+    def _periodes(self, depuis: datetime, jusqu_a: datetime) -> list[Segment]:
+        """Les périodes de la fenêtre, musique et émissions fusionnées, triées."""
+        musique = self._musique(depuis, jusqu_a)
+        emissions = self._emissions_de(depuis, jusqu_a)
         for emission in emissions:
             musique = self._interrompre(musique, emission)
         periodes = [
@@ -97,8 +138,7 @@ class EffectiveSchedule:
         ] + emissions
         # À début égal, l'émission passe devant, c'est elle qui interrompt.
         periodes.sort(key=lambda p: (p.start, 0 if isinstance(p.content, Show) else 1))
-        fin = midnight + timedelta(days=1)
-        return [p for p in periodes if midnight <= p.start < fin]
+        return periodes
 
     def next_replacement(self, depuis: datetime, jusqu_a: datetime) -> Segment | None:
         """La première période qui remplacera la file entre ces deux instants,
