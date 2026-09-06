@@ -2864,3 +2864,83 @@ s'annonce-t-elle ? Tranchée par « oui », la renverser ne coûte qu'un filtre.
 
 **Reste à écouter** (AGENTS.md §4.1) : la liste pendant l'émission de dimanche
 prochain, et son rendu à l'œil.
+
+---
+
+## GOAL-085 — L'antenne dit où en est ce qui passe
+
+Ouvert le 2026-09-06 sur demande de l'auteur : « Possible également dans le
+on-air de diffuser la durée et l'avancement dans la lecture en cours, pour
+l'afficher dans l'interface web ? » Réponse retenue : oui — l'API rendra
+`duration_seconds` et `elapsed_seconds`, nuls quand rien ne permet de les
+connaître, et la page fera avancer une barre en local entre deux messages.
+
+**Ce que la radio sait déjà.** Le diffuseur annonce l'heure du début de chaque
+entrée, et c'est déjà cet instant qui date l'avance (décision n°33). La durée
+d'une piste vient de la bibliothèque, coupée au plafond (n°32) — c'est bien à
+cette heure-là qu'elle s'arrêtera. Un épisode de podcast porte sa durée quand
+le flux donne `itunes:duration` (docs/podcast.md §1). Un direct connaît la fin
+absolue de sa case (n°22).
+
+**Ce qu'elle ne sait pas.** Une vidéo YouTube servie depuis le cache, dont la
+durée n'est pas relue ; un jingle ou un générique, trop courts pour une barre ;
+un épisode dont le flux ne donne pas sa durée ; une entrée demandée avant le
+redémarrage, qui n'a que les étiquettes lues du fichier. Dans tous ces cas la
+durée reste nulle, et l'écoulé seul est annoncé.
+
+**La réserve, consignée avant d'écrire une ligne.** La position annoncée est
+celle du diffuseur, pas celle de l'oreille : elle est en avance de tout ce qui
+tamponne entre les deux — navigateur, lecteur, reverse proxy. Rien n'est
+mesuré, et rien n'est corrigé.
+
+- [x] **GOAL-085-T01** — La longueur attendue voyage avec la déclaration, et la
+      façade sait dire l'écoulé. `app/length.py` porte un `Length` à deux
+      champs exclusifs (`duration`, `until`) ; `Shows.due()` le rend,
+      `RadioProgramme` le passe au rappel `on_kind`, `Pending` le garde, et
+      `LiquidsoapPlayout.playing()` le donne à `LiveRadio.declare()`. Pour la
+      musique il est calculé à la demande, par la seule règle de plafond du
+      module (`_duree_coupee`, que la fin estimée et l'annotation `liq_cue_out`
+      partagent désormais). `LiveRadio` reçoit une horloge injectée : sans
+      elle, aucun écoulé. `OnAir` gagne `elapsed_seconds` et
+      `duration_seconds` ; **rien n'est encore rendu au JSON ni au flux SSE**,
+      c'est T02. Vérifié : `_antenne_en_donnees` est inchangé, les tests d'API
+      existants passent, et l'écoulé est borné à zéro comme à la durée connue.
+- [x] **GOAL-085-T02** — L'API et le flux d'événements rendent
+      `duration_seconds` et `elapsed_seconds`, sans que l'écoulé fasse émettre
+      un message à chaque tour : le flux ne pousse que sur changement, et un
+      compteur qui avance à la seconde le ferait pousser en continu.
+      `_antenne_en_donnees` porte les deux champs, donc `on_air_now` et
+      `up_next` ont la même forme — nuls pour ce qui suit, qui n'a pas
+      commencé. `diffuser_antenne` compare un état passé par `_sans_ecoule`
+      et émet l'état complet. Vérifié : `/api/on-air` rend les deux champs et
+      `null` quand ils sont inconnus ; le flux ne rend qu'un commentaire de
+      maintien quand seul l'écoulé a avancé, repart quand la durée ou le titre
+      change, et le message porte l'écoulé du moment.
+- [x] **GOAL-085-T03** — La page : une piste d'avancement sur la carte
+      « Antenne », un filet sur le bord haut du lecteur, et la position donnée
+      à l'écran de verrouillage. Chaque message du flux pose l'écoulé, la durée
+      et l'instant de réception (`performance.now()`) ; un `avancement` calculé
+      rend l'écoulé couru depuis, borné à la durée quand elle est connue, et
+      `null` quand l'API n'a rien dit. Un seul minuteur d'une seconde fait
+      avancer un compteur `tic` dont le calcul dépend — posé au montage, coupé
+      au démontage, et arrêté dès qu'il n'y a plus d'écoulé à faire courir.
+      Aucun sondage : le flux reste le seul chemin (GOAL-073), et le test qui
+      le garantissait interdisait `setInterval` tout court ; il vérifie
+      désormais que le seul minuteur de la page ne demande rien au serveur.
+      `setPositionState` n'est appelé qu'à la réception d'un message, sous
+      `try/catch` : le navigateur fait avancer la position lui-même.
+
+**GOAL-085 est clos le 2026-09-06.** L'antenne dit maintenant la durée de ce
+qui passe et ce qui en est écoulé, quand elle les connaît : la longueur attendue
+voyage avec la déclaration (`app/length.py`), `/api/on-air` et le flux
+d'événements portent `elapsed_seconds` et `duration_seconds`, et la page en fait
+une piste d'avancement sur la carte et un filet dans le lecteur. Le flux n'émet
+rien pour l'écoulé seul — il pousserait un message par seconde : c'est la page
+qui le fait courir en local et se recale à chaque message. Ce qui n'a pas de
+durée connue — jingle, vidéo, épisode muet sur sa longueur, entrée d'avant le
+redémarrage — n'annonce que son écoulé, et n'a pas de barre.
+
+**Reste à écouter** (AGENTS.md §4.1) : le décalage entre la barre et l'oreille
+sur téléphone comme au navigateur — la position annoncée est celle du diffuseur,
+en avance de tout ce qui tamponne —, et ce que l'écran de verrouillage montre
+vraiment, qui n'est relevé nulle part (docs/flux-icy.md).

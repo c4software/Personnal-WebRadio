@@ -480,6 +480,22 @@ barre entre deux messages, et qui la recale sur l'écoulé du message suivant.
 > lecteur, le reverse proxy. L'écart n'est pas mesuré, et il n'est pas corrigé :
 > l'antenne dit ce qu'elle diffuse, pas ce qu'on entend.
 
+**Ce que la page en montre.** La carte « Antenne » porte, sous le titre et
+l'artiste, une piste d'avancement encadrée par l'écoulé et la durée en `M:SS`
+(ou `H:MM:SS` au-delà d'une heure). La barre du lecteur en reprend un filet sur
+son bord haut, sans texte. Quand la durée est inconnue, il n'y a pas de barre :
+seulement « depuis 12:34 ». Quand rien n'est connu, rien n'est affiché.
+
+Entre deux messages, la page fait courir l'écoulé elle-même — un compteur d'une
+seconde, arrêté dès qu'il n'y a plus rien à faire avancer — et se recale sur
+l'écoulé du message suivant. Elle ne redemande rien à l'API : le flux
+d'événements reste son seul chemin (§4.8 « L'antenne poussée »). Quand la durée
+est connue et que le navigateur sait le faire, la position est aussi donnée à
+`mediaSession.setPositionState` à la réception d'un message ; le navigateur la
+fait avancer ensuite. Ce que l'écran de verrouillage d'un téléphone en montre
+n'est pas relevé (docs/flux-icy.md) et se constate à l'usage. La barre reste en
+avance sur l'oreille, du temps que met le tampon.
+
 #### L'antenne poussée, plutôt que redemandée
 
 **Depuis le 2026-09-03** (GOAL-073), `GET /api/events` **pousse** ce que rend

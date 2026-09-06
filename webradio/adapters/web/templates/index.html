@@ -52,6 +52,17 @@
               <p v-if="antenne.artist" class="artiste">[[ antenne.artist ]]</p>
             </div>
           </Transition>
+          <!-- L'avancement vient de l'API et court en local entre deux
+               messages (GOAL-085). Sans durée, il n'y a pas de barre : on ne
+               montre pas une avancée dont on ignore la fin. -->
+          <div v-if="avancement" class="avancement">
+            <template v-if="avancement.duree !== null">
+              <span class="temps">[[ formatDuree(avancement.ecoule) ]]</span>
+              <div class="progression"><div class="avancee" :style="{ width: partAvancee(avancement) }"></div></div>
+              <span class="temps">[[ formatDuree(avancement.duree) ]]</span>
+            </template>
+            <span v-else class="temps">depuis [[ formatDuree(avancement.ecoule) ]]</span>
+          </div>
           <p v-if="moment" class="moment"><span>[[ moment ]]</span>
             <button v-if="momentRandom" type="button" class="retirer" :disabled="occupe" title="Tirer un autre thème au sort" @click="retirer()">Autre thème</button>
           </p>
@@ -156,6 +167,9 @@
            brancher un auditeur à l'insu de tous — la radio ne tourne que si
            quelqu'un écoute. -->
       <footer class="barre" aria-label="Lecteur">
+        <div v-if="avancement && avancement.duree !== null" class="progression-barre" aria-hidden="true">
+          <div class="avancee" :style="{ width: partAvancee(avancement) }"></div>
+        </div>
         <section v-if="tiroir" class="liste" aria-label="Prochains titres">
           <header>
             <h2>Prochains titres</h2>
@@ -256,6 +270,9 @@
       // Hors de `data` : Vue enveloppe ce qu'il y trouve dans un proxy réactif,
       // et un EventSource n'a rien à y gagner.
       let fluxAntenne = null;
+      // Même raison pour le minuteur de l'avancement : son identifiant n'a
+      // rien à gagner à devenir réactif.
+      let minuteurAvancement = null;
       // L'adresse du flux vient du TOML (web.stream_url). Une valeur qui
       // commence par « : » — « :8000/flux » — désigne l'hôte de la page : la
       // même configuration vaut depuis tous les postes du réseau.
@@ -273,6 +290,10 @@
             moment: null,
             momentRandom: false,
             aSuivre: null,
+            ecouleRecu: null,
+            dureeRecue: null,
+            recuA: 0,
+            tic: 0,
             tiroir: false,
             prochains: [],
             flux: FLUX,
@@ -299,6 +320,18 @@
             // Sans auditeur, rien ne passe : un vote n'aurait rien sur quoi
             // porter (GOAL-061). Pendant l'habillage, l'API le refuserait.
             return this.antenne === null || this.antenne.kind !== "musique";
+          },
+          avancement() {
+            // Le flux n'émet pas de message quand seul l'écoulé avance
+            // (GOAL-085-T02) : la page le fait courir depuis le dernier
+            // message reçu, et se recale au suivant. `tic` est lu pour rendre
+            // le calcul réactif, pas pour sa valeur.
+            void this.tic;
+            if (this.antenne === null || this.ecouleRecu === null) { return null; }
+            const duree = this.dureeRecue;
+            let ecoule = this.ecouleRecu + (performance.now() - this.recuA) / 1000;
+            if (duree !== null) { ecoule = Math.min(ecoule, duree); }
+            return { ecoule: Math.max(0, Math.floor(ecoule)), duree };
           },
           ligneDeLaBarre() {
             // La barre dit ce qui passe, d'où qu'on la regarde ; sans antenne,
@@ -384,6 +417,7 @@
           appliquerAntenne(donnees) {
             this.maintenant = new Date();
             this.antenne = donnees.on_air && donnees.on_air_now ? donnees.on_air_now : null;
+            this.recaler();
             this.moment = donnees.moment || null;
             this.momentRandom = donnees.moment_random === true;
             this.annoncerAuVerrouillage();
@@ -392,6 +426,40 @@
             if (this.onglet === "votes") { this.chargerVotes(); }
             if (this.onglet === "historique") { this.ouvrirHistorique(); }
             if (this.tiroir) { this.chargerProchains(); }
+          },
+          recaler() {
+            // L'écoulé et la durée sont nuls pour tout ce dont la radio ne
+            // connaît pas la longueur : jingle, vidéo, épisode sans durée.
+            const a = this.antenne;
+            const nombre = (v) => (typeof v === "number" ? v : null);
+            this.ecouleRecu = a ? nombre(a.elapsed_seconds) : null;
+            this.dureeRecue = a ? nombre(a.duration_seconds) : null;
+            this.recuA = performance.now();
+            this.rythmerLAvancement();
+          },
+          rythmerLAvancement() {
+            // Un seul minuteur, et seulement s'il y a quelque chose à faire
+            // avancer : sans écoulé connu, rien ne bouge entre deux messages.
+            const utile = this.ecouleRecu !== null;
+            if (utile && minuteurAvancement === null) {
+              minuteurAvancement = setInterval(() => { this.tic += 1; }, 1000);
+            } else if (!utile && minuteurAvancement !== null) {
+              clearInterval(minuteurAvancement);
+              minuteurAvancement = null;
+            }
+          },
+          formatDuree(secondes) {
+            const s = Math.max(0, Math.round(secondes));
+            const deuxChiffres = (n) => String(n).padStart(2, "0");
+            const heures = Math.floor(s / 3600);
+            const minutes = Math.floor(s / 60) % 60;
+            return heures > 0
+              ? heures + ":" + deuxChiffres(minutes) + ":" + deuxChiffres(s % 60)
+              : minutes + ":" + deuxChiffres(s % 60);
+          },
+          partAvancee(a) {
+            if (!a.duree) { return "0%"; }
+            return Math.min(100, Math.round((a.ecoule / a.duree) * 100)) + "%";
           },
           // Une coupure n'a pas de reprise à écrire : EventSource se rebranche
           // seul, et le témoin dit seulement où l'on en est (GOAL-073).
@@ -602,6 +670,20 @@
               artist: a ? (a.artist || "") : "",
               album: this.moment || "",
             });
+            // Posée à la réception d'un message seulement : le navigateur fait
+            // avancer la position lui-même. Ce qu'un téléphone en montre
+            // vraiment n'est pas relevé (docs/flux-icy.md) et se constate à
+            // l'écoute.
+            const av = this.avancement;
+            if (av === null || av.duree === null || !("setPositionState" in navigator.mediaSession)) { return; }
+            try {
+              navigator.mediaSession.setPositionState({
+                duration: av.duree, position: Math.min(av.ecoule, av.duree), playbackRate: 1,
+              });
+            } catch (erreur) {
+              // Des navigateurs refusent une position hors durée ou un état
+              // sans lecture en cours.
+            }
           },
           ouvrirTiroir() {
             // Le même bouton ouvre et referme : la liste vit dans le lecteur.
@@ -683,12 +765,19 @@
             if (document.hidden) { this.veiller(); } else { this.ecouterLAntenne(); }
           });
           this.surveillerLesEnceintes();
+          this.rythmerLAvancement();
           if ("mediaSession" in navigator && this.flux) {
             // Les commandes de l'écran de verrouillage et des écouteurs
             // passent par le même chemin que le bouton : couper décharge.
             for (const action of ["play", "pause", "stop"]) {
               navigator.mediaSession.setActionHandler(action, () => this.basculerEcoute());
             }
+          }
+        },
+        beforeUnmount() {
+          if (minuteurAvancement !== null) {
+            clearInterval(minuteurAvancement);
+            minuteurAvancement = null;
           }
         },
       }).mount("#app");

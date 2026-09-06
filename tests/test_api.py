@@ -383,10 +383,14 @@ def test_la_page_est_faite_pour_un_telephone() -> None:
 
 
 def test_la_page_s_abonne_a_l_antenne_au_lieu_de_la_sonder() -> None:
-    """Le flux est le seul chemin de la page vers l'état de la radio (GOAL-073)."""
+    """Le flux est le seul chemin de la page vers l'état de la radio (GOAL-073).
+
+    Le seul minuteur de la page fait avancer un compteur local, il ne demande
+    rien au serveur (GOAL-085-T03)."""
     answer = client(FakeRadio()).get("/")
     assert b"EventSource" in answer.data
-    assert b"setInterval" not in answer.data
+    assert answer.data.count(b"setInterval") == 1
+    assert b"setInterval(() => { this.tic += 1; }, 1000)" in answer.data
     assert b"/api/on-air" not in answer.data
 
 
@@ -800,6 +804,18 @@ def test_la_page_anime_les_onglets_les_chansons_et_les_listes() -> None:
     assert '<Transition name="onglet" mode="out-in">' in page
     assert page.count('<Transition name="chanson" mode="out-in">') == 2
     assert page.count("'--i': i") == 6
+
+
+def test_la_page_montre_ou_en_est_ce_qui_passe() -> None:
+    """La carte et le lecteur portent une piste d'avancement, nourrie par
+    `elapsed_seconds` et `duration_seconds` et avancée en local entre deux
+    messages (GOAL-085-T03). Le rendu se constate à l'œil (AGENTS.md §9)."""
+    page = client(FakeRadio()).get("/").get_data(as_text=True)
+    assert '<div v-if="avancement" class="avancement">' in page
+    assert '<div class="progression">' in page
+    assert 'class="progression-barre"' in page
+    assert "a.elapsed_seconds" in page and "a.duration_seconds" in page
+    assert "setPositionState" in page
 
 
 def test_le_lecteur_propose_une_enceinte_seulement_en_ecoute() -> None:
