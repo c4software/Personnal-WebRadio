@@ -2487,3 +2487,70 @@ autre à moins de trente minutes. Il devient nominal si l'avance s'allonge.
 entendu à l'antenne : il a été trouvé en relisant le code, puis constaté par
 un test avant d'être corrigé.
 
+---
+
+## GOAL-077 — Une plage « podcasts » : plusieurs flux, tirés au hasard
+
+Ouvert le 2026-09-06, demande de l'auteur, forme tranchée le même jour
+(SPECS.md §7 **n°35**) : c'est une **émission à plusieurs flux**, pas une
+plage. Entre `time` et `end`, on tire un flux au hasard parmi ceux qui ont du
+neuf, on joue son épisode, on recommence ; à `end`, l'épisode en cours **finit**
+(n°5), quitte à déborder.
+
+- [x] **GOAL-077-T01** — Relever ce qu'exposent réellement les flux voulus par
+      l'auteur (AGENTS.md §3). Six flux, **trois hébergeurs** — Acast,
+      Audiomeans, Saooti — dont deux jamais relevés. Adresses résolues par
+      l'API d'Apple plutôt que devinées, puis passées à notre propre
+      adaptateur. `docs/podcast.md` §4.bis.
+      Trois constats qui pèsent sur la suite : **aucun** épisode sans durée ni
+      sans audio sur 3 131, donc les deux nouveaux hébergeurs tiennent ; les
+      six pèsent **21,5 Mo et ~1,9 s** par jonction, dans la requête que le
+      diffuseur attend — le cache de flux devient une tâche (T06) ; et les
+      durées médianes vont de **6 min à 1 h 17**, ce qui fera déborder une
+      plage de deux heures d'autant plus souvent (n°5).
+      À dire à l'auteur : « Les Grosses Têtes » est le flux d'**extraits**,
+      6 minutes de médiane, pas les deux heures d'antenne.
+- [x] **GOAL-077-T02** — Le noyau : `core/shows.py` choisit parmi plusieurs
+      catalogues, avec une mémoire **par flux** et une pioche uniforme entre
+      flux, par le hasard injecté. Une case à fin déclarée est ouverte jusqu'à
+      `end`, comme celle d'un direct, et non jusqu'à la durée d'un épisode
+      (c'est un autre régime que le rattrapage de la n°13). Tests : deux flux
+      dont un seul a du neuf ; plus rien nulle part, case sautée ; à graine
+      fixe, la même soirée pioche le même flux ; l'épisode entamé finit après
+      `end`.
+- [x] **GOAL-077-T03** — La charnière : `app/show_scheduler.py` tient
+      plusieurs adresses par émission, enchaîne dans la case, et nomme le flux
+      tiré dans son journal. La clé de mémoire passe à `<name>/<feed>` —
+      changement de ce que garde la base, donc ARCHITECTURE.md §5.
+- [x] **GOAL-077-T04** — La configuration : `feeds` et `end` dans
+      `adapters/config/schema.py`, exclusifs de `feed`/`stream`/`youtube`,
+      refusés là où ils n'ont pas de sens. **Une règle à trancher en chemin** :
+      la détection de collision juge aujourd'hui « la case déclarée » ; une
+      plage de deux heures qui contient l'heure d'une autre émission n'est
+      plus vue. `webradio.exemple.toml`, SPECS.md §6 et §4.11.
+- [x] **GOAL-077-T05** — La grille et la page : `core/planning.py` lit déjà
+      `Show.duration` — une case à fin déclarée s'y insère sans règle
+      nouvelle ; `app/main.py::_periode` doit nommer « podcasts » comme il
+      nomme `live` et `youtube`.
+      **À écouter** (AGENTS.md §4.1) : la jonction d'entrée, l'enchaînement de
+      deux épisodes d'éditeurs différents — les niveaux ne se ressemblent
+      pas — et le débordement à `end`.
+- [x] **GOAL-077-T06** — Un cache de flux, comme celui de la bibliothèque.
+      Mesuré par T01 : 21,5 Mo et ~1,9 s pour les six flux de l'auteur, à
+      chaque jonction de la case, dans la requête que le diffuseur attend. Sa
+      durée vient du TOML avec son défaut déclaré, comme
+      `subsonic.cache_seconds`.
+
+**Clos le 2026-09-06.** Six tâches, six commits. Les six podcasts de l'auteur
+sont dans `webradio.exemple.toml`, en deux plages le week-end groupées par
+longueur — actus de 20 h à 21 h, longs formats de 21 h à 23 h.
+
+**Reste à écouter** (AGENTS.md §4.1, et rien ne le fera automatiquement) : la
+jonction d'entrée dans la plage, l'enchaînement de deux épisodes d'éditeurs
+différents — trois hébergeurs, trois façons de normaliser le niveau — et le
+débordement à `end`, qui peut atteindre une heure quand LEGEND sort au tirage.
+
+**Reste à décider par l'auteur** : « Les Grosses Têtes » est le flux
+d'**extraits**, six minutes de médiane. Si ce sont les deux heures d'antenne
+qui étaient attendues, ce flux-là n'existe pas en podcast ouvert.
+

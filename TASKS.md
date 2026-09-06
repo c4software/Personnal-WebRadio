@@ -189,8 +189,16 @@ diffuseur), **GOAL-076** (petit, protège les deux suivants), **GOAL-077** (la
 plage podcasts), **GOAL-078** (la couture de la grille — après GOAL-077, qui
 lui donne le bon jeu de périodes).
 
-**Prochaine tâche** : GOAL-077-T01, le relevé de la plage podcasts.
-GOAL-075 attend sa mesure à l'antenne (T03), qui demande le déploiement.
+**GOAL-076 et GOAL-077 sont clos le 2026-09-06.** Le thème d'une plage « au
+hasard » ne se retire plus tout seul — défaut trouvé en relisant, constaté par
+un test, jamais entendu. Et une émission peut tenir plusieurs flux et déclarer
+sa fin : les six podcasts demandés par l'auteur tiennent en deux plages le
+week-end, groupées par longueur.
+
+**Prochaine tâche** : GOAL-078-T01, la couture de la grille derrière les
+titres. GOAL-075 attend sa mesure à l'antenne (T03), qui demande le
+déploiement ; GOAL-079 est une réécriture de ton, à prendre quand elle
+n'interrompt rien.
 
 ---
 
@@ -249,58 +257,6 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
 ---
 
 ---
-
-## GOAL-077 — Une plage « podcasts » : plusieurs flux, tirés au hasard
-
-Ouvert le 2026-09-06, demande de l'auteur, forme tranchée le même jour
-(SPECS.md §7 **n°35**) : c'est une **émission à plusieurs flux**, pas une
-plage. Entre `time` et `end`, on tire un flux au hasard parmi ceux qui ont du
-neuf, on joue son épisode, on recommence ; à `end`, l'épisode en cours **finit**
-(n°5), quitte à déborder.
-
-- [x] **GOAL-077-T01** — Relever ce qu'exposent réellement les flux voulus par
-      l'auteur (AGENTS.md §3). Six flux, **trois hébergeurs** — Acast,
-      Audiomeans, Saooti — dont deux jamais relevés. Adresses résolues par
-      l'API d'Apple plutôt que devinées, puis passées à notre propre
-      adaptateur. `docs/podcast.md` §4.bis.
-      Trois constats qui pèsent sur la suite : **aucun** épisode sans durée ni
-      sans audio sur 3 131, donc les deux nouveaux hébergeurs tiennent ; les
-      six pèsent **21,5 Mo et ~1,9 s** par jonction, dans la requête que le
-      diffuseur attend — le cache de flux devient une tâche (T06) ; et les
-      durées médianes vont de **6 min à 1 h 17**, ce qui fera déborder une
-      plage de deux heures d'autant plus souvent (n°5).
-      À dire à l'auteur : « Les Grosses Têtes » est le flux d'**extraits**,
-      6 minutes de médiane, pas les deux heures d'antenne.
-- [x] **GOAL-077-T02** — Le noyau : `core/shows.py` choisit parmi plusieurs
-      catalogues, avec une mémoire **par flux** et une pioche uniforme entre
-      flux, par le hasard injecté. Une case à fin déclarée est ouverte jusqu'à
-      `end`, comme celle d'un direct, et non jusqu'à la durée d'un épisode
-      (c'est un autre régime que le rattrapage de la n°13). Tests : deux flux
-      dont un seul a du neuf ; plus rien nulle part, case sautée ; à graine
-      fixe, la même soirée pioche le même flux ; l'épisode entamé finit après
-      `end`.
-- [x] **GOAL-077-T03** — La charnière : `app/show_scheduler.py` tient
-      plusieurs adresses par émission, enchaîne dans la case, et nomme le flux
-      tiré dans son journal. La clé de mémoire passe à `<name>/<feed>` —
-      changement de ce que garde la base, donc ARCHITECTURE.md §5.
-- [x] **GOAL-077-T04** — La configuration : `feeds` et `end` dans
-      `adapters/config/schema.py`, exclusifs de `feed`/`stream`/`youtube`,
-      refusés là où ils n'ont pas de sens. **Une règle à trancher en chemin** :
-      la détection de collision juge aujourd'hui « la case déclarée » ; une
-      plage de deux heures qui contient l'heure d'une autre émission n'est
-      plus vue. `webradio.exemple.toml`, SPECS.md §6 et §4.11.
-- [x] **GOAL-077-T05** — La grille et la page : `core/planning.py` lit déjà
-      `Show.duration` — une case à fin déclarée s'y insère sans règle
-      nouvelle ; `app/main.py::_periode` doit nommer « podcasts » comme il
-      nomme `live` et `youtube`.
-      **À écouter** (AGENTS.md §4.1) : la jonction d'entrée, l'enchaînement de
-      deux épisodes d'éditeurs différents — les niveaux ne se ressemblent
-      pas — et le débordement à `end`.
-- [x] **GOAL-077-T06** — Un cache de flux, comme celui de la bibliothèque.
-      Mesuré par T01 : 21,5 Mo et ~1,9 s pour les six flux de l'auteur, à
-      chaque jonction de la case, dans la requête que le diffuseur attend. Sa
-      durée vient du TOML avec son défaut déclaré, comme
-      `subsonic.cache_seconds`.
 
 ---
 
@@ -438,7 +394,7 @@ mimétisme. §9 dit que cela « ne doit pas revenir ».
 | GOAL-074 | La reprise ne laisse plus rien entendre de la veille, et l'annonce ne troue plus l'antenne | `[x]` — clos le 2026-09-06 ; T03 abandonnée sur arbitrage ; **reste à écouter** la reprise du matin |
 | GOAL-075 | Le premier tirage d'une reprise ne fait plus attendre l'antenne | `[ ]` — ouvert le 2026-09-06 par GOAL-074-T05 |
 | GOAL-076 | Le thème d'une plage « au hasard » ne se retire plus tout seul | `[x]` — clos le 2026-09-06 ; défaut constaté par un test avant correction, jamais entendu à l'antenne |
-| GOAL-077 | Une plage « podcasts » : plusieurs flux, tirés au hasard | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°35) |
+| GOAL-077 | Une plage « podcasts » : plusieurs flux, tirés au hasard | `[x]` — clos le 2026-09-06 ; **reste à écouter** l'enchaînement et le débordement |
 | GOAL-078 | La liste des prochains titres coud la grille derrière elle | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°34 amendée) |
 | GOAL-079 | `radio.liq` reçoit la réécriture du ton que les autres ont eue | `[ ]` — ouvert le 2026-09-06, sur revue : le fichier a échappé à `ea20e20` |
 
