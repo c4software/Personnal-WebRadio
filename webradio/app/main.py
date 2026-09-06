@@ -536,6 +536,9 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         # rassise ne doit pas revenir (SPECS.md §7 n°30).
         order_requeue=lambda: _ordonner("/requeue", "l'avance rassise partira quand même"),
         order_skip=lambda: _ordonner("/skip", "le reliquat du morceau interrompu passera"),
+        order_announce=lambda: _ordonner(
+            "/announce", "l'antenne restera inconnue jusqu'à la prochaine jonction"
+        ),
         in_background=_preparer_en_fond,
     )
     branche.append(playout)

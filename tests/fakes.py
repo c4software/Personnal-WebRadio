@@ -80,6 +80,27 @@ class FakeSource:
         return f"fake://{track.identifier}"
 
 
+class FakeDiffuseur:
+    """Le diffuseur vu de la charnière : il note les ordres qu'il reçoit.
+
+    En production ce sont des POST vers les routes harbor de `radio.liq`
+    (`/announce`, `/requeue`, `/skip`). Ce qui compte dans un test est
+    lesquels partent, et dans quel ordre.
+    """
+
+    def __init__(self) -> None:
+        self.ordres: list[str] = []
+
+    def announce(self) -> None:
+        self.ordres.append("announce")
+
+    def requeue(self) -> None:
+        self.ordres.append("requeue")
+
+    def skip(self) -> None:
+        self.ordres.append("skip")
+
+
 def verrou_tenu(verrou: threading.RLock) -> bool:
     """Vrai si le verrou est tenu au moment de l'appel.
 

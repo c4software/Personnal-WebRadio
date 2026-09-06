@@ -4,12 +4,22 @@ from collections.abc import Callable
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
-from tests.fakes import FakeProgrammeEpieLeVerrou, FakeSource, FakeSourceEpieLeVerrou, track
+from tests.fakes import (
+    FakeDiffuseur,
+    FakeProgrammeEpieLeVerrou,
+    FakeSource,
+    FakeSourceEpieLeVerrou,
+    track,
+)
 from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
 from webradio.adapters.state.database import SqliteState
 from webradio.adapters.web.api import Kind as NatureWeb
 from webradio.adapters.web.api import Vote
-from webradio.app.liquidsoap_playout import LiquidsoapPlayout
+from webradio.app.liquidsoap_playout import (
+    LiquidsoapPlayout,
+    _adresse,
+    _lire_les_annotations,
+)
 from webradio.app.playout import RadioProgramme
 from webradio.app.radio import ListenerCount, LiveRadio
 from webradio.app.show_scheduler import Shows
@@ -28,12 +38,19 @@ HORIZON = timedelta(hours=3)
 CATALOGUE = [track("1", "Air", genre="électro"), track("2", "Bowie", genre="rock")]
 
 
+def _sans_annotation(entry: str | None) -> str | None:
+    """L'adresse d'une entrée, sans le préfixe d'annotation que `next_entry` y
+    pose pour qu'elle se décrive (GOAL-086-T03)."""
+    return None if entry is None else _adresse(entry)
+
+
 def _playout(
     folder: Path,
     *,
     resume_fresh_after: timedelta | None = None,
     order_requeue: Callable[[], None] | None = None,
     order_skip: Callable[[], None] | None = None,
+    order_announce: Callable[[], None] | None = None,
     max_duration: timedelta | None = None,
     catalogue: list[Track] | None = None,
     source: FakeSource | None = None,
@@ -75,6 +92,7 @@ def _playout(
         resume_fresh_after=resume_fresh_after,
         order_requeue=order_requeue,
         order_skip=order_skip,
+        order_announce=order_announce,
         max_duration=max_duration,
         in_background=in_background,
     )
@@ -195,11 +213,11 @@ def test_un_morceau_demande_n_est_pas_encore_a_l_antenne(tmp_path: Path) -> None
     playout, radio, _ = _playout(tmp_path)
     playout.declare_listeners(1)
     entry = playout.next_entry()
-    assert entry == "fake://1"
+    assert entry is not None
+    assert _adresse(entry) == "fake://1"
     assert radio.on_air_now() is not None
     assert radio.on_air_now().title is None  # type: ignore[union-attr]
 
-    assert entry is not None
     playout.playing(entry)
     assert radio.on_air_now().title == "titre 1"  # type: ignore[union-attr]
 
@@ -226,18 +244,30 @@ def test_une_piste_au_dessus_du_plafond_s_annote_pour_se_couper(tmp_path: Path) 
     crossfade adoucit la coupe (SPECS.md §7 n°32 révisée, docs/liquidsoap.md §7)."""
     longue = [track("long", "Air", genre="électro", secondes=2400)]
     playout, _, _ = _playout(tmp_path, max_duration=timedelta(minutes=20), catalogue=longue)
-    assert playout.next_entry() == "annotate:liq_cue_out=1200:fake://long"
+    entry = playout.next_entry()
+    assert entry is not None
+    annotations, adresse = _lire_les_annotations(entry)
+    assert annotations["liq_cue_out"] == "1200"
+    assert adresse == "fake://long"
 
 
-def test_une_piste_sous_le_plafond_passe_sans_annotation(tmp_path: Path) -> None:
+def test_une_piste_sous_le_plafond_ne_s_annote_pas_pour_se_couper(tmp_path: Path) -> None:
     playout, _, _ = _playout(tmp_path, max_duration=timedelta(minutes=20))
-    assert playout.next_entry() == "fake://1"
+    entry = playout.next_entry()
+    assert entry is not None
+    annotations, adresse = _lire_les_annotations(entry)
+    assert "liq_cue_out" not in annotations
+    assert adresse == "fake://1"
 
 
 def test_sans_plafond_une_piste_longue_passe_entiere(tmp_path: Path) -> None:
     longue = [track("long", "Air", genre="électro", secondes=2400)]
     playout, _, _ = _playout(tmp_path, catalogue=longue)
-    assert playout.next_entry() == "fake://long"
+    entry = playout.next_entry()
+    assert entry is not None
+    annotations, adresse = _lire_les_annotations(entry)
+    assert "liq_cue_out" not in annotations
+    assert adresse == "fake://long"
 
 
 def test_une_entree_replacee_apres_un_encore_ne_s_annote_pas_deux_fois(tmp_path: Path) -> None:
@@ -249,9 +279,11 @@ def test_une_entree_replacee_apres_un_encore_ne_s_annote_pas_deux_fois(tmp_path:
     ]
     playout, _, _ = _playout(tmp_path, max_duration=timedelta(minutes=20), catalogue=longues)
     annotee = playout.next_entry()
-    assert annotee == "annotate:liq_cue_out=1200:fake://long1"
+    assert annotee is not None and annotee.startswith("annotate:liq_cue_out=1200,")
     playout.stash_for_replay()
-    assert playout.next_entry() == annotee
+    resservie = playout.next_entry()
+    assert resservie == annotee
+    assert resservie.count("annotate:") == 1
 
 
 def test_sans_auditeur_la_radio_ne_tourne_pas(tmp_path: Path) -> None:
@@ -398,15 +430,16 @@ def test_la_liste_montre_le_morceau_force_des_le_vote(tmp_path: Path) -> None:
     playout, radio, _clock = _playout(tmp_path, catalogue=catalogue)
     playout.declare_listeners(1)
     premier = playout.next_entry()
-    assert premier == "fake://1"  # Air, à l'antenne
+    assert _sans_annotation(premier) == "fake://1"  # Air, à l'antenne
+    assert premier is not None
     playout.playing(premier)
-    assert playout.next_entry() == "fake://2"  # Bowie, avance du diffuseur
+    assert _sans_annotation(playout.next_entry()) == "fake://2"  # Bowie, avance du diffuseur
 
     assert radio.vote(Vote.MORE).accepted
 
     a_venir = [u.track.identifier for u in playout.upcoming() if u.track is not None]
     assert a_venir[:2] == ["3", "2"]
-    assert playout.next_entry() == "fake://3"
+    assert _sans_annotation(playout.next_entry()) == "fake://3"
 
 
 BOWIE = [
@@ -422,14 +455,16 @@ def test_l_encore_ne_rend_pas_un_morceau_que_l_antenne_vient_de_passer(tmp_path:
     playout, radio, _clock = _playout(tmp_path, catalogue=BOWIE, draws=[0, 1, *[0] * 100])
     playout.declare_listeners(1)
     premier = playout.next_entry()
-    assert premier == "fake://1"
+    assert _sans_annotation(premier) == "fake://1"
+    assert premier is not None
     playout.playing(premier)
     deuxieme = playout.next_entry()
-    assert deuxieme == "fake://2"
+    assert _sans_annotation(deuxieme) == "fake://2"
+    assert deuxieme is not None
     playout.playing(deuxieme)
 
     assert radio.vote(Vote.MORE).accepted
-    assert playout.next_entry() == "fake://3"
+    assert _sans_annotation(playout.next_entry()) == "fake://3"
 
 
 def test_une_entree_seulement_demandee_ne_compte_pas_comme_passee(tmp_path: Path) -> None:
@@ -438,12 +473,13 @@ def test_une_entree_seulement_demandee_ne_compte_pas_comme_passee(tmp_path: Path
     playout, radio, _clock = _playout(tmp_path, catalogue=BOWIE, draws=[0, 1, *[0] * 100])
     playout.declare_listeners(1)
     premier = playout.next_entry()
-    assert premier == "fake://1"
+    assert _sans_annotation(premier) == "fake://1"
+    assert premier is not None
     playout.playing(premier)
-    assert playout.next_entry() == "fake://2"  # demandée, jamais annoncée
+    assert _sans_annotation(playout.next_entry()) == "fake://2"  # demandée, jamais annoncée
 
     assert radio.vote(Vote.MORE).accepted
-    assert playout.next_entry() == "fake://2"
+    assert _sans_annotation(playout.next_entry()) == "fake://2"
 
 
 def test_l_a_suivre_saute_les_jingles(tmp_path: Path) -> None:
@@ -486,9 +522,10 @@ def test_l_avance_replacee_ne_rejoue_pas_ce_qu_un_moment_fini_a_tire(tmp_path: P
     playout, _radio, clock = _playout(tmp_path, bands=DEUX_PLAGES, catalogue=DEUX_ELECTRO)
     playout.declare_listeners(1)
     premier = playout.next_entry()
-    assert premier == "fake://1"
+    assert _sans_annotation(premier) == "fake://1"
+    assert premier is not None
     playout.playing(premier)
-    assert playout.next_entry() == "fake://3"  # l'avance, tirée sous 12 h
+    assert _sans_annotation(playout.next_entry()) == "fake://3"  # l'avance, tirée sous 12 h
 
     clock.advance(timedelta(hours=1, minutes=1))
     playout.stash_for_replay()
@@ -498,7 +535,9 @@ def test_l_avance_replacee_ne_rejoue_pas_ce_qu_un_moment_fini_a_tire(tmp_path: P
     a_suivre = playout.up_next()
     assert a_suivre is not None and a_suivre[1] is not None
     assert a_suivre[1].identifier == "2"
-    assert playout.next_entry() == "fake://2", "tiré sous la plage de 13 h, pas replacé"
+    assert _sans_annotation(playout.next_entry()) == "fake://2", (
+        "tiré sous la plage de 13 h, pas replacé"
+    )
 
 
 def test_l_avance_replacee_dans_le_meme_moment_se_ressert_telle_quelle(tmp_path: Path) -> None:
@@ -605,11 +644,11 @@ def test_au_battement_un_moment_fini_jette_l_avance(tmp_path: Path) -> None:
     jetée et la suite est tirée à neuf sous la plage ouverte."""
     ordres: list[str] = []
     playout, _radio, clock = _playout_avec_requeue(tmp_path, ordres, bands=DEUX_PLAGES)
-    assert _avance_demandee(playout) == "fake://3"
+    assert _sans_annotation(_avance_demandee(playout)) == "fake://3"
     clock.advance(timedelta(hours=1, seconds=10))
     playout.declare_listeners(1)
     assert ordres == ["requeue"]
-    assert playout.next_entry() == "fake://2"
+    assert _sans_annotation(playout.next_entry()) == "fake://2"
 
 
 def test_un_moment_fini_compte_meme_pendant_une_emission(tmp_path: Path) -> None:
@@ -866,14 +905,14 @@ def test_une_emission_jetee_par_la_reprise_a_neuf_repasse_dans_sa_fenetre(
         order_skip=lambda: ordres.append("skip"),
     )
     playout.declare_listeners(1)
-    assert playout.next_entry() == EPISODE
+    assert _sans_annotation(playout.next_entry()) == EPISODE
 
     playout.declare_listeners(0)
     clock.advance(timedelta(minutes=20))
     playout.declare_listeners(1)
 
     assert ordres == ["requeue", "skip"]
-    assert playout.next_entry() == EPISODE, "elle n'a pas passé, elle reste due"
+    assert _sans_annotation(playout.next_entry()) == EPISODE, "elle n'a pas passé, elle reste due"
     assert state.last_airing("A la French") is None
 
 
@@ -883,11 +922,11 @@ def test_une_emission_jetee_par_le_changement_de_theme_repasse(tmp_path: Path) -
     clock = FrozenClock(MIDI + timedelta(minutes=1))
     playout, _radio, state = _playout_avec_emission(tmp_path, clock)
     playout.declare_listeners(1)
-    assert playout.next_entry() == EPISODE
+    assert _sans_annotation(playout.next_entry()) == EPISODE
 
     playout.drop_advance()
 
-    assert playout.next_entry() == EPISODE
+    assert _sans_annotation(playout.next_entry()) == EPISODE
     assert state.last_airing("A la French") is None
 
 
@@ -897,27 +936,29 @@ def test_une_emission_qui_ne_prend_jamais_l_antenne_reste_a_diffuser(tmp_path: P
     clock = FrozenClock(MIDI + timedelta(minutes=1))
     playout, _radio, state = _playout_avec_emission(tmp_path, clock)
     playout.declare_listeners(1)
-    assert playout.next_entry() == EPISODE
+    assert _sans_annotation(playout.next_entry()) == EPISODE
     remplacante = playout.next_entry()
     assert remplacante is not None and remplacante != EPISODE
 
     playout.playing(remplacante)
 
     assert state.last_airing("A la French") is None
-    assert playout.next_entry() == EPISODE
+    assert _sans_annotation(playout.next_entry()) == EPISODE
 
 
 def test_une_emission_a_l_antenne_est_retenue_et_ne_repasse_pas(tmp_path: Path) -> None:
     clock = FrozenClock(MIDI + timedelta(minutes=1))
     playout, _radio, state = _playout_avec_emission(tmp_path, clock)
     playout.declare_listeners(1)
-    assert playout.next_entry() == EPISODE
+    episode = playout.next_entry()
+    assert _sans_annotation(episode) == EPISODE
 
-    playout.playing(EPISODE)
+    assert episode is not None
+    playout.playing(episode)
 
     passe = state.last_airing("A la French")
     assert passe is not None and passe.episode == "ep1"
-    assert playout.next_entry() != EPISODE, "elle est passée, la case est sautée"
+    assert _sans_annotation(playout.next_entry()) != EPISODE, "elle est passée, la case est sautée"
 
 
 def test_le_morceau_d_avance_qui_commence_ne_jette_pas_l_emission(tmp_path: Path) -> None:
@@ -929,10 +970,12 @@ def test_le_morceau_d_avance_qui_commence_ne_jette_pas_l_emission(tmp_path: Path
     avance = playout.next_entry()
     assert avance is not None and avance != EPISODE
     clock.advance(timedelta(minutes=2))
-    assert playout.next_entry() == EPISODE
+    episode = playout.next_entry()
+    assert _sans_annotation(episode) == EPISODE
 
     playout.playing(avance)
-    playout.playing(EPISODE)
+    assert episode is not None
+    playout.playing(episode)
 
     passe = state.last_airing("A la French")
     assert passe is not None and passe.episode == "ep1"
@@ -950,10 +993,11 @@ def test_un_encore_pendant_qu_une_emission_attend_ne_la_fait_pas_passer_deux_foi
     playout, radio, state = _playout_avec_emission(tmp_path, clock, catalogue=catalogue)
     playout.declare_listeners(1)
     musique = playout.next_entry()
-    assert musique == "fake://1"
+    assert _sans_annotation(musique) == "fake://1"
+    assert musique is not None
     playout.playing(musique)
     clock.advance(timedelta(minutes=2))
-    assert playout.next_entry() == EPISODE, "l'émission attend chez le diffuseur"
+    assert _sans_annotation(playout.next_entry()) == EPISODE, "l'émission attend chez le diffuseur"
 
     assert radio.vote(Vote.MORE).accepted
 
@@ -961,7 +1005,7 @@ def test_un_encore_pendant_qu_une_emission_attend_ne_la_fait_pas_passer_deux_foi
     for _ in range(4):
         entree = playout.next_entry()
         assert entree is not None
-        servies.append(entree)
+        servies.append(_sans_annotation(entree) or entree)
         playout.playing(entree)
 
     assert servies.count(EPISODE) == 1, "l'émission ne passe qu'une fois"
@@ -1092,10 +1136,12 @@ def test_une_emission_replacee_qui_prend_l_antenne_s_inscrit(tmp_path: Path) -> 
     clock = FrozenClock(MIDI + timedelta(minutes=1))
     playout, radio, state = _playout_avec_emission(tmp_path, clock)
     playout.declare_listeners(1)
-    assert playout.next_entry() == EPISODE
+    episode = playout.next_entry()
+    assert _sans_annotation(episode) == EPISODE
     playout.stash_for_replay()
 
-    playout.playing(EPISODE)
+    assert episode is not None
+    playout.playing(episode)
 
     assert radio.playing_kind() is Kind.SHOW
     passe = state.last_airing("A la French")
@@ -1375,17 +1421,21 @@ def test_l_ouverture_d_une_plage_de_podcasts_jette_la_musique_d_avance(tmp_path:
     assert playout.next_entry() is not None, "l'avance de 19 h 57"
 
     clock.advance(timedelta(minutes=3))
-    assert playout.next_entry() == "https://exemple.test/a1.mp3"
+    episode = playout.next_entry()
+    assert _sans_annotation(episode) == "https://exemple.test/a1.mp3"
     clock.advance(timedelta(minutes=1))
-    playout.playing("https://exemple.test/a1.mp3")
+    assert episode is not None
+    playout.playing(episode)
     avance = playout.next_entry()
-    assert avance is not None and avance.startswith("fake://"), "« actus » n'a plus rien de neuf"
+    assert avance is not None and (_sans_annotation(avance) or "").startswith("fake://"), (
+        "« actus » n'a plus rien de neuf"
+    )
 
     clock.advance(timedelta(minutes=59, seconds=5))
     playout.declare_listeners(1)
 
     assert ordres == ["requeue"], "« longs formats » s'ouvre : l'avance est rassise"
-    assert playout.next_entry() == "https://exemple.test/l1.mp3"
+    assert _sans_annotation(playout.next_entry()) == "https://exemple.test/l1.mp3"
 
 
 def test_l_avance_tiree_pendant_qu_un_episode_attend_est_rejugee_quand_il_commence(
@@ -1400,9 +1450,11 @@ def test_l_avance_tiree_pendant_qu_un_episode_attend_est_rejugee_quand_il_commen
     playout, _state = _playout_du_dimanche(tmp_path, clock, ordres, addresses=ADRESSES_A_DEUX_FLUX)
     playout.declare_listeners(1)
     episode = playout.next_entry()
-    assert episode is not None and episode.endswith(".mp3")
+    assert episode is not None and (_sans_annotation(episode) or "").endswith(".mp3")
     avance = playout.next_entry()
-    assert avance is not None and avance.startswith("fake://"), "un épisode est déjà demandé"
+    assert avance is not None and (_sans_annotation(avance) or "").startswith("fake://"), (
+        "un épisode est déjà demandé"
+    )
 
     clock.advance(timedelta(minutes=1))
     playout.playing(episode)
@@ -1421,7 +1473,9 @@ def test_un_episode_demande_avant_end_mais_pas_commence_est_jete_a_end(tmp_path:
     clock = FrozenClock(DIMANCHE_20H + timedelta(hours=2, minutes=59, seconds=50))
     playout, state = _playout_du_dimanche(tmp_path, clock, ordres)
     playout.declare_listeners(1)
-    assert playout.next_entry() == "https://exemple.test/l1.mp3", "l'épisode attend, seul"
+    assert _sans_annotation(playout.next_entry()) == "https://exemple.test/l1.mp3", (
+        "l'épisode attend, seul"
+    )
 
     clock.advance(timedelta(seconds=15))
     playout.declare_listeners(1)
@@ -1429,7 +1483,9 @@ def test_un_episode_demande_avant_end_mais_pas_commence_est_jete_a_end(tmp_path:
     assert ordres == ["requeue"]
     assert state.last_airing(LONGS.name) is None, "il n'a pas passé, rien n'est inscrit"
     suivante = playout.next_entry()
-    assert suivante is not None and suivante.startswith("fake://"), "la case est fermée"
+    assert suivante is not None and (_sans_annotation(suivante) or "").startswith("fake://"), (
+        "la case est fermée"
+    )
 
 
 def test_la_musique_tiree_faute_d_episode_neuf_n_est_pas_rejugee_a_chaque_battement(
@@ -1449,7 +1505,7 @@ def test_la_musique_tiree_faute_d_episode_neuf_n_est_pas_rejugee_a_chaque_battem
     playout.declare_listeners(1)
     ordres.clear()
     avance = playout.next_entry()
-    assert avance is not None and avance.startswith("fake://")
+    assert avance is not None and (_sans_annotation(avance) or "").startswith("fake://")
 
     for _ in range(4):
         clock.advance(timedelta(seconds=15))
@@ -1473,13 +1529,15 @@ def test_un_podcast_seul_et_un_direct_ne_sont_pas_rejuges(tmp_path: Path) -> Non
         order_requeue=lambda: ordres.append("requeue"),
     )
     playout.declare_listeners(1)
-    assert playout.next_entry() == EPISODE
+    episode = playout.next_entry()
+    assert _sans_annotation(episode) == EPISODE
 
     clock.advance(timedelta(minutes=5))
     playout.declare_listeners(1)
 
     assert ordres == [], "la plage musicale a changé, l'épisode demandé reste dû"
-    playout.playing(EPISODE)
+    assert episode is not None
+    playout.playing(episode)
     assert state.last_airing("A la French") is not None
 
     direct = tmp_path / "direct"
@@ -1499,3 +1557,173 @@ def test_un_podcast_seul_et_un_direct_ne_sont_pas_rejuges(tmp_path: Path) -> Non
     en_direct.declare_listeners(1)
 
     assert ordres == [], "le direct demandé n'est pas remis en question"
+
+
+# ── Le diffuseur redit ce qu'il joue après un redémarrage (GOAL-086-T03) ─────
+
+# Ce qu'une entrée porte depuis `next_entry` : la forme exacte que le diffuseur
+# rend à l'annonce (docs/liquidsoap.md §7 et §12).
+EMISSION_DECRITE = (
+    'annotate:radio_kind="emission",radio_label="A la French, n° 12",'
+    'radio_duration="1800":https://exemple.test/ep1.mp3'
+)
+MUSIQUE_DECRITE = (
+    'annotate:radio_kind="musique",radio_label="Sexy Boy",radio_duration="200":fake://9'
+)
+
+
+def _playout_neuf(
+    folder: Path, diffuseur: FakeDiffuseur
+) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
+    """Un processus qui vient de démarrer : il n'a rien annoncé, et le
+    diffuseur note les ordres qu'il reçoit."""
+    return _playout(
+        folder,
+        order_requeue=diffuseur.requeue,
+        order_skip=diffuseur.skip,
+        order_announce=diffuseur.announce,
+    )
+
+
+def test_au_premier_battement_un_processus_neuf_fait_redire_l_antenne_et_redecide_l_avance(
+    tmp_path: Path,
+) -> None:
+    """Le diffuseur n'annonce qu'au début d'une entrée : sans cela l'antenne
+    resterait inconnue jusqu'à la jonction suivante, et l'avance décidée par le
+    processus précédent passerait (SPECS.md §7 n°42)."""
+    diffuseur = FakeDiffuseur()
+    playout, _radio, _clock = _playout_neuf(tmp_path, diffuseur)
+
+    playout.declare_listeners(1)
+
+    assert diffuseur.ordres == ["announce", "requeue"]
+
+    playout.declare_listeners(1)
+
+    assert diffuseur.ordres == ["announce", "requeue"], "une seule fois par processus"
+
+
+def test_sans_auditeur_un_processus_neuf_ne_fait_rien_redire(tmp_path: Path) -> None:
+    """Rien n'est décodé ni demandé sans auditeur (SPECS.md §1) : il n'y a rien
+    à redire tant que personne n'écoute."""
+    diffuseur = FakeDiffuseur()
+    playout, _radio, _clock = _playout_neuf(tmp_path, diffuseur)
+
+    playout.declare_listeners(0)
+
+    assert diffuseur.ordres == []
+
+
+def test_une_entree_inconnue_qui_se_decrit_restaure_sa_nature_et_son_libelle(
+    tmp_path: Path,
+) -> None:
+    """L'entrée porte sa nature depuis `next_entry` : le processus neuf la relit
+    et rouvre les refus au lieu de rester en nature inconnue."""
+    diffuseur = FakeDiffuseur()
+    playout, radio, _clock = _playout_neuf(tmp_path, diffuseur)
+    playout.declare_listeners(1)
+
+    playout.playing(EMISSION_DECRITE)
+
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.kind is NatureWeb.SHOW
+    assert antenne.title == "A la French, n° 12"
+    assert antenne.duration_seconds == 1800
+    verdict = radio.vote(Vote.SKIP)
+    assert not verdict.accepted
+    assert verdict.reason is not None and "émission" in verdict.reason
+
+
+def test_une_musique_d_avant_le_redemarrage_restaure_son_titre_et_accepte_le_stop(
+    tmp_path: Path,
+) -> None:
+    """Aucune source ne retrouve une piste par son identifiant : la musique se
+    déclare sans `Track`. Le `stop` est accepté et coupe, l'encore n'a rien à
+    peser (SPECS.md §7 n°42)."""
+    diffuseur = FakeDiffuseur()
+    playout, radio, clock = _playout_neuf(tmp_path, diffuseur)
+    playout.declare_listeners(1)
+    diffuseur.ordres.clear()
+
+    playout.playing(MUSIQUE_DECRITE, "Air", None, started_at=clock.now() - timedelta(seconds=30))
+
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.kind is NatureWeb.MUSIC
+    assert (antenne.title, antenne.artist) == ("Sexy Boy", "Air")
+    assert antenne.duration_seconds == 200
+    assert antenne.elapsed_seconds == 30, "l'écoulé part du vrai début, pas de la ré-annonce"
+    assert radio.vote(Vote.SKIP).accepted
+    assert radio.playing_track() is None, "sans piste, l'encore ne retient rien"
+
+
+def test_une_reannonce_de_l_entree_en_cours_ne_redeclare_rien(tmp_path: Path) -> None:
+    """La ré-annonce arrive après le début : redéclarer relancerait l'écoulé à
+    zéro et inscrirait le titre une seconde fois au journal."""
+    diffuseur = FakeDiffuseur()
+    playout, radio, clock = _playout_neuf(tmp_path, diffuseur)
+    playout.declare_listeners(1)
+    entry = playout.next_entry()
+    assert entry is not None
+    playout.playing(entry)
+    clock.advance(timedelta(seconds=40))
+    avant = radio.on_air_now()
+
+    playout.playing(entry, started_at=clock.now())
+
+    assert radio.on_air_now() == avant
+    assert avant is not None and avant.elapsed_seconds == 40
+
+
+def test_une_entree_sans_description_reste_inconnue(tmp_path: Path) -> None:
+    """Une entrée demandée par un script d'avant ce déploiement ne porte aucune
+    nature : elle s'affiche par ses étiquettes et les votes restent refusés."""
+    diffuseur = FakeDiffuseur()
+    playout, radio, _clock = _playout_neuf(tmp_path, diffuseur)
+    playout.declare_listeners(1)
+
+    playout.playing("https://exemple.test/ep1.mp3", "Air", "Sexy Boy")
+
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.kind is NatureWeb.UNKNOWN
+    assert not radio.vote(Vote.SKIP).accepted
+
+
+def test_une_entree_dont_la_nature_ne_se_lit_pas_reste_inconnue(tmp_path: Path) -> None:
+    """Une nature annotée que le noyau ne connaît pas ne se devine pas."""
+    diffuseur = FakeDiffuseur()
+    playout, radio, _clock = _playout_neuf(tmp_path, diffuseur)
+    playout.declare_listeners(1)
+
+    playout.playing('annotate:radio_kind="karaoké":fake://9', "Air", "Sexy Boy")
+
+    antenne = radio.on_air_now()
+    assert antenne is not None and antenne.kind is NatureWeb.UNKNOWN
+
+
+def test_un_titre_a_guillemets_et_virgules_traverse_l_annotation(tmp_path: Path) -> None:
+    """L'analyseur de Liquidsoap refuse l'entrée entière sur une valeur mal
+    citée, et elle n'est alors jamais jouée (docs/liquidsoap.md §13)."""
+    epineux = Track(
+        identifier="9",
+        title='Ne dis rien, dit "il"\\ : voilà',
+        artist="Air",
+        genre="électro",
+        duration=timedelta(seconds=200),
+    )
+    playout, radio, _clock = _playout(tmp_path, catalogue=[epineux])
+    playout.declare_listeners(1)
+    entry = playout.next_entry()
+    assert entry is not None
+
+    annotations, adresse = _lire_les_annotations(entry)
+
+    assert annotations["radio_label"] == epineux.title
+    assert adresse == "fake://9"
+
+    playout.playing(entry)
+
+    antenne = radio.on_air_now()
+    assert antenne is not None and antenne.title == epineux.title

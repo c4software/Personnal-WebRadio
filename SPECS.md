@@ -343,14 +343,19 @@ la jonction suivante. Jusque-là, la nature de ce qui passe est **`inconnu`**
 (§4.8), et les deux commandes sont refusées en le disant : « la radio vient de
 redémarrer : elle ne sait pas encore ce qui passe ».
 
-> **Ce que cela coûte, et qui est assumé** : après un déploiement en plein
-> épisode, « Passer » et « Encore » restent morts jusqu'à la jonction suivante —
-> soit, dans le pire des cas, la durée d'un épisode entier. C'est le prix d'un
-> vote jugé à l'aveugle : avant cette décision, le processus neuf se croyait sur
-> de la musique, acceptait un `stop` pendant un épisode, et faisait sauter
-> l'épisode vers le morceau que le diffuseur avait d'avance. Faire redire au
-> diffuseur ce qu'il joue est à l'étude (GOAL-086-T03) ; cela rendra les votes
-> plus tôt, ça ne change pas la règle.
+**Le diffuseur redit ce qu'il joue** — depuis le 2026-09-06 (GOAL-086-T03).
+Cette ignorance ne dure plus qu'un battement : au premier battement d'auditeurs
+d'un processus qui n'a rien entendu, la radio ordonne au diffuseur de **redire
+ce qui passe**, puis de **redemander son avance**. Chaque entrée porte sa nature
+depuis qu'elle a été décidée, et le processus neuf la relit dans la ré-annonce :
+les votes rouvrent aussitôt, avec la bonne nature. Le morceau en cours n'est pas
+touché : rien ne se coupe, il n'y a pas de blanc.
+
+> **Ce qui reste inconnu** : une entrée demandée par un script d'avant ce
+> déploiement ne porte aucune nature. Elle s'affiche par les étiquettes du
+> fichier et les deux commandes restent refusées jusqu'à la jonction suivante.
+> Une musique restaurée l'est **sans sa piste** : « Passer » coupe, « Encore »
+> est accepté mais ne pèse sur rien, faute de savoir quel morceau retenir.
 
 **`encore` s'entend, à la jonction.** Un vote « encore » enregistré fait diffuser
 un **jingle** — `encore.mp3`, dans le même dossier que les jingles horaires —
@@ -457,7 +462,9 @@ L'API doit au minimum :
 
 - dire **ce qui passe** : titre, artiste, et si l'on est dans de la musique, un
   jingle ou un flash — ou **`inconnu`** tant que le diffuseur n'a rien annoncé
-  depuis le démarrage du processus (§4.6, §7 n°42) ;
+  depuis le démarrage du processus (§4.6, §7 n°42). Un processus neuf fait
+  **redire** l'antenne au diffuseur dès son premier battement d'auditeurs, et
+  **redécide** l'avance : l'ignorance dure un battement, pas une entrée ;
 - accepter un vote **`stop`** et un vote **`encore`** ;
 - **refuser explicitement** un vote pendant un jingle ou un flash (§4.6), ou tant
   que la nature est `inconnu`, en disant pourquoi — un refus muet est
@@ -469,9 +476,10 @@ L'API doit au minimum :
 **Depuis le 2026-09-06** (GOAL-085), l'antenne dit aussi **la durée de ce qui
 passe et ce qui en est écoulé**, pour que la page fasse avancer une barre.
 
-L'écoulé se compte depuis l'instant où le diffuseur a annoncé le début : c'est
-la seule origine que la radio connaisse. La durée, elle, vient de ce qui a été
-déclaré :
+L'écoulé se compte depuis l'instant où le diffuseur dit avoir commencé la
+piste : il le date lui-même dans son annonce, ce qui garde l'écoulé juste
+lorsqu'il redit ce qu'il joue à un processus neuf (§7 n°42). La durée, elle,
+vient de ce qui a été déclaré :
 
 | Ce qui passe | Ce que la radio sait de sa durée |
 |---|---|
@@ -480,7 +488,7 @@ déclaré :
 | Un épisode de podcast | `itunes:duration`, quand le flux le donne (docs/podcast.md §1) |
 | Une vidéo YouTube | **Rien** : le fichier servi vient du cache, sa durée n'est pas relue |
 | Un jingle, un générique | **Rien** : quelques secondes, il n'y a pas de barre à faire |
-| Une entrée d'avant le redémarrage | **Rien** : elle n'a que les étiquettes lues du fichier |
+| Une entrée d'avant le redémarrage | **Ce qu'elle en dit** : chaque entrée porte sa durée attendue, relue à la ré-annonce (§7 n°42). **Rien** si elle a été demandée par un script d'avant ce déploiement |
 
 Quand la durée est inconnue, l'écoulé reste annoncé : on sait depuis quand ça
 passe, pas jusqu'à quand. Quand personne n'écoute, il n'y a pas d'antenne, donc
@@ -1799,8 +1807,15 @@ deux commandes sont refusées avec leur motif (§4.6, §4.8).
 > d'avance. Le vote n'a même rien pesé, faute de piste à retenir.
 > *Ce que cela coûte* : après un déploiement en plein épisode, les deux boutons
 > sont morts jusqu'à la jonction suivante, soit jusqu'à la durée d'un épisode.
-> *Ce qui le réduirait* : faire redire au diffuseur ce qu'il joue après un
-> redémarrage (GOAL-086-T03).
+> *Amendée le 2026-09-06 par GOAL-086-T03* : chaque entrée porte sa nature dans
+> son préfixe `annotate:` (`radio_kind`, `radio_label`, `radio_duration`), le
+> diffuseur garde son dernier corps annoncé et le redit sur `POST /announce`, et
+> le premier battement d'un processus neuf ordonne cette ré-annonce puis un
+> `/requeue`, une seule fois. La règle ne change pas — un vote ne se juge pas à
+> l'aveugle — mais l'ignorance dure un battement au lieu d'un épisode. Restent
+> inconnues les entrées demandées par un script d'avant ce déploiement ; et une
+> musique restaurée l'est sans sa piste, faute d'une recherche par identifiant
+> dans `MusicSource` : l'encore y est accepté sans rien retenir.
 
 **n°43 — L'avance d'une plage de podcasts se juge à la jonction, pas à la
 demande.** Tranchée le 2026-09-06, et elle amende la n°33 et la n°35. La clé

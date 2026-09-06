@@ -186,6 +186,29 @@ def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
     assert "set_queue([])" in code
 
 
+def test_le_script_redit_ce_qu_il_joue_sur_ordre_de_l_api() -> None:
+    """Le diffuseur n'annonce qu'au début d'une entrée : un processus `radio`
+    neuf resterait sans savoir ce qui passe jusqu'à la jonction suivante. Le
+    script garde son dernier corps posté et le redit (GOAL-086-T03)."""
+    code = _code()
+    assert 'derniere_annonce = ref("")' in code
+    assert "derniere_annonce := body" in code
+    assert '"/announce"' in code
+    annonce = re.search(r"def on_announce.*?\nend\n", code, re.DOTALL)
+    assert annonce is not None
+    assert "derniere_annonce()" in annonce.group()
+    assert "/playout/playing" in annonce.group()
+
+
+def test_l_annonce_du_morceau_date_son_debut() -> None:
+    """Une ré-annonce arrive après le début : sans l'instant du début, l'écoulé
+    annoncé à l'antenne repartirait de zéro (GOAL-086-T03)."""
+    code = _code()
+    corps = re.search(r"def on_track.*?\nend\n", code, re.DOTALL)
+    assert corps is not None
+    assert '"#{time()}"' in corps.group()
+
+
 def test_la_prise_d_antenne_se_fond() -> None:
     """Le premier auditeur a un fondu d'entrée. `fade.in` ne fond pas une
     source déjà entamée : c'est la transition qui arme un `amplify`

@@ -541,3 +541,45 @@ def on_skip_fresh(request, response) =
 end
 harbor.http.register(port=port, method="POST", "/skip-fresh", on_skip_fresh)
 ```
+
+---
+
+## 13. Onzième relevé — ce qu'`annotate:` accepte comme valeur (GOAL-086-T03, le 2026-09-06)
+
+> Même image (`v2.3.3`), maquette de §12 réduite : `request.dynamic(prefetch=1)`
+> → `normalize` → `crossfade(duration=2.)` → `switch` sur les auditeurs, fausse
+> API horodatée, quatre tons purs de 25 s, un auditeur `curl`. Le `on_track` de
+> la maquette journalise **toutes** les paires de métadonnées reçues.
+
+Motif : pour qu'un processus `radio` neuf retrouve ce qui passe, l'entrée doit
+se décrire elle-même (SPECS.md §7 n°42). §7 disait ce que Liquidsoap fait des
+clés `liq_*` ; rien ne disait ce qu'il fait des autres.
+
+| Question | Constat |
+|---|---|
+| Des clés `annotate:` **arbitraires** traversent-elles jusqu'à `on_track` ? | **Oui, telles quelles.** `kind`, `label`, `identifier`, `radio_kind`, `radio_label`, `radio_duration` : toutes apparaissent dans les métadonnées de `on_track`, à côté de `filename`, `initial_uri`, `rid`, `status`, `temporary` — et repartent donc dans le corps de `/playout/playing` |
+| Une valeur **non citée** | **Un jeton simple seulement.** `label=Un%20episode` est refusé (`Error while parsing annotate URI … Char 18-21: Syntax error`), `identifier=ep-42` aussi (le tiret) ; `kind=show` et `kind=music` passent. Le refus porte sur **l'URI entière** : la requête n'est jamais résolue, l'entrée n'est **jamais jouée**, et la file passe à la suivante |
+| Une valeur **citée** | **Tout passe.** `radio_label="A la French : \"n° 12\", dit-il"` est rendu à `on_track` comme `A la French : "n° 12", dit-il` : virgule, deux-points, accents, guillemets typographiques et `"` échappé traversent intacts |
+| L'échappement de la contre-oblique | `\\` rend `\` ; une contre-oblique **brute** devant une lettre (`"Anti\Hero"`) est gardée telle quelle. Écrire `\\` pour `\` et `\"` pour `"` est donc correct dans les deux sens |
+| `initial_uri` sur une entrée annotée | **Le préfixe entier**, confirmé §7 : l'API relit les annotations dans l'entrée qu'elle reçoit à l'annonce, sans lire les métadonnées |
+| Une clé nommée `duration` | **Écartée par précaution, non mesurée.** Liquidsoap se réserve `duration` ; les clés du dépôt sont préfixées `radio_` pour n'entrer en collision avec aucune |
+| `radio_duration="25"` sur un fichier de 25 s | **Ne coupe rien** : la piste tient ses 25 s (de 9,0 s à 32,0 s à l'antenne, fondu de 2 s compris) |
+| Les fondus d'un jingle et la description dans **un seul** préfixe | `annotate:liq_fade_in=0.2,liq_fade_out=0.2,liq_cross_duration=0.5,radio_kind="jingle":/liq/b.mp3` : accepté, joué, et les six clés arrivent à `on_track` |
+| `time()` posté en quatrième ligne de `/playout/playing` | **Les secondes Unix du diffuseur**, `1788725109.21`. C'est l'instant du vrai début, que la ré-annonce ne change pas |
+| Une route `POST /announce` qui re-poste le dernier corps d'`on_track` | **Redit exactement le même corps**, `initial_uri` et horodatage compris, en moins de 10 ms. Sans annonce préalable, elle le dit et ne poste rien |
+
+### Ce que cela change
+
+- Toute valeur d'annotation écrite par le dépôt est **citée et échappée**. Une
+  valeur mal citée ne dégrade pas l'annotation : elle fait perdre l'entrée.
+- Le point incertain de §7 sur l'`annotate:` imbriqué reste entier, et il est
+  désormais **contourné** : la charnière ne préfixe jamais une entrée qui porte
+  déjà un `annotate:`, fondus des jingles compris.
+
+### Points incertains
+
+- [ ] Une clé qui porte le nom d'une métadonnée réservée (`duration`, `title`,
+      `artist`) : ce que Liquidsoap en fait n'a **pas** été mesuré, le préfixe
+      `radio_` évite la question.
+- [ ] La longueur maximale d'un préfixe `annotate:`. Un titre d'épisode très
+      long n'a pas été essayé.

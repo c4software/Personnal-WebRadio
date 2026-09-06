@@ -10,6 +10,7 @@ sans effort.
 """
 
 import logging
+from datetime import UTC, datetime
 from typing import Protocol
 
 from flask import Blueprint, request
@@ -41,13 +42,21 @@ class Playout(Protocol):
         """Le nombre d'auditeurs, d'après celui qui tient les connexions."""
         ...
 
-    def playing(self, entry: str, artist: str | None, title: str | None) -> None:
+    def playing(
+        self,
+        entry: str,
+        artist: str | None,
+        title: str | None,
+        started_at: datetime | None,
+    ) -> None:
         """Ce que Liquidsoap vient de commencer, pas ce qu'il a demandé.
 
         Un morceau est toujours demandé d'avance (docs/liquidsoap.md §3) : ce
         qui est à l'antenne se constate ici, pas dans `next_entry`. `artist`
         et `title` sont les étiquettes lues par le décodeur, utiles quand
-        l'entrée n'est pas reconnue, après un redémarrage.
+        l'entrée n'est pas reconnue, après un redémarrage. `started_at` est
+        l'instant du vrai début, qui n'est pas celui de l'annonce quand le
+        diffuseur redit ce qu'il joue (SPECS.md §7 n°42).
         """
         ...
 
@@ -79,14 +88,33 @@ def create_playout_api(playout: Playout) -> Blueprint:
     @api.post(PLAYING_PATH)
     def playing() -> ResponseReturnValue:
         """Le morceau que Liquidsoap commence : l'entrée reçue de `/next`, puis
-        l'artiste et le titre lus du fichier, une ligne chacun."""
+        l'artiste et le titre lus du fichier, puis l'instant du début en
+        secondes Unix, une ligne chacun."""
         lines = request.get_data(as_text=True).splitlines()
         entry = lines[0].strip() if lines else ""
         if not entry:
             return "entrée vide", BAD_REQUEST
         artist = lines[1].strip() if len(lines) > 1 else ""
         title = lines[2].strip() if len(lines) > 2 else ""
-        playout.playing(entry, artist or None, title or None)
+        playout.playing(entry, artist or None, title or None, _instant_de_debut(lines))
         return "", NOTHING_MORE
 
     return api
+
+
+def _instant_de_debut(lines: list[str]) -> datetime | None:
+    """L'instant où le diffuseur a commencé la piste, ou `None`.
+
+    Il vient de l'horloge du diffuseur, en secondes Unix. Une ré-annonce arrive
+    après le début réel (docs/liquidsoap.md §12 et §13) : sans lui, l'écoulé
+    repartirait de la ré-annonce. Un script d'avant ce déploiement ne l'envoie
+    pas.
+    """
+    brut = lines[3].strip() if len(lines) > 3 else ""
+    if not brut:
+        return None
+    try:
+        return datetime.fromtimestamp(float(brut), tz=UTC)
+    except (ValueError, OverflowError, OSError):
+        logger.info("instant de début illisible, ignoré : « %s »", brut)
+        return None

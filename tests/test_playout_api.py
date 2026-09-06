@@ -1,6 +1,6 @@
 """Les routes de Liquidsoap : quoi jouer, et combien écoutent (GOAL-016-T02, T03)."""
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from flask.testing import FlaskClient
 
@@ -13,6 +13,7 @@ class FakePlayout:
         self._entries = entries
         self.listeners: list[int] = []
         self.played: list[tuple[str, str | None, str | None]] = []
+        self.debuts: list[datetime | None] = []
 
     def next_entry(self) -> str | None:
         return self._entries.pop(0)
@@ -20,8 +21,15 @@ class FakePlayout:
     def declare_listeners(self, count: int) -> None:
         self.listeners.append(count)
 
-    def playing(self, entry: str, artist: str | None, title: str | None) -> None:
+    def playing(
+        self,
+        entry: str,
+        artist: str | None,
+        title: str | None,
+        started_at: datetime | None,
+    ) -> None:
         self.played.append((entry, artist, title))
+        self.debuts.append(started_at)
 
 
 def _client(playout: FakePlayout | None) -> FlaskClient:
@@ -86,3 +94,22 @@ def test_une_entree_vide_est_refusee() -> None:
     playout = FakePlayout([])
     assert _client(playout).post("/playout/playing", data="  ").status_code == 400
     assert playout.played == []
+
+
+def test_l_instant_du_debut_accompagne_l_annonce() -> None:
+    """Le diffuseur date le début de la piste : une ré-annonce arrive plus tard,
+    et l'écoulé repartirait de zéro sans elle (SPECS.md §7 n°42)."""
+    playout = FakePlayout([])
+    corps = "fake://1\nAir\nSexy Boy\n1788724128.72\n"
+    assert _client(playout).post("/playout/playing", data=corps).status_code == 204
+    assert playout.debuts == [datetime.fromtimestamp(1788724128.72, tz=UTC)]
+
+
+def test_un_instant_de_debut_illisible_est_ignore() -> None:
+    """Un script d'avant ce déploiement n'envoie que trois lignes ; une
+    quatrième illisible ne doit pas faire échouer l'annonce."""
+    playout = FakePlayout([])
+    reponse = _client(playout).post("/playout/playing", data="fake://1\nAir\nSexy Boy\ntantôt\n")
+    assert reponse.status_code == 204
+    assert playout.played == [("fake://1", "Air", "Sexy Boy")]
+    assert playout.debuts == [None]

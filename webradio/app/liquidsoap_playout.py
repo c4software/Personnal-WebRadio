@@ -30,14 +30,107 @@ logger = logging.getLogger(__name__)
 # Liquidsoap n'en a qu'une d'avance ; en garder plusieurs tolère un redémarrage.
 PENDING_MAX = 8
 
+ANNOTATE = "annotate:"
+
+# Un direct n'est pas annoté : le script reconnaît son entrée à ce préfixe, et
+# un `annotate:` devant l'en cacherait (SPECS.md §4.11, GOAL-015).
+LIVE = "live:"
+
+# Ce qu'une entrée dit d'elle-même, pour qu'un processus neuf retrouve ce qui
+# passe sans attendre la jonction suivante (SPECS.md §7 n°42). Le préfixe
+# `radio_` écarte les clés que Liquidsoap se réserve, `duration` comprise.
+KIND = "radio_kind"
+LABEL = "radio_label"
+DURATION = "radio_duration"
+
 # Un jingle court ne doit pas être mangé par le fondu de deux secondes des
 # morceaux : il porte ses propres durées via les métadonnées `liq_fade_*` que
 # `crossfade` honore (docs/liquidsoap.md §7, GOAL-022).
-JINGLE_FADES = "annotate:liq_fade_in=0.2,liq_fade_out=0.2,liq_cross_duration=0.5:"
+JINGLE_FADES = ("liq_fade_in=0.2", "liq_fade_out=0.2", "liq_cross_duration=0.5")
 
 # Une piste au-dessus du plafond se coupe au plafond, fondue vers la suite par
 # le crossfade comme une fin ordinaire (SPECS.md §7 n°32, docs/liquidsoap.md §7).
-CUT_AT = "annotate:liq_cue_out={seconds:g}:"
+CUT_AT = "liq_cue_out={seconds:g}"
+
+
+def _citer(valeur: str) -> str:
+    """Une valeur d'annotation, entre guillemets et échappée.
+
+    Hors guillemets, l'analyseur de Liquidsoap n'accepte qu'un jeton simple :
+    un tiret ou un pourcent lui font refuser l'entrée entière, qui n'est alors
+    jamais jouée (docs/liquidsoap.md §13). Entre guillemets passent la virgule,
+    le deux-points et les accents ; `\\` et `"` s'échappent. Les retours à la
+    ligne partent : le corps de `/playout/playing` se lit ligne à ligne.
+    """
+    plat = " ".join(valeur.split())
+    echappe = plat.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{echappe}"'
+
+
+def _lire_une_valeur_citee(texte: str) -> tuple[str, str]:
+    """La valeur entre guillemets en tête de `texte`, et ce qui la suit."""
+    valeur: list[str] = []
+    index = 1
+    while index < len(texte):
+        caractere = texte[index]
+        if caractere == "\\" and index + 1 < len(texte):
+            valeur.append(texte[index + 1])
+            index += 2
+        elif caractere == '"':
+            return "".join(valeur), texte[index + 1 :]
+        else:
+            valeur.append(caractere)
+            index += 1
+    return "".join(valeur), ""
+
+
+def _lire_les_annotations(entry: str) -> tuple[dict[str, str], str]:
+    """Les annotations d'une entrée, et l'adresse qui les suit.
+
+    Le diffuseur rend l'entrée telle quelle à l'annonce, préfixe compris
+    (docs/liquidsoap.md §7) : c'est ici qu'on relit ce qu'elle dit d'elle-même.
+    Une entrée sans préfixe rend un dictionnaire vide et son adresse.
+    """
+    if not entry.startswith(ANNOTATE):
+        return {}, entry
+    reste = entry[len(ANNOTATE) :]
+    annotations: dict[str, str] = {}
+    while True:
+        cle, separateur, suite = reste.partition("=")
+        if not separateur:
+            return annotations, reste
+        if suite.startswith('"'):
+            valeur, suite = _lire_une_valeur_citee(suite)
+        else:
+            bornes = [i for i in (suite.find(","), suite.find(":")) if i >= 0]
+            fin = min(bornes) if bornes else len(suite)
+            valeur, suite = suite[:fin], suite[fin:]
+        annotations[cle] = valeur
+        if suite.startswith(","):
+            reste = suite[1:]
+            continue
+        return annotations, suite[1:] if suite.startswith(":") else suite
+
+
+def _longueur_lue(secondes: str | None) -> Length | None:
+    """La longueur annotée sur une entrée, ou `None` si elle manque ou ne se
+    lit pas. Un direct n'est pas annoté, donc jamais de fin absolue ici."""
+    if secondes is None:
+        return None
+    try:
+        return Length(duration=timedelta(seconds=float(secondes)))
+    except ValueError:
+        logger.info("longueur illisible dans l'entrée, ignorée : %s", secondes)
+        return None
+
+
+def _adresse(entry: str) -> str:
+    """L'adresse d'une entrée, sans son préfixe d'annotation.
+
+    Ce que le programme et le dossier éphémère connaissent est l'adresse ; la
+    charnière, elle, tient son registre sur l'entrée annotée.
+    """
+    return _lire_les_annotations(entry)[1]
 
 
 @dataclass(frozen=True, slots=True)
@@ -79,6 +172,7 @@ class LiquidsoapPlayout:
         resume_fresh_after: timedelta | None = None,
         order_requeue: Callable[[], None] | None = None,
         order_skip: Callable[[], None] | None = None,
+        order_announce: Callable[[], None] | None = None,
         max_duration: timedelta | None = None,
         in_background: Callable[[Callable[[], None]], None] | None = None,
     ) -> None:
@@ -115,6 +209,11 @@ class LiquidsoapPlayout:
         self._reprise_a_neuf = resume_fresh_after
         self._ordonner_requeue = order_requeue
         self._ordonner_skip = order_skip
+        self._ordonner_reannonce = order_announce
+        # Vrai dès que ce processus a fait redire l'antenne. Une seule fois :
+        # sans cela chaque battement rejetterait l'avance tant qu'aucune entrée
+        # n'a commencé (SPECS.md §7 n°42).
+        self._reannonce_demandee = False
         self._plafond = max_duration
         self._pause_depuis: datetime | None = clock.now() if clock is not None else None
         # Le rang de la demande en cours, et l'émission demandée qui n'a pas
@@ -143,13 +242,10 @@ class LiquidsoapPlayout:
             entry = self._programme.next_entry()
             if entry is None:
                 return None
-            if self._derniere[0] is Kind.JINGLE:
-                entry = JINGLE_FADES + entry
-            else:
-                entry = self._couper_au_plafond(entry)
             kind, track, label, length = self._derniere
             if kind is Kind.MUSIC and track is not None:
                 length = Length(duration=self._duree_coupee(track))
+            entry = self._decrire(entry, kind, track, label, length)
             self._rang += 1
             self._en_attente[entry] = Pending(
                 kind,
@@ -228,23 +324,60 @@ class LiquidsoapPlayout:
             return self._plafond
         return track.duration
 
-    def _couper_au_plafond(self, entry: str) -> str:
-        """L'entrée, annotée pour se couper au plafond si sa piste le dépasse.
+    def _decrire(
+        self,
+        entry: str,
+        kind: Kind,
+        track: Track | None,
+        label: str | None,
+        length: Length | None,
+    ) -> str:
+        """L'entrée, préfixée de ce qu'elle doit dire d'elle-même.
 
-        Seule la musique se coupe : une émission a sa propre durée (SPECS.md
-        §4.11), un jingle est court. Une entrée replacée après un encore revient
-        déjà annotée, on ne la double pas.
+        Le diffuseur rend ce préfixe à l'annonce (docs/liquidsoap.md §7) : un
+        processus neuf y relit la nature de ce qui passe au lieu de l'ignorer
+        jusqu'à la jonction suivante (SPECS.md §7 n°42). S'y ajoutent les
+        fondus courts d'un jingle et la coupe au plafond d'une musique trop
+        longue, qui étaient déjà des annotations.
+
+        Une entrée déjà annotée, replacée après un encore, ne l'est pas deux
+        fois : rien ne dit ce que Liquidsoap fait d'un `annotate:` imbriqué
+        (docs/liquidsoap.md §7).
         """
-        kind, track, _label, _length = self._derniere
-        if kind is not Kind.MUSIC or track is None or entry.startswith("annotate:"):
+        if entry.startswith(ANNOTATE) or entry.startswith(LIVE):
             return entry
-        duree = self._duree_coupee(track)
-        if duree == track.duration:
-            return entry
-        logger.info("« %s » dure %s : coupé au plafond (%s)", track.title, track.duration, duree)
-        return CUT_AT.format(seconds=duree.total_seconds()) + entry
+        annotations = list(JINGLE_FADES) if kind is Kind.JINGLE else []
+        if kind is Kind.MUSIC and track is not None:
+            duree = self._duree_coupee(track)
+            if duree != track.duration:
+                logger.info(
+                    "« %s » dure %s : coupé au plafond (%s)", track.title, track.duration, duree
+                )
+                annotations.append(CUT_AT.format(seconds=duree.total_seconds()))
+        annotations.append(f"{KIND}={_citer(kind.value)}")
+        titre = label if label is not None else (track.title if track is not None else None)
+        if titre:
+            annotations.append(f"{LABEL}={_citer(titre)}")
+        if length is not None and length.duration is not None:
+            secondes = length.duration.total_seconds()
+            annotations.append(f"{DURATION}={_citer(f'{secondes:g}')}")
+        return ANNOTATE + ",".join(annotations) + ":" + entry
 
-    def playing(self, entry: str, artist: str | None = None, title: str | None = None) -> None:
+    def playing(
+        self,
+        entry: str,
+        artist: str | None = None,
+        title: str | None = None,
+        started_at: datetime | None = None,
+    ) -> None:
+        if entry == self._entree_en_cours:
+            # Ré-annonce de ce qui passe déjà : un processus neuf la demande au
+            # diffuseur (SPECS.md §7 n°42), et un direct s'annonce deux fois
+            # (docs/liquidsoap.md §9). Redéclarer relancerait l'écoulé à zéro et
+            # inscrirait le titre une seconde fois au journal.
+            logger.info("ré-annonce de ce qui passe déjà : rien n'est redéclaré")
+            return
+        debut = started_at if started_at is not None else self._maintenant()
         with self._verrou:
             pending = self._en_attente.pop(entry, None)
             if pending is None:
@@ -253,12 +386,14 @@ class LiquidsoapPlayout:
                 self._oublier_les_demandes_anterieures(pending.rank)
             finie, self._entree_en_cours = self._entree_en_cours, entry
             self._en_cours = pending
-            self._commence_a = None if self._horloge is None else self._horloge.now()
+            self._commence_a = debut
             if pending is not None and pending.kind is Kind.MUSIC and pending.track is not None:
                 self._programme.track_started(pending.track)
         self._signaler_l_emission(entry, None if pending is None else pending.rank)
         self._effacer_si_ephemere(finie)
         if pending is None:
+            if self._restaurer(entry, artist, title, debut):
+                return
             if artist is None and title is None:
                 # Sans étiquettes, rien à afficher, et déclarer une musique sans
                 # titre ni artiste viderait l'antenne. Un direct s'annonce deux
@@ -276,9 +411,46 @@ class LiquidsoapPlayout:
                 artist,
                 title,
             )
-            self._radio.declare(Kind.UNKNOWN, None, title, artist_label=artist)
+            self._radio.declare(Kind.UNKNOWN, None, title, artist_label=artist, started_at=debut)
             return
-        self._radio.declare(pending.kind, pending.track, pending.label, length=pending.length)
+        self._radio.declare(
+            pending.kind, pending.track, pending.label, length=pending.length, started_at=debut
+        )
+
+    def _maintenant(self) -> datetime | None:
+        return None if self._horloge is None else self._horloge.now()
+
+    def _restaurer(
+        self, entry: str, artist: str | None, title: str | None, debut: datetime | None
+    ) -> bool:
+        """Déclare une entrée inconnue du registre d'après ce qu'elle dit
+        d'elle-même, et dit si elle a été déclarée.
+
+        C'est le chemin du redémarrage (SPECS.md §7 n°42) : l'entrée porte sa
+        nature depuis `next_entry`, et le diffuseur la rend telle quelle. Une
+        musique se déclare sans `Track` : aucune source ne sait retrouver une
+        piste par son identifiant, donc un `stop` coupe mais un `encore` ne
+        pèse rien — il est accepté sans être retenu (`LiveRadio.vote`).
+        """
+        annotations, _ = _lire_les_annotations(entry)
+        annoncee = annotations.get(KIND)
+        if annoncee is None:
+            return False
+        try:
+            kind = Kind(annoncee)
+        except ValueError:
+            logger.info("nature illisible dans l'entrée, elle reste inconnue : %s", annoncee)
+            return False
+        libelle = annotations.get(LABEL)
+        length = _longueur_lue(annotations.get(DURATION))
+        logger.info("entrée d'avant ce démarrage, restaurée par ce qu'elle dit : %s", kind.value)
+        if kind is Kind.MUSIC:
+            self._radio.declare(
+                kind, None, title or libelle, artist_label=artist, length=length, started_at=debut
+            )
+        else:
+            self._radio.declare(kind, None, libelle, length=length, started_at=debut)
+        return True
 
     def _oublier_les_demandes_anterieures(self, rang: int) -> None:
         """Oublie ce qui a été demandé avant l'entrée qui commence.
@@ -313,7 +485,7 @@ class LiquidsoapPlayout:
         logger.info("replacée alors qu'elle commençait : %s", entry.split("?", 1)[0])
         # Une émission replacée n'a plus de rang (`stash_for_replay`) ; c'est
         # ici qu'elle s'inscrit si c'est elle qui prend l'antenne.
-        self._programme.show_started(entry)
+        self._programme.show_started(_adresse(entry))
         kind, track, label, length = nature
         return Pending(kind, track, label, length=length)
 
@@ -332,7 +504,7 @@ class LiquidsoapPlayout:
         entree, rang_demande = demandee
         if entry == entree:
             self._emission_demandee = None
-            self._programme.show_started(entry)
+            self._programme.show_started(_adresse(entry))
         elif rang is not None and rang > rang_demande:
             self._emission_demandee = None
             self._programme.show_dropped()
@@ -353,7 +525,7 @@ class LiquidsoapPlayout:
         """
         if entry is None or self._ephemere is None:
             return
-        chemin = Path(entry)
+        chemin = Path(_adresse(entry))
         if chemin.parent == self._ephemere and chemin.is_file():
             chemin.unlink(missing_ok=True)
             logger.info("vidéo lue et effacée : %s", chemin.name)
@@ -515,7 +687,38 @@ class LiquidsoapPlayout:
             pause = self._horloge.now() - pause_depuis
             if pause > self._reprise_a_neuf:
                 self._repartir_a_neuf(pause)
+        self._redemander_ce_qui_passe()
         self._remettre_l_avance_en_question()
+
+    def _redemander_ce_qui_passe(self) -> None:
+        """Au premier battement d'un processus qui ne sait rien, fait redire
+        l'antenne et redécider l'avance (SPECS.md §7 n°42).
+
+        Le diffuseur n'annonce qu'au début d'une entrée : après un déploiement
+        en pleine piste, ce processus ne saurait ce qui passe qu'à la jonction
+        suivante, et le diffuseur garderait l'avance demandée à l'ancien — une
+        musique au milieu d'une plage de podcasts (décision n°43). `/announce`
+        redit ce qui passe, `/requeue` fait redemander l'avance. Le morceau en
+        cours n'est pas touché : rien ne se coupe, il n'y a pas de blanc.
+
+        Les deux ordres partent hors du verrou : ce sont des POST vers le
+        diffuseur, et `/playout/next` attendrait ces voyages. Sans câblage pour
+        faire redire l'antenne, rien ne part : jeter l'avance sans savoir ce qui
+        passe la remplacerait par un tirage tout aussi aveugle.
+        """
+        if self._ordonner_reannonce is None or self._ordonner_requeue is None:
+            return
+        if self._entree_en_cours is not None or self._reannonce_demandee:
+            return
+        self._reannonce_demandee = True
+        with self._verrou:
+            jetees = list(self._en_attente)
+            self._en_attente.clear()
+            self._oublier_l_emission(jetees)
+        logger.info("ce processus ne sait pas ce qui passe : le diffuseur va le redire")
+        self._ordonner_reannonce()
+        logger.info("l'avance a été décidée par le processus précédent : le diffuseur redemande")
+        self._ordonner_requeue()
 
     def _remettre_l_avance_en_question(self) -> None:
         """Remet en question l'avance du diffuseur à l'heure pleine et au

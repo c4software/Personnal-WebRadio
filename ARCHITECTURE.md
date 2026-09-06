@@ -139,6 +139,7 @@ Liquidsoap  ──« morceau suivant ? »──▶  adapters/liquidsoap  ──�
             ◀──── un chemin ou une URL ──                       (noyau, grille, jingles, émissions)
             ──« un auditeur arrive / part »──▶  compteur d'auditeurs (app/radio)
             ◀──« saute » (/skip) · « vide ton avance » (/requeue) ── un vote accepté l'ordonne
+            ◀──« redis ce que tu joues » (/announce) ── un processus neuf l'ordonne
 ```
 
 | Conséquence | Détail |
@@ -188,6 +189,30 @@ script ne peut le jeter qu'au moment où il enchaîne, donc une fois le tirage
 neuf revenu. Il **tait** donc son antenne jusque-là — c'est le seul geste qui
 agisse plus tôt que sa propre transition (docs/liquidsoap.md §11). La durée de
 ce silence est celle de ce tirage, et c'est ce qui rend sa lenteur audible.
+
+**Et un processus neuf ne la garde pas.** Le diffuseur n'annonce qu'au début
+d'une entrée : redéployé en pleine piste, `radio` ne saurait ce qui passe qu'à
+la jonction suivante, et le diffuseur tiendrait une avance décidée par le
+processus d'avant (SPECS.md §7 n°42 et n°43). Le chemin de la restauration :
+
+1. `next_entry` préfixe chaque entrée d'un `annotate:` qui la décrit —
+   `radio_kind`, `radio_label`, `radio_duration`, valeurs citées et échappées
+   (docs/liquidsoap.md §13). Un direct n'est pas annoté : le script reconnaît
+   son entrée à son préfixe `live:`.
+2. `radio.liq` garde dans un `ref` le dernier corps posté à `/playout/playing`,
+   horodaté par l'horloge du diffuseur, et le redit tel quel sur `POST
+   /announce`.
+3. Au premier battement d'auditeurs d'un processus qui n'a rien entendu, la
+   charnière ordonne `/announce` puis `/requeue`, **une seule fois**. Le morceau
+   en cours n'est pas touché, il n'y a pas de blanc.
+4. `playing()` relit les annotations de l'entrée qu'on lui rend et déclare la
+   nature, le libellé et la longueur qu'elles portent, datés du vrai début. Une
+   ré-annonce de l'entrée déjà en cours ne redéclare rien : l'écoulé repartirait
+   de zéro et le titre s'inscrirait deux fois au journal.
+
+Une musique se restaure **sans sa piste** : `MusicSource` n'a pas de recherche
+par identifiant, et en ajouter une pour ce seul cas serait anticiper
+(AGENTS.md §2). Le `stop` coupe, l'encore est accepté sans rien retenir.
 
 **Et elle est datée** (SPECS.md §7 n°33). La charnière retient, avec chaque
 entrée demandée, le moment qui l'a tirée et l'instant de la décision ; la file

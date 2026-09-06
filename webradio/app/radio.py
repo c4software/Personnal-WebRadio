@@ -106,6 +106,7 @@ class LiveRadio(Radio):
         artist_label: str | None = None,
         *,
         length: Length | None = None,
+        started_at: datetime | None = None,
     ) -> None:
         """Appelée par le programme à chaque changement de ce qui passe.
 
@@ -116,7 +117,9 @@ class LiveRadio(Radio):
         GOAL-015).
 
         `length` dit ce que ça doit durer quand on le sait ; c'est l'instant de
-        cet appel qui sert d'origine à l'écoulé (GOAL-085).
+        cet appel qui sert d'origine à l'écoulé (GOAL-085), sauf si `started_at`
+        donne celui du vrai début. Le diffuseur redit ce qu'il joue quand un
+        processus neuf le lui demande, donc après le début (SPECS.md §7 n°42).
         """
         with self._verrou:
             self._nature = kind
@@ -124,7 +127,8 @@ class LiveRadio(Radio):
             self._libelle = label
             self._artiste_libelle = artist_label
             self._longueur = length
-            self._declare_a = None if self._horloge is None else self._horloge.now()
+            maintenant = None if self._horloge is None else self._horloge.now()
+            self._declare_a = started_at if started_at is not None else maintenant
         self._controle.declare(kind)
         # Le journal des titres (SPECS.md §7 n°27) retient ce qui commence,
         # jingles exclus. Une entrée de nature inconnue s'y inscrit avec sa

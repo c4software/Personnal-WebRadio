@@ -231,9 +231,9 @@ sur la musique que le diffuseur avait d'avance. Deux défauts distincts, le
 redémarrage aveugle (T02, close) et l'avance qui ne connaît pas les cases de
 podcasts (T04, T05).
 
-**Prochaine tâche** : GOAL-086-T03, la ré-annonce de la piste en cours après un
-redémarrage (T04 est faite). Puis GOAL-082-T04, le seuil de vivier appliqué ou
-non à l'ancre d'`artist_fan`.
+**Prochaine tâche** : GOAL-086-T05, `stop` pendant un épisode de plage qui
+pioche un autre épisode (T01, T02, T03 et T04 sont faites). Puis GOAL-082-T04,
+le seuil de vivier appliqué ou non à l'ancre d'`artist_fan`.
 
 ---
 
@@ -478,11 +478,21 @@ L'analyse, rejouée sur la pile réelle avec `FrozenClock`, sépare **deux défa
    redémarrage, un `stop` pendant un épisode aurait à choisir un autre épisode,
    pas ce morceau.
 
-- [-] **GOAL-086-T01** — Relevé Liquidsoap sur maquette (docs/liquidsoap.md
+- [x] **GOAL-086-T01** — Relevé Liquidsoap sur maquette (docs/liquidsoap.md
       §12) : `programme.fetch()` en 2.3.3, une route combinée remplacer-puis-
       sauter et le blanc pendant la résolution d'un épisode lourd, requeue+skip
       côté API, ordre `on_track`/recomplètement, ré-annonce de la piste en
       cours. Aucun mécanisme n'est écrit avant ce relevé (AGENTS.md §3).
+      **Ce qui a été mesuré** : `fetch()` existe et est synchrone (il bloque le
+      gestionnaire harbor toute la résolution, pas la diffusion) ; la route
+      combinée `set_queue([])` + `fetch()` + `skip()` ne laisse aucun blanc mais
+      coûte **deux tirages**, et c'est le plus rapide qui prend l'antenne ;
+      `/requeue` puis `/skip` laisse **5,75 s de blanc** pour un épisode de 8 s
+      de résolution, et attendre entre les deux ne fait qu'échanger du silence
+      contre de l'épisode en cours ; `/playing` et le `/next` de recomplètement
+      sont **concurrents**, à la milliseconde, et l'ordre n'est pas garanti ; la
+      ré-annonce de la piste en cours marche depuis un `ref` (8,7 ms) comme
+      depuis `source.last_metadata`.
 - [x] **GOAL-086-T02** — Un processus qui redémarre ne sait pas ce qui passe :
       il le dit et refuse les votes. Nature `Kind.UNKNOWN` (`"inconnu"`) dans le
       noyau et dans l'API ; `Control` et `LiveRadio` y démarrent ; une entrée
@@ -494,11 +504,34 @@ L'analyse, rejouée sur la pile réelle avec `FrozenClock`, sépare **deux défa
       libellé de la carte affiche la nature telle quelle. Décision n°42
       (SPECS.md §7), avec son coût : après un déploiement en plein épisode, les
       deux boutons sont morts jusqu'à la jonction suivante.
-- [ ] **GOAL-086-T03** — Le diffuseur redit ce qu'il joue après un redémarrage
-      de `radio` (mécanisme selon T01) : le battement répond qu'il ne sait pas,
-      le script re-poste sa dernière annonce, `playing()` ignore une entrée égale
-      à celle en cours. Ne rouvre pas les votes par elle-même : elle raccourcit
-      seulement la fenêtre d'ignorance.
+- [x] **GOAL-086-T03** — Le diffuseur redit ce qu'il joue après un redémarrage
+      de `radio`, et l'avance est redécidée par le processus neuf.
+      **Les entrées se décrivent** : `next_entry` préfixe chaque entrée d'un
+      `annotate:` portant `radio_kind`, `radio_label` et `radio_duration`,
+      valeurs citées et échappées — un direct est exclu, le script reconnaît son
+      entrée à `live:`. Une entrée déjà annotée (avance replacée) ne l'est pas
+      deux fois, ce qui contourne le point incertain de docs/liquidsoap.md §7
+      sur l'`annotate:` imbriqué, jingles compris.
+      **Le script redit** : `derniere_annonce` garde le corps du dernier
+      `on_track`, daté par `time()` en quatrième ligne, et `POST /announce` le
+      re-poste tel quel (rien à redire s'il n'y a rien eu).
+      **L'API l'ordonne** : au premier battement d'auditeurs d'un processus dont
+      `_entree_en_cours` est nul, `/announce` puis `/requeue`, **une seule
+      fois** ; hors verrou, et seulement si les deux ordres sont câblés.
+      **`playing()` restaure** la nature, le libellé et la longueur lus dans
+      l'entrée, datés du vrai début ; une ré-annonce de l'entrée déjà en cours
+      ne redéclare rien.
+      **Mesuré sur la maquette** (docs/liquidsoap.md §13) : des clés `annotate:`
+      arbitraires traversent jusqu'à `on_track` et au POST ; une valeur non
+      citée fait **perdre l'entrée entière** (un tiret ou un pourcent suffit) ;
+      une valeur citée porte virgule, deux-points, accents et `"` échappé ;
+      `radio_duration` ne coupe rien ; `/announce` redit le même corps en moins
+      de 10 ms.
+      **Résidus** : une entrée demandée par un script d'avant ce déploiement ne
+      porte aucune nature et reste `inconnu` ; une musique se restaure sans
+      `Track`, faute d'une recherche par identifiant dans `MusicSource` — le
+      `stop` coupe, l'encore est accepté sans rien retenir. Décision n°42
+      amendée (SPECS.md §7).
 - [x] **GOAL-086-T04** — L'avance datée connaît les cases de podcasts.
       `RadioProgramme.current_moment()` rend `(période, case)`, où la case vient
       de `Shows.open_band_slot()` : `PodcastSlot(show, start, awaited)`, lue sans

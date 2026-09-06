@@ -39,6 +39,13 @@ def stop_saying_why(why) =
   shutdown()
 end
 
+# ── Redire ce qui passe, sur ordre de l'API (SPECS.md §7 n°42) ─────────────
+# Le corps du dernier POST vers `/playout/playing`. Un processus `radio` neuf
+# ne sait pas ce qui passe : le diffuseur n'annonce qu'au début d'une entrée, et
+# l'antenne resterait inconnue jusqu'à la jonction suivante. La route /announce
+# le redit tel quel, sans toucher au morceau en cours (docs/liquidsoap.md §13).
+derniere_annonce = ref("")
+
 # ── Un direct, sur instruction de l'API (SPECS.md §4.11, GOAL-015) ─────────
 # L'API rend `live:<fin en secondes Unix>:<url>`. Un direct ne peut pas être une
 # requête : la résolution d'un flux infini expire (docs/liquidsoap.md §5). Il
@@ -92,6 +99,7 @@ end
 # `live.on_track` se déclenche deux fois au démarrage d'un `input.http` et une
 # piste trop tôt (docs/liquidsoap.md §9).
 def annoncer_le_direct() =
+  derniere_annonce := live_entry()
   answer = http.post(timeout=api_timeout, data=live_entry(), "#{api}/playout/playing")
   if answer.status_code != 204 then
     log(level=2, "l'API n'a pas pris l'annonce du direct (#{answer.status_code})")
@@ -159,13 +167,35 @@ direct_arme = ref(false)
 def on_track(metadata) =
   piste_commencee := true
   direct_arme := live_pending()
+  # La quatrième ligne date le début : une ré-annonce arrive plus tard, et
+  # l'écoulé annoncé à l'antenne repartirait de zéro (SPECS.md §4.8).
   body = metadata["initial_uri"] ^ "\n" ^ metadata["artist"] ^ "\n" ^ metadata["title"]
+         ^ "\n" ^ "#{time()}"
+  derniere_annonce := body
   answer = http.post(timeout=api_timeout, data=body, "#{api}/playout/playing")
   if answer.status_code != 204 then
     log(level=2, "l'API n'a pas pris l'annonce du morceau (#{answer.status_code})")
   end
 end
 programme.on_track(on_track)
+
+# Redit la dernière annonce, telle quelle. C'est `radio` qui l'ordonne, au
+# premier battement d'un processus qui ne sait pas ce qui passe.
+def on_announce(request, response) =
+  ignore(request)
+  if derniere_annonce() == "" then
+    log("ré-annonce demandée, mais rien n'a encore été annoncé")
+    response.data("rien annoncé")
+  else
+    log("ré-annonce de ce qui passe, sur ordre de l'API")
+    answer = http.post(timeout=api_timeout, data=derniere_annonce(), "#{api}/playout/playing")
+    if answer.status_code != 204 then
+      log(level=2, "l'API n'a pas pris la ré-annonce (#{answer.status_code})")
+    end
+    response.data("redit")
+  end
+end
+harbor.http.register(port=port, method="POST", "/announce", on_announce)
 
 # ── Passer le morceau en cours (SPECS.md §4.6, GOAL-017) ───────────────────
 # C'est `radio` qui décide d'un saut, sur un vote `stop` accepté, et qui
