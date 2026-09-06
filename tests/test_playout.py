@@ -38,10 +38,11 @@ def _programme(
     lookahead: int = 1,
     programmes: list[Programme] | None = None,
     shows: list[ShowCase] | None = None,
+    draws: list[int] | None = None,
 ) -> tuple[RadioProgramme, list[tuple[Kind, Track | None, str | None]]]:
     reelle = source if source is not None else FakeSource(CATALOGUE)
     montre = clock if clock is not None else FrozenClock(MIDI)
-    random = ScriptedRandom([0] * 200)
+    random = ScriptedRandom(draws if draws is not None else [0] * 200)
     vues: list[tuple[Kind, Track | None, str | None]] = []
     grille = Schedule(bands or [], montre)
     programmation = Programming(programmes or [], montre)
@@ -1027,3 +1028,47 @@ def test_la_liste_ne_promet_rien_apres_une_emission_sans_duree(tmp_path: Path) -
     programme.prepare(from_instant=depart)
 
     assert [i.kind for i in programme.upcoming(depart)] == [Kind.MUSIC, Kind.SHOW]
+
+
+# ── Le cache de la source se réchauffe sans rien décider (GOAL-075-T04) ──────
+
+PLAGE_MULTI = Band(start=time(0, 0), end=time(23, 59), genres=("rock", "électro", "trip-hop"))
+TIRAGES = [1, 0, 2, 0, 1, 2, 0, 2, 1, 1, 0, 2]
+
+
+def test_le_rechauffage_ne_consomme_pas_le_hasard(tmp_path: Path) -> None:
+    """À hasard fixé, l'avance est la même avec et sans réchauffage : une plage
+    multi-genres rend tous ses genres plutôt que d'en tirer un, sinon la
+    soirée ne se rejouerait plus (GOAL-075-T04)."""
+    rechauffe, _ = _programme(tmp_path, bands=[PLAGE_MULTI], lookahead=3, draws=list(TIRAGES))
+    tel_quel, _ = _programme(tmp_path, bands=[PLAGE_MULTI], lookahead=3, draws=list(TIRAGES))
+
+    rechauffe.warm(rechauffe.constraints_to_prepare())
+    rechauffe.prepare()
+    tel_quel.prepare()
+
+    attendue = [i.track for i in tel_quel.upcoming()]
+    assert attendue and [i.track for i in rechauffe.upcoming()] == attendue
+
+
+def test_le_rechauffage_parcourt_tous_les_genres_de_la_plage(tmp_path: Path) -> None:
+    """Les trois genres sont réchauffés, puisque le tirage n'a pas encore dit
+    lequel il prendra (GOAL-075-T04)."""
+    source = FakeSource(CATALOGUE)
+    programme, _ = _programme(tmp_path, source=source, bands=[PLAGE_MULTI], draws=list(TIRAGES))
+
+    programme.warm(programme.constraints_to_prepare())
+
+    assert source.appels == 3
+
+
+def test_une_source_injoignable_au_rechauffage_ne_leve_pas(tmp_path: Path) -> None:
+    """Le réchauffage est une commodité : sans lui, la préparation fait ce
+    qu'elle faisait avant (GOAL-075-T04)."""
+    source = FakeSource(CATALOGUE, injoignable=True)
+    programme, _ = _programme(tmp_path, source=source, bands=[PLAGE_MULTI])
+
+    programme.warm(programme.constraints_to_prepare())
+    programme.prepare()
+
+    assert programme.upcoming() == []

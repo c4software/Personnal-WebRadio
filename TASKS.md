@@ -273,7 +273,45 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
       La relecture du 2026-09-06 y rattache un second point à mesurer : le
       verrou de la charnière couvre **toute** la préparation, donc `/playing`
       et le `/playout/next` de préfetch attendent jusqu'à `draw.lookahead`
-      tirages. Aucune décision n'est prise avant cette mesure.
+      tirages. Ce second point est traité par GOAL-075-T04, qui sort le
+      parcours de bibliothèque du verrou ; ce qui reste sous le verrou est le
+      tirage lui-même, et c'est ce que la mesure à l'antenne doit chiffrer.
+      **Mesure partielle du 2026-09-06**, faite hors antenne depuis la machine
+      de développement, contre le Navidrome de l'auteur (5 704 pistes) et une
+      base SQLite locale :
+      parcours complet à froid 0,93 s, à chaud 0,00 s, un genre 0,03 à 0,04 s ;
+      **pondération** d'un tirage libre (`learning.weigh` sur 5 704 candidats)
+      **1,34 s**, rien ne la met en cache. Le premier tirage d'une reprise vaut
+      donc ~2,3 s ici (parcours + pondération) et chaque tirage libre suivant
+      ~1,3 s ; avec `draw.lookahead = 8`, une préparation en tirage libre
+      approche les dix secondes sous le verrou, et `frontal` est probablement
+      plus lent. GOAL-075-T05 s'attaque à la pondération, qui devrait tomber
+      sous 0,1 s — à confirmer à l'antenne, la mesure du délai réel restant à
+      faire.
+- [x] **GOAL-075-T04** — Réchauffer le cache de la source hors du verrou, et ne
+      tirer que dessous. La préparation de fond tient le verrou de la charnière
+      pendant tous ses tirages ; un tirage sous une plage dont le genre n'est
+      pas au cache coûte un parcours complet de Navidrome (une dizaine d'appels
+      HTTP), et pendant ce temps `/playout/next` et `/playing` attendent.
+      Choix technique : `RadioProgramme.constraints_to_prepare()` rend, sans
+      rien tirer, les contraintes que la préparation imposera, et
+      `RadioProgramme.warm()` appelle la source pour chacune. `_preparer_l_avance`
+      calcule les contraintes sous le verrou (c'est immédiat), réchauffe hors
+      du verrou, puis prépare sous le verrou : les tirages trouvent le cache
+      chaud. Le réchauffage ne lève jamais — une source injoignable est
+      journalisée en debug et la préparation fait comme avant.
+      Deux arbitrages : `Schedule.constraint_to_draw` consomme le hasard sur une
+      plage multi-genres, donc le réchauffage rend **tous** les genres de la
+      plage plutôt que d'en tirer un, sinon l'avance ne serait plus rejouable ;
+      et une plage au hasard ne voit pas son thème résolu pour réchauffer (le
+      résoudre en avance déplacerait ses tirages dans la séquence du hasard) —
+      on réchauffe le parcours complet, qui est justement ce que le tirage du
+      thème consulte. Un `tracks_by(artiste)` n'est pas réchauffé : la source ne
+      le met pas en cache.
+      Ce que ça vaut : le premier `/playout/next` d'une reprise paie toujours
+      **un** parcours (T01), mais le suivant n'attend plus la préparation
+      derrière un parcours froid, et `/playing` non plus. Reste le premier
+      tirage lui-même, et la mesure de T03.
 
 ---
 

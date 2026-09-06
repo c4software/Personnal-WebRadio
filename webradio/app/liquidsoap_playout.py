@@ -165,6 +165,13 @@ class LiquidsoapPlayout:
         d'autres jonctions ont pu passer depuis que la préparation a été
         demandée."""
         with self._verrou:
+            contraintes = self._programme.constraints_to_prepare(self._fin_estimee_de_l_avance())
+        # Le parcours d'un genre absent du cache coûte une dizaine d'appels à
+        # la source. Le faire sous le verrou ferait attendre `/playout/next` et
+        # `/playing` autant de fois qu'il y a de créneaux à remplir
+        # (GOAL-075-T04). Les tirages, eux, restent sous le verrou.
+        self._programme.warm(contraintes)
+        with self._verrou:
             self._programme.prepare(self._fin_estimee_de_l_avance())
 
     def _fin_estimee_du_courant(self) -> datetime | None:

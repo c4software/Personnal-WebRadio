@@ -10,13 +10,13 @@ contrôle ont déjà tranché. Il traduit, et journalise les replis.
 
 import logging
 from collections import deque
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from webradio.core.bands import Band, Schedule
+from webradio.core.bands import Band, Constraint, Schedule
 from webradio.core.clock import Clock
 from webradio.core.control import Control, Kind
 from webradio.core.jingles import Jingles, full_hours_between, jingle_name
@@ -214,6 +214,42 @@ class RadioProgramme:
                 instant = instant + self._file.advance[-1].duration
         except (SourceUnavailable, EmptyQueue) as echec:
             logger.debug("préparation sans effet : %s", echec)
+
+    def constraints_to_prepare(
+        self, from_instant: datetime | None = None
+    ) -> list[Constraint | None]:
+        """Les contraintes que la préparation imposera à la source, sans rien
+        tirer ni consommer le hasard (GOAL-075-T04).
+
+        `from_instant` a le même sens que dans `prepare`. Seul l'instant du
+        premier créneau à remplir est connu : les suivants durent ce qu'ils
+        tireront, et une plage dure plus longtemps qu'une avance.
+        """
+        depart = self._horloge.now() if from_instant is None else from_instant
+        instant = self._servi_a_partir_de(self._fin_des_creneaux(depart))
+        return self._grille.constraints_to_warm(instant)
+
+    def warm(self, constraints: Sequence[Constraint | None]) -> None:
+        """Charge le cache de la source pour ces contraintes, sans rien décider.
+
+        Appelée hors du verrou de la charnière (ARCHITECTURE.md §4.1) : un
+        parcours de genre absent du cache coûte une dizaine d'appels, et le
+        tirage qui suit le trouve chaud. Ne lève jamais : sans réchauffage, la
+        préparation fait ce qu'elle faisait avant.
+        """
+        genres: list[str | None] = []
+        for constraint in constraints:
+            if constraint is not None and constraint.artist is not None:
+                # `tracks_by` n'est pas mis en cache (docs/subsonic.md §2.6).
+                continue
+            genre = None if constraint is None else constraint.genre
+            if genre not in genres:
+                genres.append(genre)
+        try:
+            for genre in genres:
+                self._source.tracks(genre)
+        except SourceUnavailable as echec:
+            logger.debug("réchauffage sans effet : %s", echec)
 
     def _servi_a_partir_de(self, instant: datetime) -> datetime:
         """L'heure réelle du début de ce créneau (GOAL-068). Sans grille

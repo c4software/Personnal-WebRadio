@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
-from tests.fakes import FakeProgrammeEpieLeVerrou, FakeSource, track
+from tests.fakes import FakeProgrammeEpieLeVerrou, FakeSource, FakeSourceEpieLeVerrou, track
 from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
 from webradio.adapters.state.database import SqliteState
 from webradio.adapters.web.api import Vote
@@ -34,6 +34,7 @@ def _playout(
     order_skip: Callable[[], None] | None = None,
     max_duration: timedelta | None = None,
     catalogue: list[Track] | None = None,
+    source: FakeSource | None = None,
     bands: list[Band] | None = None,
     lookahead: int = 1,
     in_background: Callable[[Callable[[], None]], None] | None = None,
@@ -44,7 +45,7 @@ def _playout(
 ) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
     clock = clock if clock is not None else FrozenClock(MIDI)
     random = ScriptedRandom(draws if draws is not None else [0] * 100)
-    source = FakeSource(catalogue if catalogue is not None else CATALOGUE)
+    source = source if source is not None else FakeSource(catalogue or CATALOGUE)
     jingles = Jingles(clock)
     counter = ListenerCount()
     control = Control(source=source, random=random, jingles=jingles)
@@ -1181,3 +1182,25 @@ def test_la_reprise_a_neuf_oublie_l_attente_sous_le_verrou(tmp_path: Path) -> No
     playout.declare_listeners(1)
 
     assert espion.verrous["forget_pending"], "la file est vidée hors du verrou"
+
+
+# ── Le parcours de bibliothèque sort du verrou (GOAL-075-T04) ────────────────
+
+
+def test_la_bibliotheque_se_parcourt_hors_du_verrou_avant_de_tirer(tmp_path: Path) -> None:
+    """Un parcours de genre absent du cache coûte une dizaine d'appels à la
+    source. Sous le verrou, `/playout/next` et `/playing` l'attendent autant de
+    fois qu'il y a de créneaux à remplir (GOAL-075-T04)."""
+    source = FakeSourceEpieLeVerrou(CATALOGUE_LARGE)
+    playout, _, _ = _playout(
+        tmp_path,
+        source=source,
+        lookahead=4,
+        bands=[Band(start=time(0, 0), end=time(23, 59), genres=("rock",))],
+        in_background=lambda travail: travail(),
+    )
+    source.epier(playout._verrou)
+
+    playout.next_entry()
+
+    assert ("rock", False) in source.parcours, "la bibliothèque n'est parcourue que sous le verrou"

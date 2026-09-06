@@ -76,15 +76,51 @@ class FakeSource:
         return f"fake://{track.identifier}"
 
 
+def verrou_tenu(verrou: threading.RLock) -> bool:
+    """Vrai si le verrou est tenu au moment de l'appel.
+
+    Le verrou est réentrant : le redemander depuis le fil qui le tient réussit
+    toujours, et ne prouverait rien. On le demande donc depuis un fil neuf,
+    joint aussitôt, ce qui rend une réponse franche sans attente ni `sleep`
+    (AGENTS.md §4).
+    """
+    reponse: list[bool] = []
+
+    def essayer() -> None:
+        pris = verrou.acquire(blocking=False)
+        if pris:
+            verrou.release()
+        reponse.append(pris)
+
+    fil = threading.Thread(target=essayer)
+    fil.start()
+    fil.join()
+    return not reponse[0]
+
+
+class FakeSourceEpieLeVerrou(FakeSource):
+    """Une source qui note, parcours par parcours, si le verrou de la charnière
+    était tenu (GOAL-075-T04).
+
+    Un parcours coûte une dizaine d'appels à la vraie source ; le faire sous le
+    verrou fait attendre `/playout/next` et `/playing`.
+    """
+
+    def epier(self, verrou: threading.RLock) -> None:
+        self.parcours: list[tuple[str | None, bool]] = []
+        self._verrou_epie = verrou
+
+    def tracks(self, genre: str | None = None) -> list[Track]:
+        self.parcours.append((genre, verrou_tenu(self._verrou_epie)))
+        return super().tracks(genre)
+
+
 class FakeProgrammeEpieLeVerrou(RadioProgramme):
     """Un programme qui note, geste par geste, si le verrou de la charnière
     était tenu au moment où sa file a été touchée (GOAL-083-T06).
 
     La préparation de fond lit et écrit la file dans un autre fil ; tout geste
-    venu d'une requête doit donc passer sous le même verrou. Le verrou est
-    réentrant : le redemander depuis le fil qui le tient réussit toujours, et
-    ne prouverait rien. On le demande depuis un fil neuf, joint aussitôt, ce
-    qui rend une réponse franche sans attente ni `sleep` (AGENTS.md §4).
+    venu d'une requête doit donc passer sous le même verrou.
     """
 
     def epier(self, verrou: threading.RLock) -> None:
@@ -92,18 +128,7 @@ class FakeProgrammeEpieLeVerrou(RadioProgramme):
         self._verrou_epie = verrou
 
     def _tenu(self, geste: str) -> None:
-        reponse: list[bool] = []
-
-        def essayer() -> None:
-            pris = self._verrou_epie.acquire(blocking=False)
-            if pris:
-                self._verrou_epie.release()
-            reponse.append(pris)
-
-        fil = threading.Thread(target=essayer)
-        fil.start()
-        fil.join()
-        self.verrous[geste] = not reponse[0]
+        self.verrous[geste] = verrou_tenu(self._verrou_epie)
 
     def prepare(self, from_instant: datetime | None = None) -> None:
         self._tenu("prepare")

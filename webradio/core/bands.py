@@ -238,6 +238,26 @@ class Schedule:
                 return band
         return None
 
+    def constraints_to_warm(self, at: datetime) -> list[Constraint | None]:
+        """Les contraintes qu'un tirage à cet instant pourrait imposer, sans
+        rien tirer (GOAL-075-T04).
+
+        Sert à réchauffer le cache de la source hors du verrou de la charnière,
+        pas à décider : `constraint_to_draw` reste seul juge. Une plage
+        multi-genres les rend toutes, parce qu'en choisir une consommerait le
+        hasard et l'avance ne serait plus rejouable. Une plage au hasard rend
+        `None` sans résoudre son thème, pour la même raison : c'est le parcours
+        complet, celui que le tirage du thème consulte, qui est réchauffé.
+        """
+        band = self._band_at(at)
+        if band is None or band.random_theme is not None:
+            return [None]
+        if band.artists:
+            return [Constraint(artist=artist) for artist in band.artists]
+        if band.genres:
+            return [Constraint(genre=genre) for genre in band.genres]
+        return [None]
+
     def constraint_to_draw(self, random: Random, at: datetime | None = None) -> Constraint | None:
         """La contrainte à imposer à la source, `None` pour un tirage libre.
 

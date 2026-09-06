@@ -220,6 +220,13 @@ de podcast** (SPECS.md §4.11) : ce qui ne doit pas faire attendre le diffuseur
 y passe, et l'unicité du fil borne ce que l'on empile. Rien n'est perdu si elle
 tarde : la file retombe sur un tirage neuf quand son avance est vide.
 
+**Le cache de la source se réchauffe hors du verrou, le tirage se fait
+dessous** : la préparation demande d'abord au programme les contraintes qu'elle
+imposera — sans rien tirer, une plage multi-genres les rend toutes — puis
+parcourt la bibliothèque pour chacune, verrou relâché, et ne le reprend que
+pour tirer. Sans cela, `/playout/next` et `/playing` attendaient un parcours
+froid par créneau à remplir.
+
 Comme ce fil lit et écrit la file pendant qu'une requête peut la muter, **tout
 ce qui touche le programme ou sa file passe sous le verrou de la charnière** —
 retrait d'un titre, avance replacée ou jetée, rupture de suite, reprise à neuf ;
