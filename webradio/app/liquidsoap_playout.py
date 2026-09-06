@@ -216,6 +216,10 @@ class LiquidsoapPlayout:
     def playing(self, entry: str, artist: str | None = None, title: str | None = None) -> None:
         with self._verrou:
             pending = self._en_attente.pop(entry, None)
+            if pending is None:
+                pending = self._reprendre_une_entree_replacee(entry)
+            else:
+                self._oublier_les_demandes_anterieures(pending.rank)
             finie, self._entree_en_cours = self._entree_en_cours, entry
             self._en_cours = pending
             self._commence_a = None if self._horloge is None else self._horloge.now()
@@ -240,6 +244,43 @@ class LiquidsoapPlayout:
             self._radio.declare(Kind.MUSIC, None, title, artist_label=artist)
             return
         self._radio.declare(pending.kind, pending.track, pending.label)
+
+    def _oublier_les_demandes_anterieures(self, rang: int) -> None:
+        """Oublie ce qui a été demandé avant l'entrée qui commence.
+
+        Le diffuseur joue dans l'ordre où il demande (docs/liquidsoap.md §3) :
+        une entrée plus ancienne qui n'a pas commencé a été jetée avec l'avance,
+        et il n'y a pas de route pour le dire. C'est le cas de la fin d'un
+        direct, qui est une purge (SPECS.md §7 n°22). La garder la ferait
+        annoncer dans « À suivre », compter dans les heures estimées, et
+        replacer au premier battement après l'heure pleine (décision n°33).
+        """
+        jetees = [entree for entree, p in self._en_attente.items() if p.rank < rang]
+        for entree in jetees:
+            del self._en_attente[entree]
+            logger.info("demandée puis jetée par le diffuseur : %s", entree.split("?", 1)[0])
+        # L'émission demandée est traitée par `_signaler_l_emission` : elle est
+        # de rang inférieur, donc jetée elle aussi.
+
+    def _reprendre_une_entree_replacee(self, entry: str) -> Pending | None:
+        """L'entrée qui commence alors qu'elle venait d'être replacée, ou `None`.
+
+        Le battement replace tout ce qui n'est pas l'entrée en cours ; il peut
+        passer avant l'annonce du diffuseur, qui attend le verrou. Sans cela
+        l'entrée serait affichée d'après ses seules étiquettes, puis resservie
+        une seconde fois par `next_entry`. Le `/requeue` déjà ordonné reste sans
+        effet : le diffuseur redemande, le jingle dû passe, puis le tirage
+        suivant.
+        """
+        nature = self._programme.take_back_replay(entry)
+        if nature is None:
+            return None
+        logger.info("replacée alors qu'elle commençait : %s", entry.split("?", 1)[0])
+        # Une émission replacée n'a plus de rang (`stash_for_replay`) ; c'est
+        # ici qu'elle s'inscrit si c'est elle qui prend l'antenne.
+        self._programme.show_started(entry)
+        kind, track, label = nature
+        return Pending(kind, track, label)
 
     def _signaler_l_emission(self, entry: str, rang: int | None) -> None:
         """Dit au programme ce qu'il est advenu de l'émission demandée.

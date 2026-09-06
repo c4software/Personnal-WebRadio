@@ -293,6 +293,13 @@ volume (témoin : −inf → −3,6 dB en une fenêtre). Comment fondre cette ba
 
 ### Points incertains
 
+- [ ] **`request.dynamic` peut-il commencer une entrée demandée avant une
+      autre déjà commencée ?** Non observé, et l'API en dépend depuis
+      GOAL-083-T05 : elle tient qu'une entrée plus ancienne qui n'a pas
+      commencé a été jetée, faute de route pour l'apprendre de la purge de
+      fin de direct. Ce qui est observé ici est plus étroit : après
+      `set_queue([])`, un `/next` frais part et c'est ce morceau-là qui
+      démarre. Avec `prefetch=1`, une seule entrée attend à la fois.
 - [ ] **Ce qui fait qu'une jonction traverse `crossfade` jusqu'au `switch`.**
       En maquette : jamais, sur quatre jonctions. En production le 2026-09-02 :
       **une fois**, 85 s après l'instruction, à la première jonction suivant une

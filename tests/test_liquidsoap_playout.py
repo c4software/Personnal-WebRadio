@@ -882,3 +882,136 @@ def test_un_encore_pendant_qu_une_emission_attend_ne_la_fait_pas_passer_deux_foi
     assert servies.count(EPISODE) == 1, "l'émission ne passe qu'une fois"
     passe = state.last_airing("A la French")
     assert passe is not None and passe.episode == "ep1"
+
+
+# ── Ce que le diffuseur jette sans le dire (GOAL-083-T05) ───────────────────
+
+DIRECT = Show(name="Le flash", days=("all",), hour=time(12, 0), duration=timedelta(minutes=5))
+FLUX_DU_DIRECT = "https://exemple.test/direct.mp3"
+# La plage change à la fin du direct : ce qui a gelé dessous est de l'électro,
+# tout ce qui se tire après est du rock. C'est ce qui distingue l'avance gelée
+# d'un tirage frais, sans dépendre d'un identifiant.
+PLAGES_AUTOUR_DU_DIRECT = [
+    Band(start=time(12, 0), end=time(12, 5), genres=("électro",)),
+    Band(start=time(12, 5), end=time(13, 0), genres=("rock",)),
+]
+AUTOUR_DU_DIRECT = [*CATALOGUE, track("4", "Blur", genre="rock")]
+
+
+def _playout_avec_direct(
+    folder: Path, clock: FrozenClock, **kwargs: object
+) -> tuple[LiquidsoapPlayout, LiveRadio]:
+    state = SqliteState(
+        folder / "etat.sqlite3",
+        clock,
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    emissions = Shows(
+        ShowSchedule([DIRECT]),
+        FluxDUnEpisode(),  # type: ignore[arg-type]
+        state,
+        clock,
+        {},
+        ScriptedRandom([0] * 50),
+        streams={DIRECT.name: FLUX_DU_DIRECT},
+    )
+    playout, radio, _clock = _playout(
+        folder,
+        clock=clock,
+        shows=emissions,
+        **kwargs,  # type: ignore[arg-type]
+    )
+    return playout, radio
+
+
+def _un_direct_et_sa_fin(playout: LiquidsoapPlayout, clock: FrozenClock) -> tuple[str, str]:
+    """Rejoue la séquence du script : un direct, le morceau qu'il redemande
+    aussitôt et qui gèle sous la case, puis la purge de la fin du direct et le
+    morceau frais (radio.liq, `vider_l_avance`).
+
+    Rend le morceau gelé et le morceau frais.
+    """
+    playout.declare_listeners(1)
+    direct = playout.next_entry()
+    assert direct is not None and direct.startswith("live:")
+    gele = playout.next_entry()
+    assert gele is not None
+    playout.playing(direct)
+    clock.advance(timedelta(minutes=6))
+    frais = playout.next_entry()
+    assert frais is not None and frais != gele
+    playout.playing(frais)
+    return gele, frais
+
+
+def test_l_avance_gelee_sous_un_direct_n_est_plus_annoncee_a_suivre(tmp_path: Path) -> None:
+    """La fin d'un direct est une purge (SPECS.md §7 n°22) : le diffuseur jette
+    l'avance et redemande, sans route pour le dire. L'ordre des demandes suffit
+    à l'apprendre — ce qui commence est plus récent que ce qui a été jeté."""
+    clock = FrozenClock(MIDI)
+    playout, _radio = _playout_avec_direct(
+        tmp_path, clock, bands=PLAGES_AUTOUR_DU_DIRECT, catalogue=AUTOUR_DU_DIRECT
+    )
+
+    _gele, _frais = _un_direct_et_sa_fin(playout, clock)
+
+    a_suivre = playout.up_next()
+    assert a_suivre is not None and a_suivre[1] is not None
+    assert a_suivre[1].genre == "rock", "l'électro gelée sous le direct a été jetée"
+
+
+def test_l_avance_gelee_sous_un_direct_n_est_pas_replacee_au_battement(tmp_path: Path) -> None:
+    """Restée en attente, elle était replacée et diffusée au premier battement
+    après l'heure pleine (décision n°33), une heure après sa plage."""
+    clock = FrozenClock(MIDI)
+    ordres: list[str] = []
+    playout, _radio = _playout_avec_direct(
+        tmp_path, clock, catalogue=TROIS, order_requeue=lambda: ordres.append("requeue")
+    )
+    _un_direct_et_sa_fin(playout, clock)
+    ordres.clear()
+
+    clock.advance(timedelta(hours=1))
+    playout.declare_listeners(1)
+
+    assert ordres == [], "il ne reste rien en attente à remettre en question"
+
+
+def test_le_battement_ne_fait_pas_rejouer_le_morceau_qui_vient_de_commencer(
+    tmp_path: Path,
+) -> None:
+    """L'annonce du diffuseur attend le verrou pendant une préparation de fond :
+    le battement peut replacer une entrée déjà commencée. Elle est à l'antenne,
+    pas à rejouer."""
+    ordres: list[str] = []
+    playout, radio, clock = _playout_avec_requeue(tmp_path, ordres)
+    entree = _avance_demandee(playout)
+
+    clock.advance(timedelta(hours=1, seconds=10))
+    playout.declare_listeners(1)
+    assert ordres == ["requeue"], "l'heure pleine est passée, l'avance est replacée"
+
+    playout.playing(entree, "Air", "Sexy Boy")
+
+    a_l_antenne = radio.on_air_now()
+    assert a_l_antenne is not None
+    assert a_l_antenne.title != "Sexy Boy", "déclarée avec sa nature, pas avec ses étiquettes"
+    assert playout.next_entry() != entree, "elle vient de commencer, elle ne se rejoue pas"
+
+
+def test_une_emission_replacee_qui_prend_l_antenne_s_inscrit(tmp_path: Path) -> None:
+    """Même course, avec une émission : reprise à l'antenne, sa diffusion
+    s'inscrit (SPECS.md §4.11.1). Sans cela elle restait demandée pour toujours,
+    et aucune autre ne pouvait plus être rendue."""
+    clock = FrozenClock(MIDI + timedelta(minutes=1))
+    playout, radio, state = _playout_avec_emission(tmp_path, clock)
+    playout.declare_listeners(1)
+    assert playout.next_entry() == EPISODE
+    playout.stash_for_replay()
+
+    playout.playing(EPISODE)
+
+    assert radio.playing_kind() is Kind.SHOW
+    passe = state.last_airing("A la French")
+    assert passe is not None and passe.episode == "ep1"

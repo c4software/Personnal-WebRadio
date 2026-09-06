@@ -150,6 +150,20 @@ class RadioProgramme:
         """Replace une entrée déjà demandée, à jouer après l'effet d'un encore."""
         self._a_rejouer.append((entry, kind, track, label))
 
+    def take_back_replay(self, entry: str) -> tuple[Kind, Track | None, str | None] | None:
+        """Retire une entrée replacée et rend sa nature, ou `None` si elle n'y
+        est pas.
+
+        Une entrée peut être replacée alors que le diffuseur l'a déjà
+        commencée : son annonce et le battement qui replace l'avance sont
+        concurrents. Elle est alors à l'antenne, pas à rejouer.
+        """
+        for index, (candidate, kind, track, label) in enumerate(self._a_rejouer):
+            if candidate == entry:
+                del self._a_rejouer[index]
+                return (kind, track, label)
+        return None
+
     def forget_pending(self) -> None:
         """Oublie ce qui attendait une jonction, pour reprendre à neuf.
 

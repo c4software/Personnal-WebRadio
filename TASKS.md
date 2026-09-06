@@ -419,10 +419,13 @@ Deux bloquants, douze corrections bornées, et une décision de l'auteur
       Exception, trouvée à la relecture : une émission **replacée** par un
       encore n'est pas jetée, et le jingle qui la précède ne doit pas la faire
       passer pour perdue — elle passait alors deux fois.
-- [ ] **GOAL-083-T05** — Le registre du diffuseur ne ment plus après un
+- [x] **GOAL-083-T05** — Le registre du diffuseur ne ment plus après un
       direct ni sur un battement : l'avance que le script jette à la fin d'un
       direct était annoncée puis resservie ; et un battement traité avant
       `/playing` replaçait le morceau qui venait de commencer, rejoué deux fois.
+      L'ordre des demandes (`Pending.rank`) suffit : ce qui commence est plus
+      récent que ce qui a été jeté. Une entrée déjà replacée est reprise de
+      `_a_rejouer` avec sa nature, et l'émission qui s'y trouvait s'inscrit.
 - [ ] **GOAL-083-T06** — Les quatre chemins Flask qui mutent la file
       (`withdraw`, `stash_for_replay`, `drop_advance`, `forget_pending`)
       prennent le verrou que tient la préparation de fond ; une `IndexError`

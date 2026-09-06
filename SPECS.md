@@ -1392,6 +1392,12 @@ a une durée obligatoire, pas de rattrapage, pas de trace en base.
 > l'antenne, et redemande — c'est la mécanique de la n°30, appliquée à une
 > autre cause. Constaté à l'antenne : deux minutes de musique hors plage à 8 h
 > le matin même.
+>
+> **Complément du 2026-09-06** (GOAL-083-T05) : le diffuseur jette cette avance
+> sans avoir de route pour le dire, et l'API l'ignorait. Elle l'apprend de
+> l'ordre des demandes — ce qui commence est plus récent que ce qui a été jeté.
+> L'avance gelée cesse donc d'être annoncée dans « À suivre », et de revenir à
+> l'antenne au premier battement après l'heure pleine (n°33).
 
 **n°23 — ffmpeg à la main, ou Liquidsoap ? Liquidsoap.** Tranchée le 2026-08-30
 par l'auteur, sur relevé ([docs/liquidsoap.md](./docs/liquidsoap.md)). Le
