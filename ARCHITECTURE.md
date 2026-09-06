@@ -201,6 +201,12 @@ des prochains titres (`GET /api/up-next`) est cette avance, lue sans rien
 décider — avec l'habillage que la jonction rendrait, prévu d'après les
 fichiers présents.
 
+**Depuis le 2026-09-06** (GOAL-078), la liste ne s'arrête plus à ce que l'avance
+sait dater : derrière son dernier titre, `RadioProgramme.upcoming()` **coud**
+les périodes que `EffectiveSchedule.between()` rend jusqu'à un horizon. Ces
+entrées portent leur `Segment` (`Upcoming.period`), pas de titre, et ne
+consomment aucun tirage : la grille est lue, la file n'est pas interrogée.
+
 **La file compte donc sur `prepare()` avant chaque jonction**, et c'est une
 dépendance implicite : `Queue.next_pick` ne consomme la tête de l'avance que si
 son moment tient, sinon il tire à côté et **la laisse en place**. Seul

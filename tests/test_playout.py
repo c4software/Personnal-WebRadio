@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 
 from tests.fakes import FakeSource, track
-from webradio.app.playout import RadioProgramme
+from webradio.app.playout import DEFAULT_HORIZON, RadioProgramme
 from webradio.core.bands import Band, Schedule
 from webradio.core.clock import FrozenClock
 from webradio.core.control import Command, Control, Kind
@@ -39,6 +39,8 @@ def _programme(
     programmes: list[Programme] | None = None,
     shows: list[ShowCase] | None = None,
     draws: list[int] | None = None,
+    horizon: timedelta = DEFAULT_HORIZON,
+    effective: bool = True,
 ) -> tuple[RadioProgramme, list[tuple[Kind, Track | None, str | None]]]:
     reelle = source if source is not None else FakeSource(CATALOGUE)
     montre = clock if clock is not None else FrozenClock(MIDI)
@@ -57,7 +59,10 @@ def _programme(
             jingle_folder=folder,
             on_kind=lambda n, p, e: vues.append((n, p, e)),
             programming=programmation if programmes else None,
-            effective=EffectiveSchedule(grille, programmation, ShowSchedule(shows or [])),
+            effective=EffectiveSchedule(grille, programmation, ShowSchedule(shows or []))
+            if effective
+            else None,
+            horizon=horizon,
         ),
         vues,
     )
@@ -865,6 +870,7 @@ def test_la_liste_annonce_l_heure_estimee_et_l_habillage_prevu(tmp_path: Path) -
         (Kind.JINGLE, "rock", True),
         (Kind.MUSIC, None, False),
         (Kind.MUSIC, None, False),
+        (Kind.MUSIC, None, True),  # la plage de 13 h, cousue derrière (GOAL-078)
     ]
     assert [i.at for i in liste] == [
         depart,
@@ -872,6 +878,7 @@ def test_la_liste_annonce_l_heure_estimee_et_l_habillage_prevu(tmp_path: Path) -
         depart + timedelta(minutes=3),
         depart + timedelta(minutes=3),
         depart + timedelta(minutes=6),
+        None,
     ]
 
 
@@ -901,7 +908,8 @@ def test_la_liste_ne_montre_pas_une_avance_rassise(tmp_path: Path) -> None:
     programme, _ = _programme(tmp_path, bands=DEUX_PLAGES, clock=montre, lookahead=2)
     programme.prepare()
     montre.advance(timedelta(minutes=10))  # 13 h 05 : la plage de 12 h a fini
-    assert programme.upcoming() == []
+    # Ne reste que la plage de 13 h, cousue sans titre (GOAL-078).
+    assert [i.track for i in programme.upcoming()] == [None]
 
 
 def test_retirer_un_titre_de_l_avance_du_programme(
@@ -958,9 +966,11 @@ HARDISK = ShowCase(name="Hardisk", days=("all",), hour=time(20))
 SOIREE = Band(start=time(20), end=time(22), genres=("rock",))
 
 
-def test_la_liste_s_arrete_a_l_emission_qui_va_couper_et_la_nomme(tmp_path: Path) -> None:
-    """La liste s'arrête à l'émission qui va couper et la nomme, au lieu
-    d'annoncer de la musique pour 20 h (GOAL-068)."""
+def test_la_liste_nomme_l_emission_qui_va_couper_au_lieu_d_annoncer_de_la_musique(
+    tmp_path: Path,
+) -> None:
+    """L'émission de 20 h est nommée à la place d'un titre annoncé pour 20 h
+    (GOAL-068), et la grille est cousue derrière elle (GOAL-078)."""
     montre = FrozenClock(MIDI.replace(hour=19, minute=55))
     programme, _ = _programme(tmp_path, bands=[SOIREE], clock=montre, lookahead=3, shows=[HARDISK])
     depart = MIDI.replace(hour=19, minute=58)
@@ -971,6 +981,7 @@ def test_la_liste_s_arrete_a_l_emission_qui_va_couper_et_la_nomme(tmp_path: Path
     assert [(i.kind, i.label, i.at, i.expected) for i in liste] == [
         (Kind.MUSIC, None, depart, False),
         (Kind.SHOW, "Hardisk", MIDI.replace(hour=20), True),
+        (Kind.MUSIC, None, None, True),  # la soirée qui reprend après l'émission
     ]
 
 
@@ -1016,18 +1027,30 @@ def test_la_liste_reprend_apres_un_direct_dont_la_fin_est_connue(tmp_path: Path)
         (Kind.MUSIC, None, MIDI.replace(hour=12, minute=56)),
         (Kind.SHOW, "Flash franceinfo", MIDI.replace(hour=12, minute=57)),
         (Kind.MUSIC, None, MIDI.replace(hour=13, minute=10)),
+        (Kind.MUSIC, None, None),  # la plage de 13 h, cousue derrière (GOAL-078)
     ]
 
 
-def test_la_liste_ne_promet_rien_apres_une_emission_sans_duree(tmp_path: Path) -> None:
-    """Sa fin est inconnue : la suite ne peut être ni datée ni jugée."""
+def test_apres_une_emission_sans_duree_la_liste_nomme_ce_que_la_grille_annonce(
+    tmp_path: Path,
+) -> None:
+    """Sa fin est inconnue, mais la grille sait ce qui suit : la reprise est
+    cousue sans heure de début, avec sa fin (GOAL-078). L'émission n'est
+    nommée qu'une fois."""
     montre = FrozenClock(MIDI.replace(hour=19, minute=55))
     programme, _ = _programme(tmp_path, bands=[SOIREE], clock=montre, lookahead=3, shows=[HARDISK])
     depart = MIDI.replace(hour=19, minute=58)
 
     programme.prepare(from_instant=depart)
+    liste = programme.upcoming(depart)
 
-    assert [i.kind for i in programme.upcoming(depart)] == [Kind.MUSIC, Kind.SHOW]
+    assert [i.kind for i in liste] == [Kind.MUSIC, Kind.SHOW, Kind.MUSIC]
+    assert [i.label for i in liste].count("Hardisk") == 1
+    reprise = liste[-1]
+    assert reprise.at is None
+    assert reprise.period is not None
+    assert reprise.period.after_show
+    assert reprise.period.end == MIDI.replace(hour=22)
 
 
 # ── Le cache de la source se réchauffe sans rien décider (GOAL-075-T04) ──────
@@ -1071,4 +1094,5 @@ def test_une_source_injoignable_au_rechauffage_ne_leve_pas(tmp_path: Path) -> No
     programme.warm(programme.constraints_to_prepare())
     programme.prepare()
 
-    assert programme.upcoming() == []
+    # La plage cousue reste, mais rien n'a été tiré (GOAL-078).
+    assert [i for i in programme.upcoming() if i.track is not None] == []

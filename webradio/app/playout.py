@@ -12,7 +12,7 @@ import logging
 from collections import deque
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -34,6 +34,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Jusqu'où la liste coud la grille derrière son dernier titre (SPECS.md §7
+# n°34 amendée). GOAL-078-T04 la fera venir du TOML.
+DEFAULT_HORIZON = timedelta(hours=3)
+
 
 @dataclass(frozen=True, slots=True)
 class Upcoming:
@@ -42,6 +46,10 @@ class Upcoming:
     `at` est l'heure estimée du début, `None` si rien ne permet de l'estimer.
     `expected` marque l'habillage prévu (jingle horaire, générique) qui n'est
     pas encore décidé, par opposition à ce qui est déjà tiré.
+
+    `period` porte la période de la grille effective quand l'entrée vient de la
+    couture (GOAL-078) : sa fin s'y lit, et une plage s'y met en mots. Un `at`
+    absent sur une entrée cousue dit que la période est déjà en cours.
     """
 
     kind: Kind
@@ -49,6 +57,7 @@ class Upcoming:
     label: str | None
     at: datetime | None
     expected: bool = False
+    period: Segment | None = None
 
 
 class RadioProgramme:
@@ -75,6 +84,7 @@ class RadioProgramme:
         shows: "Shows | None" = None,
         effective: EffectiveSchedule | None = None,
         control: Control | None = None,
+        horizon: timedelta = DEFAULT_HORIZON,
     ) -> None:
         self._file = queue
         self._source = source
@@ -89,6 +99,7 @@ class RadioProgramme:
         # Facultative : sans elle, l'avance s'estime sur les seules plages.
         self._effective = effective
         self._controle = control
+        self._horizon = horizon
         # Le morceau forcé par un encore, résolu dès la préparation pour que la
         # liste des prochains titres le montre (GOAL-067). L'ancre est gardée
         # pour en tirer un autre du même artiste si on le retire.
@@ -279,6 +290,9 @@ class RadioProgramme:
         début (GOAL-058) : ce qui attend déjà, puis l'avance de la file, avec
         entre les deux l'habillage prévu (jingles horaires, génériques).
 
+        Derrière tout cela viennent les périodes de la grille effective
+        (GOAL-078), pour que la liste ne s'arrête pas à ce qu'elle sait dater.
+
         Rien n'est décidé ici : la liste dit ce que `next_entry` rendrait si
         les durées estimées tenaient. Pendant un programme, l'avance de la
         file n'y figure pas, sa musique vient d'une liste (SPECS.md §4.13).
@@ -295,8 +309,17 @@ class RadioProgramme:
             items.append(Upcoming(kind, track, label, instant))
             if track is not None and instant is not None:
                 instant = instant + track.duration
-        if self._programmation is not None and self._programmation.playlist_to_draw() is not None:
-            return items
+        if self._programmation is None or self._programmation.playlist_to_draw() is None:
+            instant = self._avance_listee(items, instant)
+        items.extend(self._couture(items, instant))
+        return items
+
+    def _avance_listee(
+        self, items: list[Upcoming], from_instant: datetime | None
+    ) -> datetime | None:
+        """Ajoute l'avance de la file à `items` et rend l'heure estimée qui la
+        suit, `None` si plus rien ne se date."""
+        instant = from_instant
         precedent = instant
         for index, (track, moment) in enumerate(self._file.dated_advance):
             # La lecture est concurrente de la jonction : on ne décide rien et
@@ -327,7 +350,42 @@ class RadioProgramme:
             items.append(Upcoming(Kind.MUSIC, track, None, instant))
             precedent = instant
             instant = None if instant is None else instant + track.duration
-        return items
+        return instant
+
+    def _couture(self, items: Sequence[Upcoming], instant: datetime | None) -> list[Upcoming]:
+        """Les périodes de la grille effective cousues derrière ce qui est déjà
+        listé, jusqu'à l'horizon (SPECS.md §7 n°34 amendée).
+
+        Rien n'y est décidé ni tiré : la grille est lue, pas interrogée. La
+        couture part de l'heure estimée après le dernier titre daté ; quand
+        rien ne se date, de maintenant. Une période déjà annoncée par la liste
+        n'est pas répétée. Sans grille effective, rien n'est cousu.
+        """
+        if self._effective is None:
+            return []
+        depart = instant if instant is not None else self._horloge.now()
+        portees = {item.period for item in items if item.period is not None}
+        annoncees = {(item.label, item.at) for item in items if item.kind is Kind.SHOW}
+        cousues: list[Upcoming] = []
+        for periode in self._effective.between(depart, depart + self._horizon):
+            nom = self._nom_de(periode)
+            if periode in portees or (nom, periode.start) in annoncees:
+                continue
+            debut = periode.start if periode.start >= depart else None
+            cousues.append(Upcoming(self._nature_de(periode), None, nom, debut, True, periode))
+        return cousues
+
+    @staticmethod
+    def _nature_de(periode: Segment) -> Kind:
+        return Kind.SHOW if isinstance(periode.content, Show) else Kind.MUSIC
+
+    @staticmethod
+    def _nom_de(periode: Segment) -> str | None:
+        """Le nom d'une émission ou d'un programme. Rien pour une plage : ses
+        thèmes se mettent en mots depuis `period`, comme au Planning."""
+        if isinstance(periode.content, Band):
+            return None
+        return periode.content.name
 
     def _remplacement_entre(self, depuis: datetime, jusqu_a: datetime) -> Segment | None:
         """L'émission ou le programme qui remplacera la file entre ces deux
@@ -343,7 +401,9 @@ class RadioProgramme:
         if not isinstance(remplacement.content, Show):
             return []
         nom = remplacement.content.name
-        return [Upcoming(Kind.SHOW, None, nom, remplacement.start, True)]
+        # La période est portée par l'annonce pour que la couture ne la répète
+        # pas, et que sa fin reste lisible (GOAL-078).
+        return [Upcoming(Kind.SHOW, None, nom, remplacement.start, True, remplacement)]
 
     def _habillage_prevu(self, depuis: datetime, jusqu_a: datetime) -> list[Upcoming]:
         """Les jingles et génériques que la jonction de `jusqu_a` rendrait,

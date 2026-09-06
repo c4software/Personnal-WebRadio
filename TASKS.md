@@ -215,8 +215,8 @@ variable d'environnement ayant disparu du Compose.
 **GOAL-084 est clos le 2026-09-06** : l'antenne annonçait la plage de la grille
 pendant une émission, alors que l'émission la remplace.
 
-**Prochaine tâche** : GOAL-078-T02, `upcoming()` qui coud ces périodes après le
-dernier titre daté, puis GOAL-082-T04, le seuil de vivier appliqué ou non à
+**Prochaine tâche** : GOAL-078-T03, l'API et la page qui mettent ces périodes
+en mots, puis GOAL-082-T04, le seuil de vivier appliqué ou non à
 l'ancre d'`artist_fan`. GOAL-075 attend sa mesure à l'antenne (T03), qui
 demande le déploiement.
 
@@ -404,15 +404,27 @@ l'avance ne bouge pas.
       autre n'a commencé entre son début et `depuis`. Vérifié sur la grille
       réelle du dimanche soir : `between(20:05, 23:30)` rend la plage de
       podcasts en cours, celle de 21 h, puis la musique qui reprend à 23 h.
-- [ ] **GOAL-078-T02** — `upcoming()` ajoute ces périodes après le dernier
-      titre daté, et ne s'arrête plus net sur ce qu'il ne sait pas dater : il
-      le nomme, puis reprend à la période suivante. Comment une période se
-      représente à côté d'un titre — une nature de plus, ou une fin sur ce qui
-      existe — est à trancher en écrivant.
+- [x] **GOAL-078-T02** — `upcoming()` coud ces périodes derrière ce qu'il
+      liste déjà. Tranché en écrivant : pas de nature de plus, mais un champ
+      `Upcoming.period` qui porte le `Segment` — la fin s'y lit, et une plage
+      s'y met en mots comme au Planning. `at` vaut le début de la période, ou
+      `None` si elle est déjà en cours à l'instant de couture. Le départ est
+      l'heure estimée après le dernier titre daté, sinon maintenant : c'est le
+      cas du dimanche, où un épisode de podcast ne date rien.
+      `_annonce_du_remplacement` porte désormais sa période, ce qui évite le
+      doublon et rend sa fin lisible. Horizon de 3 h en constante de module,
+      injectable ; T04 la fera venir du TOML.
+      Vérifié en retirant la couture : le test du dimanche rend `[]` au lieu
+      des trois entrées attendues. Six tests existants ont changé de sortie —
+      la liste continue là où elle s'arrêtait, dont deux dont le nom disait
+      « s'arrête » et « ne promet rien ».
 - [ ] **GOAL-078-T03** — L'API les rend, et la page les met en mots avec les
       fonctions du Planning. Aucun calcul dans le gabarit, et surtout pas une
       reconstruction à partir de `/api/planning` : il est figé à l'assemblage,
       l'heure de couture dépend de l'antenne.
+      **Décision prise en attendant l'auteur** (T02) : la période d'un
+      programme s'annonce comme période, comme au Planning ; seule sa musique
+      n'est pas listée.
       **Une question à l'auteur en chemin** : SPECS.md §4.8 dit que pendant un
       programme, rien n'est annoncé. Cela visait sa musique — la **période**
       « Programme · Le vendredi de Chloé 18:00–20:00 » s'annonce-t-elle ?

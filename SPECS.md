@@ -523,10 +523,11 @@ seules plages :
 - elle **nomme l'émission qui va couper** : à 19 h 58, elle annonçait un titre
   pour 20 h alors que l'émission de 20 h allait passer. Après un **direct**,
   dont la fin est déclarée, elle **reprend** à l'heure sûre : le flash de
-  11 h 57 s'y lit entre le titre de 11 h 54 et celui de 12 h 10. Elle
-  **s'arrête**, en revanche, après ce qu'elle ne sait ni nommer ni dater — un
-  podcast ou une chaîne YouTube, dont la durée ne se lit qu'une fois le flux
-  ouvert ; un programme, qui ne s'annonce pas (voir « À suivre » ci-dessus).
+  11 h 57 s'y lit entre le titre de 11 h 54 et celui de 12 h 10. Les **titres**
+  s'arrêtent, en revanche, à ce qu'elle ne sait ni nommer ni dater — un podcast
+  ou une chaîne YouTube, dont la durée ne se lit qu'une fois le flux ouvert ;
+  un programme, qui ne s'annonce pas (voir « À suivre » ci-dessus) — et c'est
+  la couture ci-dessous qui prend le relais.
   Elle ne s'arrête **jamais en silence** : le 2026-09-02, l'auteur n'a vu que
   quatre titres au lieu de huit — la liste jugeait rassis ce qui avait été
   tiré pour l'heure d'après un direct, et se coupait sans rien dire
@@ -535,6 +536,19 @@ seules plages :
   pour l'heure de leur **fin** : la file n'y est pas servie, et un titre tiré
   pour cette heure-là aurait été jeté à la jonction — laissant la file vide au
   moment même de reprendre.
+
+**Depuis le 2026-09-06** (§7 n°34 amendée, GOAL-078), la liste **coud** derrière
+son dernier titre les périodes de la **grille effective**, jusqu'à un horizon de
+trois heures (GOAL-078-T04 le rendra configurable). La période **en cours** y
+figure la première, sans heure de début — c'est sa fin qui compte, « en cours
+→ 21:00 » — puis les suivantes avec la leur. La liste ne s'arrête donc plus net
+après une émission sans fin déclarée : elle nomme ce que la grille annonce
+derrière, sans heure quand la grille elle-même n'en connaît pas. Une période de
+programme s'annonce comme **période**, au même titre qu'une plage ; seule sa
+**musique** reste hors de la liste. Les trous de la grille restent des trous
+(§4.4), et une émission déjà nommée par la liste ne l'est pas deux fois.
+**Rien n'est tiré de plus** : la profondeur de l'avance ne bouge pas, la couture
+lit la grille et ne décide rien.
 
 Un titre de la liste **se retire** (`DELETE /api/up-next/<identifiant>`) : il
 ne passera pas, un autre est tiré à sa place sous le même moment, et le retrait
