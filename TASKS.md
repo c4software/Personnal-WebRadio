@@ -174,14 +174,6 @@ reste REST (décision de l'auteur). **Aucun Goal ouvert.**
 une vraie coupure réseau depuis un téléphone, et le retour d'un écran
 verrouillé au bout de dix minutes.
 
-**GOAL-074 est ouvert le 2026-09-06** : l'auteur a de nouveau entendu, en se
-branchant le matin, un micro-flash de la chanson de la veille avant que la
-radio ne bascule. Le garde-fou de GOAL-055 avait pourtant fonctionné — le
-journal le dit. Ce qu'il ne couvre pas : le temps que met `cross` à
-transitionner. Relevé en maquette à **160 ms** (docs/liquidsoap.md §10),
-mesuré à **7 s** en production le 2026-09-06 ; pendant ces 7 s l'antenne est
-déjà rendue et sert le reliquat de la veille.
-
 **GOAL-074 est clos le 2026-09-06** : le micro-flash de la chanson de la
 veille, entendu à la reconnexion du matin. Le garde-fou de GOAL-055 avait
 pourtant fonctionné — il ne couvrait que le cas où l'API répond vite. La
@@ -198,8 +190,6 @@ plage podcasts), **GOAL-078** (la couture de la grille — après GOAL-077, qui
 lui donne le bon jeu de périodes).
 
 **Prochaine tâche** : GOAL-075-T01.
-
----
 
 ---
 
@@ -225,11 +215,12 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
       s'exécute déjà avant que l'antenne ne soit rendue, mais dans la requête
       que le diffuseur attend — réchauffer là déplacerait l'attente sans la
       supprimer.
-- [ ] **GOAL-075-T03** — Ce que le diffuseur fait d'une API lente. Deux
-      échecs de suite le font couper (SPECS.md §5.1), et un tirage de reprise
-      légitime a dépassé `api_timeout`. Décider si ce délai doit distinguer
-      « lente » de « morte », ou si T01 suffit à ce que la question ne se pose
-      plus.
+- [ ] **GOAL-075-T03** — Mesurer, une fois T01 et T02 faites, ce que met le
+      premier tirage d'une reprise, et le comparer aux 10 s d'`api_timeout`.
+      S'il reste au-dessus, le diffuseur continuera de couper une API
+      seulement lente (SPECS.md §5.1) : la tâche ouvre alors une décision —
+      « lente » et « morte » doivent-elles se distinguer ? — plutôt que de
+      relever le délai en silence.
 
 ---
 
@@ -341,6 +332,24 @@ l'avance ne bouge pas.
 
 ---
 
+## GOAL-079 — `radio.liq` reçoit la réécriture du ton que les autres ont eue
+
+Ouvert le 2026-09-06, sur revue. `ea20e20` a réécrit les commentaires du dépôt
+« en prose ordinaire » (AGENTS.md §9 : ni récit, ni citation, ni date, ni
+anecdote) — et **n'a touché aucun fichier `.liq`**. Le script porte donc encore
+des dates dans ses commentaires, des majuscules d'insistance et des citations
+d'arbitrage, et tout ce qu'on y ajoute depuis suit cette convention-là par
+mimétisme. §9 dit que cela « ne doit pas revenir ».
+
+- [ ] **GOAL-079-T01** — Réécrire les commentaires de
+      `webradio/adapters/liquidsoap/radio.liq` au ton d'AGENTS.md §9, dans un
+      commit `style` à part. Chaque commentaire garde son **pourquoi** et perd
+      sa date, son anecdote et ses majuscules ; ce que le relevé établit s'y
+      renvoie au lieu de s'y recopier. Aucun changement de comportement : la
+      vérification doit passer sans qu'un seul test change.
+
+---
+
 ## Vue d'ensemble
 
 | Goal | Titre | État |
@@ -423,6 +432,7 @@ l'avance ne bouge pas.
 | GOAL-076 | Le thème d'une plage « au hasard » ne se retire plus tout seul | `[ ]` — ouvert le 2026-09-06, sur analyse, sans constat à l'antenne |
 | GOAL-077 | Une plage « podcasts » : plusieurs flux, tirés au hasard | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°35) |
 | GOAL-078 | La liste des prochains titres coud la grille derrière elle | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°34 amendée) |
+| GOAL-079 | `radio.liq` reçoit la réécriture du ton que les autres ont eue | `[ ]` — ouvert le 2026-09-06, sur revue : le fichier a échappé à `ea20e20` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

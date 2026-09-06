@@ -2364,8 +2364,9 @@ matin n'en produit.
       transition de `cross`, quand l'entrée fraîche tarde. docs/liquidsoap.md
       §11. Trois constats : le délai de la transition ne dépend que de la
       latence de l'entrée fraîche ; pendant l'attente le tampon `before` part
-      **à l'antenne** — 2,00 s du ton d'avant la pause, jusqu'à −16,7 dB, soit
-      ~87 % du volume — puis l'antenne retombe sur `blank()` ; et
+      **à l'antenne** — 2,00 s du ton d'avant la pause, jusqu'à −16,7 dB,
+      c'est-à-dire le plein volume de ce ton — puis l'antenne retombe sur
+      `blank()` ; et
       `output.harbor` ne sert **aucune** rafale d'octets déjà encodés, ce qui
       était l'autre hypothèse. Le garde-fou de §10 est donc nécessaire mais
       pas suffisant : une transition s'exécute trop tard, seul le gain
@@ -2373,8 +2374,10 @@ matin n'en produit.
 - [x] **GOAL-074-T02** — L'antenne reste muette du saut à antenne vide
       jusqu'à l'entrée du morceau frais, et le morceau frais entre sous la
       rampe de prise d'antenne. Le témoin `reliquat_a_taire` existe déjà et
-      dit exactement cela ; `prise_direct` doit le lever, sinon un direct pris
-      entre le saut et la transition resterait silencieux toute la case.
+      dit exactement cela. Le muet **ignore** un direct à l'antenne — il ne
+      lève pas le témoin, il ne s'y applique pas — sinon un direct pris entre
+      le saut et la transition resterait silencieux toute sa case, puisque
+      rien ne lève le muet tant que `programme` ne reprend pas l'antenne.
       SPECS.md §4.7 et §7 n°30 disent le comportement obtenu.
       Mesuré sur la maquette de §11, API retardée de 4 s : le ton d'avant la
       pause passe de −16,7 dB à **−99 dB** (silence absolu), et le morceau
@@ -2431,6 +2434,15 @@ la lenteur du premier tirage est mesurée — elle ouvre GOAL-075.
 reprise du matin après une nuit sans auditeur — que rien de la veille ne
 s'entende, que le silence d'attente n'inquiète pas, et que le morceau frais
 entre en fondu.
+
+**Incident de méthode, consigné plutôt qu'amendé.** Le commit `c584900`
+(`Réf: GOAL-074-T04`, le fuseau de l'hôte) porte aussi la mesure de T03 —
+`thread.run` ne sérialise pas, la 2.3.3 n'a pas de verrou — ajoutée au relevé
+« au passage ». C'est deux tâches dans un commit, ce qu'AGENTS.md §1 et §7
+interdisent : la granularité est le commit, et le `Réf:` ment sur un tiers du
+contenu. Rien n'était encore poussé, donc c'était réparable par découpage ;
+consigné ici plutôt que réécrit, suivant le précédent d'AGENTS.md §7 — une
+faute de commit se consigne, elle ne s'efface pas.
 
 Le correctif n'atteint l'antenne qu'après un `git push`, une image CI et un
 `docker compose pull` sur `frontal` : trois actions sortantes, à l'auteur

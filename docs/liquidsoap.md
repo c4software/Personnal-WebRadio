@@ -1,5 +1,4 @@
 # docs/liquidsoap.md — Relevé de Liquidsoap, et ce qui a décidé la migration
-
 > **Relevé établi le 2026-08-30**, contre `savonet/liquidsoap:v2.3.3` (Docker),
 > avec deux MP3 hétérogènes (44100/2/192k et 48000/1/128k) et `curl`. Rien
 > n'est installé sur la machine hôte : `pacman` ne connaît pas le paquet.
@@ -377,10 +376,25 @@ production porte bien « saut à antenne vide : le reliquat est jeté ». Ce que
 | Question | Constat |
 |---|---|
 | Qu'est-ce qui décide du délai de la transition de `cross` ? | **La latence de l'entrée fraîche, et elle seule.** La transition ne peut pas s'exécuter avant que `b` ait `duration` en tampon ; `b` n'existe qu'une fois `/next` répondu et le fichier résolu. Deux manches, même script, même scénario : `/next` instantané → `Analysis … (1.96s / 2.00s)`, transition dans la seconde ; `/next` retardé de 4 s → `Analysis … (0.00s / 2.00s)`, transition 4 s après le saut. La maquette de §10 répondait sur-le-champ : elle ne pouvait mesurer que le premier régime |
-| Où passe le tampon `before` pendant cette attente ? | **À l'antenne.** C'est ce que dit le `0.00s` : la transition ne trouve plus rien à jeter parce que la sortie a tout consommé. Mesuré dans le flux reçu : **2,00 s du ton `a`** — celui d'avant la pause — de 0,25 s à 2,25 s, sous la rampe de prise d'antenne, de −32,9 à **−16,7 dB**, soit ~87 % du volume à la fin. Le garde-fou de §10 s'exécute ensuite, sur un tampon vide : il ne protège que le régime rapide |
+| Où passe le tampon `before` pendant cette attente ? | **À l'antenne.** C'est ce que dit le `0.00s` : la transition ne trouve plus rien à jeter parce que la sortie a tout consommé. Mesuré dans le flux reçu : **2,00 s du ton `a`** — celui d'avant la pause — de 0,25 s à 2,25 s, sous la rampe de prise d'antenne, de −32,9 à **−16,7 dB**. Ce dernier chiffre est le niveau du **même ton à plein gain**, mesuré séparément dans la manche « rafale » (plateau à −16,7 dB) : la rampe de 2 s est finie quand le reliquat l'est, il sort donc **à plein volume** sur sa dernière fenêtre. Le garde-fou de §10 s'exécute ensuite, sur un tampon vide : il ne protège que le régime rapide |
 | Que se passe-t-il une fois le tampon vidé ? | **L'antenne retombe sur `blank()`**, avec l'auditeur toujours branché : `programme` n'est plus prêt, le `switch` des auditeurs prend son second enfant. Mesuré : 2 s de silence absolu (−99 dB) entre le reliquat et le morceau frais. C'est la même ligne `Switch to blank with transition` vue en production le 2026-09-05 à 14:31:52, dix-neuf secondes avant que l'auditeur ne parte |
 | Le morceau frais entre-t-il en fondu ? | **Au hasard du calendrier.** `antenne_prise` est armé quand le `switch` rend l'antenne, pas quand le morceau frais entre. En maquette le repli sur `blank` a réarmé la rampe 2 s avant l'entrée du frais, qui a donc fondu (−44 → −19 dB). En production le 2026-09-06, l'antenne a été reprise à 07:28:25 et le frais est entré à 07:28:28 : la rampe de 2 s était épuisée, il est entré **à plein gain**. Le point incertain de §10 se règle donc dans le mauvais sens, et il n'est pas déterministe |
 | `output.harbor` sert-il une rafale d'octets déjà encodés à un auditeur qui se branche ? | **Non**, aux réglages de `radio.liq`. Protocole : A écoute le ton `a` à −16,7 dB, se débranche, l'antenne encode 1 s de silence, B se branche. Le flux de B commence sur le ton frais sous sa rampe, **sans aucune trace de `a`**. Un auditeur qui se rebranche n'hérite donc de rien : tout ce qu'il entend a été encodé pour lui. Le mot `burst` n'apparaît dans aucun réglage du script |
+
+### Le correctif, mesuré sur la même maquette
+
+Le témoin de §10 porte désormais aussi sur le gain (`gain_antenne`), et la
+branche « reliquat » de la transition réarme la rampe.
+
+| Manche | Avant | Après |
+|---|---|---|
+| `/next` retardé de 4 s | ton `a` de −32,9 à −16,7 dB pendant 2,00 s, puis 2 s de silence, puis `c` | **silence à −99 dB** pendant 4,25 s, puis `c` de −45 à −19 dB |
+| `/next` instantané | ton `c` dès 0,50 s, sous la rampe | **inchangé** : ton `c` dès 0,50 s, sous la rampe |
+| Un direct pris pendant l'intervalle | — | le direct s'entend, plateau à −24,6 dB : le muet ne le touche pas |
+
+Le morceau frais entre désormais **sous une rampe** dans les deux régimes, ce
+qui referme le point incertain de §10 : sans le réarmement, l'attente épuisait
+la rampe et il entrait à froid.
 
 ### Ce que cela change
 
@@ -393,7 +407,16 @@ production porte bien « saut à antenne vide : le reliquat est jeté ». Ce que
   donc de la bibliothèque, du réseau, de la charge. Ce qui s'est bien passé le
   2026-09-02 était une API rapide, pas une correction complète.
 - Un auditeur ne reçoit que ce qui est encodé pendant qu'il écoute : couper le
-  son à la source suffit, il n'y a pas de tampon à purger derrière.
+  son à la source suffit, il n'y a pas de tampon à purger derrière. Mesuré à
+  **une seconde** d'écart entre le départ de l'un et l'arrivée de l'autre ; un
+  rebranchement dans la même seconde n'a pas été essayé.
+- **Le muet doit épargner un direct, et cela se déduit** de §9 et §10 plutôt
+  que de se mesurer : §10 dit que le `on_track` du morceau frais — celui qui
+  arme le direct — tombe **avant** la transition de `cross` ; §9 dit que le
+  direct prend l'antenne ~1 s après cet armement. En régime lent, où la
+  transition attend plusieurs secondes, le direct gagne donc la course, et
+  sans garde-fou sa case entière serait muette. La maquette n'a mesuré que le
+  régime rapide, où la transition arrive en 160 ms et où le direct la perd.
 
 | `thread.run` sérialise-t-il les tâches qu'on lui donne ? | **Non.** Deux annonces lancées à 2 s d'écart, la première répondant en 6 s et la seconde tout de suite : côté API, « second » est reçu et répondu à 7,669 s, « premier » ne l'est qu'à 11,669 s. La seconde **double** la première. Passer `on_track` en asynchrone tel quel inverserait donc l'antenne — un jingle de 5 s suivi d'un morceau, avec une API lente, laisserait le jingle affiché sur la musique |
 | Un verrou pour les sérialiser ? | **Il n'y en a pas.** `liquidsoap --list-functions` de la 2.3.3 ne donne que `thread.run`, `thread.run.recurrent`, `thread.delay`, `thread.on_error`, `thread.pause`, `thread.when`. Aucun mutex, aucune file. `thread.run.recurrent` est le seul fil garanti unique — mais la file qu'il consommerait serait écrite sans protection par le fil de diffusion |
@@ -401,10 +424,14 @@ production porte bien « saut à antenne vide : le reliquat est jeté ». Ce que
 
 ### Points incertains
 
-- [ ] **Pourquoi `/playout/next` met-il 4 s, et parfois davantage.** Constaté en
-      production : 4 s le 2026-09-06, **28 s** le 2026-09-05 — au-delà
-      d'`api_timeout`, ce qui a fait couper le diffuseur. La maquette impose le
-      retard, elle ne l'explique pas. C'est GOAL-074-T05.
+- [x] ~~**Pourquoi `/playout/next` met-il 4 s, et parfois davantage.**~~
+      **Répondu par GOAL-074-T05, et la cause est chez nous** : `next_entry`
+      remplit toute l'avance dans la requête, soit `draw.lookahead + 1`
+      tirages — neuf en production — contre un cache de bibliothèque expiré
+      après une longue pause. Le remède est GOAL-075. Mesures : 4 s le
+      2026-09-06 (purge à 07:28:21, réponse à 07:28:25) ; le 2026-09-05, le
+      diffuseur a abandonné deux fois à `api_timeout` (10 s) avant de couper —
+      on sait donc que c'était **plus de 10 s**, pas combien.
 - [ ] **Ce que le 523 du premier appel fait perdre en production.** Si la
       règle vaut hors maquette, la première annonce d'un processus neuf est
       perdue : après un redémarrage du diffuseur, l'antenne pourrait rester

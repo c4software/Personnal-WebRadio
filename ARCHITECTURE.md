@@ -177,7 +177,11 @@ reliquat du morceau interrompu (`/skip`, **toujours ordonné** : c'est le script
 qui refuse un saut à vide, seul à savoir s'il tient une piste) et
 fait oublier au programme l'habillage en attente : tirage neuf (SPECS.md §4.7,
 §7 n°30). Le script annonce l'auditeur **avant** de rendre l'antenne, ce qui
-rend cette purge sans course.
+rend cette purge sans course. Couper le reliquat ne suffit pourtant pas : le
+script ne peut le jeter qu'au moment où il enchaîne, donc une fois le tirage
+neuf revenu. Il **tait** donc son antenne jusque-là — c'est le seul geste qui
+agisse plus tôt que sa propre transition (docs/liquidsoap.md §11). La durée de
+ce silence est celle de ce tirage, et c'est ce qui rend sa lenteur audible.
 
 **Et elle est datée** (SPECS.md §7 n°33). La charnière retient, avec chaque
 entrée demandée, le moment qui l'a tirée et l'instant de la décision ; la file

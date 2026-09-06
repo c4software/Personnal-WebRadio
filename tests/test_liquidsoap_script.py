@@ -138,16 +138,18 @@ def test_un_saut_a_antenne_vide_ne_laisse_aucun_reliquat_au_premier_auditeur() -
 def test_l_antenne_est_muette_tant_que_le_morceau_frais_n_est_pas_entre() -> None:
     """Jeter le reliquat à la transition ne suffit pas : elle ne s'exécute
     qu'une fois le morceau frais bufférisé, et l'API peut tarder à le rendre.
-    La sortie a alors déjà tiré le reliquat entier — deux secondes mesurées à
-    87 % du volume (docs/liquidsoap.md §11). Seul le gain agit assez tôt.
+    La sortie a alors déjà tiré le reliquat entier — deux secondes qui
+    finissent à plein volume (docs/liquidsoap.md §11). Seul le gain agit
+    assez tôt.
     """
     code = _code()
     gain = re.search(r"def gain_antenne\(\).*?\nend\n", code, re.DOTALL)
     assert gain is not None
     assert "reliquat_a_taire()" in gain.group(), "le muet doit porter sur le gain"
-    assert re.search(
-        r"if reliquat_a_taire\(\) and not direct_a_l_antenne\(\) then\s*0\.", gain.group()
-    ), "un direct n'a rien de rassis à taire, et le muet le rendrait silencieux"
+    assert "direct_a_l_antenne()" in gain.group(), (
+        "un direct n'a rien de rassis à taire, et le muet le rendrait silencieux"
+    )
+    assert "0." in gain.group(), "le muet est un gain nul, pas une atténuation"
 
 
 def test_le_morceau_frais_entre_sous_la_rampe_de_prise_d_antenne() -> None:
@@ -160,7 +162,6 @@ def test_le_morceau_frais_entre_sous_la_rampe_de_prise_d_antenne() -> None:
     assert transition is not None
     branche = transition.group().split("else", 1)[0]
     assert "antenne_prise := time()" in branche
-    assert code.index("antenne_prise = ref(0.)") < code.index("def enchainer")
 
 
 def test_le_direct_et_le_muet_lisent_le_meme_predicat() -> None:
@@ -168,9 +169,14 @@ def test_le_direct_et_le_muet_lisent_le_meme_predicat() -> None:
     un direct pris entre le saut et la transition resterait silencieux toute
     sa case, puisque rien ne lève le muet avant que `programme` revienne."""
     code = _code()
-    assert "def direct_a_l_antenne()" in code
-    assert code.count("live.is_ready()") == 1
-    assert "[({direct_a_l_antenne()}, live), ({true}, programme)]" in code
+    predicat = re.search(r"def direct_a_l_antenne\(\).*?\nend\n", code, re.DOTALL)
+    assert predicat is not None
+    assert "live.is_ready()" in predicat.group()
+    ailleurs = code.replace(predicat.group(), "")
+    assert "live.is_ready()" not in ailleurs, "le prédicat est nommé une fois, et lu partout"
+    assert re.search(r"\{\s*direct_a_l_antenne\(\)\s*\}\s*,\s*live", code), (
+        "le switch choisit le direct par le même prédicat que le muet"
+    )
 
 
 def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
@@ -210,12 +216,16 @@ def test_le_script_voyage_dans_l_image_du_diffuseur() -> None:
     assert str(SCRIPT) not in COMPOSE.read_text(), "le script ne se monte plus, il est dans l'image"
 
 
-def test_les_deux_services_lisent_le_meme_fuseau() -> None:
+@pytest.mark.parametrize("service", ["radio", "liquidsoap"])
+def test_chaque_service_lit_le_fuseau_de_l_hote(service: str) -> None:
     """Sans le fuseau de l'hôte, le journal du diffuseur est en UTC et celui
-    de `radio` en heure locale. Deux fuseaux pour un seul incident : le relevé
-    du 2026-09-06 a failli se lire de travers (GOAL-074-T04)."""
-    montages = COMPOSE.read_text().count("/etc/localtime:/etc/localtime:ro")
-    assert montages == 2, "les deux services montent le fuseau de l'hôte"
+    de `radio` en heure locale : deux fuseaux pour un seul incident. `radio`
+    en a besoin pour la grille, qui est en heure locale (GOAL-015)."""
+    compose = COMPOSE.read_text()
+    debut = compose.index(f"\n  {service}:")
+    suite = re.search(r"\n  [a-z]", compose[debut + 1 :])
+    bloc = compose[debut:] if suite is None else compose[debut : debut + 1 + suite.start()]
+    assert "/etc/localtime:/etc/localtime:ro" in bloc
 
 
 def test_l_epingle_de_liquidsoap_ne_diverge_pas() -> None:

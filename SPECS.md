@@ -402,7 +402,10 @@ L'antenne reste donc muette du retour jusqu'à l'entrée du morceau frais, qui
 entre en fondu ; ce que l'auditeur perd est une attente, ce qu'il gagne est de
 ne plus entendre une chanson qui n'a plus lieu d'être (micro-flash entendu le
 2026-09-06 au matin, docs/liquidsoap.md §11). Un direct qui prendrait l'antenne
-dans cet intervalle s'entend normalement : il n'a rien de rassis.
+dans cet intervalle s'entend normalement : il n'a rien de rassis. Mais le
+silence l'attend de l'autre côté — quand il rend l'antenne, la radio reste
+muette jusqu'à son premier morceau frais, puisque c'est l'entrée de ce
+morceau, et elle seule, qui lève le muet.
 Seul un « encore » voté avant la pause survit : c'est une demande explicite
 (§4.6). En deçà du seuil, rien ne change : la reprise se fait sur l'avance,
 telle quelle. C'est cohérent avec « ce qui est passé est perdu » (§2).
@@ -1416,7 +1419,7 @@ voté avant la pause survit.
 > peut le jeter qu'au moment où il enchaîne, donc une fois le morceau frais
 > prêt. Quand l'API tarde à le rendre, il n'a plus rien à jeter — il l'a déjà
 > servi. Le retour est donc **muet** jusqu'au morceau frais, qui entre en
-> fondu. Mesuré : deux secondes de la veille à 87 % du volume sans cela
+> fondu. Mesuré : deux secondes de la veille, à plein volume sur la fin,
 > (docs/liquidsoap.md §11).
 
 **n°31 — Des tirages qui s'enchaînent ? Trois modes, portés par la plage.**

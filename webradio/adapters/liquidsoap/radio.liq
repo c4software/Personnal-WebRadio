@@ -202,14 +202,13 @@ listeners = ref(0)
 #
 # Il tait AUSSI l'antenne jusque-là. La transition ne s'exécute qu'une fois le
 # morceau frais bufférisé : quand l'API tarde à le rendre, la sortie a déjà
-# tiré le reliquat entier et il ne reste rien à jeter. Mesuré le 2026-09-06
-# (docs/liquidsoap.md §11) : deux secondes de la veille jusqu'à 87 % du
-# volume, et le même matin à l'antenne.
+# tiré le reliquat entier et il ne reste rien à jeter (docs/liquidsoap.md
+# §11).
 reliquat_a_taire = ref(false)
 
-# La rampe de prise d'antenne (GOAL-050) est armée ici, avec le reste de son
-# mécanisme plus bas : c'est la transition de `cross` qui la réarme à l'entrée
-# du morceau frais, et elle est définie avant.
+# La rampe de prise d'antenne (GOAL-050) se déclare ici, loin du reste de son
+# mécanisme : la transition de `cross` la réarme à l'entrée du morceau frais,
+# et elle est définie plus haut que lui.
 antenne_prise = ref(0.)
 
 def sauter() =
