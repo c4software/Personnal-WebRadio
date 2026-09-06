@@ -27,6 +27,8 @@ from urllib.parse import urlsplit
 from urllib.request import urlopen
 from xml.etree import ElementTree
 
+from webradio.core.clock import Clock
+
 logger = logging.getLogger(__name__)
 
 ITUNES = "http://www.itunes.com/dtds/podcast-1.0.dtd"
@@ -146,8 +148,13 @@ def _texte(item: ElementTree.Element, path: str) -> str | None:
 class PodcastFeed:
     """Rend les épisodes diffusables d'un flux, du plus récent au plus ancien."""
 
-    def __init__(self, reader: HttpReader) -> None:
+    def __init__(
+        self, reader: HttpReader, clock: Clock | None = None, cache: timedelta | None = None
+    ) -> None:
         self._lecteur = reader
+        self._horloge = clock
+        self._duree_cache = cache
+        self._cache: dict[str, tuple[datetime, list[Episode]]] = {}
 
     def episodes(self, url: str) -> list[Episode]:
         """Les épisodes `full` du flux, du plus récent au plus ancien.
@@ -155,10 +162,25 @@ class PodcastFeed:
         Un flux sans épisode diffusable rend une liste vide : l'émission n'a
         pas lieu (SPECS.md §4.11). Un flux injoignable ou illisible lève
         `PodcastUnavailable`.
+
+        Le flux est relu à chaque jonction de la case, et une plage en a
+        plusieurs : les six de l'auteur pèsent 21,5 Mo et ~1,9 s, dans la
+        requête que le diffuseur attend (docs/podcast.md §4.bis). D'où ce cache,
+        une entrée par adresse. Seule une lecture réussie y entre — une panne se
+        propage telle quelle (SPECS.md §5) — et un épisode publié n'apparaît
+        qu'à l'expiration, ce qui est sans conséquence : la case ne se rouvre
+        pas plus vite.
         """
+        maintenant = None if self._horloge is None else self._horloge.now()
+        if maintenant is not None and self._duree_cache is not None:
+            connu = self._cache.get(url)
+            if connu is not None and maintenant - connu[0] < self._duree_cache:
+                return list(connu[1])
         root = self._analyser(self._lecteur.read(url), url)
         episodes = sorted(self._extraire(root, url), key=lambda e: e.published_at, reverse=True)
         logger.debug("flux %s : %d épisode(s) diffusable(s)", url, len(episodes))
+        if maintenant is not None and self._duree_cache is not None:
+            self._cache[url] = (maintenant, episodes)
         return episodes
 
     def _analyser(self, content: bytes, url: str) -> ElementTree.Element:

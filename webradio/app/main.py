@@ -460,7 +460,11 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         shows=Shows(
             cases_declarees,
             PodcastFeed(
-                UrllibReader(lock_timeout=timedelta(seconds=settings.podcast.timeout_seconds))
+                UrllibReader(lock_timeout=timedelta(seconds=settings.podcast.timeout_seconds)),
+                clock,
+                timedelta(seconds=settings.podcast.cache_seconds)
+                if settings.podcast.cache_seconds > 0
+                else None,
             ),
             state,
             clock,

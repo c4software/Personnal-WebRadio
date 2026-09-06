@@ -74,6 +74,10 @@ DEFAULT_JINGLE_EXPIRY_SECONDS = 900.0
 # Pause sans auditeur au-delà de laquelle le retour jette l'avance et repart
 # sur un tirage neuf (SPECS.md §7 n°30). 0 = jamais.
 DEFAULT_RESUME_FRESH_SECONDS = 900.0
+# Durée de mise en cache d'un flux de podcast lu. Les six flux d'une plage
+# pèsent 21,5 Mo, relus à chaque jonction sans cela (docs/podcast.md §4.bis).
+# 0 = relire à chaque fois.
+DEFAULT_PODCAST_CACHE_SECONDS = 900.0
 
 MAX_PORT = 65535
 
@@ -208,13 +212,19 @@ class YoutubeSettings:
 
 @dataclass(frozen=True, slots=True)
 class PodcastSettings:
-    """Le délai au-delà duquel un flux de podcast est réputé injoignable.
+    """Le délai au-delà duquel un flux de podcast est réputé injoignable, et la
+    durée de mise en cache d'un flux lu.
 
-    Il reste court : une émission qui ne répond pas est perdue et la musique
-    continue (SPECS.md §4.11).
+    Le délai reste court : une émission qui ne répond pas est perdue et la
+    musique continue (SPECS.md §4.11).
+
+    `cache_seconds` évite de relire les mêmes flux à chaque jonction d'une
+    plage — les six flux relevés pèsent 21,5 Mo (docs/podcast.md §4.bis). `0`
+    relit à chaque fois.
     """
 
     timeout_seconds: float
+    cache_seconds: float = DEFAULT_PODCAST_CACHE_SECONDS
 
 
 @dataclass(frozen=True, slots=True)
@@ -800,7 +810,7 @@ def validate(brut: Mapping[str, Any]) -> Settings:
     web = _table_optionnelle(brut, "web", "")
     _verifier_cles(web, ("address", "port", "refresh_seconds", "stream_url"), "web")
     podcast = _table_optionnelle(brut, "podcast", "")
-    _verifier_cles(podcast, ("timeout_seconds",), "podcast")
+    _verifier_cles(podcast, ("timeout_seconds", "cache_seconds"), "podcast")
     playout = _table_optionnelle(brut, "playout", "")
     _verifier_cles(playout, ("resume_fresh_seconds",), "playout")
     return Settings(
@@ -843,6 +853,9 @@ def validate(brut: Mapping[str, Any]) -> Settings:
         podcast=PodcastSettings(
             timeout_seconds=_reel(
                 podcast, "timeout_seconds", "podcast", default=DEFAULT_PODCAST_TIMEOUT
+            ),
+            cache_seconds=_reel(
+                podcast, "cache_seconds", "podcast", default=DEFAULT_PODCAST_CACHE_SECONDS
             ),
         ),
         playout=PlayoutSettings(

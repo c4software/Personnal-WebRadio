@@ -917,6 +917,11 @@ finit (§7 n°5) : une plage déborde donc d'autant plus que ses flux sont longs
 rien — et une émission dont l'heure tombe **pendant** une plage du même jour
 fait échouer le démarrage, comme deux émissions à la même heure.
 
+Un flux lu est gardé `podcast.cache_seconds` (900 s par défaut, `0` = jamais) :
+une plage relit tous ses flux à chaque jonction, et six d'entre eux pèsent
+21,5 Mo (docs/podcast.md §4.bis). Un épisode publié n'apparaît qu'à
+l'expiration, ce qui est sans conséquence — la case ne se rouvre pas plus vite.
+
 `jours` vaut `"tous"` ou une liste de jours de la semaine ; `heure` est un moment
 de la journée. **Rien de plus.** Ce choix est délibéré : des champs déclaratifs
 n'exigent aucun analyseur syntaxique, se testent directement, et couvrent les

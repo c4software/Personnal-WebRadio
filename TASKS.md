@@ -296,7 +296,7 @@ neuf, on joue son épisode, on recommence ; à `end`, l'épisode en cours **fini
       **À écouter** (AGENTS.md §4.1) : la jonction d'entrée, l'enchaînement de
       deux épisodes d'éditeurs différents — les niveaux ne se ressemblent
       pas — et le débordement à `end`.
-- [ ] **GOAL-077-T06** — Un cache de flux, comme celui de la bibliothèque.
+- [x] **GOAL-077-T06** — Un cache de flux, comme celui de la bibliothèque.
       Mesuré par T01 : 21,5 Mo et ~1,9 s pour les six flux de l'auteur, à
       chaque jonction de la case, dans la requête que le diffuseur attend. Sa
       durée vient du TOML avec son défaut déclaré, comme

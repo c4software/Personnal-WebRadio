@@ -15,8 +15,10 @@ from webradio.adapters.podcast import (
     PodcastUnavailable,
     UrllibReader,
 )
+from webradio.core.clock import FrozenClock
 
 URL = "https://feeds.acast.com/public/shows/a-la-french"
+UNE_HEURE = timedelta(hours=1)
 
 ENTETE = (
     '<?xml version="1.0" encoding="UTF-8"?>'
@@ -204,3 +206,70 @@ def test_un_schema_d_url_refuse_ne_part_pas_sur_le_reseau() -> None:
 def test_un_delai_d_attente_nul_est_refuse() -> None:
     with pytest.raises(ValueError, match="délai d'attente"):
         UrllibReader(lock_timeout=timedelta(0))
+
+
+# ── Le cache d'un flux lu (GOAL-077-T06) ────────────────────────────────────
+
+
+def test_un_flux_relu_dans_la_duree_du_cache_n_est_pas_redemande() -> None:
+    """Une plage relit ses flux à chaque jonction : les six de l'auteur pèsent
+    21,5 Mo (docs/podcast.md §4.bis), dans la requête que le diffuseur attend.
+    """
+    lecteur = FakeReader(feed(item()))
+    horloge = FrozenClock(datetime(2026, 9, 5, 20, tzinfo=UTC))
+    flux = PodcastFeed(lecteur, horloge, timedelta(minutes=15))
+
+    premier = flux.episodes(URL)
+    horloge.advance(timedelta(minutes=14))
+    second = flux.episodes(URL)
+
+    assert lecteur.appels == [URL], "un seul aller au réseau"
+    assert premier == second
+
+
+def test_le_cache_expire_et_le_flux_est_relu() -> None:
+    lecteur = FakeReader(feed(item()))
+    horloge = FrozenClock(datetime(2026, 9, 5, 20, tzinfo=UTC))
+    flux = PodcastFeed(lecteur, horloge, timedelta(minutes=15))
+
+    flux.episodes(URL)
+    horloge.advance(timedelta(minutes=16))
+    flux.episodes(URL)
+
+    assert lecteur.appels == [URL, URL]
+
+
+def test_deux_flux_ont_chacun_leur_entree_de_cache() -> None:
+    """Une plage en a plusieurs : une seule entrée les mélangerait."""
+    lecteur = FakeReader(feed(item()))
+    flux = PodcastFeed(lecteur, FrozenClock(datetime(2026, 9, 5, 20, tzinfo=UTC)), UNE_HEURE)
+
+    flux.episodes(URL)
+    flux.episodes("https://autre.test/rss")
+    flux.episodes(URL)
+
+    assert lecteur.appels == [URL, "https://autre.test/rss"]
+
+
+def test_une_lecture_en_echec_n_entre_pas_au_cache() -> None:
+    """Une panne se propage telle quelle et se retente (SPECS.md §5)."""
+    lecteur = FakeReader(failure="injoignable")
+    flux = PodcastFeed(lecteur, FrozenClock(datetime(2026, 9, 5, 20, tzinfo=UTC)), UNE_HEURE)
+
+    for _ in range(2):
+        with pytest.raises(PodcastUnavailable):
+            flux.episodes(URL)
+
+    assert lecteur.appels == [URL, URL]
+
+
+def test_sans_horloge_ni_duree_le_flux_est_relu_a_chaque_fois() -> None:
+    """Le défaut ne met rien en cache : tous les tests d'avant valent tels
+    quels, et une configuration à `0` retrouve ce comportement."""
+    lecteur = FakeReader(feed(item()))
+    flux = PodcastFeed(lecteur)
+
+    flux.episodes(URL)
+    flux.episodes(URL)
+
+    assert lecteur.appels == [URL, URL]
