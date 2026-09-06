@@ -405,12 +405,17 @@ Deux bloquants, douze corrections bornées, et une décision de l'auteur
       de `test_jingles.py` qui appelait `during_show=True` pendant l'émission
       testait une séquence qui n'existe pas : il est réécrit, et la vraie
       séquence est couverte au niveau de `RadioProgramme`.
-- [ ] **GOAL-083-T04** — Un épisode s'inscrit comme diffusé quand Liquidsoap
+- [x] **GOAL-083-T04** — Un épisode s'inscrit comme diffusé quand Liquidsoap
       dit l'avoir commencé, pas quand il le demande. L'entrée rendue par
       `/playout/next` n'est que l'avance ; la reprise à neuf, « Autre thème »
       et la fin d'un direct la jettent sans la rejouer, et l'épisode
       hebdomadaire ne passait plus jamais, même dans sa fenêtre de rattrapage.
       Vaut pour les podcasts, YouTube et la case rendue d'un direct.
+      `Shows` retient ce qu'il a rendu sans l'avoir inscrit et le tait à la
+      demande suivante ; `started()` inscrit à la prise d'antenne, `dropped()`
+      oublie ce qui a été jeté. La chaîne date ses demandes (`Pending.rank`) :
+      une entrée décidée **après** l'émission qui commence à sa place dit
+      qu'elle a été jetée, une décidée avant n'est que le morceau d'avance.
 - [ ] **GOAL-083-T05** — Le registre du diffuseur ne ment plus après un
       direct ni sur un battement : l'avance que le script jette à la fin d'un
       direct était annoncée puis resservie ; et un battement traité avant

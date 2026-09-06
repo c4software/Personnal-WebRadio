@@ -92,7 +92,9 @@ def test_un_episode_deja_diffuse_fait_sauter_la_case(
     redescend pas à l'avant-dernier épisode."""
     feed = FakeFeed([_episode("ep1")])
     shows, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
-    assert shows.due() is not None
+    due = shows.due()
+    assert due is not None
+    shows.started(due[1])
     with caplog.at_level(logging.INFO):
         assert shows.due() is None
     assert "rien de neuf" in caplog.text
@@ -101,11 +103,99 @@ def test_un_episode_deja_diffuse_fait_sauter_la_case(
 def test_un_episode_neuf_rouvre_la_case(tmp_path: Path) -> None:
     feed = FakeFeed([_episode("ep1")])
     shows, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
-    shows.due()
+    premier = shows.due()
+    assert premier is not None
+    shows.started(premier[1])
     feed._episodes = [_episode("ep2"), _episode("ep1", days=7)]
     due = shows.due()
     assert due is not None
     assert due[1].endswith("ep2.mp3")
+
+
+def test_un_episode_jete_avant_l_antenne_reste_a_diffuser(tmp_path: Path) -> None:
+    """L'entrée rendue n'est que l'avance du diffuseur : une purge peut la jeter
+    sans l'avoir jouée. Inscrite à la demande, l'émission hebdomadaire était
+    perdue jusqu'à l'épisode suivant (SPECS.md §4.11.1)."""
+    feed = FakeFeed([_episode("ep1")])
+    shows, state = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    due = shows.due()
+    assert due is not None
+
+    shows.dropped()
+
+    encore = shows.due()
+    assert encore is not None and encore[1] == due[1]
+    assert state.last_airing("A la French") is None, "rien n'a passé, rien n'est retenu"
+
+
+def test_un_episode_demande_n_est_pas_rendu_deux_fois_avant_de_commencer(
+    tmp_path: Path,
+) -> None:
+    """Le diffuseur peut redemander avant de jouer ce qu'il a demandé
+    (docs/liquidsoap.md §3) : le rendre deux fois le ferait passer deux fois."""
+    feed = FakeFeed([_episode("ep1")])
+    shows, _ = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    assert shows.due() is not None
+    assert shows.due() is None
+
+
+def test_un_episode_commence_est_retenu_comme_diffuse(tmp_path: Path) -> None:
+    feed = FakeFeed([_episode("ep1")])
+    shows, state = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    due = shows.due()
+    assert due is not None
+
+    shows.started(due[1])
+
+    passe = state.last_airing("A la French")
+    assert passe is not None and passe.episode == "ep1"
+    assert shows.due() is None, "elle est passée, la case est sautée"
+
+
+def test_une_autre_entree_commencee_ne_retient_pas_l_episode(tmp_path: Path) -> None:
+    """`started` ne vaut que pour l'entrée attendue : c'est l'appelant qui sait
+    qu'une émission a été jetée."""
+    feed = FakeFeed([_episode("ep1")])
+    shows, state = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
+    assert shows.due() is not None
+
+    shows.started("fake://1")
+
+    assert state.last_airing("A la French") is None
+
+
+class MemoireQuiNeRetientRien:
+    """Une base qui se lit mais refuse d'écrire, comme un verrou pris par le
+    serveur web au moment de l'inscription."""
+
+    def last_airing(self, show: str) -> None:  # noqa: ARG002
+        return None
+
+    def record_airing(self, show: str, episode: str) -> None:
+        message = f"verrou non obtenu pour « {show} », épisode {episode}"
+        raise StateUnavailable(message)
+
+
+def test_une_diffusion_non_retenue_se_journalise_et_se_rejouera(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Sans mémoire, l'épisode repassera : c'est moins grave que de le perdre."""
+    shows = Shows(
+        ShowSchedule([SHOW]),
+        FakeFeed([_episode("ep1")]),  # type: ignore[arg-type]
+        MemoireQuiNeRetientRien(),  # type: ignore[arg-type]
+        FrozenClock(VENDREDI_20H),
+        {"A la French": ("https://exemple.test/flux.xml",)},
+        ScriptedRandom([0] * 50),
+    )
+    due = shows.due()
+    assert due is not None
+
+    with caplog.at_level(logging.WARNING):
+        shows.started(due[1])
+
+    assert "se rejouera" in caplog.text
+    assert shows.due() is not None
 
 
 def test_un_flux_injoignable_ne_fait_pas_taire_la_radio(
@@ -187,9 +277,36 @@ def test_un_direct_n_est_rendu_qu_une_fois_par_case(tmp_path: Path) -> None:
     """Sinon il redémarrerait à chaque jonction jusqu'à la fin de la case."""
     clock = FrozenClock(VENDREDI_20H)
     shows = _direct(tmp_path, clock)
-    assert shows.due() is not None
+    due = shows.due()
+    assert due is not None
+    shows.started(due[1])
     clock.advance(timedelta(minutes=3))
     assert shows.due() is None
+
+
+def test_un_direct_demande_ne_se_redemande_pas_avant_d_avoir_commence(tmp_path: Path) -> None:
+    """Le script redemande une entrée aussitôt après une instruction de direct
+    (`radio.liq`) : sans la garde, le direct serait relancé dans la foulée."""
+    clock = FrozenClock(VENDREDI_20H)
+    shows = _direct(tmp_path, clock)
+    assert shows.due() is not None
+    assert shows.due() is None
+
+
+def test_un_direct_jete_avant_l_antenne_peut_reprendre_sa_case(tmp_path: Path) -> None:
+    """La case n'est retenue qu'une fois le direct commencé : jeté avant, il
+    n'a pas eu lieu, et la case tient jusqu'à sa fin (SPECS.md §7 n°22)."""
+    clock = FrozenClock(VENDREDI_20H)
+    shows = _direct(tmp_path, clock)
+    assert shows.due() is not None
+
+    shows.dropped()
+    clock.advance(timedelta(minutes=3))
+
+    due = shows.due()
+    assert due is not None
+    fin = int((VENDREDI_20H + timedelta(minutes=9)).timestamp())
+    assert due[1] == f"live:{fin}:{FRANCEINFO}", "la fin reste celle de la case"
 
 
 def test_une_case_de_direct_finie_est_sautee_sans_rattrapage(tmp_path: Path) -> None:
@@ -322,6 +439,7 @@ def test_le_fichier_pret_part_a_la_jonction_et_une_seule_fois(tmp_path: Path) ->
     assert due is not None
     assert due[0].name == "Hardisk"
     assert due[1] == str(tmp_path / "cache" / "hardisk.m4a")
+    shows.started(due[1])
     assert shows.due() is None  # déjà diffusée : la case est sautée
 
 
@@ -423,9 +541,12 @@ def test_la_memoire_d_une_plage_est_tenue_par_flux(tmp_path: Path) -> None:
     emissions, _ = _plage(tmp_path, feed, horloge, indices=[0, 0])
 
     premier = emissions.due()
+    assert premier is not None
+    emissions.started(premier[1])
     second = emissions.due()
+    assert second is not None
+    emissions.started(second[1])
 
-    assert premier is not None and second is not None
     assert premier[1] != second[1], "le flux épuisé sort de la pioche, l'autre reste"
     assert emissions.due() is None, "les deux épuisés, la case est sautée"
 
@@ -437,7 +558,9 @@ def test_une_emission_a_flux_unique_garde_sa_cle_de_memoire_historique(tmp_path:
     feed = FakeFeed([_episode("e1")])
     emissions, state = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
 
-    assert emissions.due() is not None
+    due = emissions.due()
+    assert due is not None
+    emissions.started(due[1])
 
     passe = state.last_airing("A la French")
     assert passe is not None and passe.episode == "e1"
@@ -641,7 +764,9 @@ def test_une_plage_n_intercale_pas_de_musique_entre_deux_episodes(tmp_path: Path
         lire()
     reportees.clear()
 
-    assert emissions.due() is not None, "le premier épisode part"
+    premier = emissions.due()
+    assert premier is not None, "le premier épisode part"
+    emissions.started(premier[1])
     horloge.advance(timedelta(minutes=70))
 
     assert emissions.due() is not None, "le second aussi, la garde a pourtant expiré"

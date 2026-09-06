@@ -5,10 +5,13 @@ from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
 from tests.fakes import FakeSource, track
+from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
+from webradio.adapters.state.database import SqliteState
 from webradio.adapters.web.api import Vote
 from webradio.app.liquidsoap_playout import LiquidsoapPlayout
 from webradio.app.playout import RadioProgramme
 from webradio.app.radio import ListenerCount, LiveRadio
+from webradio.app.show_scheduler import Shows
 from webradio.core.bands import Band, Schedule
 from webradio.core.clock import FrozenClock
 from webradio.core.control import Control, Kind
@@ -17,6 +20,7 @@ from webradio.core.models import Track
 from webradio.core.queue import Queue
 from webradio.core.rng import ScriptedRandom
 from webradio.core.rotation import Window
+from webradio.core.shows import Show, ShowSchedule
 
 MIDI = datetime(2026, 8, 30, 12, 0, tzinfo=UTC)
 CATALOGUE = [track("1", "Air", genre="électro"), track("2", "Bowie", genre="rock")]
@@ -33,8 +37,10 @@ def _playout(
     bands: list[Band] | None = None,
     lookahead: int = 1,
     in_background: Callable[[Callable[[], None]], None] | None = None,
+    shows: Shows | None = None,
+    clock: FrozenClock | None = None,
 ) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
-    clock = FrozenClock(MIDI)
+    clock = clock if clock is not None else FrozenClock(MIDI)
     random = ScriptedRandom([0] * 100)
     source = FakeSource(catalogue if catalogue is not None else CATALOGUE)
     jingles = Jingles(clock)
@@ -55,6 +61,7 @@ def _playout(
         on_kind=lambda kind, piste, e: branche[0].on_kind(kind, piste, e),
         control=control,
         now_playing=radio.playing_track,
+        shows=shows,
     )
     playout = LiquidsoapPlayout(
         programme,
@@ -714,3 +721,133 @@ def test_le_branchement_n_attend_pas_le_remplissage_de_l_avance(tmp_path: Path) 
     playout.stash_for_replay()
 
     assert reportees, "le replacement prépare hors de la requête, comme la jonction"
+
+
+# ── Une émission ne s'inscrit qu'à la prise d'antenne (GOAL-083-T04) ─────────
+
+EMISSION = Show(name="A la French", days=("all",), hour=time(12, 0))
+EPISODE = "https://exemple.test/ep1.mp3"
+
+
+class FluxDUnEpisode:
+    """Un flux de podcast d'essai : un épisode d'une heure, toujours le même."""
+
+    def episodes(self, url: str) -> list[EpisodeDuFlux]:  # noqa: ARG002
+        return [
+            EpisodeDuFlux(
+                identifier="ep1",
+                title="épisode ep1",
+                published_at=MIDI,
+                audio=EPISODE,
+                duration=timedelta(hours=1),
+            )
+        ]
+
+
+def _playout_avec_emission(
+    folder: Path, clock: FrozenClock, **kwargs: object
+) -> tuple[LiquidsoapPlayout, SqliteState]:
+    state = SqliteState(
+        folder / "etat.sqlite3",
+        clock,
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    emissions = Shows(
+        ShowSchedule([EMISSION]),
+        FluxDUnEpisode(),  # type: ignore[arg-type]
+        state,
+        clock,
+        {"A la French": ("https://exemple.test/flux.xml",)},
+        ScriptedRandom([0] * 50),
+    )
+    playout, _radio, _clock = _playout(folder, clock=clock, shows=emissions, **kwargs)  # type: ignore[arg-type]
+    return playout, state
+
+
+def test_une_emission_jetee_par_la_reprise_a_neuf_repasse_dans_sa_fenetre(
+    tmp_path: Path,
+) -> None:
+    """La purge jette l'entrée sans la jouer (SPECS.md §7 n°30). Inscrite à la
+    demande, l'émission ne repassait jamais, même dans sa fenêtre de rattrapage
+    (SPECS.md §4.11)."""
+    clock = FrozenClock(MIDI + timedelta(minutes=1))
+    ordres: list[str] = []
+    playout, state = _playout_avec_emission(
+        tmp_path,
+        clock,
+        resume_fresh_after=timedelta(minutes=15),
+        order_requeue=lambda: ordres.append("requeue"),
+        order_skip=lambda: ordres.append("skip"),
+    )
+    playout.declare_listeners(1)
+    assert playout.next_entry() == EPISODE
+
+    playout.declare_listeners(0)
+    clock.advance(timedelta(minutes=20))
+    playout.declare_listeners(1)
+
+    assert ordres == ["requeue", "skip"]
+    assert playout.next_entry() == EPISODE, "elle n'a pas passé, elle reste due"
+    assert state.last_airing("A la French") is None
+
+
+def test_une_emission_jetee_par_le_changement_de_theme_repasse(tmp_path: Path) -> None:
+    """« Autre thème » jette l'avance sans la rejouer (GOAL-059) : l'émission
+    qui s'y trouvait n'a pas passé."""
+    clock = FrozenClock(MIDI + timedelta(minutes=1))
+    playout, state = _playout_avec_emission(tmp_path, clock)
+    playout.declare_listeners(1)
+    assert playout.next_entry() == EPISODE
+
+    playout.drop_advance()
+
+    assert playout.next_entry() == EPISODE
+    assert state.last_airing("A la French") is None
+
+
+def test_une_emission_qui_ne_prend_jamais_l_antenne_reste_a_diffuser(tmp_path: Path) -> None:
+    """Une adresse que le diffuseur n'arrive pas à ouvrir n'est jamais annoncée
+    (docs/liquidsoap.md §3) : c'est l'entrée suivante qui commence à sa place."""
+    clock = FrozenClock(MIDI + timedelta(minutes=1))
+    playout, state = _playout_avec_emission(tmp_path, clock)
+    playout.declare_listeners(1)
+    assert playout.next_entry() == EPISODE
+    remplacante = playout.next_entry()
+    assert remplacante is not None and remplacante != EPISODE
+
+    playout.playing(remplacante)
+
+    assert state.last_airing("A la French") is None
+    assert playout.next_entry() == EPISODE
+
+
+def test_une_emission_a_l_antenne_est_retenue_et_ne_repasse_pas(tmp_path: Path) -> None:
+    clock = FrozenClock(MIDI + timedelta(minutes=1))
+    playout, state = _playout_avec_emission(tmp_path, clock)
+    playout.declare_listeners(1)
+    assert playout.next_entry() == EPISODE
+
+    playout.playing(EPISODE)
+
+    passe = state.last_airing("A la French")
+    assert passe is not None and passe.episode == "ep1"
+    assert playout.next_entry() != EPISODE, "elle est passée, la case est sautée"
+
+
+def test_le_morceau_d_avance_qui_commence_ne_jette_pas_l_emission(tmp_path: Path) -> None:
+    """Le diffuseur demande un morceau d'avance (docs/liquidsoap.md §3) : celui
+    décidé avant l'émission commence après elle sans rien dire de son sort."""
+    clock = FrozenClock(MIDI - timedelta(minutes=1))
+    playout, state = _playout_avec_emission(tmp_path, clock)
+    playout.declare_listeners(1)
+    avance = playout.next_entry()
+    assert avance is not None and avance != EPISODE
+    clock.advance(timedelta(minutes=2))
+    assert playout.next_entry() == EPISODE
+
+    playout.playing(avance)
+    playout.playing(EPISODE)
+
+    passe = state.last_airing("A la French")
+    assert passe is not None and passe.episode == "ep1"

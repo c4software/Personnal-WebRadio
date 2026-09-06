@@ -46,6 +46,10 @@ class Pending:
     occurrence de plage, ou rien) et par l'instant de la décision. Un moment
     fini, ou une heure pleine passée depuis, la rendent rassise : elle est
     remise en question avant de passer.
+
+    `rank` ordonne les demandes entre elles : le diffuseur a un morceau
+    d'avance (docs/liquidsoap.md §3), donc savoir laquelle a été décidée avant
+    l'autre est le seul moyen de dire si une entrée en a remplacé une autre.
     """
 
     kind: Kind
@@ -53,6 +57,7 @@ class Pending:
     label: str | None
     moment: object = None
     decided_at: datetime | None = None
+    rank: int = 0
 
     @property
     def nature(self) -> tuple[Kind, Track | None, str | None]:
@@ -100,6 +105,11 @@ class LiquidsoapPlayout:
         self._ordonner_skip = order_skip
         self._plafond = max_duration
         self._pause_depuis: datetime | None = None
+        # Le rang de la demande en cours, et l'émission demandée qui n'a pas
+        # encore commencé (entrée, rang). Sa diffusion ne s'inscrit qu'à la
+        # prise d'antenne (SPECS.md §4.11.1).
+        self._rang = 0
+        self._emission_demandee: tuple[str, int] | None = None
         # Où faire tourner la préparation de l'avance. `None` la fait sur
         # place, ce qui garde les tests déterministes ; la production passe un
         # lanceur qui la sort de la requête (GOAL-075).
@@ -120,13 +130,17 @@ class LiquidsoapPlayout:
             else:
                 entry = self._couper_au_plafond(entry)
             kind, track, label = self._derniere
+            self._rang += 1
             self._en_attente[entry] = Pending(
                 kind,
                 track,
                 label,
                 moment=self._programme.current_moment(),
                 decided_at=None if self._horloge is None else self._horloge.now(),
+                rank=self._rang,
             )
+            if kind is Kind.SHOW:
+                self._emission_demandee = (entry, self._rang)
             while len(self._en_attente) > PENDING_MAX:
                 oublie = next(iter(self._en_attente))
                 del self._en_attente[oublie]
@@ -205,6 +219,7 @@ class LiquidsoapPlayout:
             finie, self._entree_en_cours = self._entree_en_cours, entry
             self._en_cours = pending
             self._commence_a = None if self._horloge is None else self._horloge.now()
+        self._signaler_l_emission(entry, None if pending is None else pending.rank)
         self._effacer_si_ephemere(finie)
         if pending is None:
             if artist is None and title is None:
@@ -225,6 +240,34 @@ class LiquidsoapPlayout:
             self._radio.declare(Kind.MUSIC, None, title, artist_label=artist)
             return
         self._radio.declare(pending.kind, pending.track, pending.label)
+
+    def _signaler_l_emission(self, entry: str, rang: int | None) -> None:
+        """Dit au programme ce qu'il est advenu de l'émission demandée.
+
+        Elle s'inscrit quand c'est elle qui commence. Une entrée décidée
+        **après** elle qui commence à sa place dit qu'elle a été jetée, ou que
+        le diffuseur n'a pas su ouvrir son adresse. Une entrée décidée avant,
+        elle, ne dit rien : c'est le morceau d'avance du diffuseur
+        (docs/liquidsoap.md §3), qui commence après avoir été demandé.
+        """
+        demandee = self._emission_demandee
+        if demandee is None:
+            return
+        entree, rang_demande = demandee
+        if entry == entree:
+            self._emission_demandee = None
+            self._programme.show_started(entry)
+        elif rang is not None and rang > rang_demande:
+            self._emission_demandee = None
+            self._programme.show_dropped()
+
+    def _oublier_l_emission(self, jetees: list[str]) -> None:
+        """Oublie l'émission demandée quand son entrée est jetée sans avoir
+        commencé : rien n'a été inscrit, elle reste à diffuser."""
+        demandee = self._emission_demandee
+        if demandee is not None and demandee[0] in jetees:
+            self._emission_demandee = None
+            self._programme.show_dropped()
 
     def _effacer_si_ephemere(self, entry: str | None) -> None:
         """Efface un fichier du dossier éphémère quand la suite commence.
@@ -322,6 +365,7 @@ class LiquidsoapPlayout:
             shown = entry.split("?", 1)[0]
             if pending.moment != moment:
                 logger.info("l'avance est rassise, son moment a fini : %s", shown)
+                self._oublier_l_emission([entry])
                 continue
             logger.info("l'avance se replace : %s", shown)
             self._programme.replay_later(entry, pending.kind, pending.track, pending.label)
@@ -338,8 +382,10 @@ class LiquidsoapPlayout:
         doit pas revenir (GOAL-059). Le morceau en cours finit, l'habillage dû
         reste dû."""
         with self._verrou:
-            for entry in [e for e in self._en_attente if e != self._entree_en_cours]:
+            jetees = [e for e in self._en_attente if e != self._entree_en_cours]
+            for entry in jetees:
                 del self._en_attente[entry]
+        self._oublier_l_emission(jetees)
         self._programme.forget_advance()
         logger.info("l'avance est jetée : la suite est rompue, le diffuseur redemande")
         if self._ordonner_requeue is not None:
@@ -430,7 +476,9 @@ class LiquidsoapPlayout:
         """
         logger.info("pause de %s : la radio repart sur un tirage neuf", pause)
         with self._verrou:
+            jetees = list(self._en_attente)
             self._en_attente.clear()
+        self._oublier_l_emission(jetees)
         self._programme.forget_pending()
         if self._ordonner_requeue is not None:
             self._ordonner_requeue()

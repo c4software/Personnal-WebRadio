@@ -262,6 +262,13 @@ est une exception, pas une porte ouverte.
   d'une base d'avant `GOAL-020` (§5.2).
 - Il est **écrit par la radio**, jamais par l'auteur : il ne va ni dans le TOML
   ni dans `.env`, et il n'est pas versionné.
+- L'identifiant s'inscrit **quand le diffuseur dit avoir commencé l'entrée**
+  (`/playout/playing`), pas quand il la demande : ce qu'il demande n'est que
+  son morceau d'avance (docs/liquidsoap.md §3), et une purge — reprise à neuf,
+  suite rompue, fin de direct — peut le jeter sans l'avoir joué. Inscrit à la
+  demande, un épisode jeté était « diffusé » sans avoir passé, et une émission
+  hebdomadaire ne repassait jamais, même dans sa fenêtre de rattrapage
+  (SPECS.md §4.11).
 
 ### 5.1 SQLite, et pourquoi ce n'est pas démesuré
 

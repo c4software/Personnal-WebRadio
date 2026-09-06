@@ -13,6 +13,7 @@ import logging
 import re
 import threading
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -32,6 +33,20 @@ from webradio.core.shows import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass(frozen=True, slots=True)
+class _Demandee:
+    """Une émission rendue au diffuseur, qui n'a pas encore pris l'antenne.
+
+    `airing` porte la clé de mémoire et le guid à inscrire pour un podcast ou
+    une vidéo ; `slot` la case à retenir pour un direct. L'un ou l'autre.
+    """
+
+    show: str
+    entry: str
+    airing: tuple[str, str] | None = None
+    slot: tuple[str, datetime] | None = None
 
 
 class Shows:
@@ -73,6 +88,10 @@ class Shows:
         self._telechargements: set[str] = set()
         self._verrou_telechargements = threading.Lock()
         self._cases_rendues: set[tuple[str, datetime]] = set()
+        # Ce qui a été rendu au diffuseur sans avoir encore commencé. Rien ne
+        # s'inscrit avant `started()` : l'entrée n'est que l'avance du
+        # diffuseur, et une purge peut la jeter (SPECS.md §4.11.1).
+        self._demandee: _Demandee | None = None
         # Où lire les flux, et combien de temps avant l'ouverture d'une case.
         # `None` lit sur place, ce qui garde les tests déterministes ; la
         # production passe un fil, pour que le diffuseur n'attende jamais un
@@ -92,6 +111,11 @@ class Shows:
         injoignable, épisode déjà diffusé. Aucun de ces cas n'est une panne,
         la radio reste sur la musique (SPECS.md §4.11).
         """
+        # Une émission déjà rendue attend son tour : le diffuseur peut
+        # redemander avant de l'avoir commencée (docs/liquidsoap.md §3), et la
+        # rendre deux fois la ferait passer deux fois.
+        if self._demandee is not None:
+            return None
         instant = self._horloge.now()
         catalogues = self._catalogues(instant)
         durations = {
@@ -104,13 +128,13 @@ class Shows:
         if case is None:
             return None
         if case.show.is_live:
-            return self._direct_de(case, instant)
+            return self._direct_de(case)
         par_flux = catalogues.get(case.show.name, {})
         if case.show.name in self._youtube:
             return self._video_de(case.show, next(iter(par_flux.values()), []))
         return self._episode_de(case.show, par_flux)
 
-    def _direct_de(self, case: Slot, instant: datetime) -> tuple[Show, str, str | None] | None:
+    def _direct_de(self, case: Slot) -> tuple[Show, str, str | None] | None:
         """Un direct, rendu une fois par case, avec l'heure absolue de sa fin.
 
         L'entrée `live:<fin en secondes Unix>:<url>` est lue par Liquidsoap
@@ -125,15 +149,54 @@ class Shows:
         url = self._directs.get(case.show.name)
         if url is None or case.end is None:
             return None
-        self._cases_rendues.add(cle)
-        self._cases_rendues = {c for c in self._cases_rendues if c[1] > instant - timedelta(days=2)}
+        entry = f"live:{int(case.end.timestamp())}:{url}"
+        self._demandee = _Demandee(show=case.show.name, entry=entry, slot=cle)
         logger.info(
             "direct « %s » jusqu'à %s — %s",
             case.show.name,
             case.end.astimezone().strftime("%H:%M:%S"),
             url.split("?", 1)[0],
         )
-        return case.show, f"live:{int(case.end.timestamp())}:{url}", None
+        return case.show, entry, None
+
+    def started(self, entry: str) -> None:
+        """Inscrit la diffusion de l'entrée que le diffuseur vient de commencer.
+
+        Rien ne s'inscrit à la demande : l'entrée rendue n'est que l'avance du
+        diffuseur (docs/liquidsoap.md §3), et une purge peut la jeter sans
+        l'avoir jouée. L'épisode resterait « diffusé » sans avoir passé, perdu
+        jusqu'à la publication du suivant (SPECS.md §4.11.1).
+
+        Une entrée qui n'est pas celle attendue ne fait rien : c'est à
+        l'appelant de dire qu'une émission a été jetée (`dropped`).
+        """
+        demandee = self._demandee
+        if demandee is None or demandee.entry != entry:
+            return
+        self._demandee = None
+        if demandee.slot is not None:
+            limite = self._horloge.now() - timedelta(days=2)
+            self._cases_rendues = {c for c in self._cases_rendues if c[1] > limite}
+            self._cases_rendues.add(demandee.slot)
+        if demandee.airing is not None:
+            key, episode = demandee.airing
+            try:
+                self._etat.record_airing(key, episode)
+            except StateUnavailable as failure:
+                logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
+
+    def dropped(self) -> None:
+        """Oublie l'émission demandée qui n'a pas pris l'antenne.
+
+        Une purge de l'avance (SPECS.md §7 n°22, n°30) ou une adresse que le
+        diffuseur n'arrive pas à ouvrir la jettent. Rien n'ayant été inscrit,
+        la case peut la redemander tant que sa fenêtre de rattrapage est
+        ouverte (SPECS.md §4.11).
+        """
+        demandee, self._demandee = self._demandee, None
+        if demandee is None:
+            return
+        logger.info("« %s » n'a pas pris l'antenne : elle reste à diffuser", demandee.show)
 
     @staticmethod
     def _nom_de_cache(show_name: str) -> str:
@@ -167,10 +230,9 @@ class Shows:
             fichier.is_file() and temoin.is_file() and temoin.read_text().strip() == chosen.guid
         )
         if est_la_bonne:
-            try:
-                self._etat.record_airing(show.name, chosen.guid)
-            except StateUnavailable as failure:
-                logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
+            self._demandee = _Demandee(
+                show=show.name, entry=str(fichier), airing=(show.name, chosen.guid)
+            )
             titre = next((e.title for e in catalogue if e.identifier == chosen.guid), None)
             return show, str(fichier), titre
         self._telecharger_en_fond(show.name, nom, chosen.guid)
@@ -432,10 +494,11 @@ class Shows:
             )
         audio = next(e.audio for e in catalogue if e.identifier == choisi.guid)
         titre = next((e.title for e in catalogue if e.identifier == choisi.guid), None)
-        try:
-            self._etat.record_airing(self._cle_de_memoire(show, address), choisi.guid)
-        except StateUnavailable as failure:
-            logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
+        self._demandee = _Demandee(
+            show=show.name,
+            entry=audio,
+            airing=(self._cle_de_memoire(show, address), choisi.guid),
+        )
         return show, audio, titre
 
     def _cle_de_memoire(self, show: Show, address: str) -> str:
