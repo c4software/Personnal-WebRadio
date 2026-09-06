@@ -1,6 +1,7 @@
 """Les émissions : ce qui est dû, ce qui est sauté, et ce qui ne se rejoue pas."""
 
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
@@ -489,3 +490,99 @@ def test_une_plage_sans_memoire_saute_sa_case() -> None:
     )
 
     assert emissions.due() is None
+
+
+# ── Le diffuseur n'attend jamais un hébergeur (GOAL-080-T05) ─────────────────
+
+
+class FeedLent:
+    """Un flux qui compte ses lectures et sait tenir un cache, comme le vrai."""
+
+    def __init__(self, par_url: dict[str, list[EpisodeDuFlux]]) -> None:
+        self._par_url = par_url
+        self._garde: dict[str, list[EpisodeDuFlux]] = {}
+        self.lues: list[str] = []
+
+    def cached(self, url: str) -> list[EpisodeDuFlux] | None:
+        return list(self._garde[url]) if url in self._garde else None
+
+    def episodes(self, url: str) -> list[EpisodeDuFlux]:
+        self.lues.append(url)
+        if url not in self._par_url:
+            message = f"flux d'essai injoignable : {url}"
+            raise PodcastUnavailable(message)
+        self._garde[url] = list(self._par_url[url])
+        return list(self._par_url[url])
+
+
+def _plage_en_fond(
+    tmp_path: Path, feed: FeedLent, clock: FrozenClock, reportees: list[Callable[[], None]]
+) -> Shows:
+    state = SqliteState(
+        tmp_path / "etat.sqlite3",
+        clock,
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    return Shows(
+        ShowSchedule([PLAGE]),
+        feed,  # type: ignore[arg-type]
+        state,
+        clock,
+        {"Soirée podcasts": (LEGEND_URL, KONBINI_URL)},
+        ScriptedRandom([0] * 50),
+        in_background=reportees.append,
+        preload=timedelta(minutes=15),
+    )
+
+
+def test_la_premiere_jonction_ne_lit_aucun_flux_et_rend_la_main(tmp_path: Path) -> None:
+    """Le diffuseur abandonne une requête au bout de dix secondes et coupe au
+    deuxième échec : trois flux lus l'un après l'autre le dépassent. La lecture
+    part en tâche de fond, et la case attend la jonction suivante plutôt que
+    l'hébergeur (GOAL-080)."""
+    feed = FeedLent({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    reportees: list[Callable[[], None]] = []
+    emissions = _plage_en_fond(tmp_path, feed, FrozenClock(VENDREDI_20H), reportees)
+
+    assert emissions.due() is None, "rien n'est encore lu, la musique continue"
+    assert feed.lues == [], "aucun aller au réseau pendant la requête"
+    assert len(reportees) == 2, "les deux flux sont partis en tâche de fond"
+
+
+def test_la_jonction_suivante_sert_ce_que_le_fond_a_lu(tmp_path: Path) -> None:
+    feed = FeedLent({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    reportees: list[Callable[[], None]] = []
+    emissions = _plage_en_fond(tmp_path, feed, FrozenClock(VENDREDI_20H), reportees)
+    emissions.due()
+
+    for lire in reportees:
+        lire()
+
+    assert emissions.due() is not None
+
+
+def test_un_flux_deja_lance_n_est_pas_relance_a_chaque_jonction(tmp_path: Path) -> None:
+    """Les jonctions se suivent plus vite qu'un hébergeur lent ne répond : sans
+    ce garde-fou, chacune empilerait une lecture de plus."""
+    feed = FeedLent({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    reportees: list[Callable[[], None]] = []
+    emissions = _plage_en_fond(tmp_path, feed, FrozenClock(VENDREDI_20H), reportees)
+
+    emissions.due()
+    emissions.due()
+    emissions.due()
+
+    assert len(reportees) == 2, "une lecture en cours par flux, pas une par jonction"
+
+
+def test_les_flux_se_lisent_avant_l_ouverture_de_la_case(tmp_path: Path) -> None:
+    """Sans cela la plage commencerait à la jonction d'après son heure, soit
+    plusieurs minutes en retard."""
+    feed = FeedLent({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    reportees: list[Callable[[], None]] = []
+    dix_minutes_avant = VENDREDI_20H - timedelta(minutes=10)
+    emissions = _plage_en_fond(tmp_path, feed, FrozenClock(dix_minutes_avant), reportees)
+
+    assert emissions.due() is None, "la case n'est pas encore ouverte"
+    assert len(reportees) == 2, "ses flux sont déjà partis en lecture"

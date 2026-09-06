@@ -12,6 +12,7 @@ l'épisode, connue seulement après lecture du flux.
 import logging
 import re
 import threading
+from collections.abc import Callable
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -48,6 +49,8 @@ class Shows:
         youtube_channels: dict[str, str] | None = None,
         youtube: YoutubeChannel | None = None,
         youtube_cache: Path | None = None,
+        in_background: Callable[[Callable[[], None]], None] | None = None,
+        preload: timedelta | None = None,
     ) -> None:
         self._programme = programme
         self._flux = feed
@@ -71,6 +74,14 @@ class Shows:
         self._telechargements: set[str] = set()
         self._verrou_telechargements = threading.Lock()
         self._cases_rendues: set[tuple[str, datetime]] = set()
+        # Où lire les flux, et combien de temps avant l'ouverture d'une case.
+        # `None` lit sur place, ce qui garde les tests déterministes ; la
+        # production passe un fil, pour que le diffuseur n'attende jamais un
+        # hébergeur (SPECS.md §4.11, GOAL-080).
+        self._en_fond = in_background
+        self._avance_de_lecture = preload
+        self._lectures_lancees: set[str] = set()
+        self._verrou_lectures = threading.Lock()
 
     def due(self) -> tuple[Show, str, str | None] | None:
         """L'émission due, l'adresse de son épisode, et le titre de l'épisode.
@@ -237,6 +248,7 @@ class Shows:
             if show.is_live:
                 continue
             if self._programme.slot_start(show, instant) is None:  # type: ignore[arg-type]
+                self._prechauffer(show, instant)  # type: ignore[arg-type]
                 continue
             if show.chains_episodes and self._programme.open_slot(show, None, instant) is None:  # type: ignore[arg-type]
                 continue
@@ -252,18 +264,75 @@ class Shows:
                     )
                 continue
             for address in self._adresses.get(show.name, ()):
-                try:
-                    catalogues.setdefault(show.name, {})[address] = self._flux.episodes(address)
-                except PodcastUnavailable as failure:
-                    # Un flux muet ne prive pas les autres : une plage tire
-                    # parmi ceux qui ont répondu (SPECS.md §7 n°35).
-                    logger.warning(
-                        "flux « %s » de « %s » injoignable : %s",
-                        address.split("?", 1)[0],
-                        show.name,
-                        failure,
-                    )
+                episodes = self._episodes_de(address, show.name)
+                if episodes is not None:
+                    catalogues.setdefault(show.name, {})[address] = episodes
         return catalogues
+
+    def _prechauffer(self, show: Show, instant: datetime) -> None:
+        """Lit les flux d'une case sur le point de s'ouvrir, pour qu'elle
+        commence à l'heure plutôt qu'à la jonction d'après.
+
+        L'avance est celle du cache : lire plus tôt ne servirait à rien, la
+        garde aurait expiré (SPECS.md §6).
+        """
+        if self._en_fond is None or self._avance_de_lecture is None:
+            return
+        if not self._programme.opens_within(show, instant, self._avance_de_lecture):
+            return
+        for address in self._adresses.get(show.name, ()):
+            if self._flux.cached(address) is None:
+                self._lire_en_fond(address, show.name)
+
+    def _episodes_de(self, address: str, show_name: str) -> list[EpisodeDuFlux] | None:
+        """Le catalogue de ce flux, sans jamais attendre le réseau quand un fil
+        de fond est disponible.
+
+        Le diffuseur abandonne une requête au bout de son propre délai et coupe
+        au deuxième échec (docs/liquidsoap.md §3) : trois flux lus l'un après
+        l'autre le dépassaient (docs/podcast.md §4.bis). La lecture part donc en
+        tâche de fond, et la case attend la jonction suivante plutôt que
+        l'hébergeur.
+        """
+        if self._en_fond is None:
+            return self._lire(address, show_name)
+        connu = self._flux.cached(address)
+        if connu is not None:
+            return connu
+        self._lire_en_fond(address, show_name)
+        return None
+
+    def _lire(self, address: str, show_name: str) -> list[EpisodeDuFlux] | None:
+        try:
+            return self._flux.episodes(address)
+        except PodcastUnavailable as failure:
+            # Un flux muet ne prive pas les autres : une plage tire parmi ceux
+            # qui ont répondu (SPECS.md §7 n°35).
+            logger.warning(
+                "flux « %s » de « %s » injoignable : %s",
+                address.split("?", 1)[0],
+                show_name,
+                failure,
+            )
+            return None
+
+    def _lire_en_fond(self, address: str, show_name: str) -> None:
+        """Une lecture à la fois par flux : les jonctions se suivent plus vite
+        qu'un hébergeur lent ne répond."""
+        with self._verrou_lectures:
+            if address in self._lectures_lancees:
+                return
+            self._lectures_lancees.add(address)
+
+        def au_travail() -> None:
+            try:
+                self._lire(address, show_name)
+            finally:
+                with self._verrou_lectures:
+                    self._lectures_lancees.discard(address)
+
+        if self._en_fond is not None:
+            self._en_fond(au_travail)
 
     def _episode_de(
         self, show: Show, par_flux: dict[str, list[EpisodeDuFlux]]

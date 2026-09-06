@@ -156,6 +156,20 @@ class PodcastFeed:
         self._duree_cache = cache
         self._cache: dict[str, tuple[datetime, list[Episode]]] = {}
 
+    def cached(self, url: str) -> list[Episode] | None:
+        """Ce que le cache tient de ce flux, sans aller au réseau.
+
+        Rend `None` quand rien n'est gardé ou que la garde a expiré. C'est ce
+        qui permet de décider sans jamais attendre un hébergeur : la lecture
+        part alors en tâche de fond (SPECS.md §4.11).
+        """
+        if self._horloge is None or self._duree_cache is None:
+            return None
+        connu = self._cache.get(url)
+        if connu is None or self._horloge.now() - connu[0] >= self._duree_cache:
+            return None
+        return list(connu[1])
+
     def episodes(self, url: str) -> list[Episode]:
         """Les épisodes `full` du flux, du plus récent au plus ancien.
 

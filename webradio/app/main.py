@@ -422,6 +422,21 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
     # transmet à la façade que quand Liquidsoap commence réellement le morceau.
     branche: list[LiquidsoapPlayout] = []
 
+    # Ce que le diffuseur ne doit pas attendre : remplir l'avance (GOAL-075) et
+    # lire les flux de podcast (GOAL-080). Un seul fil, parce que deux
+    # préparations partageraient la file et la fenêtre de non-répétition ; démon,
+    # pour ne pas retenir l'arrêt, ce qui est sans conséquence — une avance non
+    # remplie se retire au tirage suivant, un flux non lu à la jonction suivante.
+    en_fond = ThreadPoolExecutor(max_workers=1, thread_name_prefix="en-fond")
+
+    def _preparer_en_fond(tache: Callable[[], None]) -> None:
+        def _dire_si_ca_casse(fini: Future[None]) -> None:
+            echec = fini.exception()
+            if echec is not None:
+                logger.error("une tâche de fond a échoué : %s", echec, exc_info=echec)
+
+        en_fond.submit(tache).add_done_callback(_dire_si_ca_casse)
+
     cases = [
         Show(
             name=e.name,
@@ -474,24 +489,15 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             youtube_channels={e.name: e.youtube for e in settings.shows if e.youtube is not None},
             youtube=YoutubeChannel(timedelta(seconds=settings.youtube.timeout_seconds)),
             youtube_cache=Path(settings.state.database).parent / "cache",
+            in_background=_preparer_en_fond,
+            preload=timedelta(seconds=settings.podcast.cache_seconds)
+            if settings.podcast.cache_seconds > 0
+            else None,
         ),
         effective=grille_effective,
         control=control,
         now_playing=lambda: radio.playing_track(),
     )
-
-    # Un seul fil, pour que deux préparations ne tirent jamais en même temps :
-    # elles partagent la file et la fenêtre de non-répétition. Démon, pour ne
-    # pas retenir l'arrêt — une avance non remplie se retire au tirage suivant.
-    preparations = ThreadPoolExecutor(max_workers=1, thread_name_prefix="avance")
-
-    def _preparer_en_fond(tache: Callable[[], None]) -> None:
-        def _dire_si_ca_casse(fini: Future[None]) -> None:
-            echec = fini.exception()
-            if echec is not None:
-                logger.error("la préparation de l'avance a échoué : %s", echec, exc_info=echec)
-
-        preparations.submit(tache).add_done_callback(_dire_si_ca_casse)
 
     reprise = settings.playout.resume_fresh_seconds
     minutes = settings.draw.max_track_minutes

@@ -222,6 +222,21 @@ class ShowSchedule:
                 return start
         return None
 
+    def opens_within(self, show: Show, instant: datetime, delay: timedelta) -> bool:
+        """La prochaine case de cette émission s'ouvre-t-elle d'ici `delay` ?
+
+        Sert à préparer ce qu'une case demandera — lire ses flux, par exemple —
+        avant qu'elle ne s'ouvre, pour qu'elle n'attende rien à son heure.
+        """
+        for avance in (0, 1):
+            jour = (instant + delay + timedelta(days=avance)).date()
+            if not show.a_lieu_le(jour):
+                continue
+            debut = datetime.combine(jour, show.hour, tzinfo=instant.tzinfo)
+            if instant < debut <= instant + delay:
+                return True
+        return False
+
     def open_slot(
         self,
         show: Show,
