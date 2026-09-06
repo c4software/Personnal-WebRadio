@@ -543,3 +543,43 @@ def test_une_plage_au_vivier_etroit_ne_vide_pas_la_fenetre() -> None:
 
     apres = file.next_pick(None)
     assert apres.track.artist == "Neuf", "les trois artistes récents sont toujours tenus"
+
+
+def test_rompre_une_suite_d_artiste_laisse_tirer_une_piste_sans_annee() -> None:
+    """La rupture n'évite que l'ancre posée (GOAL-083) : sans décennie à
+    éviter, les pistes sans année restent éligibles."""
+    catalogue = [
+        track("x1", "Air", genre="rock", year=1990),
+        track("x2", "Air", genre="rock", year=1990),
+        track("y1", "Bowie", genre="rock"),
+    ]
+    hasard = ScriptedRandom([0] * 20)
+    f = Queue(FakeSource(catalogue), hasard, Window(width=0), runs=Runs(hasard))
+    suite = Constraint(genre="rock", mode=Mode.ARTIST_FAN, run_key="soir")
+    assert f.next_pick(suite).track.artist == "Air"
+    assert f.break_run()
+    pick = f.next_pick(suite)
+    assert pick.track.artist == "Bowie"
+    assert pick.fallbacks == ()
+
+
+def test_preparer_sous_l_occurrence_suivante_ne_coupe_pas_la_suite_en_cours() -> None:
+    """L'avance est tirée créneau par créneau sous des occurrences différentes
+    (décision n°34) : un créneau tiré pour la plage suivante ne doit pas ouvrir
+    une suite neuve sur la plage en cours (GOAL-083)."""
+    catalogue = [
+        track("a1", "Air"),
+        track("a2", "Air"),
+        track("a3", "Air"),
+        track("b1", "Bowie"),
+    ]
+    hasard = ScriptedRandom([0] * 40)  # suites de trois titres
+    f = Queue(FakeSource(catalogue), hasard, Window(width=0), runs=Runs(hasard), lookahead=2)
+    en_cours = Constraint(mode=Mode.ARTIST_FAN, run_key="21 h")
+    suivante = Constraint(mode=Mode.ARTIST_FAN, run_key="22 h")
+    assert f.next_pick(en_cours).track.identifier == "a1"
+    assert f.next_pick(en_cours).track.identifier == "a2"
+    f.prepare(suivante)
+    f.prepare(en_cours)
+    assert f.dated_advance[-1][1] == "21 h"
+    assert f.dated_advance[-1][0].artist == "Air", "la suite de la plage en cours se poursuit"

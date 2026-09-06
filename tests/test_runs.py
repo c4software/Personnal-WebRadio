@@ -2,7 +2,7 @@
 
 from tests.fakes import track
 from webradio.core.rng import ScriptedRandom
-from webradio.core.runs import Directive, Mode, Runs, era_of
+from webradio.core.runs import MEMOIRE_MAX, Directive, Mode, Runs, era_of
 
 PLAGE = "rock"  # la clé de remise à zéro est opaque : une chaîne suffit au test
 
@@ -75,14 +75,48 @@ def test_un_changement_de_contrainte_remet_la_suite_a_zero() -> None:
     assert runs.directive("jazz", Mode.ARTIST_FAN) is None  # autre plage : rien ne suit
 
 
-def test_le_tirage_libre_remet_la_suite_a_zero() -> None:
-    runs = Runs(ScriptedRandom([1, 1]))
+def test_le_tirage_libre_n_impose_aucune_suite_et_ne_coupe_pas_celle_de_la_plage() -> None:
+    """Le tirage libre a sa propre clé : il n'hérite d'aucune suite, et le
+    créneau qu'il occupe n'efface pas celle de la plage (GOAL-083)."""
+    runs = Runs(ScriptedRandom([1]))
     runs.observe(PLAGE, Mode.ARTIST_FAN, track("b1", "Bowie"))
-    runs.directive(None, None)
+    assert runs.directive(None, None) is None
     runs.observe(PLAGE, Mode.ARTIST_FAN, track("b2", "Bowie"))
     directive = runs.directive(PLAGE, Mode.ARTIST_FAN)
     assert directive is not None
-    assert directive.exclude == frozenset({"b2"})  # une suite neuve, pas la reprise
+    assert directive.exclude == frozenset({"b1", "b2"})  # la suite s'est poursuivie
+
+
+def test_une_suite_survit_a_un_tirage_sous_une_autre_occurrence() -> None:
+    """L'avance est tirée sous des occurrences différentes (décision n°34) :
+    préparer un titre pour la plage suivante ne coupe pas la suite en cours."""
+    runs = Runs(ScriptedRandom([0, 0]))  # [3, 4, 5, 6] : trois titres
+    runs.observe(PLAGE, Mode.ARTIST_FAN, track("b1", "Bowie"))
+    runs.observe("22 h", Mode.ARTIST_FAN, track("a1", "Air"))
+    directive = runs.directive(PLAGE, Mode.ARTIST_FAN)
+    assert directive is not None
+    assert directive.artist == "Bowie"
+    assert directive.exclude == frozenset({"b1"})
+
+
+def test_rompre_ne_touche_que_la_suite_de_la_cle_donnee() -> None:
+    runs = Runs(ScriptedRandom([0, 0]))
+    runs.observe(PLAGE, Mode.ARTIST_FAN, track("b1", "Bowie"))
+    runs.observe("22 h", Mode.ARTIST_FAN, track("a1", "Air"))
+    assert runs.break_run("22 h")
+    assert runs.directive("22 h", Mode.ARTIST_FAN) == Directive(avoid_artist="Air")
+    suite = runs.directive(PLAGE, Mode.ARTIST_FAN)
+    assert suite is not None and suite.artist == "Bowie"
+
+
+def test_une_suite_oubliee_par_la_memoire_repart_a_zero() -> None:
+    """La mémoire est bornée comme celle des thèmes : au-delà, une clé ancienne
+    se comporte comme une clé inconnue."""
+    runs = Runs(ScriptedRandom([0] * (MEMOIRE_MAX + 2)))
+    runs.observe(PLAGE, Mode.ARTIST_FAN, track("b1", "Bowie"))
+    for numero in range(MEMOIRE_MAX):
+        runs.observe(f"plage {numero}", Mode.ARTIST_FAN, track("a1", "Air"))
+    assert runs.directive(PLAGE, Mode.ARTIST_FAN) is None
 
 
 def test_une_piste_qui_ne_colle_pas_ouvre_la_suite_suivante() -> None:
@@ -102,7 +136,7 @@ def test_rompre_une_suite_d_epoque_fait_eviter_sa_decennie() -> None:
     d'une autre décennie (GOAL-059)."""
     runs = Runs(ScriptedRandom([0, 0]))
     runs.observe(PLAGE, Mode.ERA_FAN, track("1", "Air", year=1998))
-    assert runs.break_run()
+    assert runs.break_run(PLAGE)
     assert runs.directive(PLAGE, Mode.ERA_FAN) == Directive(avoid_era=1990)
     runs.observe(PLAGE, Mode.ERA_FAN, track("2", "Bowie", year=1977))
     suite = runs.directive(PLAGE, Mode.ERA_FAN)
@@ -112,19 +146,19 @@ def test_rompre_une_suite_d_epoque_fait_eviter_sa_decennie() -> None:
 def test_rompre_une_suite_d_artiste_fait_eviter_son_artiste() -> None:
     runs = Runs(ScriptedRandom([0, 0]))
     runs.observe(PLAGE, Mode.ARTIST_FAN, track("b1", "Bowie"))
-    assert runs.break_run()
+    assert runs.break_run(PLAGE)
     assert runs.directive(PLAGE, Mode.ARTIST_FAN) == Directive(avoid_artist="Bowie")
 
 
 def test_une_double_dose_ou_l_absence_de_mode_ne_se_rompt_pas() -> None:
     runs = Runs(ScriptedRandom([]))
-    assert not runs.break_run()
+    assert not runs.break_run(PLAGE)
     runs.observe(PLAGE, Mode.DOUBLE_DOSE, track("a1", "Air"))
-    assert not runs.break_run()
+    assert not runs.break_run(PLAGE)
 
 
 def test_l_evitement_ne_survit_pas_a_un_changement_de_plage() -> None:
     runs = Runs(ScriptedRandom([0]))
     runs.observe(PLAGE, Mode.ARTIST_FAN, track("b1", "Bowie"))
-    runs.break_run()
+    runs.break_run(PLAGE)
     assert runs.directive("jazz", Mode.ARTIST_FAN) is None

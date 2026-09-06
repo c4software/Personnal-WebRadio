@@ -67,6 +67,8 @@ class Queue:
         # du moment qui l'a tiré (décision n°33). Une entrée dont le moment est
         # fini est rassise et ne passe pas.
         self._avance: list[tuple[Pick, object]] = []
+        # La clé du dernier titre servi : c'est la suite que `break_run` rompt.
+        self._cle_courante: object = None
         if weigh is not None and not hasattr(random, "pick_weighted"):
             # Refuser à la construction plutôt qu'au premier tirage : sinon la
             # file tirerait uniformément sans rien signaler.
@@ -129,9 +131,14 @@ class Queue:
         return False
 
     def break_run(self) -> bool:
-        """Rompt la suite en cours : le prochain tirage ouvre une autre suite,
-        sur une autre ancre (GOAL-059). Renvoie `False` s'il n'y en a pas."""
-        return self._suites is not None and self._suites.break_run()
+        """Rompt la suite du moment courant : le prochain tirage ouvre une autre
+        suite, sur une autre ancre (GOAL-059). Renvoie `False` s'il n'y en a pas.
+
+        Le moment courant est celui du dernier `next_pick` : les suites sont
+        tenues par occurrence (`core/runs.py`) et la préparation en visite
+        d'autres, à venir.
+        """
+        return self._suites is not None and self._suites.break_run(self._cle_courante)
 
     def forget_prepared(self) -> None:
         """Vide l'avance : le prochain tirage repart à neuf.
@@ -149,6 +156,7 @@ class Queue:
         Le reste de l'avance est laissé en place : si la tête a été tirée pour
         un moment à venir, les suivants aussi, et ils serviront à leur heure.
         """
+        self._cle_courante = self._cle_de_suite(constraint)
         pick = self._fraiche(constraint)
         if pick is None:
             pick = self._choisir(constraint)
@@ -233,11 +241,14 @@ class Queue:
 
         if directive is not None and (directive.avoid_artist or directive.avoid_era is not None):
             # Suite rompue sur demande (GOAL-059) : la nouvelle ancre évite
-            # l'ancienne, sauf si la bibliothèque n'offre rien d'autre.
+            # l'ancienne, sauf si la bibliothèque n'offre rien d'autre. Chaque
+            # ancre ne s'évite que si elle est posée : sans décennie à éviter,
+            # comparer les époques écartait toutes les pistes sans année.
             autres = [
                 t
                 for t in candidates
-                if t.artist != directive.avoid_artist and era_of(t) != directive.avoid_era
+                if (directive.avoid_artist is None or t.artist != directive.avoid_artist)
+                and (directive.avoid_era is None or era_of(t) != directive.avoid_era)
             ]
             if autres:
                 candidates = autres

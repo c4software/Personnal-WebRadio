@@ -389,7 +389,7 @@ Deux bloquants, douze corrections bornées, et une décision de l'auteur
       l'attente : `allowed = hors_fenetre`, jamais `candidates`. Le titre qui
       vient de passer pouvait revenir, avec un journal désignant le mauvais
       coupable (GOAL-082-T02). Le test affirme l'artiste tiré, pas une longueur.
-- [ ] **GOAL-083-T02** — Le noyau des suites, trois trous : rompre une suite
+- [x] **GOAL-083-T02** — Le noyau des suites, trois trous : rompre une suite
       d'artiste écartait les pistes sans année (`queue.py`, `avoid_era` à
       `None`) ; une plage au hasard dont le tirage échoue rendait la clé `None`
       là où `moment_at` rend `(plage, occurrence, None)`, et l'avance était

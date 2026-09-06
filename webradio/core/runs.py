@@ -7,6 +7,10 @@ par le hasard injecté. Ce module ne cherche aucune musique : il dit au tirage c
 que la suite en cours impose et observe ce qui a été tiré. `core/queue.py`
 filtre, journalise les ruptures et tire.
 
+L'état est tenu par occurrence de plage : l'avance est tirée créneau par créneau
+sous des occurrences différentes (décision n°34), et un créneau de la plage
+suivante ne doit pas effacer la suite en cours.
+
 Deux cas limites :
 
 - une piste sans année ne pose pas d'ancre d'époque (docs/subsonic.md §4.1) et
@@ -15,7 +19,7 @@ Deux cas limites :
   croisée avec une plage étroite se rompt plutôt que de boucler.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 from webradio.core.models import Track
@@ -38,6 +42,12 @@ RUN_SPANS: dict[Mode, tuple[int, int]] = {
     Mode.ERA_FAN: (2, 6),
     Mode.ARTIST_FAN: (3, 6),
 }
+
+# Autant de suites retenues, une par clé de moment. La préparation tire quelques
+# créneaux d'avance sous des occurrences que l'antenne n'a pas atteintes
+# (décision n°34) ; au-delà ce sont des moments passés. Même borne que la
+# mémoire des thèmes au hasard (`core/mystery.py`).
+MEMOIRE_MAX = 32
 
 
 def era_of(track: Track) -> int | None:
@@ -64,52 +74,64 @@ class Directive:
     bypass_window: bool = False
 
 
-class Runs:
-    """La suite en cours, et ce qu'elle impose.
+@dataclass(slots=True)
+class _Run:
+    """L'état d'une suite pour une clé de moment."""
 
-    Remise à zéro quand la contrainte de plage change : deux tirages de la même
-    plage la partagent, un changement de plage ou le tirage libre la change. Un
-    thème au hasard est figé sur l'occurrence (`core/mystery.py`) et donne la
-    même contrainte toute la soirée.
+    mode: Mode | None = None
+    anchor_artist: str | None = None
+    anchor_era: int | None = None
+    remaining: int = 0
+    played: set[str] = field(default_factory=set)
+    avoid_artist: str | None = None
+    avoid_era: int | None = None
+
+
+class Runs:
+    """Les suites en cours, une par occurrence de plage, et ce qu'elles imposent.
+
+    La clé est celle du moment (décision n°31) : deux tirages de la même
+    occurrence partagent la suite, une autre plage ou le tirage libre en a une
+    autre. Un thème au hasard est figé sur l'occurrence (`core/mystery.py`) et
+    donne la même contrainte toute la soirée.
+
+    L'état est indexé par clé et non unique, parce que l'avance est tirée
+    créneau par créneau sous des occurrences différentes (décision n°34) :
+    préparer un titre pour la plage suivante effaçait sinon la suite en cours.
     """
 
     def __init__(self, random: Random) -> None:
         self._hasard = random
-        self._base: object = None
-        self._mode: Mode | None = None
-        self._anchor_artist: str | None = None
-        self._anchor_era: int | None = None
-        self._remaining = 0
-        self._played: set[str] = set()
-        self._avoid_artist: str | None = None
-        self._avoid_era: int | None = None
+        self._suites: dict[object, _Run] = {}
 
-    def break_run(self) -> bool:
-        """Rompt la suite en cours ; la prochaine ancre évitera la sienne (GOAL-059).
+    def break_run(self, constraint: object) -> bool:
+        """Rompt la suite de cette clé ; la prochaine ancre évitera la sienne
+        (GOAL-059).
 
         Rend `False` hors mode ou en double dose, dont l'artiste n'est pas une
         ancre tirée pour durer.
         """
-        if self._mode not in (Mode.ERA_FAN, Mode.ARTIST_FAN):
+        suite = self._suites.get(constraint)
+        if suite is None or suite.mode not in (Mode.ERA_FAN, Mode.ARTIST_FAN):
             return False
-        self._avoid_artist, self._avoid_era = self._anchor_artist, self._anchor_era
-        self._remaining = 0
-        self._played = set()
+        suite.avoid_artist, suite.avoid_era = suite.anchor_artist, suite.anchor_era
+        suite.remaining = 0
+        suite.played = set()
         return True
 
     def directive(self, constraint: object, mode: Mode | None) -> Directive | None:
         """Ce que le prochain tirage doit respecter, ou `None` pour un tirage d'ancre."""
-        self._rebase(constraint, mode)
-        if self._mode is None:
+        suite = self._etat(constraint, mode)
+        if suite.mode is None:
             return None
-        if self._remaining <= 0:
-            if self._avoid_artist is None and self._avoid_era is None:
+        if suite.remaining <= 0:
+            if suite.avoid_artist is None and suite.avoid_era is None:
                 return None
-            return Directive(avoid_artist=self._avoid_artist, avoid_era=self._avoid_era)
-        if self._mode is Mode.ERA_FAN:
-            return Directive(era=self._anchor_era, exclude=frozenset(self._played))
+            return Directive(avoid_artist=suite.avoid_artist, avoid_era=suite.avoid_era)
+        if suite.mode is Mode.ERA_FAN:
+            return Directive(era=suite.anchor_era, exclude=frozenset(suite.played))
         return Directive(
-            artist=self._anchor_artist, exclude=frozenset(self._played), bypass_window=True
+            artist=suite.anchor_artist, exclude=frozenset(suite.played), bypass_window=True
         )
 
     def observe(self, constraint: object, mode: Mode | None, track: Track) -> None:
@@ -118,49 +140,53 @@ class Runs:
         Un morceau qui ne colle pas à l'ancre (le tirage a dû rompre la suite,
         faute de candidats) devient la nouvelle ancre.
         """
-        self._rebase(constraint, mode)
-        if self._mode is None:
+        suite = self._etat(constraint, mode)
+        if suite.mode is None:
             return
-        if self._remaining > 0 and self._matches(track):
-            self._remaining -= 1
-            self._played.add(track.identifier)
+        if suite.remaining > 0 and self._matches(suite, track):
+            suite.remaining -= 1
+            suite.played.add(track.identifier)
             return
-        self._start(self._mode, track)
+        self._start(suite, suite.mode, track)
 
-    def _rebase(self, constraint: object, mode: Mode | None) -> None:
-        if constraint == self._base and mode is self._mode:
-            return
-        self._base = constraint
-        self._mode = mode
-        self._anchor_artist = None
-        self._anchor_era = None
-        self._remaining = 0
-        self._played = set()
-        self._avoid_artist = None
-        self._avoid_era = None
+    def _etat(self, constraint: object, mode: Mode | None) -> _Run:
+        """L'état de cette clé, neuf si elle est inconnue ou si son mode a changé.
 
-    def _matches(self, track: Track) -> bool:
-        if self._mode is Mode.ERA_FAN:
-            return era_of(track) == self._anchor_era
-        return track.artist == self._anchor_artist
+        La mémoire est bornée : une clé oubliée repart à zéro, comme celle des
+        thèmes au hasard (`core/mystery.py`).
+        """
+        suite = self._suites.get(constraint)
+        if suite is not None and suite.mode is mode:
+            return suite
+        suite = _Run(mode=mode)
+        self._suites[constraint] = suite
+        while len(self._suites) > MEMOIRE_MAX:
+            del self._suites[next(iter(self._suites))]
+        return suite
 
-    def _start(self, mode: Mode, track: Track) -> None:
-        self._anchor_artist = None
-        self._anchor_era = None
-        self._remaining = 0
-        self._played = set()
-        self._avoid_artist = None
-        self._avoid_era = None
+    @staticmethod
+    def _matches(suite: _Run, track: Track) -> bool:
+        if suite.mode is Mode.ERA_FAN:
+            return era_of(track) == suite.anchor_era
+        return track.artist == suite.anchor_artist
+
+    def _start(self, suite: _Run, mode: Mode, track: Track) -> None:
+        suite.anchor_artist = None
+        suite.anchor_era = None
+        suite.remaining = 0
+        suite.played = set()
+        suite.avoid_artist = None
+        suite.avoid_era = None
         if mode is Mode.ERA_FAN:
             era = era_of(track)
             if era is None:
                 # Pas d'ancre sans année : tirage simple, et le hasard n'est
                 # pas consommé pour que la soirée se rejoue.
                 return
-            self._anchor_era = era
+            suite.anchor_era = era
         else:
-            self._anchor_artist = track.artist
+            suite.anchor_artist = track.artist
         lo, hi = RUN_SPANS[mode]
         length = lo if lo == hi else self._hasard.pick(list(range(lo, hi + 1)))
-        self._remaining = length - 1
-        self._played = {track.identifier}
+        suite.remaining = length - 1
+        suite.played = {track.identifier}

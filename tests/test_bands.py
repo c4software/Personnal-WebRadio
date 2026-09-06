@@ -229,14 +229,21 @@ def test_une_plage_au_hasard_delegue_au_resolveur_injecte() -> None:
     assert vus == [(au_hasard, datetime(2026, 8, 30, 21, 30, tzinfo=UTC))]
 
 
-def test_un_resolveur_sans_theme_a_proposer_rend_le_tirage_libre() -> None:
+def test_un_resolveur_sans_theme_a_proposer_tire_librement_sous_l_occurrence() -> None:
+    """Le tirage échoué laisse la plage en tirage libre (SPECS.md §4.4), sans
+    genre ni artiste, mais sous la clé de son occurrence : la file et la grille
+    doivent parler la même, sinon l'avance est jugée rassise à chaque
+    préparation (décision n°33, GOAL-083)."""
     au_hasard = Band(start=time(21), end=time(23), random_theme="artist")
 
     def rien(_band: Band, _instant: datetime) -> Constraint | None:
         return None
 
     grille = Schedule([au_hasard], a(21, 30), resolve_random_theme=rien)
-    assert grille.constraint_to_draw(RealRandom(graine=1)) is None
+    contrainte = grille.constraint_to_draw(RealRandom(graine=1))
+    assert contrainte is not None
+    assert (contrainte.genre, contrainte.artist) == (None, None)
+    assert contrainte.run_key == grille.current_moment()
 
 
 def test_une_plage_au_hasard_sans_resolveur_est_refusee_bruyamment() -> None:

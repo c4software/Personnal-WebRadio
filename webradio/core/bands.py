@@ -260,8 +260,10 @@ class Schedule:
         key = self._moment_key(band, instant, resolved)
         if band.random_theme is not None:
             if resolved is None:
-                if band.mode is None:
-                    return None
+                # Thème non tiré : la plage tire librement (SPECS.md §4.4), mais
+                # sous la clé de son occurrence. Rendre `None` ici rangeait
+                # l'avance sous la clé `None` là où la grille rend celle de la
+                # plage, et chaque préparation la jugeait rassise (décision n°33).
                 return Constraint(mode=band.mode, eras=band.eras, run_key=key)
             return replace(resolved, mode=band.mode, eras=band.eras, run_key=key)
         if band.artists:

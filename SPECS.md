@@ -1496,6 +1496,14 @@ jamais dans une suite ; la clé de remise à zéro est l'**occurrence** de la
 plage, pas sa contrainte — une plage multi-genres retire un genre à chaque
 jonction et la suite y survit, une suite d'artiste suivant son artiste par
 `tracks_by`, même hors du genre du moment.
+**Précisée le 2026-09-06** (GOAL-083) : la suite est **retenue par
+occurrence**, comme le thème au hasard (n°28), et non une seule à la fois.
+L'avance est tirée créneau par créneau sous des occurrences différentes
+(n°34) : un titre préparé pour la plage suivante coupait sinon la suite en
+cours, sans rien dire — la double dose promise se réduisait à un titre.
+Rompre une suite (§4.4) ne rompt que celle du moment courant. La mémoire est
+bornée aux dernières occurrences vues ; au-delà, une occurrence oubliée
+repart à zéro.
 > *Raison* : c'est un geste d'antenne — « encore un peu de la même chose » —
 > pas un nouveau mécanisme de grille : le mode se greffe sur la plage comme le
 > thème au hasard (n°28), et tout le reste (émissions, programmes, encore,
