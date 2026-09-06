@@ -330,6 +330,35 @@ l'avance ne bouge pas.
 
 ---
 
+## GOAL-082 — Une carte blanche ne rejoue plus le même titre toute l'heure
+
+Ouvert le 2026-09-06 sur constat de l'auteur à l'antenne, deux captures à
+l'appui. La plage `random = "artist"` de 14 h est tombée sur un artiste
+n'ayant qu'un seul titre dans la bibliothèque, et l'a rejoué huit fois pour
+remplir l'heure.
+
+Mesuré en production : 5 704 pistes, 1 818 artistes, dont 1 277 (70 %) n'ont
+qu'un titre. Le tirage se fait par une piste, donc pondéré : une carte blanche
+sur cinq tombait sur un artiste à titre unique.
+
+- [x] **GOAL-082-T01** — Une carte blanche n'a le droit de tirer qu'un artiste
+      ayant au moins `draw.min_artist_tracks` titres (SPECS.md §7 n°36, 15 par
+      défaut). Le seuil vient de la mesure : 3,6 minutes de médiane, donc une
+      heure demande une quinzaine de titres, et 15 laisse encore 61 artistes
+      éligibles. Aucun artiste au-dessus du seuil : il est relâché plutôt que
+      la plage abandonnée, comme le fait la non-répétition.
+- [ ] **GOAL-082-T02** — La non-répétition compte des artistes, pas des
+      morceaux (`core/rotation.py`, SPECS.md §4.2) : à l'intérieur d'une plage
+      qui impose un artiste, rien n'empêche un titre de revenir. Le seuil de
+      T01 traite le cas où c'était fatal ; celui-ci reste au hasard du tirage.
+      Une analyse est en cours pour dire si la fenêtre doit compter aussi les
+      morceaux, et ce que cela coûterait.
+- [ ] **GOAL-082-T03** — Le même trou existe ailleurs, borné mais réel :
+      `artist_fan` impose un artiste pour trois à six titres (n°31), et un
+      « encore » voté force un artiste. Dire si le seuil doit s'y appliquer.
+
+---
+
 ## GOAL-079 — `radio.liq` reçoit la réécriture du ton que les autres ont eue
 
 Ouvert le 2026-09-06, sur revue. `ea20e20` a réécrit les commentaires du dépôt
@@ -432,6 +461,7 @@ mimétisme. §9 dit que cela « ne doit pas revenir ».
 | GOAL-081 | Ce que la lecture de fond a cassé, et deux fenêtres fausses | `[-]` — ouvert le 2026-09-06 ; T04 (YouTube) reste |
 | GOAL-078 | La liste des prochains titres coud la grille derrière elle | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°34 amendée) |
 | GOAL-080 | Ce qu'une plage podcasts expose, et que la revue a trouvé | `[x]` — clos le 2026-09-06 ; **reste à écouter** le début d'une plage |
+| GOAL-082 | Une carte blanche ne rejoue plus le même titre toute l'heure | `[-]` — ouvert le 2026-09-06, sur constat à l'antenne |
 | GOAL-079 | `radio.liq` reçoit la réécriture du ton que les autres ont eue | `[ ]` — ouvert le 2026-09-06, sur revue : le fichier a échappé à `ea20e20` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans

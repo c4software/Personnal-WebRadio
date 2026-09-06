@@ -6,18 +6,19 @@ bibliothèque. Ce tirage a besoin de la source, d'où un module distinct de
 `core/bands.py`.
 
 Le tirage est figé sur l'occurrence : une soirée entière garde le thème tiré au
-début. La mémoire porte sur la plage **et** l'occurrence, parce qu'on ne
-consulte pas que l'occurrence courante : la préparation tire chaque titre
-d'avance sous le moment de son heure estimée (décision n°34), donc sous des
-occurrences que l'antenne n'a pas encore atteintes. Une mémoire à une seule
-entrée les laissait s'effacer l'une l'autre, et la soirée changeait de thème en
-cours de route. Rien n'est persisté : une radio qui redémarre retire.
+début. La mémoire porte sur la plage et l'occurrence, parce qu'on ne consulte
+pas que l'occurrence courante : la préparation tire chaque titre d'avance sous
+le moment de son heure estimée (décision n°34), donc sous des occurrences que
+l'antenne n'a pas encore atteintes. Rien n'est persisté : une radio qui
+redémarre retire.
 """
 
 import logging
+from collections import Counter
 from datetime import datetime
 
 from webradio.core.bands import Band, Constraint
+from webradio.core.models import Track
 from webradio.core.rng import Random
 from webradio.core.sources import MusicSource, SourceUnavailable
 
@@ -32,9 +33,12 @@ MEMOIRE_MAX = 32
 class RandomTheme:
     """Tire le genre ou l'artiste d'une plage, une fois par occurrence."""
 
-    def __init__(self, source: MusicSource, random: Random) -> None:
+    def __init__(self, source: MusicSource, random: Random, min_artist_tracks: int = 0) -> None:
         self._source = source
         self._random = random
+        # Titres exigés d'un artiste pour qu'une carte blanche le tire
+        # (SPECS.md §7 n°36).
+        self._vivier_minimal = min_artist_tracks
         self._tirages: dict[tuple[Band, datetime], Constraint] = {}
         self._reported: datetime | None = None
 
@@ -97,7 +101,8 @@ class RandomTheme:
                 # librement est déjà un échantillon de la bibliothèque, et une
                 # méthode de plus aurait coûté à toutes les sources.
                 tracks = self._source.tracks(None)
-                others = [t for t in tracks if t.artist != exclude] or tracks
+                assez = self._assez_fournis(tracks, occurrence)
+                others = [t for t in assez if t.artist != exclude] or assez
                 if others:
                     return Constraint(artist=self._random.pick(others).artist)
         except SourceUnavailable:
@@ -105,6 +110,28 @@ class RandomTheme:
             return None
         self._report(occurrence, "la bibliothèque est vide")
         return None
+
+    def _assez_fournis(self, tracks: list[Track], occurrence: datetime) -> list[Track]:
+        """Les pistes des artistes ayant assez de titres pour tenir une
+        occurrence (SPECS.md §7 n°36).
+
+        Le comptage ne coûte rien : le parcours est déjà chargé.
+
+        Si aucun artiste n'atteint le seuil, la contrainte est relâchée plutôt
+        que la plage abandonnée, comme la non-répétition le fait déjà
+        (SPECS.md §4.2). C'est journalisé une fois par occurrence.
+        """
+        if self._vivier_minimal <= 1:
+            return tracks
+        compte = Counter(t.artist for t in tracks)
+        assez = [t for t in tracks if compte[t.artist] >= self._vivier_minimal]
+        if assez:
+            return assez
+        self._report(
+            occurrence,
+            f"aucun artiste n'a {self._vivier_minimal} titres, le seuil est relâché",
+        )
+        return tracks
 
     def _report(self, occurrence: datetime, reason: str) -> None:
         """Journalise une fois par occurrence, pas une fois par morceau.

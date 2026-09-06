@@ -1149,6 +1149,9 @@ Ce que le TOML doit décrire, au minimum :
   écriture accepte d'attendre un verrou — deux processus y touchent ;
 - **Le web** : adresse et port de l'interface et de l'API, et l'intervalle
   auquel la page redemande ce qui passe ;
+- **Le tirage** : `draw.min_artist_tracks`, les titres qu'un artiste doit avoir
+  pour qu'une plage « carte blanche » le tire (§7 n°36, 15 par défaut,
+  `0` = ne rien exiger) ;
 - **La reprise** : `playout.resume_fresh_seconds`, la pause sans auditeur
   au-delà de laquelle le retour repart sur un tirage neuf (§4.7, 900 par
   défaut, `0` = jamais) ;
@@ -1587,6 +1590,25 @@ chaque flux : c'est le `full` le plus récent non diffusé, on ne redescend pas.
 > *Conséquence assumée* : un épisode médian de soixante-dix-sept minutes lancé
 > peu avant `end` déborde sur ce qui suit. C'est le prix de la n°5, et il
 > s'entend — la plage suivante commence en retard.
+
+**n°36 — Une carte blanche ne tire qu'un artiste assez fourni.** Tranchée le
+2026-09-06 par l'auteur, sur constat à l'antenne. Une plage `random = "artist"`
+n'a le droit de tirer qu'un artiste ayant au moins `draw.min_artist_tracks`
+titres (15 par défaut, `0` = ne rien exiger). Si aucun ne l'atteint, le seuil
+est relâché plutôt que la plage abandonnée, comme le fait déjà la
+non-répétition (§4.2).
+> *Raison* : la carte blanche de 14 h est tombée sur un artiste n'ayant qu'un
+> seul titre dans la bibliothèque, et l'a rejoué huit fois d'affilée pour
+> remplir l'heure. Rien ne l'interdisait : la §4.2 compte des artistes, pas des
+> morceaux, et le thème est figé pour l'occurrence (n°28). Le seuil vient de la
+> mesure : les titres durent 3,6 minutes de médiane, donc une heure en demande
+> une quinzaine. Sur la bibliothèque de l'auteur — 5 704 pistes, 1 818 artistes,
+> dont 70 % n'ont qu'un titre — le seuil de 15 laisse 61 artistes éligibles, de
+> quoi tenir deux mois de cartes blanches quotidiennes sans répétition d'un
+> jour à l'autre. Le descendre à 3 n'en donnerait que 190 mais ne réglerait
+> rien : trois titres ne remplissent pas une heure.
+> *Ce que cela ne règle pas* : rien ne mémorise encore les **morceaux**, donc
+> un artiste fourni peut voir un de ses titres revenir dans la même heure.
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :

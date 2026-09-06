@@ -205,3 +205,60 @@ def test_une_soiree_trop_ancienne_finit_par_s_oublier() -> None:
         tirage.constraint_for(SOIREE, premier_soir + timedelta(days=jour))
 
     assert tirage.constraint_for(SOIREE, premier_soir) != ancien
+
+
+# ── Le vivier d'une carte blanche (GOAL-082, n°36) ──────────────────────────
+
+BIBLIOTHEQUE = (
+    [track(f"p{i}", "Prolifique", genre="pop") for i in range(15)]
+    + [track("u1", "Unique", genre="rap")]
+    + [track(f"m{i}", "Maigre", genre="jazz") for i in range(3)]
+)
+
+
+def test_une_carte_blanche_ecarte_un_artiste_au_vivier_trop_maigre() -> None:
+    """Un artiste à un seul titre remplissait l'heure de ce titre-là — huit
+    fois de suite, constaté à l'antenne le 2026-09-06. Une heure demande une
+    quinzaine de titres (SPECS.md §7 n°36)."""
+    tirage = RandomTheme(FakeSource(BIBLIOTHEQUE), ScriptedRandom([0] * 5), 15)
+
+    contrainte = tirage.constraint_for(SOIREE_ARTISTE, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))
+
+    assert contrainte is not None
+    assert contrainte.artist == "Prolifique", "seul artiste à quinze titres"
+
+
+def test_sans_seuil_le_tirage_ne_change_pas() -> None:
+    """Le défaut est zéro : une bibliothèque qui s'en accommode garde le
+    comportement d'avant, et le seuil se règle au TOML."""
+    tirage = RandomTheme(FakeSource(BIBLIOTHEQUE), ScriptedRandom([15]), 0)
+
+    contrainte = tirage.constraint_for(SOIREE_ARTISTE, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))
+
+    assert contrainte is not None
+    assert contrainte.artist == "Unique", "le seizième titre, sans filtre"
+
+
+def test_un_seuil_qu_aucun_artiste_n_atteint_se_relache(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Mieux vaut une plage au vivier maigre qu'une plage abandonnée : c'est
+    déjà ce que fait la non-répétition quand elle bloque (SPECS.md §4.2)."""
+    tirage = RandomTheme(FakeSource(BIBLIOTHEQUE), ScriptedRandom([0]), 500)
+
+    with caplog.at_level(logging.WARNING):
+        contrainte = tirage.constraint_for(SOIREE_ARTISTE, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))
+
+    assert contrainte is not None, "la plage tire quand même"
+    assert "seuil est relâché" in caplog.text
+
+
+def test_le_seuil_ne_touche_pas_le_tirage_d_un_genre() -> None:
+    """Un genre n'est pas un artiste : son vivier se juge autrement, et rien
+    n'a été constaté de ce côté."""
+    tirage = RandomTheme(FakeSource(BIBLIOTHEQUE), ScriptedRandom([2]), 15)
+
+    contrainte = tirage.constraint_for(SOIREE, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))
+
+    assert contrainte is not None
+    assert contrainte.genre == "rap", "genres triés : jazz, pop, rap"

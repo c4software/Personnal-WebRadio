@@ -74,6 +74,9 @@ DEFAULT_JINGLE_EXPIRY_SECONDS = 900.0
 # Pause sans auditeur au-delà de laquelle le retour jette l'avance et repart
 # sur un tirage neuf (SPECS.md §7 n°30). 0 = jamais.
 DEFAULT_RESUME_FRESH_SECONDS = 900.0
+# Titres exigés d'un artiste pour qu'une plage random = "artist" le tire
+# (SPECS.md §7 n°36). Une heure en demande une quinzaine. 0 = ne rien exiger.
+DEFAULT_MIN_ARTIST_TRACKS = 15
 # Durée de mise en cache d'un flux de podcast lu. Les six flux d'une plage
 # pèsent 21,6 Mo, relus à chaque jonction sans cela (docs/podcast.md §4.bis).
 # 0 = relire à chaque fois.
@@ -123,6 +126,7 @@ class DrawSettings:
     votes: VoteSettings
     max_track_minutes: int = DEFAULT_MAX_TRACK_MINUTES
     lookahead: int = DEFAULT_LOOKAHEAD
+    min_artist_tracks: int = DEFAULT_MIN_ARTIST_TRACKS
 
 
 @dataclass(frozen=True, slots=True)
@@ -484,7 +488,11 @@ def _liste_tables(parent: Mapping[str, Any], key: str) -> list[Mapping[str, Any]
 
 def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
     table = _table(brut, "draw", "")
-    _verifier_cles(table, ("artist_gap", "votes", "max_track_minutes", "lookahead"), "draw")
+    _verifier_cles(
+        table,
+        ("artist_gap", "votes", "max_track_minutes", "lookahead", "min_artist_tracks"),
+        "draw",
+    )
     votes = _table_optionnelle(table, "votes", "draw")
     _verifier_cles(
         votes,
@@ -511,6 +519,9 @@ def _tirage(brut: Mapping[str, Any]) -> DrawSettings:
             minimum=0,
         ),
         lookahead=_entier(table, "lookahead", "draw", default=DEFAULT_LOOKAHEAD, minimum=1),
+        min_artist_tracks=_entier(
+            table, "min_artist_tracks", "draw", default=DEFAULT_MIN_ARTIST_TRACKS, minimum=0
+        ),
         votes=VoteSettings(
             floor=floor,
             ceiling=ceiling,
