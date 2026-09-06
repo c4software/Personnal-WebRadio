@@ -199,7 +199,18 @@ listeners = ref(0)
 # en fondu de sortie sous le nez de cet auditeur. Constaté le 2026-09-02 à
 # 13 h 20 : un micro-flash du morceau de 11 h 03. Ce témoin dit à la
 # transition, plus bas, de jeter ce reliquat (docs/liquidsoap.md §10).
+#
+# Il tait AUSSI l'antenne jusque-là. La transition ne s'exécute qu'une fois le
+# morceau frais bufférisé : quand l'API tarde à le rendre, la sortie a déjà
+# tiré le reliquat entier et il ne reste rien à jeter. Mesuré le 2026-09-06
+# (docs/liquidsoap.md §11) : deux secondes de la veille jusqu'à 87 % du
+# volume, et le même matin à l'antenne.
 reliquat_a_taire = ref(false)
+
+# La rampe de prise d'antenne (GOAL-050) est armée ici, avec le reste de son
+# mécanisme plus bas : c'est la transition de `cross` qui la réarme à l'entrée
+# du morceau frais, et elle est définie avant.
+antenne_prise = ref(0.)
 
 def sauter() =
   if listeners() == 0 then reliquat_a_taire := true end
@@ -248,6 +259,9 @@ programme = normalize(programme)
 def enchainer(a, b) =
   if reliquat_a_taire() then
     reliquat_a_taire := false
+    # La rampe est réarmée ici, pas à la prise d'antenne : l'attente du morceau
+    # frais l'aurait épuisée, et il entrerait à froid (docs/liquidsoap.md §11).
+    antenne_prise := time()
     log("saut à antenne vide : le reliquat est jeté, le morceau frais entre seul")
     b.source
   else
@@ -282,9 +296,17 @@ end
 # tirage frais, dont le `on_track` dit ce qui commence.
 def rendu_direct(_, b) = b end
 
+# Nommé parce que le muet de la reprise a besoin du même prédicat que le
+# `switch` : un direct n'a rien de rassis à taire, et l'attendre le laisserait
+# silencieux toute sa case — la transition qui lève le muet ne s'exécute que
+# lorsque `programme` reprend l'antenne.
+def direct_a_l_antenne() =
+  direct_arme() and live_pending() and live.is_ready()
+end
+
 on_air = switch(
   track_sensitive=false, transitions=[prise_direct, rendu_direct],
-  [({direct_arme() and live_pending() and live.is_ready()}, live), ({true}, programme)]
+  [({direct_a_l_antenne()}, live), ({true}, programme)]
 )
 
 # ── Rien n'est décodé ni demandé sans auditeur (SPECS.md §1) ────────────────
@@ -326,7 +348,6 @@ end
 # un instant, et un `amplify` monte le gain de 0 à 1 en deux secondes
 # (docs/liquidsoap.md §8).
 duree_fondu = 2.
-antenne_prise = ref(0.)
 
 def prise_antenne(_, b) =
   antenne_prise := time()
@@ -339,8 +360,12 @@ on_air = switch(track_sensitive=false, transitions=[prise_antenne, rendre_antenn
                 [({listeners() > 0}, on_air), ({true}, blank())])
 
 def gain_antenne() =
-  d = time() - antenne_prise()
-  if d >= duree_fondu then 1. elsif d < 0. then 0. else d / duree_fondu end
+  if reliquat_a_taire() and not direct_a_l_antenne() then
+    0.
+  else
+    d = time() - antenne_prise()
+    if d >= duree_fondu then 1. elsif d < 0. then 0. else d / duree_fondu end
+  end
 end
 
 on_air = amplify(gain_antenne, on_air)

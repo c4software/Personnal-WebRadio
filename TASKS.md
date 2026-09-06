@@ -216,12 +216,20 @@ matin n'en produit.
       était l'autre hypothèse. Le garde-fou de §10 est donc nécessaire mais
       pas suffisant : une transition s'exécute trop tard, seul le gain
       protège.
-- [ ] **GOAL-074-T02** — L'antenne reste muette du saut à antenne vide
+- [x] **GOAL-074-T02** — L'antenne reste muette du saut à antenne vide
       jusqu'à l'entrée du morceau frais, et le morceau frais entre sous la
       rampe de prise d'antenne. Le témoin `reliquat_a_taire` existe déjà et
       dit exactement cela ; `prise_direct` doit le lever, sinon un direct pris
       entre le saut et la transition resterait silencieux toute la case.
       SPECS.md §4.7 et §7 n°30 disent le comportement obtenu.
+      Mesuré sur la maquette de §11, API retardée de 4 s : le ton d'avant la
+      pause passe de −16,7 dB à **−99 dB** (silence absolu), et le morceau
+      frais entre sous la rampe (−45 → −19 dB) au lieu d'entrer à froid.
+      Aucune régression sur le régime rapide. Le garde-fou du direct est
+      **raisonné, pas mesuré** : la maquette n'a pas su créer la course — la
+      transition a jeté le reliquat une seconde avant que le direct ne prenne
+      l'antenne. Il reste parce que rien d'autre ne lève le muet quand
+      `programme` ne reprend jamais l'antenne.
       **À écouter** (AGENTS.md §4.1) : la reprise du matin après une nuit
       sans auditeur — que rien de la veille ne s'entende, que le silence
       d'attente ne dure pas au point d'inquiéter, et que le morceau frais

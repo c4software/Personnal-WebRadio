@@ -135,6 +135,44 @@ def test_un_saut_a_antenne_vide_ne_laisse_aucun_reliquat_au_premier_auditeur() -
     assert "crossfade(" not in code, "crossfade ne laisse pas choisir sa transition"
 
 
+def test_l_antenne_est_muette_tant_que_le_morceau_frais_n_est_pas_entre() -> None:
+    """Jeter le reliquat à la transition ne suffit pas : elle ne s'exécute
+    qu'une fois le morceau frais bufférisé, et l'API peut tarder à le rendre.
+    La sortie a alors déjà tiré le reliquat entier — deux secondes mesurées à
+    87 % du volume (docs/liquidsoap.md §11). Seul le gain agit assez tôt.
+    """
+    code = _code()
+    gain = re.search(r"def gain_antenne\(\).*?\nend\n", code, re.DOTALL)
+    assert gain is not None
+    assert "reliquat_a_taire()" in gain.group(), "le muet doit porter sur le gain"
+    assert re.search(
+        r"if reliquat_a_taire\(\) and not direct_a_l_antenne\(\) then\s*0\.", gain.group()
+    ), "un direct n'a rien de rassis à taire, et le muet le rendrait silencieux"
+
+
+def test_le_morceau_frais_entre_sous_la_rampe_de_prise_d_antenne() -> None:
+    """La rampe est armée quand le `switch` rend l'antenne. L'attente du
+    morceau frais l'épuise : le 2026-09-06 il est entré à plein gain, trois
+    secondes après la prise. La transition la réarme (docs/liquidsoap.md §11).
+    """
+    code = _code()
+    transition = re.search(r"def enchainer\(a, b\).*?\nend\n", code, re.DOTALL)
+    assert transition is not None
+    branche = transition.group().split("else", 1)[0]
+    assert "antenne_prise := time()" in branche
+    assert code.index("antenne_prise = ref(0.)") < code.index("def enchainer")
+
+
+def test_le_direct_et_le_muet_lisent_le_meme_predicat() -> None:
+    """Deux copies du prédicat divergeraient, et c'est le muet qui perdrait :
+    un direct pris entre le saut et la transition resterait silencieux toute
+    sa case, puisque rien ne lève le muet avant que `programme` revienne."""
+    code = _code()
+    assert "def direct_a_l_antenne()" in code
+    assert code.count("live.is_ready()") == 1
+    assert "[({direct_a_l_antenne()}, live), ({true}, programme)]" in code
+
+
 def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
     """Un encore accepté vide l'avance du diffuseur (GOAL-034)."""
     code = _code()
