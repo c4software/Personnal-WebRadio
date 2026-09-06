@@ -6,8 +6,12 @@ bibliothèque. Ce tirage a besoin de la source, d'où un module distinct de
 `core/bands.py`.
 
 Le tirage est figé sur l'occurrence : une soirée entière garde le thème tiré au
-début. La mémoire tient en une seule entrée, l'occurrence courante ; rien n'est
-persisté, une radio qui redémarre retire.
+début. La mémoire porte sur la plage **et** l'occurrence, parce qu'on ne
+consulte pas que l'occurrence courante : la préparation tire chaque titre
+d'avance sous le moment de son heure estimée (décision n°34), donc sous des
+occurrences que l'antenne n'a pas encore atteintes. Une mémoire à une seule
+entrée les laissait s'effacer l'une l'autre, et la soirée changeait de thème en
+cours de route. Rien n'est persisté : une radio qui redémarre retire.
 """
 
 import logging
@@ -19,6 +23,11 @@ from webradio.core.sources import MusicSource, SourceUnavailable
 
 logger = logging.getLogger(__name__)
 
+# Autant de thèmes retenus. Une journée compte quelques occurrences de plages au
+# hasard, et la préparation en consulte quelques-unes d'avance ; au-delà, ce
+# sont des soirées passées, que personne ne redemandera.
+MEMOIRE_MAX = 32
+
 
 class RandomTheme:
     """Tire le genre ou l'artiste d'une plage, une fois par occurrence."""
@@ -26,8 +35,7 @@ class RandomTheme:
     def __init__(self, source: MusicSource, random: Random) -> None:
         self._source = source
         self._random = random
-        self._occurrence: datetime | None = None
-        self._constraint: Constraint | None = None
+        self._tirages: dict[tuple[Band, datetime], Constraint] = {}
         self._reported: datetime | None = None
 
     def constraint_for(self, band: Band, instant: datetime) -> Constraint | None:
@@ -41,9 +49,10 @@ class RandomTheme:
             message = f"la plage {band.start:%H:%M} ne demande aucun thème à tirer"
             raise ValueError(message)
         occurrence = band.occurrence_start(instant)
-        if occurrence == self._occurrence:
-            return self._constraint
-        return self._retenir(occurrence, self._draw(band.random_theme, occurrence))
+        retenu = self._tirages.get((band, occurrence))
+        if retenu is not None:
+            return retenu
+        return self._retenir(band, occurrence, self._draw(band.random_theme, occurrence))
 
     def redraw(self, band: Band, instant: datetime) -> Constraint | None:
         """Retire un autre thème pour l'occurrence courante (GOAL-057).
@@ -56,19 +65,21 @@ class RandomTheme:
             message = f"la plage {band.start:%H:%M} ne demande aucun thème à tirer"
             raise ValueError(message)
         occurrence = band.occurrence_start(instant)
-        previous = self._constraint if occurrence == self._occurrence else None
+        previous = self._tirages.pop((band, occurrence), None)
         exclude = None if previous is None else previous.genre or previous.artist
         constraint = self._draw(band.random_theme, occurrence, exclude)
         if constraint is not None and constraint == previous:
             logger.info("thème retiré : la bibliothèque n'en offre pas d'autre que « %s »", exclude)
-        self._occurrence = None
-        return self._retenir(occurrence, constraint)
+        return self._retenir(band, occurrence, constraint)
 
-    def _retenir(self, occurrence: datetime, constraint: Constraint | None) -> Constraint | None:
+    def _retenir(
+        self, band: Band, occurrence: datetime, constraint: Constraint | None
+    ) -> Constraint | None:
         if constraint is None:
             return None
-        self._occurrence = occurrence
-        self._constraint = constraint
+        self._tirages[(band, occurrence)] = constraint
+        while len(self._tirages) > MEMOIRE_MAX:
+            del self._tirages[next(iter(self._tirages))]
         return constraint
 
     def _draw(

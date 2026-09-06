@@ -1,13 +1,13 @@
 """Le thème tiré au sort : figé sur l'occurrence, jamais bloquant (GOAL-037)."""
 
 import logging
-from datetime import UTC, datetime, time
+from datetime import UTC, datetime, time, timedelta
 
 import pytest
 
 from tests.fakes import FakeSource, track
 from webradio.core.bands import Band, Constraint
-from webradio.core.mystery import RandomTheme
+from webradio.core.mystery import MEMOIRE_MAX, RandomTheme
 from webradio.core.rng import ScriptedRandom
 
 CATALOGUE = [
@@ -155,3 +155,53 @@ def test_retirer_hors_d_une_plage_au_hasard_est_refuse() -> None:
     declaree = Band(start=time(21), end=time(23), genres=("jazz",))
     with pytest.raises(ValueError, match="aucun thème"):
         tirage.redraw(declaree, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))
+
+
+SOIREE_SUIVANTE = Band(start=time(23), end=time(1), random_theme="genre")
+
+
+def test_une_occurrence_a_venir_ne_change_pas_le_theme_en_cours() -> None:
+    """La préparation tire chaque titre d'avance sous le moment de son heure
+    estimée (décision n°34) : elle demande donc le thème d'occurrences que
+    l'antenne n'a pas encore atteintes. Ce thème-là ne doit rien effacer.
+
+    Sans cela, la consultation d'une occurrence à venir remplace la mémoire, et
+    la jonction suivante — qui redemande le moment courant — n'y retrouve plus
+    rien et retire : la soirée change de thème en cours de route (GOAL-076).
+    """
+    tirage = RandomTheme(FakeSource(CATALOGUE), ScriptedRandom([1, 0, 2]))
+    ce_soir = datetime(2026, 8, 31, 21, 5, tzinfo=UTC)
+
+    en_cours = tirage.constraint_for(SOIREE, ce_soir)
+    tirage.constraint_for(SOIREE_SUIVANTE, datetime(2026, 8, 31, 23, 30, tzinfo=UTC))
+
+    assert tirage.constraint_for(SOIREE, ce_soir) == en_cours
+
+
+def test_chaque_plage_garde_son_propre_theme() -> None:
+    """La mémoire tenait une seule entrée pour toutes les plages : deux plages
+    `random` se la disputaient (GOAL-076)."""
+    tirage = RandomTheme(FakeSource(CATALOGUE), ScriptedRandom([1, 0, 2, 1]))
+    ce_soir = datetime(2026, 8, 31, 21, 5, tzinfo=UTC)
+    plus_tard = datetime(2026, 8, 31, 23, 30, tzinfo=UTC)
+
+    premier = tirage.constraint_for(SOIREE, ce_soir)
+    second = tirage.constraint_for(SOIREE_SUIVANTE, plus_tard)
+
+    assert tirage.constraint_for(SOIREE, ce_soir) == premier
+    assert tirage.constraint_for(SOIREE_SUIVANTE, plus_tard) == second
+
+
+def test_une_soiree_trop_ancienne_finit_par_s_oublier() -> None:
+    """La mémoire est bornée : sans cela, une radio qui tourne des mois
+    retiendrait chaque soirée passée. Ce qui sort de la borne se retire, sans
+    conséquence — personne ne rejoue une soirée d'il y a un mois (GOAL-076)."""
+    indices = [1] + [0] * (MEMOIRE_MAX + 1) + [2]
+    tirage = RandomTheme(FakeSource(CATALOGUE), ScriptedRandom(indices))
+    premier_soir = datetime(2026, 8, 31, 21, 5, tzinfo=UTC)
+
+    ancien = tirage.constraint_for(SOIREE, premier_soir)
+    for jour in range(1, MEMOIRE_MAX + 2):
+        tirage.constraint_for(SOIREE, premier_soir + timedelta(days=jour))
+
+    assert tirage.constraint_for(SOIREE, premier_soir) != ancien

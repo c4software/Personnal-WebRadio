@@ -2447,3 +2447,43 @@ faute de commit se consigne, elle ne s'efface pas.
 Le correctif n'atteint l'antenne qu'après un `git push`, une image CI et un
 `docker compose pull` sur `frontal` : trois actions sortantes, à l'auteur
 (AGENTS.md §1.2).
+
+---
+
+## GOAL-076 — Le thème d'une plage « au hasard » ne se retire plus tout seul
+
+Ouvert le 2026-09-06, sur analyse de code, **sans constat à l'antenne** — c'est
+un chemin trouvé en lisant, pas un défaut entendu. Petit, indépendant, et il
+protège GOAL-077 comme GOAL-078.
+
+`core/mystery.py` ne retient qu'**une** occurrence : celle en cours. Or la
+préparation tire chaque créneau sous le moment de son heure estimée
+(`app/playout.py`, décision n°34) : si un créneau futur tombe dans une **autre**
+occurrence d'une plage `random`, la mémoire est remplacée par l'occurrence
+future, et le battement suivant — qui redemande le moment courant — n'y
+retrouve plus rien et **retire** le thème en cours. Clé changée, avance
+rassise, `requeue`.
+
+Le chemin existe déjà à `lookahead = 8` dès qu'une plage `random` en suit une
+autre à moins de trente minutes. Il devient nominal si l'avance s'allonge.
+
+- [x] **GOAL-076-T01** — La mémoire des thèmes tirés porte sur la plage **et**
+      l'occurrence, pas sur « la dernière consultée », et son test rejoue une
+      soirée où l'avance franchit la frontière entre deux plages `random`.
+      Test et correctif dans le même incrément : un test qui échoue ne se
+      committe pas seul (AGENTS.md §4 et §5.3). C'est ce qui a fusionné les
+      deux tâches prévues à l'ouverture du Goal — la décomposition était
+      fautive, pas le travail.
+      Une borne à poser en chemin : la mémoire ne peut pas croître sans fin,
+      une entrée par occurrence et par plage. Le dépôt a déjà ce motif
+      (`PENDING_MAX` dans `app/liquidsoap_playout.py`).
+      **Défaut constaté avant correction**, pas supposé : le test écrit
+      d'abord montrait le thème passer de `jazz` à `techno` en pleine soirée.
+      La mémoire est un dictionnaire indexé par `(plage, occurrence)`, borné à
+      `MEMOIRE_MAX`. La borne se teste par son effet — une soirée trop
+      ancienne se retire — plutôt qu'en fouillant l'attribut.
+
+**Clos le 2026-09-06.** Une tâche, un commit. Le défaut n'a jamais été
+entendu à l'antenne : il a été trouvé en relisant le code, puis constaté par
+un test avant d'être corrigé.
+

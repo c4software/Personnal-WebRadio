@@ -189,8 +189,8 @@ diffuseur), **GOAL-076** (petit, protège les deux suivants), **GOAL-077** (la
 plage podcasts), **GOAL-078** (la couture de la grille — après GOAL-077, qui
 lui donne le bon jeu de périodes).
 
-**Prochaine tâche** : GOAL-076-T01. GOAL-075 attend sa mesure à l'antenne
-(T03), qui demande le déploiement.
+**Prochaine tâche** : GOAL-077-T01, le relevé de la plage podcasts.
+GOAL-075 attend sa mesure à l'antenne (T03), qui demande le déploiement.
 
 ---
 
@@ -247,33 +247,6 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
       le journal du diffuseur.
 
 ---
-
-## GOAL-076 — Le thème d'une plage « au hasard » ne se retire plus tout seul
-
-Ouvert le 2026-09-06, sur analyse de code, **sans constat à l'antenne** — c'est
-un chemin trouvé en lisant, pas un défaut entendu. Petit, indépendant, et il
-protège GOAL-077 comme GOAL-078.
-
-`core/mystery.py` ne retient qu'**une** occurrence : celle en cours. Or la
-préparation tire chaque créneau sous le moment de son heure estimée
-(`app/playout.py`, décision n°34) : si un créneau futur tombe dans une **autre**
-occurrence d'une plage `random`, la mémoire est remplacée par l'occurrence
-future, et le battement suivant — qui redemande le moment courant — n'y
-retrouve plus rien et **retire** le thème en cours. Clé changée, avance
-rassise, `requeue`.
-
-Le chemin existe déjà à `lookahead = 8` dès qu'une plage `random` en suit une
-autre à moins de trente minutes. Il devient nominal si l'avance s'allonge.
-
-- [ ] **GOAL-076-T01** — Un test qui rejoue une soirée où l'avance franchit
-      la frontière entre deux plages `random`, et affirme que le thème en
-      cours ne bouge pas. Horloge et graine fixées, comme le reste : il doit
-      échouer avant le correctif. `tests/test_mystery.py` ne couvre
-      aujourd'hui que la succession, jamais l'alternance.
-- [ ] **GOAL-076-T02** — La mémoire des thèmes tirés porte sur l'occurrence,
-      pas sur « la dernière consultée ». Ce que « occurrence » veut dire
-      exactement est à établir en lisant `core/bands.py` : la clé existe déjà
-      pour dater l'avance (n°33), c'est probablement elle.
 
 ---
 
@@ -453,7 +426,7 @@ mimétisme. §9 dit que cela « ne doit pas revenir ».
 | GOAL-073 | L'état d'antenne poussé par SSE, et une coupure qui ne s'écrit plus | `[x]` — clos le 2026-09-03 ; **reste à constater** une coupure réseau et un retour d'arrière-plan depuis un téléphone |
 | GOAL-074 | La reprise ne laisse plus rien entendre de la veille, et l'annonce ne troue plus l'antenne | `[x]` — clos le 2026-09-06 ; T03 abandonnée sur arbitrage ; **reste à écouter** la reprise du matin |
 | GOAL-075 | Le premier tirage d'une reprise ne fait plus attendre l'antenne | `[ ]` — ouvert le 2026-09-06 par GOAL-074-T05 |
-| GOAL-076 | Le thème d'une plage « au hasard » ne se retire plus tout seul | `[ ]` — ouvert le 2026-09-06, sur analyse, sans constat à l'antenne |
+| GOAL-076 | Le thème d'une plage « au hasard » ne se retire plus tout seul | `[x]` — clos le 2026-09-06 ; défaut constaté par un test avant correction, jamais entendu à l'antenne |
 | GOAL-077 | Une plage « podcasts » : plusieurs flux, tirés au hasard | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°35) |
 | GOAL-078 | La liste des prochains titres coud la grille derrière elle | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°34 amendée) |
 | GOAL-079 | `radio.liq` reçoit la réécriture du ton que les autres ont eue | `[ ]` — ouvert le 2026-09-06, sur revue : le fichier a échappé à `ea20e20` |

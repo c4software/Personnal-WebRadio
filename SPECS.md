@@ -1386,6 +1386,13 @@ nouveau moment, et l'avance tirée sous l'ancien est rassise (n°33).
 > piste tirée librement, et non par une capacité « lister les artistes »
 > ajoutée au `Protocol` : une capacité de plus coûterait à toutes les sources à
 > venir pour un seul appel.
+> **Précisée le 2026-09-06** : « figé sur l'occurrence » veut dire sur *chaque*
+> occurrence, pas sur la dernière consultée. La radio ne demande pas que le
+> thème du moment : elle tire ses titres d'avance sous le moment de leur heure
+> estimée (n°34), donc sous des occurrences qu'elle n'a pas encore atteintes.
+> Une mémoire à une seule entrée les laissait s'effacer l'une l'autre, et la
+> soirée changeait de thème en cours de route — trouvé en relisant, jamais
+> entendu (GOAL-076).
 
 **n°29 — Un jingle horaire loin de son heure ? Abandonné.** Tranchée le
 2026-08-31 par l'auteur, sur constat : le jingle de 19 h entendu à 22 h 28,
