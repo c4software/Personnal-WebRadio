@@ -42,3 +42,6 @@ jingles/hours/*
 
 # Divers
 .DS_Store
+
+# Plans de travail des agents, jamais versionnés (AGENTS.md).
+plans/
