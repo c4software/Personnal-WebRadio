@@ -324,9 +324,11 @@ Deux commandes, adressées à la station en cours de diffusion :
 | **`stop`** | Passer le morceau en cours. Le suivant démarre à la jonction, sans blanc. |
 | **`encore`** | Rester sur cet artiste : le prochain morceau est du **même artiste**. S'il n'en reste aucun de disponible, du **même genre**. Si le genre non plus n'offre rien, tirage libre, et le repli est journalisé. |
 
-**Elles sont disponibles en permanence**, à une exception près : **pendant un
-jingle horaire ou un flash d'information**, elles ne s'appliquent pas. On ne
-passe pas un flash, et on ne demande pas « encore » d'un jingle.
+**Elles sont disponibles en permanence**, sauf **pendant un jingle horaire, un
+flash d'information ou une émission** : on ne passe pas un flash, et on ne
+demande pas « encore » d'un jingle. La seule exception est l'épisode d'une plage
+de podcasts, que « Passer » pioche — le tableau ci-dessous dit lequel des deux
+boutons vaut sur quoi.
 
 **Un épisode d'une plage de podcasts se passe** — décision n°44, prise le
 2026-09-06. Une plage enchaîne des épisodes (§7 n°35) : « Passer » y **pioche un
@@ -1228,6 +1230,7 @@ change.
 | … et la file s'épuise sans retour | **coupe**, en journalisant pourquoi |
 | l'API ne répond plus à Liquidsoap | il réessaie **une fois**, puis **coupe** en journalisant pourquoi |
 | Liquidsoap meurt | le superviseur le relance, neuf |
+| `radio` redémarre en pleine piste | l'antenne dit `inconnu` et refuse les votes le temps d'un battement, puis le diffuseur redit ce qu'il joue et redemande son avance (§4.6, §7 n°42) |
 
 Une coupure n'est pas un échec du principe, c'en est l'application : une radio
 qui boucle sur trois morceaux en répétant qu'elle va bien rend la panne
@@ -1315,7 +1318,8 @@ démarrage, et toute clé ajoutée est documentée ici dans le même incrément
   `stream_url`, l'adresse du flux que le lecteur de la page ouvre (§4.8) —
   absente, pas de lecteur ; `:8000/flux` désigne l'hôte de la page ;
 - **Le diffuseur** (`[liquidsoap]`) : `url`, où joindre Liquidsoap pour lui
-  ordonner `/skip` et `/requeue` (§5.1, `http://127.0.0.1:8000` par défaut —
+  ordonner `/skip`, `/skip-fresh`, `/requeue` et `/announce` (§5.1,
+  `http://127.0.0.1:8000` par défaut —
   en conteneur, `http://liquidsoap:8000`), et `order_timeout_seconds`,
   l'attente maximale de cet ordre (3 par défaut, au moins 0,1). Une adresse
   fausse ne fait pas taire la radio : l'ordre est journalisé en échec et le

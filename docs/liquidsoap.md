@@ -626,6 +626,25 @@ qu'un : `fetch()` **d'abord** (la file passe à deux), puis
 - [ ] Un moyen de retirer **une** entrée de la file sans la détruire. Aucune
       primitive de 2.3.3 ne l'offre à notre connaissance ; `queue()` et
       `set_queue()` sont les seules trouvées.
-- [ ] Les deux entrées tirées par la route sont deux épisodes téléchargés en
-      même temps. Leur effet conjoint sur la bande passante n'est **pas
-      mesuré** contre de vrais flux.
+- [ ] Les deux entrées tirées par la route ne sont **pas** deux épisodes :
+      `Shows.due()` rend `None` tant qu'un épisode demandé n'a pas pris
+      l'antenne, donc la seconde est une musique. Ce que deux téléchargements
+      simultanés feraient à la bande passante ne se pose donc pas ici ; ce qui
+      passe après l'épisode fraîchement pioché n'est pas mesuré à l'antenne.
+- [ ] **Le double tirage contredit le rang des demandes.** Avec `/skip-fresh`,
+      deux entrées sont en vol, et §12 a mesuré que l'entrée demandée en second
+      démarre la première quand la plus ancienne est lente à se résoudre.
+      L'hypothèse d'`_oublier_les_demandes_anterieures`
+      (`webradio/app/liquidsoap_playout.py`, GOAL-083 — « une demande plus
+      ancienne qui n'a pas commencé a été jetée ») cesse alors d'être vraie :
+      elle n'a pas été jetée, elle joue plus tard.
+      Rejoué le 2026-09-06 sur la pile réelle (`RadioProgramme` +
+      `LiquidsoapPlayout` + `Shows`, `FrozenClock`), la musique de rang
+      supérieur prenant l'antenne la première : l'épisode de rang inférieur est
+      **oublié du registre**, et `_signaler_l_emission` appelle
+      `Shows.dropped()`. Quand cet épisode joue ensuite, `_restaurer` le
+      déclare correctement d'après ses annotations — nature émission, libellé,
+      passable —, mais **rien ne l'inscrit comme diffusé** : `started()` ne
+      reconnaît plus sa demande, `dropped()` l'ayant déjà oubliée. Il reste
+      repiochable, et peut donc repasser dans la même plage.
+      **Résidu à écouter** (AGENTS.md §4.1) ; rien n'est corrigé ici.

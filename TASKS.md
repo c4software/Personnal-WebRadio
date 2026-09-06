@@ -225,16 +225,17 @@ ce qui en est écoulé quand elle les connaît, et la page en fait une barre qu'
 avance elle-même entre deux messages. **Reste à écouter** le décalage entre la
 barre et l'oreille, et l'écran de verrouillage sur téléphone.
 
-**GOAL-086 est ouvert le 2026-09-06**, sur constat de l'auteur à 21 h 12 :
-« Passer » accepté pendant un épisode de plage de podcasts, et l'antenne partie
-sur la musique que le diffuseur avait d'avance. Deux défauts distincts, le
-redémarrage aveugle (T02, close) et l'avance qui ne connaît pas les cases de
-podcasts (T04, T05).
+**GOAL-086 est clos le 2026-09-06** : « Passer » pendant un épisode de plage de
+podcasts pioche un autre épisode, au lieu d'envoyer l'antenne sur la musique que
+le diffuseur avait d'avance. Deux défauts, le redémarrage aveugle et l'avance
+qui ne connaissait pas les cases de podcasts ; six tâches, six commits.
+**Reste à écouter** (AGENTS.md §4.1) : un « Passer » sur un vrai épisode lourd,
+un redéploiement en pleine plage, le motif de refus sans autre épisode, et deux
+« Passer » coup sur coup.
 
-**Prochaine tâche** : GOAL-086-T06, la documentation finale et l'**écoute
-réelle** de la manœuvre pendant une vraie plage de podcasts (T01 à T05 sont
-faites). Puis GOAL-082-T04, le seuil de vivier appliqué ou non à l'ancre
-d'`artist_fan`.
+**Prochaine tâche** : GOAL-082-T04, le seuil de vivier appliqué ou non à l'ancre
+d'`artist_fan`. Puis GOAL-075-T03, la mesure à l'antenne du premier tirage d'une
+reprise, qui attend le déploiement.
 
 ---
 
@@ -458,142 +459,6 @@ verrouillage pendant l'émission de dimanche prochain.
 
 ---
 
-## GOAL-086 — Passer un épisode pioche un autre épisode
-
-Ouvert le 2026-09-06 sur constat de l'auteur à l'antenne, à 21 h 12. Pendant un
-épisode d'une plage de podcasts, « Passer » a été **accepté**, et le diffuseur a
-joué la musique qu'il avait d'avance — alors que `Control` refuse tout `stop`
-pendant une émission.
-
-L'analyse, rejouée sur la pile réelle avec `FrozenClock`, sépare **deux défauts** :
-
-1. **Le redémarrage aveugle.** Le service `radio` avait été redéployé pendant
-   l'épisode. Le diffuseur n'annonce qu'au **début** d'une entrée (`radio.liq`,
-   `on_track`) : le processus neuf ne reçoit aucun `POST /playout/playing` avant
-   la fin de l'entrée en cours. `Control` et `LiveRadio` démarraient en nature
-   `MUSIC`, l'API rendait `kind="musique"`, la page activait « Passer », le vote
-   passait, et l'avance (une musique) prenait l'antenne. Le vote n'a même rien
-   pesé : sans piste, `LiveRadio.vote` ne retient rien.
-2. **L'avance qui ne connaît pas les cases de podcasts.** Ce que le diffuseur
-   tenait d'avance était une musique tirée sans voir la case ouverte : même sans
-   redémarrage, un `stop` pendant un épisode aurait à choisir un autre épisode,
-   pas ce morceau.
-
-- [x] **GOAL-086-T01** — Relevé Liquidsoap sur maquette (docs/liquidsoap.md
-      §12) : `programme.fetch()` en 2.3.3, une route combinée remplacer-puis-
-      sauter et le blanc pendant la résolution d'un épisode lourd, requeue+skip
-      côté API, ordre `on_track`/recomplètement, ré-annonce de la piste en
-      cours. Aucun mécanisme n'est écrit avant ce relevé (AGENTS.md §3).
-      **Ce qui a été mesuré** : `fetch()` existe et est synchrone (il bloque le
-      gestionnaire harbor toute la résolution, pas la diffusion) ; la route
-      combinée `set_queue([])` + `fetch()` + `skip()` ne laisse aucun blanc mais
-      coûte **deux tirages**, et c'est le plus rapide qui prend l'antenne ;
-      `/requeue` puis `/skip` laisse **5,75 s de blanc** pour un épisode de 8 s
-      de résolution, et attendre entre les deux ne fait qu'échanger du silence
-      contre de l'épisode en cours ; `/playing` et le `/next` de recomplètement
-      sont **concurrents**, à la milliseconde, et l'ordre n'est pas garanti ; la
-      ré-annonce de la piste en cours marche depuis un `ref` (8,7 ms) comme
-      depuis `source.last_metadata`.
-- [x] **GOAL-086-T02** — Un processus qui redémarre ne sait pas ce qui passe :
-      il le dit et refuse les votes. Nature `Kind.UNKNOWN` (`"inconnu"`) dans le
-      noyau et dans l'API ; `Control` et `LiveRadio` y démarrent ; une entrée
-      demandée avant ce démarrage s'affiche par ses étiquettes mais reste de
-      nature inconnue, et s'inscrit au journal des titres avec cette nature
-      plutôt que d'être perdue. Motif de refus : « la radio vient de redémarrer :
-      elle ne sait pas encore ce qui passe ». La page n'a rien demandé :
-      `voteImpossible` désactive déjà tout ce qui n'est pas `musique`, et le
-      libellé de la carte affiche la nature telle quelle. Décision n°42
-      (SPECS.md §7), avec son coût : après un déploiement en plein épisode, les
-      deux boutons sont morts jusqu'à la jonction suivante.
-- [x] **GOAL-086-T03** — Le diffuseur redit ce qu'il joue après un redémarrage
-      de `radio`, et l'avance est redécidée par le processus neuf.
-      **Les entrées se décrivent** : `next_entry` préfixe chaque entrée d'un
-      `annotate:` portant `radio_kind`, `radio_label` et `radio_duration`,
-      valeurs citées et échappées — un direct est exclu, le script reconnaît son
-      entrée à `live:`. Une entrée déjà annotée (avance replacée) ne l'est pas
-      deux fois, ce qui contourne le point incertain de docs/liquidsoap.md §7
-      sur l'`annotate:` imbriqué, jingles compris.
-      **Le script redit** : `derniere_annonce` garde le corps du dernier
-      `on_track`, daté par `time()` en quatrième ligne, et `POST /announce` le
-      re-poste tel quel (rien à redire s'il n'y a rien eu).
-      **L'API l'ordonne** : au premier battement d'auditeurs d'un processus dont
-      `_entree_en_cours` est nul, `/announce` puis `/requeue`, **une seule
-      fois** ; hors verrou, et seulement si les deux ordres sont câblés.
-      **`playing()` restaure** la nature, le libellé et la longueur lus dans
-      l'entrée, datés du vrai début ; une ré-annonce de l'entrée déjà en cours
-      ne redéclare rien.
-      **Mesuré sur la maquette** (docs/liquidsoap.md §13) : des clés `annotate:`
-      arbitraires traversent jusqu'à `on_track` et au POST ; une valeur non
-      citée fait **perdre l'entrée entière** (un tiret ou un pourcent suffit) ;
-      une valeur citée porte virgule, deux-points, accents et `"` échappé ;
-      `radio_duration` ne coupe rien ; `/announce` redit le même corps en moins
-      de 10 ms.
-      **Résidus** : une entrée demandée par un script d'avant ce déploiement ne
-      porte aucune nature et reste `inconnu` ; une musique se restaure sans
-      `Track`, faute d'une recherche par identifiant dans `MusicSource` — le
-      `stop` coupe, l'encore est accepté sans rien retenir. Décision n°42
-      amendée (SPECS.md §7).
-- [x] **GOAL-086-T04** — L'avance datée connaît les cases de podcasts.
-      `RadioProgramme.current_moment()` rend `(période, case)`, où la case vient
-      de `Shows.open_band_slot()` : `PodcastSlot(show, start, awaited)`, lue sans
-      réseau — une plage déclare sa fin. `awaited` dit qu'un épisode est demandé
-      sans avoir commencé, ce qui fait changer la clé à son `/playing`. Le
-      rejugement du battement s'élargit aux `Kind.SHOW` qui portent une case de
-      plage ; un direct et un podcast seul n'en portent pas.
-      **Vérifié par rejeu** sur la pile réelle (`RadioProgramme` +
-      `LiquidsoapPlayout` + `Shows`, `FrozenClock`) : la soirée du dimanche
-      (19 h 57 musique, 20 h 00 épisode A, 20 h 01 musique faute de neuf,
-      21 h 00 `/requeue` et épisode « longs formats ») **échoue sans le
-      correctif** — la clé réduite à sa période ne rassit rien, et trois des six
-      tests tombent. Le garde-fou est testé : quatre battements sous une case
-      inchangée n'ordonnent aucun `/requeue`.
-      **Ce qu'on retient de `core/shows.py`** : `open_slot` n'a pas bougé. Elle
-      ne connaît pas les durées d'une plage, et refuser à `end` un épisode qui
-      commencerait après demanderait une durée que la case n'a pas ; c'est le
-      rejugement qui jette l'épisode demandé mais pas commencé. Décision n°43
-      (SPECS.md §7), qui amende la n°33 et la n°35.
-- [x] **GOAL-086-T05** — `stop` pendant un épisode de plage pioche un autre
-      épisode. `Control.declare(kind, skippable=…)` : `stop` accepté sur un
-      épisode de plage, `encore` refusé sur toute émission avec son propre
-      motif, et refus motivé — « aucun autre épisode à piocher : l'épisode
-      finit » — quand aucun flux n'a plus de neuf. La question se lit au
-      **moment du vote**, par un rappel injecté (`Shows.has_another_episode`)
-      qui compte les flux **en cache** ayant du neuf : ni hasard ni réseau
-      consommés, et un test le constate.
-      **Le drapeau voyage** : `Shows.due()` le rend, `RadioProgramme.on_kind`
-      et `Pending` le portent, l'annotation `radio_skippable` s'ajoute aux clés
-      de T03 pour qu'un processus neuf retrouve un épisode passable, et
-      `OnAir.skippable` le rend à l'API — la page en tire deux règles
-      distinctes, Passer sur `musique` ou `skippable`, Encore sur `musique`
-      seul.
-      **Le diffuseur remplace avant de sauter** : route `POST /skip-fresh`
-      (`set_queue([])`, `fetch()`, `skip()`), refusée à vide comme `/skip`,
-      journalisée à chaque étape ; `LiveRadio` l'ordonne au lieu de `/skip` et
-      jette son avance sans `/requeue` supplémentaire ; l'ordre part d'un fil
-      détaché, sans attendre une réponse que `fetch()` retient toute la
-      résolution. Décisions n°44 et n°45 (SPECS.md §7).
-      **Mesuré sur la maquette de §12** (docs/liquidsoap.md §14) : la variante
-      qui devait éviter le double tirage — `fetch()` d'abord, puis
-      `set_queue([la fraîche])` — **ne marche pas**. `set_queue` détruit les
-      requêtes de la file, y compris celle qu'on lui repasse : `set_queue
-      (queue())` fait tomber la file de 1 à 0, et la variante perd l'entrée
-      fraîche après avoir bloqué le gestionnaire 8,04 s pour la télécharger.
-      À l'antenne : pas de blanc (ton `a` de 0,50 à 16,50 s sans
-      discontinuité), mais ni `b` ni `c` ne passent et c'est `d`, tiré par le
-      `/next` d'après, qui prend l'antenne à 17,00 s — **deux tirages quand
-      même**, dont un jeté. C'est donc la route de §12 qui est retenue, son
-      double tirage assumé : ses deux entrées sont toutes deux consommées.
-      **Résidus** : sans `podcast.cache_seconds`, rien n'est gardé et le vote
-      est refusé comme s'il n'y avait plus rien à piocher ; l'API ne sait pas
-      laquelle des deux entrées tirées prend l'antenne, c'est le `/playing` qui
-      le lui dit ; deux « Passer » coup sur coup ne sont toujours pas mesurés
-      (docs/liquidsoap.md §12).
-- [ ] **GOAL-086-T06** — Documentation (SPECS.md §4.6, §4.8, §4.11 ;
-      ARCHITECTURE.md ; README) et **écoute réelle** de la manœuvre pendant une
-      vraie plage de podcasts (AGENTS.md §4.1).
-
----
-
 ## Vue d'ensemble
 
 | Goal | Titre | État |
@@ -683,7 +548,7 @@ L'analyse, rejouée sur la pile réelle avec `FrozenClock`, sépare **deux défa
 | GOAL-083 | Ce que la relecture du 2026-09-06 a trouvé | `[x]` — clos le 2026-09-06 ; la configuration de production doit déclarer `liquidsoap.url` |
 | GOAL-084 | L'antenne n'annonce plus la plage pendant une émission | `[x]` — clos le 2026-09-06 ; **reste à écouter** la barre et l'écran de verrouillage pendant une émission |
 | GOAL-085 | L'antenne dit où en est ce qui passe | `[x]` — clos le 2026-09-06 ; **reste à écouter** le décalage entre la barre et l'oreille, et l'écran de verrouillage |
-| GOAL-086 | Passer un épisode pioche un autre épisode | `[-]` — ouvert le 2026-09-06 sur constat à l'antenne ; T02 close, T01 en cours |
+| GOAL-086 | Passer un épisode pioche un autre épisode | `[x]` — clos le 2026-09-06 ; **reste à écouter** un « Passer » sur un vrai épisode lourd et un redéploiement en pleine plage |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

@@ -83,8 +83,8 @@ fichier devrait porter.
 |---|---|
 | L'API Subsonic : `salt`, `token`, `u`, `p`, `v`, `c`, la forme des réponses | `adapters/sources/subsonic.py` |
 | Le langage de Liquidsoap, l'encodage, les fondus, les en-têtes du flux, les connexions | `adapters/liquidsoap/radio.liq` |
-| Les deux routes que Liquidsoap appelle, et leur contrat en texte brut | `adapters/web/playout_api.py` |
-| L'adresse du diffuseur, où `/skip` et `/requeue` s'ordonnent | Le TOML (`adapters/config/`, clé `liquidsoap.url`) — `app/main.py` la lit, personne d'autre |
+| Les trois routes que Liquidsoap appelle, et leur contrat en texte brut | `adapters/web/playout_api.py` |
+| L'adresse du diffuseur, où `/skip`, `/skip-fresh`, `/requeue` et `/announce` s'ordonnent | Le TOML (`adapters/config/`, clé `liquidsoap.url`) — `app/main.py` la lit, personne d'autre |
 | L'adresse du direct France Info | Le TOML (`adapters/config/`) — et c'est tout : un direct est une entrée ffmpeg comme une autre (`docs/franceinfo.md` §1.bis, `GOAL-015`) |
 | Le format RSS d'un podcast, ses `enclosure`, ses redirections | `adapters/podcast/` |
 | La syntaxe TOML et le nom des clés | `adapters/config/` |
@@ -139,6 +139,7 @@ Liquidsoap  ──« morceau suivant ? »──▶  adapters/liquidsoap  ──�
             ◀──── un chemin ou une URL ──                       (noyau, grille, jingles, émissions)
             ──« un auditeur arrive / part »──▶  compteur d'auditeurs (app/radio)
             ◀──« saute » (/skip) · « vide ton avance » (/requeue) ── un vote accepté l'ordonne
+            ◀──« remplace ton avance, puis saute » (/skip-fresh) ── un « Passer » sur un épisode de plage
             ◀──« redis ce que tu joues » (/announce) ── un processus neuf l'ordonne
 ```
 
@@ -288,8 +289,8 @@ froid par créneau à remplir.
 Comme ce fil lit et écrit la file pendant qu'une requête peut la muter, **tout
 ce qui touche le programme ou sa file passe sous le verrou de la charnière** —
 retrait d'un titre, avance replacée ou jetée, rupture de suite, reprise à neuf ;
-les ordres sortants vers le diffuseur (`/requeue`, `/skip`) restent hors verrou,
-sinon `/playout/next` attendrait leur voyage.
+les ordres sortants vers le diffuseur (`/requeue`, `/skip`, `/skip-fresh`,
+`/announce`) restent hors verrou, sinon `/playout/next` attendrait leur voyage.
 
 ### 4.2 Couper en le disant
 

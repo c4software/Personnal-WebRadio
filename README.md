@@ -39,8 +39,8 @@ le dernier auditeur se débranche → la chaîne s'arrête
 | **Plafond de durée** | Au-delà de `max_track_minutes` (20 min par défaut), une piste se joue mais **se coupe au plafond**, fondue vers la suite — un DJ set étiqueté « piste » ne monopolise pas l'antenne |
 | **Programmes** | Une liste de lecture de la bibliothèque sur un créneau — « le vendredi de Chloé, 18 h–20 h » |
 | **Jingles horaires** | `00h.mp3` … `23h.mp3`, insérés à la jonction sans couper un morceau, fondu court |
-| **Émissions** | À heure dite : un **podcast** (l'épisode le plus récent non diffusé), une **chaîne YouTube** (la dernière vidéo, téléchargée en fond puis servie en local — zéro blanc), ou un **direct** — le flash France Info, capté et coupé à l'heure |
-| **Pilotage** | `stop` **passe le morceau** à l'instant ; `encore` force le prochain **chez le même artiste**, et s'annonce par un jingle |
+| **Émissions** | À heure dite : un **podcast** (l'épisode le plus récent non diffusé), une **plage de podcasts** (`feeds` et `end` : elle enchaîne les épisodes de plusieurs flux jusqu'à son heure de fin), une **chaîne YouTube** (la dernière vidéo, téléchargée en fond puis servie en local — zéro blanc), ou un **direct** — le flash France Info, capté et coupé à l'heure |
+| **Pilotage** | `stop` **passe le morceau** à l'instant, et **passe un épisode d'une plage de podcasts en piochant un autre épisode** ; `encore` force le prochain **chez le même artiste**, et s'annonce par un jingle |
 | **Apprentissage** | Les votes pèsent sur **l'artiste** (jamais deux fois) : redemandé revient plus, passé revient moins — et tout s'oublie en trois mois |
 | **Une page web** | Quatre onglets — antenne (ce qui passe, **où il en est**, le **moment** en cours et l'**« À suivre »**), votes (effaçables), **planning de la semaine**, **historique** (24 h, paginé heure par heure) — l'onglet vit dans l'URL. Un lecteur en bas de page, avec la **liste des prochains titres** : ce qui est tiré d'avance, retirable d'un ✕, puis **la grille cousue derrière** — l'émission en cours et sa fin, celle qui suit, la plage qui reprend |
 | **Une API** | Toute action y passe — l'interface web n'a aucun chemin privilégié |
@@ -152,7 +152,8 @@ http://<la-machine>:8080/
 >
 > **En conteneur, déclarez `liquidsoap.url = "http://liquidsoap:8000"`** : le
 > défaut est `http://127.0.0.1:8000`, qui ne désigne pas le service voisin, et
-> `/skip` comme `/requeue` seraient journalisés en échec.
+> les ordres au diffuseur — `/skip`, `/skip-fresh`, `/requeue`, `/announce` —
+> seraient journalisés en échec.
 
 ---
 
@@ -206,6 +207,11 @@ Ce qu'il faut savoir :
   aurait été sa durée, et perdue au-delà.
 - Une émission **ne coupe jamais** un morceau : elle commence à la jonction
   suivante.
+- Une **plage de podcasts** se déclare avec `feeds` (plusieurs flux) et `end`
+  (son heure de fin) : entre les deux, la radio tire un flux au hasard parmi
+  ceux qui ont du neuf, joue son épisode, puis recommence. C'est la seule
+  émission dont un `stop` passe l'épisode, faute de quoi il n'y a rien à mettre
+  à la place (« Piloter »).
 
 ---
 
@@ -215,16 +221,28 @@ Deux gestes, depuis la page web ou directement par l'API.
 
 | | |
 |---|---|
-| **`stop`** | **Passe le morceau en cours**, à l'instant, avec un fondu — et l'artiste pèsera un peu moins |
+| **`stop`** | **Passe le morceau en cours**, à l'instant, avec un fondu — et l'artiste pèsera un peu moins. Sur un **épisode d'une plage de podcasts**, il **pioche un autre épisode** : le diffuseur remplace son avance avant de sauter, la musique tenue d'avance ne passe donc pas |
 | **`encore`** | Dès la fin de la chanson en cours : le jingle d'annonce, puis **un morceau du même artiste** — la chanson qui était prévue n'est pas perdue, elle passe juste après |
 
 **Une voix suffit** : pas de quorum, l'effet est immédiat. Un `encore`
 enregistré s'annonce par un jingle à la jonction suivante — `encore.mp3` par
 défaut, personnalisable par `[jingles] encore = "…"` dans le TOML.
 
-Ils sont disponibles en permanence, **sauf pendant un jingle ou une émission** —
-on ne passe pas une émission. Un vote reçu à ce moment-là est refusé
-explicitement, avec son motif : un refus muet ressemblerait à une panne.
+Ils sont disponibles en permanence, **sauf pendant un jingle, un flash ou une
+émission** : on ne passe pas un flash, et on ne demande pas « encore » d'une
+émission. La seule exception est l'épisode d'une plage de podcasts, que `stop`
+passe — et là encore il est refusé quand aucun flux de la plage n'a plus
+d'épisode neuf : « aucun autre épisode à piocher : l'épisode finit ». Un vote
+refusé l'est **explicitement**, avec son motif : un refus muet ressemblerait à
+une panne.
+
+**Après un redémarrage du service `radio`**, l'antenne dit « inconnu » et refuse
+les deux votes : le diffuseur n'annonce qu'au **début** d'une entrée, et le
+processus neuf ne sait pas ce qui passe. Il le lui fait redire dès son premier
+battement d'auditeurs, puis lui fait redemander son avance : les votes rouvrent,
+avec la bonne nature, et l'avance décidée par le processus d'avant est
+redécidée. Rien n'est coupé, et une plage de podcasts ne se retrouve pas avec de
+la musique entre deux épisodes.
 
 ### Ce que la page montre
 
