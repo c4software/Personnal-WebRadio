@@ -2635,3 +2635,150 @@ découverte ont quitté le code, y compris les docstrings de tests ; celles qui
 restent nomment un jour de la semaine pour une donnée d'essai, ce qui est une
 information, pas un récit.
 
+---
+
+## GOAL-083 — Ce que la relecture du 2026-09-06 a trouvé
+
+Ouvert le 2026-09-06 sur demande de l'auteur : une relecture de correction de
+tout `webradio/`, confrontée à SPECS.md, par lecture directe puis trois
+relectures en lecture seule (noyau, `app/`, adaptateurs). Chaque constat a été
+reproduit par script avant d'être retenu. Le rapport complet est dans
+`plans/analyse-l-impl-mentation-python-regarde-hazy-turing.md`.
+
+Deux bloquants, douze corrections bornées, et une décision de l'auteur
+(l'encore doit connaître ce que la file a joué). Un commit par tâche.
+
+- [x] **GOAL-083-T01** — La fenêtre de non-répétition n'est plus contournée
+      quand un artiste hors fenêtre attend déjà (`core/queue.py`). Quand
+      `hors_fenetre` n'est pas vide, le relâchement ne porte que sur
+      l'attente : `allowed = hors_fenetre`, jamais `candidates`. Le titre qui
+      vient de passer pouvait revenir, avec un journal désignant le mauvais
+      coupable (GOAL-082-T02). Le test affirme l'artiste tiré, pas une longueur.
+- [x] **GOAL-083-T02** — Le noyau des suites, trois trous : rompre une suite
+      d'artiste écartait les pistes sans année (`queue.py`, `avoid_era` à
+      `None`) ; une plage au hasard dont le tirage échoue rendait la clé `None`
+      là où `moment_at` rend `(plage, occurrence, None)`, et l'avance était
+      jetée à chaque préparation (`bands.py`) ; `Runs` n'a qu'un état, et
+      préparer un titre sous l'occurrence suivante effaçait la suite en cours
+      sans journal — la mémoire s'indexe par occurrence, comme `mystery.py`.
+- [x] **GOAL-083-T03** — Le jingle d'une heure tombée **pendant** une émission
+      ne passe plus à la jonction qui la suit (SPECS.md n°15). `due_now` n'est
+      appelé qu'aux jonctions, et une émission n'en a pas : les heures pleines
+      entre le début et la fin de l'émission sont abandonnées. `Jingles` reçoit
+      `forget_hours()`, que `RadioProgramme` appelle à la jonction qui suit une
+      émission rendue ; l'encore n'est pas touché, il répond à un vote. Le test
+      de `test_jingles.py` qui appelait `during_show=True` pendant l'émission
+      testait une séquence qui n'existe pas : il est réécrit, et la vraie
+      séquence est couverte au niveau de `RadioProgramme`.
+- [x] **GOAL-083-T04** — Un épisode s'inscrit comme diffusé quand Liquidsoap
+      dit l'avoir commencé, pas quand il le demande. L'entrée rendue par
+      `/playout/next` n'est que l'avance ; la reprise à neuf, « Autre thème »
+      et la fin d'un direct la jettent sans la rejouer, et l'épisode
+      hebdomadaire ne passait plus jamais, même dans sa fenêtre de rattrapage.
+      Vaut pour les podcasts, YouTube et la case rendue d'un direct.
+      `Shows` retient ce qu'il a rendu sans l'avoir inscrit et le tait à la
+      demande suivante ; `started()` inscrit à la prise d'antenne, `dropped()`
+      oublie ce qui a été jeté. La chaîne date ses demandes (`Pending.rank`) :
+      une entrée décidée **après** l'émission qui commence à sa place dit
+      qu'elle a été jetée, une décidée avant n'est que le morceau d'avance.
+      Exception, trouvée à la relecture : une émission **replacée** par un
+      encore n'est pas jetée, et le jingle qui la précède ne doit pas la faire
+      passer pour perdue — elle passait alors deux fois.
+- [x] **GOAL-083-T05** — Le registre du diffuseur ne ment plus après un
+      direct ni sur un battement : l'avance que le script jette à la fin d'un
+      direct était annoncée puis resservie ; et un battement traité avant
+      `/playing` replaçait le morceau qui venait de commencer, rejoué deux fois.
+      L'ordre des demandes (`Pending.rank`) suffit : ce qui commence est plus
+      récent que ce qui a été jeté. Une entrée déjà replacée est reprise de
+      `_a_rejouer` avec sa nature, et l'émission qui s'y trouvait s'inscrit.
+- [x] **GOAL-083-T06** — Les quatre chemins Flask qui mutent la file
+      (`withdraw`, `stash_for_replay`, `drop_advance`, `forget_pending`)
+      prennent le verrou que tient la préparation de fond ; une `IndexError`
+      était reproductible à deux fils. `break_run` s'y ajoute : `main.py`
+      appelait `RadioProgramme.break_run()` directement, la charnière expose
+      désormais le geste verrouillé. Les ordres sortants vers le diffuseur
+      (`/requeue`, `/skip`) restent hors du verrou, sinon `/playout/next`
+      attendrait leur POST.
+- [x] **GOAL-083-T07** — `radio` redémarré pendant une pause ne datait pas la
+      pause : le premier auditeur du matin après un déploiement retrouvait
+      l'avance de la veille (le cas de la n°29). La pause est désormais datée
+      **au démarrage du processus**, et non traitée comme longue faute de date :
+      un déploiement à chaud reçoit son premier battement > 0 dans les quinze
+      secondes, la pause y est donc courte et le morceau en cours n'est pas
+      coupé. Résidu : un auditeur qui revient moins de `resume_fresh_seconds`
+      après un redémarrage retrouve l'avance du diffuseur (SPECS.md §7 n°30).
+- [x] **GOAL-083-T08** — Les trois lecteurs réseau traduisent
+      `http.client.HTTPException` (réponse tronquée) en erreur métier ; une
+      date Atom malformée ne lève plus une `ValueError` brute ; l'identifiant
+      de chaîne YouTube se lit après `/channel/`, pas au dernier segment.
+      Tests contre des réponses littérales tronquées (AGENTS.md §4).
+- [x] **GOAL-083-T09** — `timeout_seconds = 0` est refusé à la validation pour
+      `state`, `podcast` et `youtube`, comme pour `subsonic` : il passait puis
+      plantait l'assemblage, ou perdait chaque émission YouTube en silence.
+- [x] **GOAL-083-T10** — Interdits d'AGENTS.md §2 et tests creux : code mort
+      (`_dans_la_plage`, `Pending.nature`, `MusicSource.genres()` — aucun
+      appelant hors des tests, retiré du `Protocol`, de Subsonic et du Fake),
+      paramètres ignorés (`now_playing`, reliquat de GOAL-067 ; `command` de
+      `vote_weight`, le barème étant le même pour les deux gestes depuis la
+      n°16 révisée), `timeout=3` et URL de Liquidsoap en dur dans `main.py`
+      passés au TOML sous `[liquidsoap]` (SPECS.md §6) ; les deux tests de
+      `test_weighting` fondus en un, nommé d'après ce qu'il affirme (1 sur
+      l'artiste, 0 sur la piste) ; le test tautologique de `test_control`
+      remplacé dans `test_playout` (le morceau forcé par un encore n'entre pas
+      dans la fenêtre) ; le direct de `test_show_scheduler` a désormais un vrai
+      flux de podcast, donc « il n'en lit aucun » peut échouer.
+      **Conséquence de déploiement** : la configuration de production doit
+      déclarer `liquidsoap.url = "http://liquidsoap:8000"`. La variable
+      d'environnement `LIQUIDSOAP_URL` a disparu du Compose ; sans cette clé,
+      `/skip` et `/requeue` partent sur `127.0.0.1` et sont journalisés en
+      échec.
+- [x] **GOAL-083-T11** — L'encore connaît ce que la file a joué (décision de
+      l'auteur, SPECS.md §4.6 « non joué ») : `Control` reçoit les titres
+      passés, fusionnés avec ceux qu'il a lui-même servis. `played()` alimente
+      une mémoire bornée (`PLAYED_MAX`, 200) que `track_after_more` écarte avec
+      `_servis` et le morceau courant. C'est `LiquidsoapPlayout.playing()` qui
+      l'alimente, à la prise d'antenne : une avance seulement demandée peut être
+      jetée sans passer. Le repli « bibliothèque entièrement servie » vide
+      `_servis` comme avant, mais **pas** la mémoire des passés : elle est bornée
+      et se renouvelle seule, et la vider ferait revenir aussitôt ce qui vient de
+      s'entendre.
+- [x] **GOAL-083-T12** — Documentation. SPECS.md §6 réaligné clé par clé sur
+      `adapters/config/schema.py` : « le flux », « les informations » et
+      `[[emissions]]` n'existaient plus, `[draw.votes]`, `[youtube]`,
+      `jingles.encore`, les génériques `intro` / `outro` et
+      `shows.stream` / `duration_minutes` / `youtube` y manquaient, et les
+      puces « web » comme « tirage » y figuraient deux fois. §4.12 dit
+      désormais ce que le code fait — 1 sur l'artiste, 0 sur la piste (n°16
+      révisée). AGENTS.md §2 amendé : l'exception des noms fixes ne couvre que
+      les jingles horaires, le jingle de vote et les génériques se déclarent.
+      ARCHITECTURE.md §4.1 consigne que la file compte sur `prepare()` avant
+      chaque jonction, `next_pick` laissant en place une tête d'avance rassie.
+      Cinq points ouverts sans code en SPECS.md §7 (n°37 à n°41), et
+      l'`annotate:` imbriqué en point incertain de docs/liquidsoap.md §7.
+
+**Clos le 2026-09-06.** Douze tâches, douze commits. Deux bloquants — la
+fenêtre de non-répétition contournée dès qu'un artiste hors fenêtre attendait,
+et l'épisode inscrit « diffusé » à la demande du diffuseur plutôt qu'à sa
+diffusion — trouvés en lisant, jamais entendus.
+
+**Conséquence de déploiement** (GOAL-083-T10) : la configuration de production
+doit déclarer `liquidsoap.url = "http://liquidsoap:8000"`. `LIQUIDSOAP_URL` a
+disparu du Compose ; sans cette clé, `/skip` et `/requeue` partent sur
+`127.0.0.1` et sont journalisés en échec.
+
+**Dettes.** Cinq points sont consignés sans code en SPECS.md §7 : n°37 le
+changement d'heure, n°38 le thème d'une plage au hasard perdu quand la source
+ne répond pas, n°39 le sel Subsonic tiré dans le hasard du tirage, n°40 `feed`
+unique avec `end`, n°41 les durées de l'avance non coupées au plafond dans
+l'estimation des heures. L'`annotate:` imbriqué d'un jingle replacé est un
+point incertain de docs/liquidsoap.md §7, **non observé** : rien ne dit ce que
+Liquidsoap en fait. Le verrou qui couvre toute la préparation attend la mesure
+de GOAL-075-T03. Résidu de T07 : un auditeur qui revient moins de
+`playout.resume_fresh_seconds` après un redémarrage retrouve l'avance que le
+diffuseur tenait (SPECS.md §7 n°30).
+
+**Reste à écouter** (AGENTS.md §4.1) : une reprise après pause avec une
+émission en avance ; la jonction qui suit une émission, où le jingle de l'heure
+tombée pendant l'émission ne doit plus passer ; la reprise de la musique à la
+fin d'un direct ; et un morceau qui commence pendant un battement d'heure
+pleine.

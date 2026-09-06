@@ -949,7 +949,7 @@ une plage relit tous ses flux à chaque jonction, et six d'entre eux pèsent
 21,6 Mo (docs/podcast.md §4.bis). Un épisode publié n'apparaît qu'à
 l'expiration, ce qui est sans conséquence — la case ne se rouvre pas plus vite.
 
-`jours` vaut `"tous"` ou une liste de jours de la semaine ; `heure` est un moment
+`days` vaut `"all"` ou une liste de jours de la semaine ; `time` est un moment
 de la journée. **Rien de plus.** Ce choix est délibéré : des champs déclaratifs
 n'exigent aucun analyseur syntaxique, se testent directement, et couvrent les
 deux cas demandés — « tous les jours à 20 h » et « chaque mardi à 12 h ».
@@ -985,8 +985,7 @@ rien à consulter, rien à corriger, rien à remettre à zéro depuis l'interfac
 radio écoute ce que vous faites, et elle en tient compte. C'est tout.
 
 Ce n'est pas non plus une **recommandation** : aucun modèle, aucune similarité
-calculée, aucun profil. Un compteur par piste et par artiste, et une
-pondération du tirage.
+calculée, aucun profil. Un compteur par artiste, et une pondération du tirage.
 
 #### Un biais à connaître
 
@@ -1000,17 +999,20 @@ pondération dérive dans le sens contraire de son intention.
 
 #### Ce que chaque geste pèse
 
-Un vote porte **sur la piste et sur l'artiste**, mais pas également : chacun
-compte plein sur ce qu'il désigne, et **un quart** sur l'autre.
+Un vote porte **sur l'artiste, et sur lui seul** (§7 n°16). Le barème ne dépend
+pas du geste : `stop` et `encore` pèsent pareil, dans des sens opposés.
 
 | Geste | Sur la piste | Sur l'artiste |
 |---|---|---|
-| `stop` | **1** | 0,25 |
-| `encore` | 0,25 | **1** |
+| `stop` | 0 | **1** |
+| `encore` | 0 | **1** |
 
-C'est ce qui respecte le sens de chaque geste — on passe un *morceau*, on
-redemande un *artiste* — tout en laissant un signal répété finir par porter :
-dix `stop` sur des titres différents d'un même artiste finissent par se voir.
+Un poids nul ne s'enregistre pas : rien n'est écrit au nom de la piste. Un
+signal répété porte donc par l'artiste — dix `stop` sur des titres différents
+d'un même artiste se voient, sans que le titre passé soit puni deux fois. La
+première mouture — 1 sur ce que le geste désigne, 0,25 sur l'autre — a été
+révisée le jour même de sa mise à l'écoute, parce qu'elle comptait chaque vote
+deux fois (n°16).
 
 #### Les votes s'oublient
 
@@ -1115,77 +1117,91 @@ leur rôle, jamais une valeur.
 ### 6.2 Le reste : le TOML
 
 Un unique fichier TOML, non versionné lui aussi (il décrit une installation),
-pour tout ce qui n'est pas secret :
+pour tout ce qui n'est pas secret.
 
-Ce que le TOML doit décrire, au minimum :
+Ce qu'il décrit, section par section. Le schéma qui fait foi est
+`adapters/config/schema.py` : une clé qui n'y est pas est refusée au
+démarrage, et toute clé ajoutée est documentée ici dans le même incrément
+(AGENTS.md §6).
 
-- **Le flux** : adresse d'écoute, port, format et débit ;
-- **Les jingles** : le dossier, et la péremption des jingles horaires
-  (`expiry_seconds`, 900 par défaut, `0` = jamais — §4.3). Les noms sont fixes
-  et ne se configurent pas : `hours/00h.mp3` … `hours/23h.mp3` pour les heures
-  (§4.3), `encore.mp3` pour le vote (§4.6) ;
-
-- **Le web** : adresse d'écoute et port de l'interface et de l'API, et
+- **Le tirage** (`[draw]`) : `artist_gap`, le nombre d'artistes distincts qui
+  doivent passer avant qu'un artiste puisse revenir (§4.2, 5 par défaut) ;
+  `max_track_minutes`, le plafond de durée de lecture d'une piste (§4.2, 20 par
+  défaut, `0` = sans limite) ; `lookahead`, le nombre de titres tirés d'avance
+  — la liste des prochains titres (§4.8, 8 par défaut, au moins 1) ;
+  `min_theme_tracks`, les titres qu'un artiste ou un genre doit avoir pour
+  qu'une plage « carte blanche » le tire (§7 n°36, 15 par défaut, `0` = ne rien
+  exiger) ;
+- **Les votes** (`[draw.votes]`) : `floor` et `ceiling`, les bornes du
+  multiplicateur de chance (§4.12, n°17 — 0,25 et 4 par défaut), et
+  `half_life_days`, la demi-vie d'un vote (§4.12, n°18 — 90 par défaut) ;
+- **Les jingles** (`[jingles]`) : `folder`, le dossier ; `encore`, le nom du
+  jingle de vote (§4.6, `encore.mp3` par défaut) ; `expiry_seconds`, la
+  péremption d'un jingle horaire (§4.3, n°29 — 900 par défaut, `0` = jamais).
+  Les jingles horaires, eux, ne se nomment pas : `hours/00h.mp3` …
+  `hours/23h.mp3`, le nom du fichier est la programmation (§4.3) ;
+- **Les moments thématiques** (`[[bands]]`) : `start` et `end` ; `days`, une
+  liste de jours ou `"all"` (tous les jours par défaut) ; le thème — `genres`,
+  `artists`, ou `random` valant `"genre"` ou `"artist"` pour laisser la radio
+  choisir (§4.4). Une plage déclare **exactement une** des trois clés — sauf à
+  porter un `mode` seul. `mode` demande que les tirages s'**enchaînent** (§4.4,
+  n°31) : `double_dose`, `era_fan` ou `artist_fan`, combinable au thème.
+  `eras` borne les décennies où la plage tire — une liste d'entiers multiples
+  de dix, comme `[2000, 2010, 2020]` ; absente, la plage tire dans toutes
+  (§4.4). `intro` et `outro` nomment les génériques joués à son ouverture et à
+  sa fermeture (§4.4) ;
+- **Les programmes** (`[[programmes]]`) : une entrée par programme — `name`,
+  `playlist`, `days`, `start`, `end`, et `intro` / `outro` comme une plage
+  (§4.13) ;
+- **Les émissions** (`[[shows]]`) : une entrée par émission — `name`, `days` et
+  `time`, l'heure de la case (§4.11). Exactement **une** source : `feed` (un
+  podcast), `feeds` (plusieurs, c'est une **plage de podcasts**, §7 n°35),
+  `stream` (un direct, dont le flash d'information de §4.5) ou `youtube` (une
+  chaîne). `duration_minutes` est obligatoire pour un direct — il faut le
+  couper — et interdit ailleurs, où la durée se lit à la source. `end` est
+  l'heure jusqu'à laquelle une plage de podcasts enchaîne les épisodes. Il n'y
+  a pas de limite au nombre d'émissions. Un même flux ne se déclare pas deux
+  fois, ni dans une plage ni entre deux émissions : chacune tient sa propre
+  mémoire, et le même épisode passerait deux fois ;
+- **L'état** (`[state]`) : `database`, le chemin de la base SQLite (§4.11.1),
+  et `timeout_seconds`, le délai qu'une écriture accepte d'attendre un verrou
+  — deux processus y touchent (5 par défaut, au moins 0,1) ;
+- **Le web** (`[web]`) : `address` et `port` de l'interface et de l'API
+  (`0.0.0.0` et 8080 par défaut) ; `refresh_seconds`, l'intervalle auquel le
+  serveur regarde si l'antenne a changé (5 par défaut, au moins 0,5) ;
   `stream_url`, l'adresse du flux que le lecteur de la page ouvre (§4.8) —
   absente, pas de lecteur ; `:8000/flux` désigne l'hôte de la page ;
-- **Les informations** : à quelles heures un flash est diffusé ;
-- **Les moments thématiques** : plages horaires et genres associés — ou
-  artistes, ou `random = "genre"` / `random = "artist"` pour laisser la radio
-  choisir (§4.4). Une plage déclare **exactement une** des trois clés — sauf à
-  porter un `mode` seul. `mode` demande que les tirages s'**enchaînent**
-  (§4.4, n°31) : `double_dose`, `era_fan` ou `artist_fan`, combinable au
-  thème. `eras` borne les décennies où la plage tire — une liste d'entiers
-  multiples de dix, comme `[2000, 2010, 2020]` ; absente, la plage tire dans
-  toutes (§4.4) ;
-- **Le tirage** : `artist_gap`, le nombre d'artistes distincts qui doivent
-  passer avant qu'un artiste puisse revenir (§4.2, défaut 5), et
-  `max_track_minutes`, le plafond de durée de lecture d'une piste (§4.2,
-  défaut 20, `0` = sans limite), et `lookahead`, le nombre de titres tirés
-  d'avance — la liste des prochains titres (§4.8, défaut 8, au moins 1) ;
-- **Les sources** : une section par source, avec son type et ses paramètres
-  (§4.10) ;
-- **Les programmes** : une entrée `[[programmes]]` par programme — nom, liste
-  de lecture, jours, début et fin (§4.13) ;
-- **Les émissions** : une entrée `[[emissions]]` par émission — nom, flux de
-  podcast, jours et heure (§4.11). Il n'y a pas de limite au nombre
-  d'émissions. Une **plage de podcasts** déclare `feeds`, plusieurs flux au
-  lieu d'un, et `end`, l'heure jusqu'à laquelle elle enchaîne (§7 n°35). Un
-  même flux ne se déclare pas deux fois, ni dans une plage ni entre deux
-  émissions : chacune tient sa propre mémoire, et le même épisode passerait
-  deux fois ;
-- **L'état** : le chemin de la base SQLite (§4.11.1), et le délai qu'une
-  écriture accepte d'attendre un verrou — deux processus y touchent ;
-- **Le web** : adresse et port de l'interface et de l'API, et l'intervalle
-  auquel la page redemande ce qui passe ;
-- **Le tirage** : `draw.min_theme_tracks`, les titres qu'un artiste ou un genre
-  doit avoir pour qu'une plage « carte blanche » le tire (§7 n°36, 15 par
-  défaut, `0` = ne rien exiger) ;
-- **La reprise** : `playout.resume_fresh_seconds`, la pause sans auditeur
-  au-delà de laquelle le retour repart sur un tirage neuf (§4.7, 900 par
-  défaut, `0` = jamais) ;
-- **Le diffuseur** : `liquidsoap.url`, où joindre Liquidsoap pour lui ordonner
-  `/skip` et `/requeue` (§5.1, `http://127.0.0.1:8000` par défaut — en
-  conteneur, `http://liquidsoap:8000`), et `liquidsoap.order_timeout_seconds`,
+- **Le diffuseur** (`[liquidsoap]`) : `url`, où joindre Liquidsoap pour lui
+  ordonner `/skip` et `/requeue` (§5.1, `http://127.0.0.1:8000` par défaut —
+  en conteneur, `http://liquidsoap:8000`), et `order_timeout_seconds`,
   l'attente maximale de cet ordre (3 par défaut, au moins 0,1). Une adresse
   fausse ne fait pas taire la radio : l'ordre est journalisé en échec et le
   morceau finit ;
-- **Les podcasts** : le délai au-delà duquel un flux est réputé injoignable —
-  il reste court, une émission qui ne répond pas ne bloque pas la radio, elle
-  est perdue et la musique continue (§4.11) — et `podcast.cache_seconds`, la
-  durée pendant laquelle un flux lu est gardé (900 par défaut, `0` = relire à
-  chaque fois). Une plage relit tous ses flux à chaque jonction, et six d'entre
-  eux pèsent une vingtaine de mégaoctets ;
-- **Subsonic** : nombre de résultats par artiste, délai réseau, durée du
-  cache de bibliothèque (`cache_seconds`, une heure par défaut, `0` = sans
-  cache — le prix est assumé : un morceau ajouté sur le serveur n'apparaît
-  qu'à l'expiration). **Aucune taille d'échantillon** : le tirage voit la
-  bibliothèque entière, récupérée par pagination (docs/subsonic.md §2.7) ;
-- **Les seuils** : durée de fondu. Un seul seuil de péremption existe — celui
-  des **jingles horaires** (`jingles.expiry_seconds`, §4.3, n°29) ; les flashs
-  et les émissions, eux, ne périment toujours pas (§7 n°4).
+- **Les podcasts** (`[podcast]`) : `timeout_seconds`, le délai au-delà duquel
+  un flux est réputé injoignable (15 par défaut, au moins 0,1) — il reste
+  court, une émission qui ne répond pas ne bloque pas la radio, elle est perdue
+  et la musique continue (§4.11) — et `cache_seconds`, la durée pendant
+  laquelle un flux lu est gardé (900 par défaut, `0` = relire à chaque fois).
+  Une plage relit tous ses flux à chaque jonction, et six d'entre eux pèsent
+  une vingtaine de mégaoctets ;
+- **YouTube** (`[youtube]`) : `timeout_seconds`, le délai accordé à `yt-dlp`,
+  qui peut être lent (60 par défaut, au moins 0,1) ;
+- **Subsonic** (`[subsonic]`) : `artist_results`, le nombre de résultats par
+  artiste (50 par défaut) ; `timeout_seconds`, le délai réseau (10 par défaut,
+  au moins 0,1) ; `cache_seconds`, la durée du cache de bibliothèque (une heure
+  par défaut, `0` = sans cache — le prix est assumé : un morceau ajouté sur le
+  serveur n'apparaît qu'à l'expiration). **Aucune taille d'échantillon** : le
+  tirage voit la bibliothèque entière, récupérée par pagination
+  (docs/subsonic.md §2.7). C'est la seule source de musique écrite à ce jour
+  (§4.10, §7 n°12) ;
+- **La reprise** (`[playout]`) : `resume_fresh_seconds`, la pause sans auditeur
+  au-delà de laquelle le retour repart sur un tirage neuf (§4.7, n°30 — 900 par
+  défaut, `0` = jamais).
 
-Le schéma exact se construit avec les Goals. Toute clé ajoutée est documentée
-ici dans le même incrément (AGENTS.md §6).
+**Ce que le TOML ne décrit pas.** Le flux lui-même — adresse d'écoute, port,
+format, débit — et les durées de fondu sont l'affaire de Liquidsoap et vivent
+dans `radio.liq` (ARCHITECTURE.md §4). Les heures des flashs d'information
+n'ont pas de clé propre : un flash est un `[[shows]]` avec `stream` (§4.5).
 
 **Un secret dans le TOML est une erreur de configuration**, pas une commodité :
 si une clé d'identifiant y apparaît, le démarrage échoue en disant d'où elle
@@ -1702,3 +1718,53 @@ rien ne dit ce qui se passe alors :
 Sans réponse, la question ne se pose pas : une seule source est écrite. Elle se
 posera **le jour de la deuxième** — c'est-à-dire exactement au moment où
 l'abstraction anticipée cesse d'être gratuite.
+
+**n°37 — Le changement d'heure : la grille suit-elle l'heure locale ?**
+Ouverte le 2026-09-06 par la relecture de GOAL-083. L'horloge rend une heure
+locale à décalage **figé** au moment de l'appel : `full_hours_between` ajoute
+des heures absolues, donc la nuit du passage à l'heure d'été un `02h.mp3`
+inexistant est demandé et `03h` sauté ; et la purge du journal des titres
+compare des chaînes ISO (n°27), fausse d'une heure ces deux nuits-là. Ce que
+cela coûte : deux nuits par an, un jingle absent — cas nominal (§5) — et un
+journal purgé une heure trop tôt ou trop tard. Ce qui le trancherait : décider
+si la grille est en heure locale vraie (recalculer le fuseau à chaque heure
+pleine) ou en décalage figé, et comparer les instants plutôt que leur texte.
+
+**n°38 — « Autre thème » pendant une panne de source : le thème en cours est
+perdu.** Ouverte le 2026-09-06 par la relecture de GOAL-083. Retirer un thème
+oublie l'ancien **avant** de tirer le nouveau ; si la bibliothèque ne répond
+pas, le tirage rend « rien » et la plage finit son occurrence sans thème, alors
+qu'elle en avait un. Ce que cela coûte : une plage thématique qui devient une
+carte blanche jusqu'à l'occurrence suivante, sur un geste de l'auditeur.
+Ce qui le trancherait : dire si un retirage qui échoue **garde** l'ancien thème
+— ce que ferait n'importe quelle transaction — ou si l'échec vaut abandon.
+
+**n°39 — Le sel Subsonic partage le hasard du tirage.** Ouverte le 2026-09-06
+par la relecture de GOAL-083. Le point d'assemblage passe le même `RealRandom`
+à la source Subsonic, qui en tire douze caractères de sel par requête, et à la
+file. La rejouabilité à graine fixée (ARCHITECTURE.md §5.3) dépend donc du
+**nombre d'appels réseau** : deux exécutions qui ne touchent pas le cache aux
+mêmes moments ne rejouent pas la même soirée. Ce que cela coûte : rien à
+l'antenne, tout à la reproductibilité d'un incident. Ce qui le trancherait :
+donner au sel son propre générateur — c'est un besoin cryptographique, pas un
+tirage de programmation — ou assumer que seule la maquette rejoue.
+
+**n°40 — Une émission à `feed` unique accepte `end`.** Ouverte le 2026-09-06
+par la relecture de GOAL-083. Le schéma n'exige `feeds` que pour refuser `end`
+à un direct et à une chaîne : un `feed` seul avec `end` est accepté, et
+constitue une plage qui ne peut enchaîner qu'un épisode (§7 n°14, un épisode
+par publication). Ce que cela coûte : une déclaration qui promet trois heures
+et n'en tient que vingt minutes, sans que rien ne le dise. Ce qui le
+trancherait : dire si c'est une erreur de configuration à refuser au démarrage,
+ou une plage à un flux, légitime et à documenter comme telle.
+
+**n°41 — Les durées de l'avance ne sont pas coupées au plafond dans
+l'estimation des heures.** Ouverte le 2026-09-06 par la relecture de GOAL-083.
+La charnière coupe le morceau **en cours** à `draw.max_track_minutes` pour
+estimer la jonction suivante (n°32), mais additionne ensuite les durées
+**pleines** de ce qui attend. Ce que cela coûte : sur une avance qui contient
+une piste longue, l'heure estimée de chaque titre suivant part trop loin, donc
+sous la mauvaise plage — le titre est tiré pour un moment qu'il n'atteindra
+pas, et la revalidation le jette à la préparation d'après. Ce qui le
+trancherait : appliquer le même plafond aux durées de l'avance, ou établir que
+l'écart reste sous la minute et l'écrire.

@@ -201,6 +201,13 @@ des prochains titres (`GET /api/up-next`) est cette avance, lue sans rien
 décider — avec l'habillage que la jonction rendrait, prévu d'après les
 fichiers présents.
 
+**La file compte donc sur `prepare()` avant chaque jonction**, et c'est une
+dépendance implicite : `Queue.next_pick` ne consomme la tête de l'avance que si
+son moment tient, sinon il tire à côté et **la laisse en place**. Seul
+`revalidate`, appelé sur le chemin de la préparation, la retire. Sans
+préparation entre deux jonctions, une tête rassie resterait en tête, annoncée
+dans « À suivre » sans jamais passer.
+
 **Et elle se remplit hors de la requête.** Le diffuseur attend la réponse de
 `/playout/next` pour jouer ; remplir l'avance coûte autant de tirages que
 `draw.lookahead`, chacun consultant la bibliothèque. Tant que l'avance est

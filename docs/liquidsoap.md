@@ -231,6 +231,16 @@ opérateurs lisent. Ce qui a été constaté :
 | `initial_uri` à l'annonce | **Garde le préfixe `annotate:` entier** — la charnière peut donc l'utiliser comme clé de son registre, ce que `LiquidsoapPlayout` fait déjà pour les jingles |
 | Un direct (flux infini) en `annotate:` + `liq_cue_out` | **Non** — relevé §5 : la résolution expire. Rien de neuf |
 
+### Points incertains
+
+- [ ] **Un `annotate:` imbriqué est-il résolu ?** Non observé. Un jingle
+      replacé après un encore repasse par la charnière et reçoit un **second**
+      préfixe (`annotate:…:annotate:…:/chemin`) : les fondus des jingles sont
+      posés sans regarder ce que l'entrée porte déjà, alors que la coupe au
+      plafond, elle, laisse passer une entrée déjà annotée. Rien ici ne dit si
+      Liquidsoap lit la seconde annotation, la première, ou refuse l'URI —
+      aucune manche ne l'a essayé (AGENTS.md §3).
+
 ---
 
 ## 8. Sixième relevé — le fondu à la prise d'antenne (GOAL-050-T01, le 2026-09-01)

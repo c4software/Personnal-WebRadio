@@ -133,10 +133,12 @@ alors ni rejouer une soirée, ni vérifier qu'un jingle tombe à l'heure.
 - ❌ Aucune URL, aucun chemin de fichier, aucun port, aucune durée en dur dans
   le code. Tout vient du TOML (SPECS.md §6), avec un défaut déclaré au même
   endroit.
-- ⚠️ **Une exception, et une seule** : les noms des jingles sont **fixes** —
-  `00h.mp3` à `23h.mp3` pour les heures (SPECS.md §4.3), `encore.mp3` pour le
-  vote (SPECS.md §4.6). Seul le dossier est configurable. Ne pas ajouter de table
-  de correspondance : le nom du fichier *est* la configuration.
+- ⚠️ **Une exception, et une seule** : les noms des **jingles horaires** sont
+  fixes — `hours/00h.mp3` à `hours/23h.mp3` (SPECS.md §4.3). Seul le dossier est
+  configurable. Ne pas ajouter de table de correspondance : le nom du fichier
+  *est* la configuration. Le jingle de vote (`jingles.encore`) et les génériques
+  d'une plage ou d'un programme (`intro`, `outro`) se déclarent, eux, au TOML
+  (GOAL-029, GOAL-031).
 
 ### Les erreurs se voient
 
