@@ -189,7 +189,8 @@ diffuseur), **GOAL-076** (petit, protège les deux suivants), **GOAL-077** (la
 plage podcasts), **GOAL-078** (la couture de la grille — après GOAL-077, qui
 lui donne le bon jeu de périodes).
 
-**Prochaine tâche** : GOAL-075-T01.
+**Prochaine tâche** : GOAL-076-T01. GOAL-075 attend sa mesure à l'antenne
+(T03), qui demande le déploiement.
 
 ---
 
@@ -232,12 +233,18 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
       cette requête **avant de rendre l'antenne**, et une avance rassise à
       replacer y valait `draw.lookahead` tirages pendant que l'auditeur
       attendait le son. Les trois passent maintenant par le même lanceur.
-- [ ] **GOAL-075-T03** — Mesurer, une fois T01 et T02 faites, ce que met le
+- [!] **GOAL-075-T03** — **En attente du déploiement.** Mesurer, une fois T01 et T02 faites, ce que met le
       premier tirage d'une reprise, et le comparer aux 10 s d'`api_timeout`.
       S'il reste au-dessus, le diffuseur continuera de couper une API
       seulement lente (SPECS.md §5.1) : la tâche ouvre alors une décision —
       « lente » et « morte » doivent-elles se distinguer ? — plutôt que de
       relever le délai en silence.
+      Rien ne se mesure ici : la maquette a une fausse bibliothèque, et c'est
+      le vrai Navidrome qui coûte — une dizaine d'appels par parcours, un par
+      genre. La mesure demande l'image poussée sur `frontal` et une vraie
+      reprise du matin. Ce qu'il faudra regarder : le délai entre
+      « avance jetée sur ordre de l'API » et le « suivant : » qui suit, dans
+      le journal du diffuseur.
 
 ---
 
