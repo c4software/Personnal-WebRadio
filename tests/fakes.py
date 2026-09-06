@@ -7,6 +7,9 @@ et son comportement est écrit une fois pour toutes.
 import threading
 from datetime import datetime, timedelta
 
+from webradio.adapters.state.database import Scope as PorteeBase
+from webradio.adapters.state.database import Scores as ScoresBase
+from webradio.adapters.state.database import SqliteState
 from webradio.app.playout import RadioProgramme
 from webradio.core.control import Kind
 from webradio.core.models import Track
@@ -157,3 +160,21 @@ class FakeProgrammeEpieLeVerrou(RadioProgramme):
     def replay_later(self, entry: str, kind: Kind, track: Track | None, label: str | None) -> None:
         self._tenu("replay_later")
         super().replay_later(entry, kind, track, label)
+
+
+class FakeEtatQuiCompteSesLectures(SqliteState):
+    """Une base qui compte ses lectures de scores (GOAL-075-T05).
+
+    Le tirage libre pèse toute la bibliothèque : lire les scores par candidat
+    faisait autant de requêtes qu'il y a de pistes.
+    """
+
+    lectures = 0
+
+    def scores(self, scope: PorteeBase, target: str) -> ScoresBase:
+        self.lectures += 1
+        return super().scores(scope, target)
+
+    def all_scores(self) -> list[tuple[PorteeBase, str, str, ScoresBase]]:
+        self.lectures += 1
+        return super().all_scores()

@@ -167,7 +167,7 @@ def test_avec_des_poids_la_file_les_honore() -> None:
         FakeSource(CATALOGUE),
         RealRandom(graine=1),
         Window(width=0),
-        weigh=lambda p: 1000.0 if p.identifier == vise.identifier else 0.001,
+        weigh=lambda pistes: [1000.0 if p.identifier == vise.identifier else 0.001 for p in pistes],
     )
     sorties = [f.next_pick().track.identifier for _ in range(30)]
     assert sorties.count(vise.identifier) > 25, sorties
@@ -184,7 +184,7 @@ def test_des_poids_sans_hasard_pondere_sont_refuses_a_la_construction() -> None:
             return parmi[0]
 
     with pytest.raises(TypeError, match="ne sait pas les honorer"):
-        Queue(FakeSource(CATALOGUE), PlainRandom(), weigh=lambda _: 1.0)
+        Queue(FakeSource(CATALOGUE), PlainRandom(), weigh=lambda pistes: [1.0] * len(pistes))
 
 
 def test_une_plage_d_artiste_tire_chez_cet_artiste() -> None:

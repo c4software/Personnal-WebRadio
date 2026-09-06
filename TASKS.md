@@ -286,8 +286,12 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
       ~1,3 s ; avec `draw.lookahead = 8`, une préparation en tirage libre
       approche les dix secondes sous le verrou, et `frontal` est probablement
       plus lent. GOAL-075-T05 s'attaque à la pondération, qui devrait tomber
-      sous 0,1 s — à confirmer à l'antenne, la mesure du délai réel restant à
-      faire.
+      sous 0,1 s. **Mesuré après T05, même machine, même bibliothèque** :
+      **0,02 s** pour les 5 704 pistes, base de cinquante lignes de votes,
+      soit soixante fois moins. Un tirage libre vaut donc ~0,02 s de
+      pondération, et le premier tirage d'une reprise ~1 s, le parcours seul —
+      hors du verrou depuis T04. Reste à confirmer à l'antenne : la mesure du
+      délai réel du diffuseur n'est toujours pas faite.
 - [x] **GOAL-075-T04** — Réchauffer le cache de la source hors du verrou, et ne
       tirer que dessous. La préparation de fond tient le verrou de la charnière
       pendant tous ses tirages ; un tirage sous une plage dont le genre n'est
@@ -312,6 +316,27 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
       **un** parcours (T01), mais le suivant n'attend plus la préparation
       derrière un parcours froid, et `/playing` non plus. Reste le premier
       tirage lui-même, et la mesure de T03.
+- [x] **GOAL-075-T05** — Lire les scores de votes une fois par tirage, pas deux
+      fois par candidat. Mesuré le 2026-09-06 (T03) : peser les 5 704 pistes
+      d'un tirage libre coûtait 1,34 s, deux `SELECT` par piste, et rien ne les
+      mettait en cache — le cache de bibliothèque chaud n'y changeait rien.
+      C'est le coût dominant du tirage, devant le parcours d'une seconde que
+      T04 vient de sortir du verrou.
+      Choix technique : les poids sont fournis **par tirage** et non par piste.
+      `Weigh` devient `Callable[[Sequence[Track]], list[float]]`, `Queue._tirer`
+      appelle le peseur une fois, et `Learning.weigh` lit `all_scores()` une
+      fois — la table ne contient que les cibles votées, quelques dizaines de
+      lignes — puis pèse en mémoire. `all_scores` applique la même décroissance
+      à la lecture que `scores` (ARCHITECTURE.md §5.2), les poids sont donc
+      inchangés, et un test le vérifie cible par cible.
+      Pourquoi pas un instantané gardé entre deux tirages : il faudrait une
+      durée de vie, donc une clé TOML et une horloge dans `Learning`, et un vote
+      supprimé depuis la page des votes ne passe pas par `remember()` — il
+      resterait dans l'instantané. Un relevé par tirage n'a aucun de ces deux
+      défauts et coûte une requête.
+      Mesuré après coup sur la même machine et la même bibliothèque :
+      **0,02 s** pour peser 5 704 pistes, contre 1,34 s avant, avec cinquante
+      lignes de votes en base.
 
 ---
 

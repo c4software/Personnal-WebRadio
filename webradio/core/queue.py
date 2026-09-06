@@ -19,9 +19,11 @@ from webradio.core.rotation import Window
 from webradio.core.runs import Directive, Runs, era_of
 from webradio.core.sources import MusicSource
 
-# Le poids d'une piste, fourni de l'extérieur. Les scores vivent dans une base
-# et le noyau n'y accède pas (ARCHITECTURE.md §1.1, §5.3).
-Weigh = Callable[[Track], float]
+# Les poids des candidats d'un tirage, fournis de l'extérieur et dans l'ordre
+# reçu. Les scores vivent dans une base et le noyau n'y accède pas
+# (ARCHITECTURE.md §1.1, §5.3). Tout le tirage est pesé d'un coup : les peser un
+# par un faisait autant de lectures qu'il y a de candidats (GOAL-075-T05).
+Weigh = Callable[[Sequence[Track]], list[float]]
 
 
 @dataclass(frozen=True, slots=True)
@@ -321,4 +323,4 @@ class Queue:
         if self._peser is None:
             return self._hasard.pick(parmi)
         pondere = cast(WeightedRandom, self._hasard)
-        return pondere.pick_weighted(parmi, [self._peser(p) for p in parmi])
+        return pondere.pick_weighted(parmi, self._peser(parmi))

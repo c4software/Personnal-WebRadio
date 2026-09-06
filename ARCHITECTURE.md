@@ -398,7 +398,11 @@ Deux conséquences à ne pas manquer :
 
 - **Le noyau reste pur.** Les poids lui sont **fournis**, comme les pistes : il
   ne va pas les chercher dans SQLite. C'est un adaptateur qui les charge, et la
-  frontière du §1.1 tient sans exception.
+  frontière du §1.1 tient sans exception. Ils sont fournis **par tirage**, tous
+  les candidats d'un coup : demander le poids d'une piste à la fois faisait
+  deux lectures par candidat, soit plus d'une seconde par tirage libre sur une
+  bibliothèque de quelques milliers de titres, sous le verrou de la charnière
+  (GOAL-075-T05).
 - **Un tirage pondéré reste rejouable.** À graine et poids fixés, la même
   émission doit se rejouer à l'identique — sans quoi on perd ce que
   `GOAL-003-T02` avait acheté, et les tests de la file avec.

@@ -10,8 +10,10 @@ noyau. La traduction tient ici, et un test vérifie que les valeurs coïncident.
 """
 
 import logging
+from collections.abc import Mapping, Sequence
 
 from webradio.adapters.state.database import Scope as PorteeBase
+from webradio.adapters.state.database import Scores as ScoresBase
 from webradio.adapters.state.database import SqliteState, StateUnavailable
 from webradio.core.control import Command
 from webradio.core.models import Track
@@ -36,18 +38,30 @@ class Learning:
         self._plafond = ceiling
         self._pente = slope
 
-    def weigh(self, track: Track) -> float:
-        """Le multiplicateur de chance d'une piste, borné.
+    def weigh(self, tracks: Sequence[Track]) -> list[float]:
+        """Les multiplicateurs de chance de ces pistes, bornés, dans leur ordre.
 
-        Une base injoignable ne fait pas taire la radio : on rend un poids
-        neutre et on journalise (SPECS.md §5).
+        Les scores sont lus en une fois pour tout le tirage. Deux requêtes par
+        candidat coûtaient 1,3 s sur une bibliothèque de 5 700 pistes, à chaque
+        tirage libre (GOAL-075-T05) ; la table des votes, elle, ne compte que
+        les cibles votées. `all_scores` applique la même décroissance à la
+        lecture que `scores` (ARCHITECTURE.md §5.2).
+
+        Une base injoignable ne fait pas taire la radio : on rend des poids
+        neutres et on journalise (SPECS.md §5).
         """
         try:
-            piste_brute = self._base.scores(PorteeBase.TRACK, track.identifier)
-            artiste_brut = self._base.scores(PorteeBase.ARTIST, track.artist)
+            releve = {
+                (scope, cible): valeurs for scope, cible, _, valeurs in self._base.all_scores()
+            }
         except StateUnavailable as failure:
             logger.warning("poids indisponibles, tirage neutre : %s", failure)
-            return 1.0
+            return [1.0] * len(tracks)
+        return [self._poids(piste, releve) for piste in tracks]
+
+    def _poids(self, track: Track, releve: Mapping[tuple[PorteeBase, str], ScoresBase]) -> float:
+        piste_brute = releve.get((PorteeBase.TRACK, track.identifier), ScoresBase())
+        artiste_brut = releve.get((PorteeBase.ARTIST, track.artist), ScoresBase())
         return track_weight(
             Scores(stop=piste_brute.stop, encore=piste_brute.encore),
             Scores(stop=artiste_brut.stop, encore=artiste_brut.encore),
