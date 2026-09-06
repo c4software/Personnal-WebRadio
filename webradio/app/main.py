@@ -96,7 +96,7 @@ def semaine_effective(
     semaine. La page reçoit ce qui passera et n'a pas à recoller les périodes
     elle-même, un gabarit ne décide rien (AGENTS.md §2).
     """
-    declarees = {e.name: e for e in shows}
+    declarees = _declarees(shows)
     minuit = clock.now().replace(hour=0, minute=0, second=0, microsecond=0)
     jours: dict[str, object] = {}
     for decalage in range(len(DAYS)):
@@ -105,6 +105,11 @@ def semaine_effective(
             _periode(segment, declarees) for segment in grille.day(debut)
         ]
     return {"days": jours}
+
+
+def _declarees(shows: Sequence[ShowSettings]) -> dict[str, ShowSettings]:
+    """Les émissions déclarées par leur nom, ce que `_periode` interroge."""
+    return {e.name: e for e in shows}
 
 
 def _periode(segment: Segment, shows: Mapping[str, ShowSettings]) -> dict[str, object]:
@@ -307,9 +312,15 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             artist=track.artist if track is not None else None,
         )
 
+    declarees = _declarees(settings.shows)
+
     def prochains_titres() -> list[UpcomingEntry]:
         """La liste de `RadioProgramme.upcoming()` pour l'API : heure estimée
-        en heure locale, identifiant pour retirer, vide pour l'habillage."""
+        en heure locale, identifiant pour retirer, vide pour l'habillage.
+
+        Une période cousue (GOAL-078) est rendue dans la forme du Planning,
+        pour que la page la mette en mots avec les mêmes fonctions.
+        """
         return [
             UpcomingEntry(
                 kind=WebKind(item.kind.value),
@@ -318,6 +329,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
                 identifier=item.track.identifier if item.track is not None else "",
                 at=None if item.at is None else item.at.astimezone().strftime("%H:%M"),
                 expected=item.expected,
+                period=None if item.period is None else _periode(item.period, declarees),
             )
             for item in branche[0].upcoming()
         ]

@@ -14,7 +14,7 @@ un jingle, un flash ou une émission ; l'API traduit ce refus en réponse HTTP
 import json
 import logging
 import time
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from datetime import timedelta
 from enum import StrEnum
@@ -113,6 +113,11 @@ class UpcomingEntry:
     qui ne se retire pas. `at` est l'heure estimée du début (`HH:MM`), ou
     `None` si rien ne permet de l'estimer. `expected` distingue l'habillage
     prévu de ce qui est déjà tiré.
+
+    `period` porte une période de la grille cousue derrière les titres
+    (GOAL-078), dans la forme exacte du Planning : la page la met en mots avec
+    les mêmes fonctions. `None` sur une ligne de titre. Un `at` absent sur une
+    entrée qui porte une période dit qu'elle est déjà en cours.
     """
 
     kind: Kind
@@ -121,6 +126,7 @@ class UpcomingEntry:
     identifier: str = ""
     at: str | None = None
     expected: bool = False
+    period: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -379,7 +385,11 @@ def create_api(
 
     @api.get(UP_NEXT_PATH)
     def up_next_list() -> ResponseReturnValue:
-        """La liste des prochains titres, dans l'ordre de passage (GOAL-058)."""
+        """La liste des prochains titres, dans l'ordre de passage (GOAL-058).
+
+        Une entrée qui porte `period` est une période de la grille cousue
+        derrière les titres (GOAL-078), rendue comme au Planning.
+        """
         return jsonify(
             {
                 "up_next": [
@@ -390,6 +400,7 @@ def create_api(
                         "identifier": e.identifier,
                         "at": e.at,
                         "expected": e.expected,
+                        "period": e.period,
                     }
                     for e in radio.upcoming()
                 ]

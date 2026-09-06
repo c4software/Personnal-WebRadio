@@ -167,17 +167,33 @@
                  ce qui passe, et — pour un titre déjà tiré — le bouton qui le
                  retire. L'habillage prévu (jingle, générique) se voit en
                  italique : il n'est pas encore décidé. -->
-            <div v-for="(e, i) in prochains" :key="e.identifier || (e.title + i)" class="prochain" :class="{ prevu: e.expected }" :style="{ '--i': i }">
-              <span class="heure">[[ e.at || "—" ]]</span>
-              <div class="corps">
-                <span class="titre-histoire">[[ e.title || e.kind ]]</span>
-                <span v-if="e.artist" class="sous-titre">[[ e.artist ]]</span>
-                <span v-else class="sous-titre">[[ e.expected ? "prévu · " + e.kind : e.kind ]]</span>
+            <template v-for="(e, i) in prochains" :key="e.identifier || (e.title + i)">
+              <!-- Une période de la grille cousue derrière les titres
+                   (GOAL-078). Elle se nomme avec les fonctions du Planning,
+                   pour que les deux pages disent la même chose. Sans heure de
+                   début, elle est déjà en cours ; sans fin déclarée, elle n'en
+                   annonce pas. Rien à retirer : ce n'est pas un titre. -->
+              <div v-if="e.period" class="prochain prevu periode" :style="{ '--i': i }">
+                <span class="heure">[[ e.at || "→" ]]</span>
+                <div class="corps">
+                  <span class="titre-histoire">[[ nomDeLaPeriode(e.period) ]]</span>
+                  <span class="sous-titre">[[ detailDeLaPeriode(e.period) ]]</span>
+                </div>
+                <span v-if="e.period.end" class="fin">→ [[ e.period.end ]]</span>
+                <span v-else></span>
               </div>
-              <button v-if="e.identifier" type="button" class="oubli" title="Ne passera pas"
-                      :disabled="occupe" @click="ecarter(e)">✕</button>
-              <span v-else></span>
-            </div>
+              <div v-else class="prochain" :class="{ prevu: e.expected }" :style="{ '--i': i }">
+                <span class="heure">[[ e.at || "—" ]]</span>
+                <div class="corps">
+                  <span class="titre-histoire">[[ e.title || e.kind ]]</span>
+                  <span v-if="e.artist" class="sous-titre">[[ e.artist ]]</span>
+                  <span v-else class="sous-titre">[[ e.expected ? "prévu · " + e.kind : e.kind ]]</span>
+                </div>
+                <button v-if="e.identifier" type="button" class="oubli" title="Ne passera pas"
+                        :disabled="occupe" @click="ecarter(e)">✕</button>
+                <span v-else></span>
+              </div>
+            </template>
           </div>
         </section>
         <div class="commandes">

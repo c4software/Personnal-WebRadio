@@ -163,6 +163,8 @@ button[disabled] { cursor: default; }
 .prochain + .prochain { border-top: 1px solid var(--filet); }
 .prochain.prevu .titre-histoire { color: var(--sourdine); font-style: italic; }
 .prochain .heure { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.85rem; }
+.prochain.periode { border-left: 3px solid var(--filet-fort); padding-left: 0.55rem; }
+.prochain.periode .fin { color: var(--sourdine); font-variant-numeric: tabular-nums; font-size: 0.85rem; }
 .prochain .oubli { all: unset; cursor: pointer; color: var(--sourdine); font-size: 0.8rem;
                    width: 1.75rem; height: 1.75rem; border-radius: 999px; background: var(--remplissage);
                    display: grid; place-items: center; }

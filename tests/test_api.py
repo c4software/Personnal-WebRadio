@@ -515,6 +515,7 @@ def test_l_api_liste_les_prochains_titres_dans_l_ordre() -> None:
                 "identifier": "a1",
                 "at": "16:03",
                 "expected": False,
+                "period": None,
             },
             {
                 "kind": "jingle",
@@ -523,6 +524,7 @@ def test_l_api_liste_les_prochains_titres_dans_l_ordre() -> None:
                 "identifier": "",
                 "at": "16:06",
                 "expected": True,
+                "period": None,
             },
             {
                 "kind": "musique",
@@ -531,7 +533,50 @@ def test_l_api_liste_les_prochains_titres_dans_l_ordre() -> None:
                 "identifier": "b1",
                 "at": "16:06",
                 "expected": False,
+                "period": None,
             },
+        ]
+    }
+
+
+PERIODE_COUSUE = {
+    "start": "21:00",
+    "end": "23:00",
+    "after_show": False,
+    "kind": "emission",
+    "name": "Podcasts - longs formats",
+    "live": False,
+    "youtube": False,
+    "duration_minutes": None,
+    "feeds": 3,
+}
+
+
+def test_une_periode_cousue_sort_telle_quelle_dans_la_liste() -> None:
+    """La page met la période en mots avec les fonctions du Planning : l'API
+    rend donc le même dictionnaire, sans le retoucher (GOAL-078)."""
+    radio = FakeRadio(on_air_now=MORCEAU)
+    radio._upcoming = [
+        UpcomingEntry(
+            kind=Kind.SHOW,
+            title="Podcasts - longs formats",
+            artist=None,
+            at="21:00",
+            expected=True,
+            period=PERIODE_COUSUE,
+        )
+    ]
+    assert client(radio).get("/api/up-next").get_json() == {
+        "up_next": [
+            {
+                "kind": "emission",
+                "title": "Podcasts - longs formats",
+                "artist": None,
+                "identifier": "",
+                "at": "21:00",
+                "expected": True,
+                "period": PERIODE_COUSUE,
+            }
         ]
     }
 
@@ -671,7 +716,7 @@ def test_la_page_anime_les_onglets_les_chansons_et_les_listes() -> None:
     page = app.test_client().get("/").get_data(as_text=True)
     assert '<Transition name="onglet" mode="out-in">' in page
     assert page.count('<Transition name="chanson" mode="out-in">') == 2
-    assert page.count("'--i': i") == 5
+    assert page.count("'--i': i") == 6
 
 
 def test_le_lecteur_propose_une_enceinte_seulement_en_ecoute() -> None:

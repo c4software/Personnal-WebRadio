@@ -206,6 +206,10 @@ sait dater : derrière son dernier titre, `RadioProgramme.upcoming()` **coud**
 les périodes que `EffectiveSchedule.between()` rend jusqu'à un horizon. Ces
 entrées portent leur `Segment` (`Upcoming.period`), pas de titre, et ne
 consomment aucun tirage : la grille est lue, la file n'est pas interrogée.
+L'API les rend sous la clé `period` de `GET /api/up-next`, dans la forme
+exacte du Planning (`main._periode`, la même fonction) : la page nomme les
+deux avec le même code, et elles ne peuvent pas diverger. `period` vaut `null`
+sur une ligne de titre.
 
 **La file compte donc sur `prepare()` avant chaque jonction**, et c'est une
 dépendance implicite : `Queue.next_pick` ne consomme la tête de l'avance que si

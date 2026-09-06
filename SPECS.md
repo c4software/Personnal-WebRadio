@@ -550,6 +550,12 @@ programme s'annonce comme **période**, au même titre qu'une plage ; seule sa
 **Rien n'est tiré de plus** : la profondeur de l'avance ne bouge pas, la couture
 lit la grille et ne décide rien.
 
+Sur la forme : l'API rend chaque période cousue avec **les mêmes données que le
+Planning**, sous la clé `period` de `GET /api/up-next` (`null` sur une ligne de
+titre), et la page les met en mots avec **les mêmes fonctions**. Une période se
+lit donc sur une ligne à part des titres, sans ✕ — rien ne s'y retire — et une
+période en cours se lit « → fin ».
+
 Un titre de la liste **se retire** (`DELETE /api/up-next/<identifiant>`) : il
 ne passera pas, un autre est tiré à sa place sous le même moment, et le retrait
 est journalisé. Le morceau qu'un encore force (§4.6) y figure après le jingle,

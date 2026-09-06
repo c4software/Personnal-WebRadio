@@ -13,13 +13,16 @@ from webradio.app.main import (
     _arguments,
     _libelle_de_plage,
     _libelle_du_moment,
+    _periode,
     build,
     semaine_effective,
     version,
 )
+from webradio.app.playout import Upcoming
 from webradio.core.bands import Band, Constraint, Schedule
 from webradio.core.clock import FrozenClock
-from webradio.core.planning import EffectiveSchedule
+from webradio.core.control import Kind
+from webradio.core.planning import EffectiveSchedule, Segment
 from webradio.core.programmes import DAYS, Programming
 from webradio.core.runs import Mode
 from webradio.core.shows import Show as ShowCase
@@ -357,3 +360,54 @@ def test_une_plage_de_podcasts_se_lit_comme_telle_dans_le_planning() -> None:
             "feeds": 3,
         }
     ]
+
+
+TOML_PODCASTS = (
+    TOML_MINIMAL
+    + """
+[[shows]]
+name = "Podcasts - actus"
+feeds = ["https://a.test/rss", "https://b.test/rss", "https://c.test/rss"]
+days = ["sunday"]
+time = "20:00"
+end = "21:00"
+"""
+)
+
+
+def test_une_periode_cousue_est_rendue_comme_au_planning(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """La liste et le Planning doivent dire la même chose d'une même période :
+    l'entrée cousue porte le dictionnaire de `_periode` (GOAL-078)."""
+    folder = tmp_path / "jingles"
+    folder.mkdir()
+    toml = tmp_path / "webradio.toml"
+    toml.write_text(TOML_PODCASTS.format(folder=folder, database=tmp_path / "state.sqlite3"))
+    env = tmp_path / ".env"
+    env.write_text(ENV_MINIMAL)
+    reglages = load(toml, env, environment={})
+    playout, radio, _grille = build(reglages)
+    playout.declare_listeners(1)
+    plage = ShowCase(name="Podcasts - actus", days=("sunday",), hour=time(20), end=time(21))
+    segment = Segment(
+        content=plage,
+        start=datetime(2026, 9, 6, 20, tzinfo=UTC),
+        end=datetime(2026, 9, 6, 21, tzinfo=UTC),
+    )
+    monkeypatch.setattr(
+        playout,
+        "upcoming",
+        lambda: [
+            Upcoming(Kind.SHOW, None, "Podcasts - actus", None, expected=True, period=segment)
+        ],
+    )
+
+    entrees = radio.upcoming()
+
+    assert len(entrees) == 1
+    assert entrees[0].title == "Podcasts - actus"
+    assert entrees[0].identifier == ""
+    assert entrees[0].expected
+    assert entrees[0].at is None
+    assert entrees[0].period == _periode(segment, {e.name: e for e in reglages.settings.shows})

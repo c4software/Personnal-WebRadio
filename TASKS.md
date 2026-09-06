@@ -215,8 +215,8 @@ variable d'environnement ayant disparu du Compose.
 **GOAL-084 est clos le 2026-09-06** : l'antenne annonçait la plage de la grille
 pendant une émission, alors que l'émission la remplace.
 
-**Prochaine tâche** : GOAL-078-T03, l'API et la page qui mettent ces périodes
-en mots, puis GOAL-082-T04, le seuil de vivier appliqué ou non à
+**Prochaine tâche** : GOAL-078-T04, l'horizon de la couture depuis le TOML,
+puis GOAL-082-T04, le seuil de vivier appliqué ou non à
 l'ancre d'`artist_fan`. GOAL-075 attend sa mesure à l'antenne (T03), qui
 demande le déploiement.
 
@@ -418,16 +418,26 @@ l'avance ne bouge pas.
       des trois entrées attendues. Six tests existants ont changé de sortie —
       la liste continue là où elle s'arrêtait, dont deux dont le nom disait
       « s'arrête » et « ne promet rien ».
-- [ ] **GOAL-078-T03** — L'API les rend, et la page les met en mots avec les
+- [x] **GOAL-078-T03** — L'API les rend, et la page les met en mots avec les
       fonctions du Planning. Aucun calcul dans le gabarit, et surtout pas une
       reconstruction à partir de `/api/planning` : il est figé à l'assemblage,
       l'heure de couture dépend de l'antenne.
+      `UpcomingEntry.period` porte le dictionnaire de `main._periode`, celui-là
+      même que le Planning rend, et `GET /api/up-next` le sort tel quel
+      (`null` sur une ligne de titre). Le gabarit rend une période sur une
+      ligne à part (`prochain periode`), nommée par `nomDeLaPeriode` et
+      détaillée par `detailDeLaPeriode` — les fonctions du Planning, aucune
+      réécrite —, l'heure de début à gauche ou « → » si elle est en cours, sa
+      fin à droite quand la grille la connaît, et pas de ✕.
+      Le dictionnaire des émissions déclarées est passé par `_declarees`, une
+      seule fois pour le Planning et pour la liste.
       **Décision prise en attendant l'auteur** (T02) : la période d'un
       programme s'annonce comme période, comme au Planning ; seule sa musique
       n'est pas listée.
       **Une question à l'auteur en chemin** : SPECS.md §4.8 dit que pendant un
       programme, rien n'est annoncé. Cela visait sa musique — la **période**
       « Programme · Le vendredi de Chloé 18:00–20:00 » s'annonce-t-elle ?
+      Tranchée provisoirement par « oui » ; la renverser ne coûte qu'un filtre.
 - [ ] **GOAL-078-T04** — L'horizon de la couture vient du TOML, avec son
       défaut déclaré (SPECS.md §6). Aucune durée en dur.
 
