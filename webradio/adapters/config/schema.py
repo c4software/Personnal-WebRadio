@@ -223,7 +223,8 @@ class PodcastSettings:
     musique continue (SPECS.md §4.11).
 
     `cache_seconds` évite de relire les mêmes flux à chaque jonction d'une
-    plage — les six flux relevés pèsent 21,6 Mo (docs/podcast.md §4.bis). `0`
+    plage. Les flux d'une plage se comptent en dizaines de mégaoctets
+    (docs/podcast.md §4.bis). `0`
     relit à chaque fois.
     """
 
@@ -257,7 +258,7 @@ class Show:
     `duration_minutes`, puisqu'il faut le couper ; les autres sources
     l'interdisent.
 
-    `end` fait de la case une **plage** : elle enchaîne les épisodes jusqu'à
+    `end` fait de la case une plage : elle enchaîne les épisodes jusqu'à
     cette heure au lieu de s'arrêter au premier (SPECS.md §7 n°35). Réservée
     aux podcasts, seule source dont on puisse tirer plusieurs épisodes.
     """
@@ -734,7 +735,7 @@ def _refuser_les_collisions(shows: Sequence[Show]) -> None:
     La radio ne peut pas en diffuser deux à la fois et ne choisit pas à la
     place de l'auteur (SPECS.md §5).
 
-    Deux cas : la même heure le même jour, et une **plage** dont l'intervalle
+    Deux cas : la même heure le même jour, et une plage dont l'intervalle
     contient l'heure d'une autre émission. Le second n'était pas vu tant
     qu'aucune case ne durait : une plage de trois heures avale les créneaux
     qu'elle recouvre, sans que rien ne le dise (SPECS.md §7 n°35).
@@ -784,7 +785,7 @@ def _recouvre(plage: Show, autre: Show) -> bool:
     lieu ?
 
     Le jour et la tranche s'apparient : une plage du samedi 22 h à 2 h occupe
-    le samedi de 22 h à minuit, et le **dimanche** de minuit à 2 h. Les
+    le samedi de 22 h à minuit, et le dimanche de minuit à 2 h. Les
     confondre refusait une émission du samedi 1 h, qui n'y est pas.
     """
     if plage.end is None:

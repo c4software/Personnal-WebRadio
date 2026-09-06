@@ -217,9 +217,8 @@ BIBLIOTHEQUE = (
 
 
 def test_une_carte_blanche_ecarte_un_artiste_au_vivier_trop_maigre() -> None:
-    """Un artiste à un seul titre remplissait l'heure de ce titre-là — huit
-    fois de suite, constaté à l'antenne le 2026-09-06. Une heure demande une
-    quinzaine de titres (SPECS.md §7 n°36)."""
+    """Un artiste à un seul titre remplissait l'heure de ce titre-là.
+    Une heure demande une quinzaine de titres (SPECS.md §7 n°36)."""
     tirage = RandomTheme(FakeSource(BIBLIOTHEQUE), ScriptedRandom([0] * 5), 15)
 
     contrainte = tirage.constraint_for(SOIREE_ARTISTE, datetime(2026, 8, 31, 21, 5, tzinfo=UTC))

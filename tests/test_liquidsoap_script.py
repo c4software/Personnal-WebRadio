@@ -154,8 +154,8 @@ def test_l_antenne_est_muette_tant_que_le_morceau_frais_n_est_pas_entre() -> Non
 
 def test_le_morceau_frais_entre_sous_la_rampe_de_prise_d_antenne() -> None:
     """La rampe est armée quand le `switch` rend l'antenne. L'attente du
-    morceau frais l'épuise : le 2026-09-06 il est entré à plein gain, trois
-    secondes après la prise. La transition la réarme (docs/liquidsoap.md §11).
+    morceau frais l'épuise, et il entrait alors à plein gain. La transition la
+    réarme (docs/liquidsoap.md §11).
     """
     code = _code()
     transition = re.search(r"def enchainer\(a, b\).*?\nend\n", code, re.DOTALL)

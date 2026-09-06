@@ -661,8 +661,8 @@ def test_le_morceau_suivant_se_rend_sans_attendre_la_preparation_de_l_avance(
 ) -> None:
     """Le diffuseur attend cette réponse pour jouer, et remplir l'avance coûte
     `draw.lookahead` tirages. À la reprise, où l'avance est vide et le cache
-    de bibliothèque expiré, ils ont valu 4 s le 2026-09-06 et plus de dix la
-    veille — assez pour que le diffuseur abandonne et coupe (GOAL-075)."""
+    de bibliothèque expiré, ils ont dépassé le délai d'attente du diffuseur,
+    qui abandonne et coupe (GOAL-075)."""
     reportees: list[Callable[[], None]] = []
     playout, _, _ = _playout(tmp_path, lookahead=4, in_background=reportees.append)
 

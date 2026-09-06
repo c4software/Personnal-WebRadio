@@ -6,7 +6,7 @@ Le noyau ne lit aucun flux RSS : les épisodes lui sont fournis, comme les piste
 - une case est-elle ouverte maintenant ? Une émission manquée est rattrapée dans
   la limite de sa propre durée, depuis le début (SPECS.md §7 n°13). La durée est
   un paramètre, car elle n'est connue qu'après lecture du flux. Une case à
-  **fin déclarée** échappe à cette règle : elle est ouverte jusqu'à son heure de
+  fin déclarée échappe à cette règle : elle est ouverte jusqu'à son heure de
   fin et enchaîne les épisodes (SPECS.md §7 n°35) ;
 - quel épisode retenir ? Le `full` le plus récent non encore diffusé ; s'il l'a
   déjà été, la case est sautée (SPECS.md §7 n°14). Avec plusieurs flux, la
@@ -152,10 +152,9 @@ def episode_among(
 ) -> tuple[str, Episode] | None:
     """Un flux tiré au sort parmi ceux qui ont du neuf, et son épisode.
 
-    La pioche est uniforme **entre les flux**, pas entre les épisodes : sans
-    cela le podcast le plus prolifique écraserait les autres, et le relevé
-    montre un rapport de plus de dix entre le plus fourni et le moins
-    (docs/podcast.md §4.bis, SPECS.md §7 n°35).
+    La pioche est uniforme entre les flux, pas entre les épisodes : sans cela
+    le podcast le plus fourni écraserait les autres (docs/podcast.md §4.bis,
+    SPECS.md §7 n°35).
 
     La règle du plus récent non diffusé (n°14) vaut dans chaque flux, avec sa
     propre mémoire : un flux épuisé sort de la pioche, il ne fait pas échouer
@@ -225,8 +224,8 @@ class ShowSchedule:
     def opens_within(self, show: Show, instant: datetime, delay: timedelta) -> bool:
         """La prochaine case de cette émission s'ouvre-t-elle d'ici `delay` ?
 
-        Sert à préparer ce qu'une case demandera — lire ses flux, par exemple —
-        avant qu'elle ne s'ouvre, pour qu'elle n'attende rien à son heure.
+        Sert à préparer ce qu'une case demandera, la lecture de ses flux par
+        exemple, pour qu'elle n'attende rien à son heure.
         """
         # Le jour de `instant` ET celui de la fin de fenêtre : ils diffèrent
         # quand elle franchit minuit, et c'est le premier qui porte une case de
@@ -248,11 +247,10 @@ class ShowSchedule:
     ) -> Slot | None:
         """La case si elle est ouverte à cet instant, `None` sinon.
 
-        Une case n'est ouverte que pendant la durée de son épisode — sauf une
-        plage, ouverte jusqu'à sa fin déclarée quelle que soit cette durée
-        (SPECS.md §7 n°35). L'épisode entamé avant la fin la dépasse : c'est la
-        n°5, ce qui passe n'est jamais coupé, et la jonction qui suit trouve la
-        case fermée.
+        Une case n'est ouverte que pendant la durée de son épisode, sauf une
+        plage, ouverte jusqu'à sa fin déclarée (SPECS.md §7 n°35). L'épisode
+        entamé avant la fin la dépasse, la n°5 valant ici aussi, et la jonction
+        suivante trouve la case fermée.
         """
         start = self.slot_start(show, instant)
         if start is None:

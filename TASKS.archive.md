@@ -2610,3 +2610,28 @@ Ouvert le 2026-09-06 par la revue de GOAL-077, avant tout déploiement.
 qu'elle commence bien à l'heure et non à la jonction d'après — c'est le seul
 effet audible du passage en lecture de fond.
 
+---
+
+## GOAL-079 — `radio.liq` reçoit la réécriture du ton que les autres ont eue
+
+Ouvert le 2026-09-06, sur revue. `ea20e20` a réécrit les commentaires du dépôt
+« en prose ordinaire » (AGENTS.md §9 : ni récit, ni citation, ni date, ni
+anecdote) — et **n'a touché aucun fichier `.liq`**. Le script porte donc encore
+des dates dans ses commentaires, des majuscules d'insistance et des citations
+d'arbitrage, et tout ce qu'on y ajoute depuis suit cette convention-là par
+mimétisme. §9 dit que cela « ne doit pas revenir ».
+
+- [x] **GOAL-079-T01** — Réécrire les commentaires de
+      `webradio/adapters/liquidsoap/radio.liq` au ton d'AGENTS.md §9, dans un
+      commit `style` à part. Chaque commentaire garde son **pourquoi** et perd
+      sa date, son anecdote et ses majuscules ; ce que le relevé établit s'y
+      renvoie au lieu de s'y recopier. Aucun changement de comportement : la
+      vérification doit passer sans qu'un seul test change.
+
+**Clos le 2026-09-06**, et étendu au-delà de `radio.liq` : la même passe a
+repris la prose des cinq fichiers Python où la dérive était revenue, et retiré
+les commentaires qui ne disaient rien que le code ne montre déjà. Les dates de
+découverte ont quitté le code, y compris les docstrings de tests ; celles qui
+restent nomment un jour de la semaine pour une donnée d'essai, ce qui est une
+information, pas un récit.
+

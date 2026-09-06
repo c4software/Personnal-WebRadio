@@ -17,7 +17,6 @@ from webradio.core.rng import Random
 from webradio.core.runs import Mode
 from webradio.core.shows import EVERY_DAY, WEEKDAYS
 
-# Les thèmes qu'une plage peut demander de tirer au sort (GOAL-037).
 RANDOM_THEMES = ("genre", "artist")
 
 

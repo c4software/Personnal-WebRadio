@@ -133,8 +133,8 @@ class LiquidsoapPlayout:
         # Hors du verrou, et hors de la requête en production : remplir
         # l'avance coûte `draw.lookahead` tirages, et le diffuseur attend cette
         # réponse pour jouer. À la reprise, où l'avance est vide et le cache de
-        # bibliothèque expiré, ces tirages ont valu 4 s le 2026-09-06 et plus
-        # de dix la veille — assez pour qu'il abandonne et coupe.
+        # bibliothèque expiré, ces tirages ont dépassé le délai d'attente du
+        # diffuseur, qui abandonne et coupe.
         self._preparer_bientot()
         return entry
 
@@ -326,10 +326,10 @@ class LiquidsoapPlayout:
             logger.info("l'avance se replace : %s", shown)
             self._programme.replay_later(entry, pending.kind, pending.track, pending.label)
         # Sans attendre que le diffuseur redemande, pour que la liste des
-        # prochains titres montre le morceau forcé dès le vote (GOAL-067) —
-        # mais hors de la requête, comme à la jonction : `on_connect` attend
-        # celle-ci avant de rendre l'antenne, et remplir l'avance y coûte
-        # autant de tirages que `draw.lookahead` (GOAL-075).
+        # prochains titres montre le morceau forcé dès le vote (GOAL-067), mais
+        # hors de la requête : `on_connect` l'attend avant de rendre l'antenne,
+        # et remplir l'avance y coûte autant de tirages que `draw.lookahead`
+        # (GOAL-075).
         self._preparer_bientot()
 
     def drop_advance(self) -> None:

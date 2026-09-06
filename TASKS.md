@@ -366,22 +366,6 @@ sur cinq tombait sur un artiste à titre unique.
 
 ---
 
-## GOAL-079 — `radio.liq` reçoit la réécriture du ton que les autres ont eue
-
-Ouvert le 2026-09-06, sur revue. `ea20e20` a réécrit les commentaires du dépôt
-« en prose ordinaire » (AGENTS.md §9 : ni récit, ni citation, ni date, ni
-anecdote) — et **n'a touché aucun fichier `.liq`**. Le script porte donc encore
-des dates dans ses commentaires, des majuscules d'insistance et des citations
-d'arbitrage, et tout ce qu'on y ajoute depuis suit cette convention-là par
-mimétisme. §9 dit que cela « ne doit pas revenir ».
-
-- [x] **GOAL-079-T01** — Réécrire les commentaires de
-      `webradio/adapters/liquidsoap/radio.liq` au ton d'AGENTS.md §9, dans un
-      commit `style` à part. Chaque commentaire garde son **pourquoi** et perd
-      sa date, son anecdote et ses majuscules ; ce que le relevé établit s'y
-      renvoie au lieu de s'y recopier. Aucun changement de comportement : la
-      vérification doit passer sans qu'un seul test change.
-
 ---
 
 ## Vue d'ensemble
@@ -469,7 +453,7 @@ mimétisme. §9 dit que cela « ne doit pas revenir ».
 | GOAL-078 | La liste des prochains titres coud la grille derrière elle | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°34 amendée) |
 | GOAL-080 | Ce qu'une plage podcasts expose, et que la revue a trouvé | `[x]` — clos le 2026-09-06 ; **reste à écouter** le début d'une plage |
 | GOAL-082 | Une carte blanche ne rejoue plus le même titre toute l'heure | `[-]` — ouvert le 2026-09-06, sur constat à l'antenne |
-| GOAL-079 | `radio.liq` reçoit la réécriture du ton que les autres ont eue | `[ ]` — ouvert le 2026-09-06, sur revue : le fichier a échappé à `ea20e20` |
+| GOAL-079 | Les commentaires du code reviennent au ton d'un développeur | `[x]` — clos le 2026-09-06 ; `radio.liq` et cinq fichiers Python |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

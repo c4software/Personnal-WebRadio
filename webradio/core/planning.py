@@ -246,7 +246,7 @@ class EffectiveSchedule:
     @staticmethod
     def _fin_de(emission: Show, debut: datetime) -> datetime | None:
         """La fin déclarée de cette occurrence, `None` si l'émission n'en
-        annonce pas — sa durée vient alors du flux, et personne ne la sait
+        annonce pas : sa durée vient alors du flux, et personne ne la sait
         d'avance."""
         if emission.duration is not None:
             return debut + emission.duration

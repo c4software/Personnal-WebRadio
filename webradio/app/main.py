@@ -425,7 +425,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
     # Ce que le diffuseur ne doit pas attendre : remplir l'avance (GOAL-075) et
     # lire les flux de podcast (GOAL-080). Un seul fil, parce que deux
     # préparations partageraient la file et la fenêtre de non-répétition ; démon,
-    # pour ne pas retenir l'arrêt, ce qui est sans conséquence — une avance non
+    # pour ne pas retenir l'arrêt, ce qui est sans conséquence : une avance non
     # remplie se retire au tirage suivant, un flux non lu à la jonction suivante.
     en_fond = ThreadPoolExecutor(max_workers=1, thread_name_prefix="en-fond")
 

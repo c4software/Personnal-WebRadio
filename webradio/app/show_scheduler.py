@@ -70,7 +70,6 @@ class Shows:
         self._youtube = youtube_channels or {}
         self._youtube_adapter = youtube
         self._youtube_cache = youtube_cache
-        # Les identifiants des vidéos en cours de téléchargement.
         self._telechargements: set[str] = set()
         self._verrou_telechargements = threading.Lock()
         self._cases_rendues: set[tuple[str, datetime]] = set()
@@ -234,13 +233,12 @@ class Shows:
         """Lit les flux des émissions dont une case a pu commencer.
 
         On lit avant de savoir si on s'en servira : sans la durée, on ne peut
-        pas dire si la case est encore ouverte (décision n°13). **Sauf une
-        plage**, qui déclare sa fin : celle-là se sait fermée sans qu'on lise
-        rien. Sans ce contrôle, ses flux étaient lus jusqu'à la veille de
-        l'occurrence suivante — pour les six de l'auteur, deux jours par
-        semaine au lieu de trois heures.
+        pas dire si la case est encore ouverte (décision n°13). Sauf une plage,
+        qui déclare sa fin : celle-là se sait fermée sans qu'on lise rien. Sans
+        ce contrôle, ses flux étaient lus jusqu'à la veille de l'occurrence
+        suivante.
 
-        Un catalogue **par flux**, pas par émission : une plage podcasts en a
+        Un catalogue par flux, pas par émission : une plage podcasts en a
         plusieurs et doit savoir lequel offre quoi.
         """
         catalogues: dict[str, dict[str, list[EpisodeDuFlux]]] = {}
@@ -349,10 +347,10 @@ class Shows:
     ) -> tuple[Show, str, str | None] | None:
         """L'épisode à diffuser, tiré parmi les flux qui ont du neuf.
 
-        La mémoire est **par flux**, pas par émission : une plage en a
-        plusieurs, et ce qu'elle a déjà passé de l'un ne dit rien de l'autre
-        (SPECS.md §7 n°35). D'où la clé `<émission>/<flux>` dès qu'il y en a
-        plusieurs ; une émission à flux unique garde le nom seul.
+        La mémoire est par flux, pas par émission : une plage en a plusieurs, et
+        ce qu'elle a déjà passé de l'un ne dit rien de l'autre (SPECS.md §7
+        n°35). D'où la clé `<émission>/<flux>` dès qu'il y en a plusieurs ; une
+        émission à flux unique garde le nom seul.
         """
         if not par_flux:
             return None
@@ -402,10 +400,10 @@ class Shows:
     def _cle_de_memoire(self, show: Show, address: str) -> str:
         """Ce sous quoi la base retient une diffusion (ARCHITECTURE.md §5).
 
-        Le nom seul quand l'émission n'a qu'un flux — c'est la clé historique,
+        Le nom seul quand l'émission n'a qu'un flux : c'est la clé historique,
         et la changer ferait rejouer une fois le dernier épisode de chaque
-        émission au déploiement. `<émission>/<flux>` dès qu'il y en a
-        plusieurs : chacun a sa propre notion de « déjà passé ».
+        émission au déploiement. `<émission>/<flux>` dès qu'il y en a plusieurs,
+        chacun ayant sa propre notion de déjà passé.
         """
         if len(self._adresses.get(show.name, ())) <= 1:
             return show.name

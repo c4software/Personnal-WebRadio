@@ -166,9 +166,8 @@ class PodcastFeed:
 
         `stale_ok` sert celui qui a déjà lancé cette relecture et ne peut pas
         l'attendre : un catalogue vieux de quelques minutes vaut mieux qu'une
-        case sautée. Sans lui, l'expiration tombait au milieu d'un épisode long
-        et intercalait un morceau de musique entre chaque épisode d'une plage —
-        mesuré sur trois flux de soixante-dix minutes.
+        case sautée. Sans lui, l'expiration tombant au milieu d'un épisode long
+        intercalait un morceau de musique entre chaque épisode d'une plage.
         """
         if self._horloge is None or self._duree_cache is None:
             return None
@@ -189,8 +188,8 @@ class PodcastFeed:
         Le flux est relu à chaque jonction de la case, et une plage en a
         plusieurs : ceux d'une plage se comptent en dizaines de mégaoctets
         (docs/podcast.md §4.bis). D'où ce cache, une entrée par adresse. Seule
-        une lecture réussie y entre — une panne se propage telle quelle
-        (SPECS.md §5) — et un épisode publié n'apparaît qu'à l'expiration.
+        une lecture réussie y entre, une panne se propageant telle quelle
+        (SPECS.md §5), et un épisode publié n'apparaît qu'à l'expiration.
         """
         maintenant = None if self._horloge is None else self._horloge.now()
         if maintenant is not None and self._duree_cache is not None:
