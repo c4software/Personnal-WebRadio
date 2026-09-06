@@ -42,7 +42,7 @@ le dernier auditeur se débranche → la chaîne s'arrête
 | **Émissions** | À heure dite : un **podcast** (l'épisode le plus récent non diffusé), une **chaîne YouTube** (la dernière vidéo, téléchargée en fond puis servie en local — zéro blanc), ou un **direct** — le flash France Info, capté et coupé à l'heure |
 | **Pilotage** | `stop` **passe le morceau** à l'instant ; `encore` force le prochain **chez le même artiste**, et s'annonce par un jingle |
 | **Apprentissage** | Les votes pèsent sur **l'artiste** (jamais deux fois) : redemandé revient plus, passé revient moins — et tout s'oublie en trois mois |
-| **Une page web** | Quatre onglets — antenne (le **moment** en cours et l'**« À suivre »**), votes (effaçables), **planning de la semaine**, **historique** (24 h, paginé heure par heure) — l'onglet vit dans l'URL |
+| **Une page web** | Quatre onglets — antenne (ce qui passe, **où il en est**, le **moment** en cours et l'**« À suivre »**), votes (effaçables), **planning de la semaine**, **historique** (24 h, paginé heure par heure) — l'onglet vit dans l'URL. Un lecteur en bas de page, avec la **liste des prochains titres** : ce qui est tiré d'avance, retirable d'un ✕, puis **la grille cousue derrière** — l'émission en cours et sa fin, celle qui suit, la plage qui reprend |
 | **Une API** | Toute action y passe — l'interface web n'a aucun chemin privilégié |
 
 ## Ce qu'elle ne fait pas
@@ -225,6 +225,30 @@ défaut, personnalisable par `[jingles] encore = "…"` dans le TOML.
 Ils sont disponibles en permanence, **sauf pendant un jingle ou une émission** —
 on ne passe pas une émission. Un vote reçu à ce moment-là est refusé
 explicitement, avec son motif : un refus muet ressemblerait à une panne.
+
+### Ce que la page montre
+
+**Ce qui passe, et où il en est.** La carte « Antenne » et la barre du lecteur
+portent une progression : l'écoulé et la durée d'un morceau (coupée au plafond),
+d'un épisode de podcast quand son flux la déclare, d'un direct jusqu'à sa fin.
+Une vidéo YouTube, un jingle ou un épisode sans durée n'annoncent que l'écoulé,
+sans barre : la radio ne montre pas une avancée dont elle ignore la fin. La
+position est celle du diffuseur, en avance de quelques secondes sur l'oreille,
+le temps du tampon. Quand le téléphone le permet, l'écran de verrouillage la
+reçoit aussi.
+
+**Le moment, sauf pendant une émission.** La plage en cours se nomme — « Moment ·
+Jazz, Soul » — avec, quand son thème a été tiré au sort, le bouton « Autre
+thème ». Pendant une émission ou un flash, la plage est remplacée : la page ne
+l'annonce pas, et « Autre thème » disparaît.
+
+**Les prochains titres.** Le lecteur déploie la liste : les titres tirés
+d'avance avec leur heure estimée, l'habillage prévu en italique, un ✕ pour
+qu'un titre ne passe pas. Derrière le dernier titre, la liste **coud la
+grille** — « Podcasts → 21:00 », « 21:00 Longs formats → 23:00 », « 23:00
+Électronique » — jusqu'à l'horizon de `web.upcoming_horizon_minutes` (trois
+heures par défaut, `0` pour ne rien coudre). Rien n'y est tiré de plus : c'est
+une vue, elle ne décide rien.
 
 ### Ce que la radio retient
 
