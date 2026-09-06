@@ -182,7 +182,8 @@ transitionner. Relevé en maquette à **160 ms** (docs/liquidsoap.md §10),
 mesuré à **7 s** en production le 2026-09-06 ; pendant ces 7 s l'antenne est
 déjà rendue et sert le reliquat de la veille.
 
-**Prochaine tâche** : GOAL-074-T01.
+**Prochaine tâche** : GOAL-074-T03 attend un arbitrage de l'auteur (trois
+voies, aucune gratuite), puis GOAL-075-T01.
 
 ---
 
@@ -264,16 +265,56 @@ matin n'en produit.
       deux journaux sont dans deux fuseaux, ce qui a failli faire lire de
       travers l'incident du 2026-09-06. Sans effet sur la grille — le script
       ne connaît aucun moment.
-- [ ] **GOAL-074-T05** — Mesurer ce que met `/playout/next` à répondre après
-      une purge, et le dire. Constaté : 4 s le 2026-09-06, **28 s** le
-      2026-09-05 — au-delà d'`api_timeout`, ce qui a fait **couper** le
-      diffuseur (« l'API ne répond plus »), 21 s de silence et un redémarrage
-      à froid. Si la cause dépasse la mesure, cette tâche ouvre un Goal plutôt
-      que de corriger à l'aveugle.
+- [x] **GOAL-074-T05** — Mesurer ce que met `/playout/next` à répondre après
+      une purge, et le dire. **Mesuré, et la cause est chez nous.**
+      Le premier `/next` d'une reprise : **4 s** le 2026-09-06 (purge 07:28:21
+      UTC, réponse 07:28:25) ; le 2026-09-05, **plus de 10 s** — au-delà
+      d'`api_timeout` — deux échecs de suite, et le diffuseur a **coupé**
+      (« l'API ne répond plus »), 21 s de silence et un redémarrage à froid.
+      Les `/next` du régime établi, eux, répondent en 0 à 2 s.
+      La cause : `next_entry` appelle `prepare()` **dans la requête**
+      (`app/liquidsoap_playout.py:128`), qui remplit toute l'avance —
+      `draw.lookahead = 8` en production. Le premier `/next` d'une reprise
+      paie donc neuf tirages, contre un cache de bibliothèque
+      (`subsonic.cache_seconds = 3600`) forcément expiré après une pause de
+      17 h. Chaque tirage rouvre la bibliothèque chez Navidrome.
+      Le remède — préparer hors de la requête — touche la concurrence de la
+      chaîne : il ouvre **GOAL-075**, comme prévu, plutôt que de se corriger
+      ici à l'aveugle.
 
 Le correctif n'atteint l'antenne qu'après un `git push`, une image CI et un
 `docker compose pull` sur `frontal` : trois actions sortantes, à l'auteur
 (AGENTS.md §1.2).
+
+---
+
+## GOAL-075 — Le premier tirage d'une reprise ne fait plus attendre l'antenne
+
+Ouvert le 2026-09-06 par GOAL-074-T05, sur mesure. `next_entry` remplit toute
+l'avance **dans la requête** (`app/liquidsoap_playout.py:128`) : le premier
+`/playout/next` d'une reprise paie `draw.lookahead + 1` tirages — neuf en
+production — contre un cache de bibliothèque expiré. D'où 4 s le 2026-09-06,
+et plus de dix le 2026-09-05, où le diffuseur a coupé et laissé 21 s de
+silence.
+
+C'est ce délai qui rend la reprise silencieuse (GOAL-074-T02) : le muet dure
+exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
+
+- [ ] **GOAL-075-T01** — Rendre l'entrée dès qu'elle est tirée, et préparer
+      l'avance après avoir répondu. La préparation est déjà décrite comme
+      « une commodité, pas une cause d'arrêt » (`app/playout.py`) et se veut
+      « hors verrou » : reste à établir qu'elle peut l'être hors requête sans
+      course avec la jonction suivante.
+- [ ] **GOAL-075-T02** — Que le cache de bibliothèque se réchauffe au réveil
+      de l'antenne plutôt qu'au premier tirage. À instruire : `declare_listeners`
+      s'exécute déjà avant que l'antenne ne soit rendue, mais dans la requête
+      que le diffuseur attend — réchauffer là déplacerait l'attente sans la
+      supprimer.
+- [ ] **GOAL-075-T03** — Ce que le diffuseur fait d'une API lente. Deux
+      échecs de suite le font couper (SPECS.md §5.1), et un tirage de reprise
+      légitime a dépassé `api_timeout`. Décider si ce délai doit distinguer
+      « lente » de « morte », ou si T01 suffit à ce que la question ne se pose
+      plus.
 
 ---
 
@@ -354,7 +395,8 @@ Le correctif n'atteint l'antenne qu'après un `git push`, une image CI et un
 | GOAL-071 | Une plage `era_fan` choisit ses décennies | `[x]` — clos le 2026-09-02 ; **reste à écouter** la plage de 12 h |
 | GOAL-072 | Le verre d'iOS : la matière, la palette du système, un en-tête qui flotte | `[x]` — clos le 2026-09-03, rendu validé à l'œil le même jour |
 | GOAL-073 | L'état d'antenne poussé par SSE, et une coupure qui ne s'écrit plus | `[x]` — clos le 2026-09-03 ; **reste à constater** une coupure réseau et un retour d'arrière-plan depuis un téléphone |
-| GOAL-074 | La reprise ne laisse plus rien entendre de la veille, et l'annonce ne troue plus l'antenne | `[ ]` — ouvert le 2026-09-06 |
+| GOAL-074 | La reprise ne laisse plus rien entendre de la veille, et l'annonce ne troue plus l'antenne | `[-]` — ouvert le 2026-09-06 ; T01, T02, T04, T05 faites ; **T03 bloquée** sur un arbitrage |
+| GOAL-075 | Le premier tirage d'une reprise ne fait plus attendre l'antenne | `[ ]` — ouvert le 2026-09-06 par GOAL-074-T05 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
