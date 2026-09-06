@@ -195,7 +195,7 @@ un test, jamais entendu. Et une émission peut tenir plusieurs flux et déclarer
 sa fin : les six podcasts demandés par l'auteur tiennent en deux plages le
 week-end, groupées par longueur.
 
-**Prochaine tâche** : GOAL-078-T01, la couture de la grille derrière les
+**Prochaine tâche** : GOAL-080-T05 attend un arbitrage de l'auteur, puis GOAL-078-T01, la couture de la grille derrière les
 titres. GOAL-075 attend sa mesure à l'antenne (T03), qui demande le
 déploiement ; GOAL-079 est une réécriture de ton, à prendre quand elle
 n'interrompt rien.
@@ -293,6 +293,49 @@ l'avance ne bouge pas.
       « Programme · Le vendredi de Chloé 18:00–20:00 » s'annonce-t-elle ?
 - [ ] **GOAL-078-T04** — L'horizon de la couture vient du TOML, avec son
       défaut déclaré (SPECS.md §6). Aucune durée en dur.
+
+---
+
+## GOAL-080 — Ce qu'une plage podcasts expose, et que la revue a trouvé
+
+Ouvert le 2026-09-06 par la revue de GOAL-077, avant tout déploiement.
+
+- [x] **GOAL-080-T01** — Une plage fermée ne fait plus lire ses flux. Le
+      contrôle d'ouverture reposait sur `slot_start`, vrai jusqu'à la veille de
+      l'occurrence suivante : les six flux de l'auteur étaient lus **du samedi
+      20 h au lundi soir**, pour trois heures d'antenne. Une plage déclare sa
+      fin, elle se sait fermée sans qu'on lise rien.
+- [x] **GOAL-080-T02** — Deux émissions ne déclarent plus le même flux.
+      Constaté dans la configuration écrite la veille : LEGEND y était déclarée
+      seule le mardi **et** dans la plage du week-end. Chacune tient sa propre
+      mémoire, donc le même épisode serait passé deux fois. La déclaration du
+      mardi a été retirée — l'auteur avait demandé LEGEND dans la plage.
+      La règle de recouvrement voit aussi, maintenant, une plage qui enjambe
+      minuit.
+- [x] **GOAL-080-T03** — Documentation et commentaires remis d'aplomb : SPECS
+      §6 (les clés `feeds`, `end`, `cache_seconds` y manquaient),
+      ARCHITECTURE §5 (la clé de mémoire et ce qu'un flux ajouté ou retiré
+      change), trois commentaires qui décrivaient un mécanisme que le code
+      n'avait plus, et une mesure recopiée du relevé au lieu d'y renvoyer.
+      Le relevé lui-même dit désormais que « les six » est une **somme**, pas
+      une lecture d'affilée, et que ses coûts varient d'un essai à l'autre.
+- [x] **GOAL-080-T04** — Tests : la frontière exacte entre deux plages qui se
+      suivent (21:00:00 pile), la rejouabilité éprouvée sur deux ordres
+      d'insertion opposés, tous les flux injoignables, la base indisponible.
+      Deux assertions qui ne pouvaient pas échouer ont été remplacées.
+- [!] **GOAL-080-T05** — **Le délai d'attente des flux peut faire couper
+      l'antenne, et cela demande un arbitrage.** Les flux d'une plage sont lus
+      l'un après l'autre dans `next_entry`, chacun avec
+      `podcast.timeout_seconds` (15 s) : trois flux font 45 s dans le pire cas,
+      quand le diffuseur abandonne à `api_timeout` (10 s) et coupe au deuxième
+      échec. Un hébergeur qui absorbe les paquets — ni refus, ni réponse —
+      suffit donc, et une panne n'entre pas au cache. T01 a réduit la fenêtre
+      d'exposition de deux jours à trois heures par occurrence ; elle ne l'a
+      pas fermée.
+      Trois voies : borner `podcast.timeout_seconds` à `api_timeout` divisé par
+      le nombre de flux ; lire les flux hors de la requête, comme la
+      préparation de l'avance (GOAL-075) ; ou retenir brièvement qu'un flux
+      vient d'échouer pour ne pas le retenter à la jonction suivante.
 
 ---
 
@@ -396,6 +439,7 @@ mimétisme. §9 dit que cela « ne doit pas revenir ».
 | GOAL-076 | Le thème d'une plage « au hasard » ne se retire plus tout seul | `[x]` — clos le 2026-09-06 ; défaut constaté par un test avant correction, jamais entendu à l'antenne |
 | GOAL-077 | Une plage « podcasts » : plusieurs flux, tirés au hasard | `[x]` — clos le 2026-09-06 ; **reste à écouter** l'enchaînement et le débordement |
 | GOAL-078 | La liste des prochains titres coud la grille derrière elle | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°34 amendée) |
+| GOAL-080 | Ce qu'une plage podcasts expose, et que la revue a trouvé | `[-]` — ouvert le 2026-09-06 ; **T05 attend un arbitrage** |
 | GOAL-079 | `radio.liq` reçoit la réécriture du ton que les autres ont eue | `[ ]` — ouvert le 2026-09-06, sur revue : le fichier a échappé à `ea20e20` |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans

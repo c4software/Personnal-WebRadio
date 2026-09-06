@@ -740,6 +740,17 @@ def _refuser_les_collisions(shows: Sequence[Show]) -> None:
                     f"le {jour} à {show.hour.isoformat('minutes')}",
                 )
             occupes[creneau] = show.name
+    porteurs: dict[str, str] = {}
+    for show in shows:
+        for adresse in show.addresses:
+            precedente = porteurs.get(adresse)
+            if precedente is not None:
+                _refuser(
+                    "shows",
+                    f"« {precedente} » et « {show.name} » déclarent le même flux : "
+                    "chacune tient sa propre mémoire, le même épisode passerait deux fois",
+                )
+            porteurs[adresse] = show.name
     for plage in shows:
         if plage.end is None:
             continue
@@ -757,7 +768,17 @@ def _refuser_les_collisions(shows: Sequence[Show]) -> None:
 
 
 def _memes_jours(une: Show, autre: Show) -> bool:
-    return bool(set(une.days) & set(autre.days))
+    """Deux émissions qui partagent au moins un jour. Une plage qui enjambe
+    minuit déborde sur le lendemain : ce jour-là compte aussi."""
+    jours = set(une.days)
+    if une.end is not None and une.end <= une.hour:
+        jours |= {_lendemain(j) for j in une.days}
+    return bool(jours & set(autre.days))
+
+
+def _lendemain(jour: str) -> str:
+    ordre = list(DAYS)
+    return ordre[(ordre.index(jour) + 1) % len(ordre)] if jour in ordre else jour
 
 
 def _dans_la_plage(heure: time, debut: time, fin: time) -> bool:

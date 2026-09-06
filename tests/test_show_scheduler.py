@@ -8,7 +8,7 @@ import pytest
 
 from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
 from webradio.adapters.podcast.feed import PodcastUnavailable
-from webradio.adapters.state.database import SqliteState
+from webradio.adapters.state.database import SqliteState, StateUnavailable
 from webradio.adapters.youtube.channel import YoutubeUnavailable
 from webradio.app.show_scheduler import Shows
 from webradio.core.clock import FrozenClock
@@ -427,3 +427,65 @@ def test_une_emission_a_flux_unique_garde_sa_cle_de_memoire_historique(tmp_path:
 
     passe = state.last_airing("A la French")
     assert passe is not None and passe.episode == "e1"
+
+
+def test_une_plage_fermee_ne_fait_lire_aucun_flux(tmp_path: Path) -> None:
+    """Une plage déclare sa fin : elle se sait fermée sans qu'on lise rien.
+    Sans ce contrôle, ses flux étaient lus jusqu'à la veille de l'occurrence
+    suivante — deux jours par semaine pour trois heures d'antenne, et autant
+    d'occasions qu'un hébergeur muet fasse expirer la requête (GOAL-080)."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    lendemain = VENDREDI_20H + timedelta(days=1)
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(lendemain))
+
+    assert emissions.due() is None
+    assert feed.lues == [], "la case est fermée, rien n'avait à être lu"
+
+
+def test_une_plage_ouverte_lit_bien_ses_flux(tmp_path: Path) -> None:
+    """Le pendant du test précédent : le contrôle ne doit pas fermer la case
+    quand elle est ouverte."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H + timedelta(hours=2)))
+
+    assert emissions.due() is not None
+    assert sorted(feed.lues) == sorted([LEGEND_URL, KONBINI_URL])
+
+
+def test_tous_les_flux_d_une_plage_injoignables_sautent_la_case(tmp_path: Path) -> None:
+    """Aucun n'a répondu : la case est sautée et la musique continue, comme
+    une émission dont le flux est muet (SPECS.md §4.11)."""
+    feed = FeedParUrl({})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    assert emissions.due() is None
+    assert sorted(feed.lues) == sorted([LEGEND_URL, KONBINI_URL]), "les deux ont été tentés"
+
+
+class MemoireMuette:
+    """Une base qui refuse de répondre, comme un verrou jamais obtenu."""
+
+    def last_airing(self, show: str) -> None:
+        message = f"verrou non obtenu pour « {show} »"
+        raise StateUnavailable(message)
+
+    def record_airing(self, show: str, episode: str) -> None:
+        message = f"verrou non obtenu pour « {show} », épisode {episode}"
+        raise StateUnavailable(message)
+
+
+def test_une_plage_sans_memoire_saute_sa_case() -> None:
+    """Sans mémoire on rediffuserait le même épisode en boucle : sauter est
+    moins gênant (SPECS.md §4.11). La règle vaut pour une plage comme pour une
+    émission."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions = Shows(
+        ShowSchedule([PLAGE]),
+        feed,  # type: ignore[arg-type]
+        MemoireMuette(),  # type: ignore[arg-type]
+        FrozenClock(VENDREDI_20H),
+        {"Soirée podcasts": (LEGEND_URL, KONBINI_URL)},
+        ScriptedRandom([0] * 50),
+    )
+
+    assert emissions.due() is None

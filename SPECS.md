@@ -1121,7 +1121,11 @@ Ce que le TOML doit décrire, au minimum :
   de lecture, jours, début et fin (§4.13) ;
 - **Les émissions** : une entrée `[[emissions]]` par émission — nom, flux de
   podcast, jours et heure (§4.11). Il n'y a pas de limite au nombre
-  d'émissions ;
+  d'émissions. Une **plage de podcasts** déclare `feeds`, plusieurs flux au
+  lieu d'un, et `end`, l'heure jusqu'à laquelle elle enchaîne (§7 n°35). Un
+  même flux ne se déclare pas deux fois, ni dans une plage ni entre deux
+  émissions : chacune tient sa propre mémoire, et le même épisode passerait
+  deux fois ;
 - **L'état** : le chemin de la base SQLite (§4.11.1), et le délai qu'une
   écriture accepte d'attendre un verrou — deux processus y touchent ;
 - **Le web** : adresse et port de l'interface et de l'API, et l'intervalle
@@ -1129,9 +1133,12 @@ Ce que le TOML doit décrire, au minimum :
 - **La reprise** : `playout.resume_fresh_seconds`, la pause sans auditeur
   au-delà de laquelle le retour repart sur un tirage neuf (§4.7, 900 par
   défaut, `0` = jamais) ;
-- **Les podcasts** : le délai au-delà duquel un flux est réputé injoignable. Il
-  reste court : une émission qui ne répond pas ne bloque pas la radio, elle est
-  perdue et la musique continue (§4.11) ;
+- **Les podcasts** : le délai au-delà duquel un flux est réputé injoignable —
+  il reste court, une émission qui ne répond pas ne bloque pas la radio, elle
+  est perdue et la musique continue (§4.11) — et `podcast.cache_seconds`, la
+  durée pendant laquelle un flux lu est gardé (900 par défaut, `0` = relire à
+  chaque fois). Une plage relit tous ses flux à chaque jonction, et six d'entre
+  eux pèsent une vingtaine de mégaoctets ;
 - **Subsonic** : nombre de résultats par artiste, délai réseau, durée du
   cache de bibliothèque (`cache_seconds`, une heure par défaut, `0` = sans
   cache — le prix est assumé : un morceau ajouté sur le serveur n'apparaît

@@ -125,7 +125,9 @@ class Slot:
     show: Show
     start: datetime
     end: datetime | None = None
-    """La fin de la case, connue d'avance pour un direct seulement."""
+    """La fin de la case quand elle est connue d'avance : la durée déclarée
+    d'un direct, l'heure de fin d'une plage. `None` pour un podcast ordinaire,
+    dont la durée se lit dans le flux."""
 
 
 def episode_to_air(episodes: Sequence[Episode], already_aired: str | None = None) -> Episode | None:
@@ -151,8 +153,9 @@ def episode_among(
     """Un flux tiré au sort parmi ceux qui ont du neuf, et son épisode.
 
     La pioche est uniforme **entre les flux**, pas entre les épisodes : sans
-    cela le podcast le plus prolifique écraserait les autres — 1 894 épisodes
-    contre 101 chez l'auteur (docs/podcast.md §4.bis, SPECS.md §7 n°35).
+    cela le podcast le plus prolifique écraserait les autres, et le relevé
+    montre un rapport de plus de dix entre le plus fourni et le moins
+    (docs/podcast.md §4.bis, SPECS.md §7 n°35).
 
     La règle du plus récent non diffusé (n°14) vaut dans chaque flux, avec sa
     propre mémoire : un flux épuisé sort de la pioche, il ne fait pas échouer

@@ -989,3 +989,33 @@ def test_une_emission_hors_de_la_plage_reste_acceptee() -> None:
         + 'days = ["saturday"]\ntime = "23:30"\n'
     )
     assert len([s for s in config.shows if s.name in ("Après", "Soirée podcasts")]) == 2
+
+
+def test_un_flux_partage_par_deux_emissions_est_refuse() -> None:
+    """Chacune tient sa propre mémoire : le même épisode passerait dans les
+    deux. Constaté dans la configuration écrite pour GOAL-077 — LEGEND y était
+    déclarée seule le mardi ET dans la plage du week-end (GOAL-080)."""
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL
+            + '\n[[shows]]\nname = "LEGEND"\nfeed = "https://a.test/legend"\n'
+            + 'days = ["tuesday"]\ntime = "20:00"\n'
+            + '\n[[shows]]\nname = "Plage"\nfeeds = ["https://a.test/legend"]\n'
+            + 'days = ["saturday"]\ntime = "20:00"\nend = "23:00"\n'
+        )
+    assert "LEGEND" in str(refus.value)
+    assert "Plage" in str(refus.value)
+
+
+def test_une_plage_qui_enjambe_minuit_voit_le_lendemain() -> None:
+    """La règle comparait les jours déclarés : une plage du samedi 22 h à 2 h
+    ne voyait pas une émission du dimanche 1 h (GOAL-080)."""
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL
+            + '\n[[shows]]\nname = "Nuit"\nfeeds = ["https://a.test/rss"]\n'
+            + 'days = ["saturday"]\ntime = "22:00"\nend = "02:00"\n'
+            + '\n[[shows]]\nname = "Avalée"\nfeed = "https://b.test/rss"\n'
+            + 'days = ["sunday"]\ntime = "01:00"\n'
+        )
+    assert "Avalée" in str(refus.value)

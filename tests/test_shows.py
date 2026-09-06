@@ -243,10 +243,19 @@ SOIREE = Show(name="Soirée podcasts", days=("friday",), hour=time(20), end=time
 NUIT = Show(name="Nuit podcasts", days=("friday",), hour=time(23), end=time(1))
 
 
-def test_une_plage_declare_sa_fin_au_lieu_de_sa_duree() -> None:
-    assert SOIREE.chains_episodes
-    assert not SOIREE.is_live
-    assert not FRENCH.chains_episodes
+def test_deux_plages_qui_se_suivent_ne_se_recouvrent_pas_a_la_minute() -> None:
+    """La configuration retenue enchaîne 20:00-21:00 puis 21:00-23:00 : à
+    21:00:00 pile, une seule des deux doit être ouverte, sinon ce qui passe à
+    l'antenne dépend d'un départage (GOAL-080)."""
+    actus = Show(name="Actus", days=("friday",), hour=time(20), end=time(21))
+    longs = Show(name="Longs", days=("friday",), hour=time(21), end=time(23))
+    grille = ShowSchedule([actus, longs])
+
+    a_vingt_et_une = grille.due({}, le_vendredi(21))
+
+    assert a_vingt_et_une is not None
+    assert a_vingt_et_une.show.name == "Longs", "la première a fermé à sa fin déclarée"
+    assert grille.open_slot(actus, None, le_vendredi(21)) is None
 
 
 def test_une_plage_ne_declare_pas_aussi_une_duree() -> None:
@@ -288,8 +297,7 @@ def test_une_plage_qui_enjambe_minuit_finit_le_lendemain() -> None:
 
 def test_un_flux_se_tire_au_sort_parmi_ceux_qui_ont_du_neuf() -> None:
     """La pioche est uniforme entre les flux, jamais entre les épisodes : le
-    podcast le plus prolifique écraserait les autres — 1 894 épisodes contre
-    101 chez l'auteur (docs/podcast.md §4.bis)."""
+    podcast le plus fourni écraserait les autres (docs/podcast.md §4.bis)."""
     catalogues = {
         "legend": [episode("l1", 20), episode("l2", 21)],
         "konbini": [episode("k1", 19)],
@@ -319,14 +327,19 @@ def test_tous_les_flux_epuises_ne_diffusent_rien() -> None:
 
 
 def test_a_graine_fixee_la_meme_soiree_pioche_les_memes_flux() -> None:
-    """Le hasard est injecté : une soirée se rejoue (AGENTS.md §4)."""
-    catalogues = {
+    """Le hasard est injecté, et l'ordre de parcours ne dépend pas de celui du
+    dictionnaire : une soirée se rejoue (AGENTS.md §4). Les deux catalogues
+    portent les mêmes flux dans un ordre d'insertion opposé — c'est ce qui
+    ferait diverger un parcours non trié."""
+    un_ordre = {
         "konbini": [episode("k1", 19)],
         "legend": [episode("l1", 20)],
         "hugo": [episode("h1", 21)],
     }
-    indices = [2, 0, 1]
-    premiere = [episode_among(catalogues, {}, ScriptedRandom(indices)) for _ in range(1)]
-    seconde = [episode_among(catalogues, {}, ScriptedRandom(indices)) for _ in range(1)]
+    ordre_inverse = dict(reversed(list(un_ordre.items())))
 
+    premiere = episode_among(un_ordre, {}, ScriptedRandom([2]))
+    seconde = episode_among(ordre_inverse, {}, ScriptedRandom([2]))
+
+    assert premiere is not None
     assert premiere == seconde

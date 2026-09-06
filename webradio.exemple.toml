@@ -224,11 +224,6 @@ youtube = "https://www.youtube.com/@hardisk"
 days = ["wednesday"]
 time = "20:00"
 
-[[shows]]
-name   = "LEGEND"
-feed  = "https://feeds.acast.com/public/shows/legend-1"
-days = ["tuesday"]
-time = "20:00"
 
 # Une PLAGE DE PODCASTS (SPECS.md §7 n°35) : `feeds` au lieu de `feed`, et
 # `end` au lieu de rien. Entre `time` et `end`, la radio tire un flux au hasard

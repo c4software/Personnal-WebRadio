@@ -205,7 +205,11 @@ n'était tronqué, aucune page HTML n'est apparue. Ces cas restent **dus**
 > (`itunes.apple.com/lookup`) plutôt que devinés, puis passés à **notre propre
 > adaptateur** `PodcastFeed` — seul juge qui compte, puisque c'est lui qui
 > devra les lire. Taille par `curl`, coût complet (téléchargement et analyse)
-> au meilleur de trois, depuis la machine de développement.
+> au meilleur de trois, depuis la machine de développement. La ligne « les
+> six » est la **somme** des mesures individuelles : les six n'ont pas été lus
+> d'affilée. Ces coûts varient d'un essai à l'autre — LEGEND a été mesuré à
+> 0,13 s puis à 0,67 s pour la même taille — donc l'ordre de grandeur vaut,
+> pas le chiffre.
 
 | Flux | Hébergeur | Épisodes | Taille | Coût | Durée médiane |
 |---|---|---|---|---|---|
@@ -215,7 +219,7 @@ n'était tronqué, aucune page HTML n'est apparue. Ces cas restent **dus**
 | C dans l'air | Saooti / Octopus | 200 | 613 Ko | 0,40 s | 12 min 33 |
 | LEGEND | Acast | 729 | 3,59 Mo | 0,67 s | 1 h 17 |
 | HugoDécrypte — Actus | Acast | 1 894 | **15,68 Mo** | 0,47 s | 10 min 48 |
-| **Les six** | trois hébergeurs | 3 131 | **21,5 Mo** | **~1,9 s** | |
+| **Les six** | trois hébergeurs | 3 131 | **21,6 Mo** | **~1,9 s** (somme) | |
 
 ### Ce que cela établit
 
@@ -225,12 +229,18 @@ ni sans `enclosure`. Ce que §1 et §2 disaient d'Acast vaut donc aussi pour eux
 sur ce que nous lisons. La convention « RSS avec des enclosure » n'est toujours
 pas une norme, mais elle tient chez trois hébergeurs sur trois.
 
-**Le coût est en octets, et il n'est plus négligeable.** 21,5 Mo par jonction
+**Le coût est en octets, et il n'est plus négligeable.** ~21,6 Mo par jonction
 de case, contre 3,9 Mo pour les deux flux d'avant. Et cette lecture est dans
-`next_entry`, la requête que le diffuseur attend pour jouer (GOAL-075) : ~1,9 s
-depuis cette machine, davantage depuis une liaison plus lente, et le délai
-d'attente entier si un hébergeur ne répond pas. **Un cache de flux n'est plus
-une commodité** — c'est une tâche.
+`next_entry`, la requête que le diffuseur attend pour jouer (GOAL-075).
+
+**Ce qui borne vraiment cette lecture n'est pas sa taille, c'est `api_timeout`.**
+Le diffuseur abandonne une requête au bout de 10 s et coupe au deuxième échec
+(§3, radio.liq). Les flux sont lus **l'un après l'autre**, chacun avec
+`podcast.timeout_seconds` : trois flux à 15 s font 45 s dans le pire cas — bien
+au-delà de ce que le diffuseur accepte. Un hébergeur qui absorbe les paquets,
+sans refuser ni répondre, suffit donc à faire couper l'antenne, et une panne
+n'entre pas au cache. **Le produit `nombre de flux × délai d'attente` doit
+tenir sous `api_timeout` ; rien ne le contrôle aujourd'hui.**
 
 **Les durées sont extrêmement hétérogènes** : de 6 minutes à 1 h 17 de médiane,
 et jusqu'à 2 h pour l'épisode le plus récent de LEGEND. Une pioche uniforme

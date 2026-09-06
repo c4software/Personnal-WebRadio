@@ -223,18 +223,22 @@ class Shows:
         """Lit les flux des émissions dont une case a pu commencer.
 
         On lit avant de savoir si on s'en servira : sans la durée, on ne peut
-        pas dire si la case est encore ouverte (décision n°13).
+        pas dire si la case est encore ouverte (décision n°13). **Sauf une
+        plage**, qui déclare sa fin : celle-là se sait fermée sans qu'on lise
+        rien. Sans ce contrôle, ses flux étaient lus jusqu'à la veille de
+        l'occurrence suivante — pour les six de l'auteur, deux jours par
+        semaine au lieu de trois heures.
 
         Un catalogue **par flux**, pas par émission : une plage podcasts en a
-        plusieurs et doit savoir lequel offre quoi. Les six flux de l'auteur
-        pèsent 21,5 Mo et ~1,9 s (docs/podcast.md §4.bis) — un cache est dû,
-        c'est GOAL-077-T06.
+        plusieurs et doit savoir lequel offre quoi.
         """
         catalogues: dict[str, dict[str, list[EpisodeDuFlux]]] = {}
         for show in self._programme.shows:
             if show.is_live:
                 continue
             if self._programme.slot_start(show, instant) is None:  # type: ignore[arg-type]
+                continue
+            if show.chains_episodes and self._programme.open_slot(show, None, instant) is None:  # type: ignore[arg-type]
                 continue
             chaine = self._youtube.get(show.name)
             if chaine is not None and self._youtube_adapter is not None:
@@ -268,8 +272,8 @@ class Shows:
 
         La mémoire est **par flux**, pas par émission : une plage en a
         plusieurs, et ce qu'elle a déjà passé de l'un ne dit rien de l'autre
-        (SPECS.md §7 n°35). D'où la clé `<émission>/<flux>` — une émission à
-        flux unique garde donc sa propre clé, distincte de l'ancienne.
+        (SPECS.md §7 n°35). D'où la clé `<émission>/<flux>` dès qu'il y en a
+        plusieurs ; une émission à flux unique garde le nom seul.
         """
         if not par_flux:
             return None

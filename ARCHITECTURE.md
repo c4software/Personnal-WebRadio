@@ -244,8 +244,11 @@ tranché pour « ne pas rediffuser » en sachant ce que cela coûtait.
 **La conduite à tenir maintenant est celle d'un écart assumé** (§9.1) : cet état
 est une exception, pas une porte ouverte.
 
-- Il contient **un identifiant par émission**, pas l'historique des épisodes
-  passés. Rien d'autre n'y entre sans décision écrite dans SPECS.md — ni
+- Il contient **un identifiant par flux d'émission** — le nom de l'émission
+  seul quand elle n'a qu'un flux, `<émission>/<flux>` quand elle en a
+  plusieurs (SPECS.md §7 n°35) —, pas l'historique des épisodes passés. La
+  clé change donc si l'on ajoute ou retire un flux à une émission existante :
+  son dernier épisode rejoue alors une fois, sans autre conséquence. Rien d'autre n'y entre sans décision écrite dans SPECS.md — ni
   statistiques d'écoute, ni position de lecture, ni profil. Les votes (§5.2) et
   le journal des titres (§5.2.1) sont entrés par cette porte-là, et par elle
   seule : ce qu'on ajouterait « puisqu'il existe déjà » serait ce qui aura
