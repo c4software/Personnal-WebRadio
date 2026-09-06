@@ -297,7 +297,7 @@ class LiquidsoapPlayout:
             return True
         if not self._programme.withdraw(identifier):
             return False
-        self._programme.prepare(self._fin_estimee_de_l_avance())
+        self._preparer_bientot()
         return True
 
     def stash_for_replay(self) -> None:
@@ -326,8 +326,11 @@ class LiquidsoapPlayout:
             logger.info("l'avance se replace : %s", shown)
             self._programme.replay_later(entry, pending.kind, pending.track, pending.label)
         # Sans attendre que le diffuseur redemande, pour que la liste des
-        # prochains titres montre le morceau forcé dès le vote (GOAL-067).
-        self._programme.prepare(self._fin_estimee_de_l_avance())
+        # prochains titres montre le morceau forcé dès le vote (GOAL-067) —
+        # mais hors de la requête, comme à la jonction : `on_connect` attend
+        # celle-ci avant de rendre l'antenne, et remplir l'avance y coûte
+        # autant de tirages que `draw.lookahead` (GOAL-075).
+        self._preparer_bientot()
 
     def drop_advance(self) -> None:
         """Jette l'avance sans rien replacer, chez le diffuseur comme dans la

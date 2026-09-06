@@ -698,3 +698,19 @@ def test_sans_lanceur_la_preparation_se_fait_sur_place(tmp_path: Path) -> None:
     playout.next_entry()
 
     assert len(playout.upcoming()) == 5, "le morceau rendu, puis les quatre d'avance"
+
+
+def test_le_branchement_n_attend_pas_le_remplissage_de_l_avance(tmp_path: Path) -> None:
+    """Le diffuseur annonce l'auditeur AVANT de rendre l'antenne, et attend la
+    réponse : une avance rassise à replacer y coûtait `draw.lookahead` tirages
+    pendant que l'auditeur attendait le son (GOAL-075)."""
+    reportees: list[Callable[[], None]] = []
+    playout, _, _ = _playout(tmp_path, lookahead=4, in_background=reportees.append)
+    playout.next_entry()
+    for preparer in reportees:
+        preparer()
+    reportees.clear()
+
+    playout.stash_for_replay()
+
+    assert reportees, "le replacement prépare hors de la requête, comme la jonction"

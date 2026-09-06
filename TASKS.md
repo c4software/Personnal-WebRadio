@@ -217,11 +217,21 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
       **un** tirage au lieu de `lookahead + 1` — neuf en production.
       **Reste à mesurer à l'antenne** : le gain en secondes ne se constate pas
       ici, la maquette ayant une fausse bibliothèque. C'est T03.
-- [ ] **GOAL-075-T02** — Que le cache de bibliothèque se réchauffe au réveil
-      de l'antenne plutôt qu'au premier tirage. À instruire : `declare_listeners`
-      s'exécute déjà avant que l'antenne ne soit rendue, mais dans la requête
-      que le diffuseur attend — réchauffer là déplacerait l'attente sans la
-      supprimer.
+- [x] **GOAL-075-T02** — Que le cache de bibliothèque se réchauffe au réveil
+      de l'antenne plutôt qu'au premier tirage. **Instruit, et écarté** : le
+      réveil et le premier tirage sont le même instant. Le diffuseur annonce
+      l'auditeur puis demande le morceau dans la foulée ; un réchauffage lancé
+      à l'annonce serait encore en cours quand le tirage arrive, et celui-ci
+      l'attendrait. On déplacerait l'attente sans la supprimer, exactement ce
+      que la tâche soupçonnait. Le coût restant — une dizaine d'appels à
+      Navidrome pour un parcours, par genre — est le prix de « rien n'est
+      demandé sans auditeur » (SPECS.md §1).
+      **Ce qui a été fait à la place**, trouvé en instruisant : les deux
+      autres `prepare()` de la charnière étaient eux aussi dans une requête.
+      Celui de `stash_for_replay` est le plus coûteux — `on_connect` attend
+      cette requête **avant de rendre l'antenne**, et une avance rassise à
+      replacer y valait `draw.lookahead` tirages pendant que l'auditeur
+      attendait le son. Les trois passent maintenant par le même lanceur.
 - [ ] **GOAL-075-T03** — Mesurer, une fois T01 et T02 faites, ce que met le
       premier tirage d'une reprise, et le comparer aux 10 s d'`api_timeout`.
       S'il reste au-dessus, le diffuseur continuera de couper une API
