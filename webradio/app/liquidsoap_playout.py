@@ -368,6 +368,13 @@ class LiquidsoapPlayout:
                 self._oublier_l_emission([entry])
                 continue
             logger.info("l'avance se replace : %s", shown)
+            # Une émission replacée n'est pas jetée : elle passera, plus tard.
+            # On oublie seulement le rang de sa demande, sinon le jingle de
+            # l'encore, décidé après elle, la ferait passer pour perdue. Elle
+            # reste demandée côté `Shows`, donc `due()` ne la rend pas une
+            # seconde fois ; `next_entry` réarme le rang en la resservant.
+            if self._emission_demandee is not None and self._emission_demandee[0] == entry:
+                self._emission_demandee = None
             self._programme.replay_later(entry, pending.kind, pending.track, pending.label)
         # Sans attendre que le diffuseur redemande, pour que la liste des
         # prochains titres montre le morceau forcé dès le vote (GOAL-067), mais

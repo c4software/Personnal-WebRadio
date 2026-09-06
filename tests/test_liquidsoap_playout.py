@@ -746,7 +746,7 @@ class FluxDUnEpisode:
 
 def _playout_avec_emission(
     folder: Path, clock: FrozenClock, **kwargs: object
-) -> tuple[LiquidsoapPlayout, SqliteState]:
+) -> tuple[LiquidsoapPlayout, LiveRadio, SqliteState]:
     state = SqliteState(
         folder / "etat.sqlite3",
         clock,
@@ -761,8 +761,8 @@ def _playout_avec_emission(
         {"A la French": ("https://exemple.test/flux.xml",)},
         ScriptedRandom([0] * 50),
     )
-    playout, _radio, _clock = _playout(folder, clock=clock, shows=emissions, **kwargs)  # type: ignore[arg-type]
-    return playout, state
+    playout, radio, _clock = _playout(folder, clock=clock, shows=emissions, **kwargs)  # type: ignore[arg-type]
+    return playout, radio, state
 
 
 def test_une_emission_jetee_par_la_reprise_a_neuf_repasse_dans_sa_fenetre(
@@ -773,7 +773,7 @@ def test_une_emission_jetee_par_la_reprise_a_neuf_repasse_dans_sa_fenetre(
     (SPECS.md §4.11)."""
     clock = FrozenClock(MIDI + timedelta(minutes=1))
     ordres: list[str] = []
-    playout, state = _playout_avec_emission(
+    playout, _radio, state = _playout_avec_emission(
         tmp_path,
         clock,
         resume_fresh_after=timedelta(minutes=15),
@@ -796,7 +796,7 @@ def test_une_emission_jetee_par_le_changement_de_theme_repasse(tmp_path: Path) -
     """« Autre thème » jette l'avance sans la rejouer (GOAL-059) : l'émission
     qui s'y trouvait n'a pas passé."""
     clock = FrozenClock(MIDI + timedelta(minutes=1))
-    playout, state = _playout_avec_emission(tmp_path, clock)
+    playout, _radio, state = _playout_avec_emission(tmp_path, clock)
     playout.declare_listeners(1)
     assert playout.next_entry() == EPISODE
 
@@ -810,7 +810,7 @@ def test_une_emission_qui_ne_prend_jamais_l_antenne_reste_a_diffuser(tmp_path: P
     """Une adresse que le diffuseur n'arrive pas à ouvrir n'est jamais annoncée
     (docs/liquidsoap.md §3) : c'est l'entrée suivante qui commence à sa place."""
     clock = FrozenClock(MIDI + timedelta(minutes=1))
-    playout, state = _playout_avec_emission(tmp_path, clock)
+    playout, _radio, state = _playout_avec_emission(tmp_path, clock)
     playout.declare_listeners(1)
     assert playout.next_entry() == EPISODE
     remplacante = playout.next_entry()
@@ -824,7 +824,7 @@ def test_une_emission_qui_ne_prend_jamais_l_antenne_reste_a_diffuser(tmp_path: P
 
 def test_une_emission_a_l_antenne_est_retenue_et_ne_repasse_pas(tmp_path: Path) -> None:
     clock = FrozenClock(MIDI + timedelta(minutes=1))
-    playout, state = _playout_avec_emission(tmp_path, clock)
+    playout, _radio, state = _playout_avec_emission(tmp_path, clock)
     playout.declare_listeners(1)
     assert playout.next_entry() == EPISODE
 
@@ -839,7 +839,7 @@ def test_le_morceau_d_avance_qui_commence_ne_jette_pas_l_emission(tmp_path: Path
     """Le diffuseur demande un morceau d'avance (docs/liquidsoap.md §3) : celui
     décidé avant l'émission commence après elle sans rien dire de son sort."""
     clock = FrozenClock(MIDI - timedelta(minutes=1))
-    playout, state = _playout_avec_emission(tmp_path, clock)
+    playout, _radio, state = _playout_avec_emission(tmp_path, clock)
     playout.declare_listeners(1)
     avance = playout.next_entry()
     assert avance is not None and avance != EPISODE
@@ -849,5 +849,36 @@ def test_le_morceau_d_avance_qui_commence_ne_jette_pas_l_emission(tmp_path: Path
     playout.playing(avance)
     playout.playing(EPISODE)
 
+    passe = state.last_airing("A la French")
+    assert passe is not None and passe.episode == "ep1"
+
+
+def test_un_encore_pendant_qu_une_emission_attend_ne_la_fait_pas_passer_deux_fois(
+    tmp_path: Path,
+) -> None:
+    """Un encore replace l'avance sans la jeter (GOAL-034) : l'émission qui s'y
+    trouvait passera, plus tard. Prendre le jingle qui la précède pour la preuve
+    qu'elle a été jetée la rendait une seconde fois, et elle passait deux fois."""
+    (tmp_path / "encore.mp3").write_bytes(b"faux jingle")
+    clock = FrozenClock(MIDI - timedelta(minutes=1))
+    catalogue = [*CATALOGUE, track("3", "Air", genre="électro")]
+    playout, radio, state = _playout_avec_emission(tmp_path, clock, catalogue=catalogue)
+    playout.declare_listeners(1)
+    musique = playout.next_entry()
+    assert musique == "fake://1"
+    playout.playing(musique)
+    clock.advance(timedelta(minutes=2))
+    assert playout.next_entry() == EPISODE, "l'émission attend chez le diffuseur"
+
+    assert radio.vote(Vote.MORE).accepted
+
+    servies: list[str] = []
+    for _ in range(4):
+        entree = playout.next_entry()
+        assert entree is not None
+        servies.append(entree)
+        playout.playing(entree)
+
+    assert servies.count(EPISODE) == 1, "l'émission ne passe qu'une fois"
     passe = state.last_airing("A la French")
     assert passe is not None and passe.episode == "ep1"

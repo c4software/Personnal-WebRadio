@@ -416,6 +416,9 @@ Deux bloquants, douze corrections bornées, et une décision de l'auteur
       oublie ce qui a été jeté. La chaîne date ses demandes (`Pending.rank`) :
       une entrée décidée **après** l'émission qui commence à sa place dit
       qu'elle a été jetée, une décidée avant n'est que le morceau d'avance.
+      Exception, trouvée à la relecture : une émission **replacée** par un
+      encore n'est pas jetée, et le jingle qui la précède ne doit pas la faire
+      passer pour perdue — elle passait alors deux fois.
 - [ ] **GOAL-083-T05** — Le registre du diffuseur ne ment plus après un
       direct ni sur un battement : l'avance que le script jette à la fin d'un
       direct était annoncée puis resservie ; et un battement traité avant
