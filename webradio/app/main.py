@@ -491,7 +491,11 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             random,
             streams={e.name: e.stream for e in settings.shows if e.stream is not None},
             youtube_channels={e.name: e.youtube for e in settings.shows if e.youtube is not None},
-            youtube=YoutubeChannel(timedelta(seconds=settings.youtube.timeout_seconds)),
+            youtube=YoutubeChannel(
+                timedelta(seconds=settings.youtube.timeout_seconds),
+                clock=clock,
+                cache=garde_des_flux,
+            ),
             youtube_cache=Path(settings.state.database).parent / "cache",
             # Sans cache, différer la lecture ne rend jamais rien : il n'y a
             # rien à servir en attendant. `cache_seconds = 0` retrouve donc la

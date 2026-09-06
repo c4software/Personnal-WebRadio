@@ -242,9 +242,8 @@ faire couper l'antenne.
 
 **Corrigé le 2026-09-06** : la radio ne sert que ce qu'elle a déjà lu, et la
 lecture part dans un fil de fond (SPECS.md §4.11). Le produit `nombre de flux
-× délai d'attente` n'a donc plus à tenir sous `api_timeout` — pour les
-**podcasts**. Une chaîne YouTube, elle, se lit toujours dans la requête, et
-`yt-dlp` s'y ajoute : c'est GOAL-081-T04.
+× délai d'attente` n'a donc plus à tenir sous `api_timeout`. Une chaîne YouTube
+suit la même règle depuis GOAL-081-T04, sa résolution `yt-dlp` comprise.
 
 **Les durées sont extrêmement hétérogènes** : de 6 minutes à 1 h 17 de médiane,
 et jusqu'à 2 h pour l'épisode le plus récent de LEGEND. Une pioche uniforme

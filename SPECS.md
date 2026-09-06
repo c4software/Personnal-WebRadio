@@ -917,7 +917,9 @@ finit (§7 n°5) : une plage déborde donc d'autant plus que ses flux sont longs
 rien — et une émission dont l'heure tombe **pendant** une plage du même jour
 fait échouer le démarrage, comme deux émissions à la même heure.
 
-**Les flux de podcast se lisent hors du chemin de la diffusion.** Le diffuseur
+**Les flux se lisent hors du chemin de la diffusion**, podcasts comme chaînes
+YouTube — celles-ci enchaînent un flux Atom et une résolution `yt-dlp`, deux
+appels que le diffuseur n'attend pas. Le diffuseur
 attend la réponse pour jouer et abandonne au bout de son propre délai ; trois
 flux lus
 l'un après l'autre le dépassaient, et un hébergeur qui n'accuse rien suffisait
@@ -927,9 +929,7 @@ une case dont les flux ne sont pas encore là attend la jonction suivante — la
 musique continue, comme pour tout ce qui manque à une émission (§4.11). Un
 catalogue dont la garde a expiré sert quand même, le temps de le relire : sans
 cela l'expiration tombait au milieu d'un épisode long et intercalait un
-morceau de musique entre chaque épisode d'une plage. **Une chaîne YouTube ne
-suit pas encore cette règle** : elle se lit dans la requête, et sa résolution
-avec.
+morceau de musique entre chaque épisode d'une plage.
 
 **Une plage peut n'avoir presque rien à jouer**, et c'est voulu : un flux ne
 sert qu'un épisode par publication (§7 n°14), donc une plage de trois heures

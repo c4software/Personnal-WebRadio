@@ -218,15 +218,28 @@ HARDISK = Show(name="Hardisk", days=("all",), hour=time(20))
 
 
 class FakeYoutube:
+    """Fidèle au vrai : un cache qu'une lecture réussie remplit, et qu'une
+    panne laisse vide."""
+
     def __init__(self, episodes: list[EpisodeDuFlux], *, injoignable: bool = False) -> None:
         self._episodes = episodes
         self._injoignable = injoignable
         self.telecharges: list[tuple[str, str]] = []
+        self._garde: list[EpisodeDuFlux] | None = None
+        self.lues = 0
+
+    def cached(self, _url: str, *, stale_ok: bool = False) -> list[EpisodeDuFlux] | None:
+        # Le faux cache ne périme pas : ce que `stale_ok` change n'est pas
+        # observable ici, et le vrai a ses propres tests.
+        del stale_ok
+        return None if self._garde is None else list(self._garde)
 
     def episodes(self, _url: str) -> list[EpisodeDuFlux]:
+        self.lues += 1
         if self._injoignable:
             message = "chaîne d'essai injoignable"
             raise YoutubeUnavailable(message)
+        self._garde = list(self._episodes)
         return list(self._episodes)
 
     def download(self, video_url: str, destination: str) -> None:
@@ -650,3 +663,39 @@ def test_le_catalogue_perime_est_relu_en_fond_pendant_qu_il_sert(tmp_path: Path)
     emissions.due()
 
     assert reportees, "la relecture est partie en même temps que le périmé était servi"
+
+
+def test_une_chaine_youtube_se_lit_aussi_hors_de_la_requete(tmp_path: Path) -> None:
+    """Lire une chaîne enchaîne un flux Atom et une résolution `yt-dlp`,
+    chacune bornée par `youtube.timeout_seconds` : bien au-delà de ce que le
+    diffuseur attend. Même traitement que les podcasts (GOAL-081-T04)."""
+    yt = FakeYoutube([_episode("v1")])
+    reportees: list[Callable[[], None]] = []
+    state = SqliteState(
+        tmp_path / "etat.sqlite3",
+        FrozenClock(VENDREDI_20H),
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    emissions = Shows(
+        ShowSchedule([HARDISK]),
+        FakeFeed([], injoignable=True),  # type: ignore[arg-type]
+        state,
+        FrozenClock(VENDREDI_20H),
+        {},
+        ScriptedRandom([0] * 50),
+        youtube_channels={"Hardisk": "https://www.youtube.com/@hardisk"},
+        youtube=yt,  # type: ignore[arg-type]
+        youtube_cache=tmp_path / "cache",
+        in_background=reportees.append,
+        preload=timedelta(minutes=15),
+    )
+
+    assert emissions.due() is None, "rien n'est lu, la musique continue"
+    assert yt.lues == 0, "aucun appel à yt-dlp pendant la requête"
+    assert len(reportees) == 1, "la lecture est reportée, pas abandonnée"
+
+    for lire in reportees:
+        lire()
+
+    assert yt.lues == 1

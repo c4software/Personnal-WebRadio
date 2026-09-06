@@ -258,18 +258,20 @@ class Queue:
             # La boucle se termine : une fenêtre vide n'écarte personne et
             # `candidates` n'est pas vide ici.
             en_attente = {pick.track.artist for pick, _ in self._avance}
-            allowed = [
-                t for t in self._fenetre.filter_out(candidates) if t.artist not in en_attente
-            ]
+            hors_fenetre = self._fenetre.filter_out(candidates)
+            allowed = [t for t in hors_fenetre if t.artist not in en_attente]
             while not allowed:
-                if not self._fenetre.shrink():
+                # Ne rétrécir que si c'est bien la fenêtre qui bloque. Sur une
+                # plage au vivier étroit, l'exclusion vient de l'attente : la
+                # vider ne changeait rien et faisait perdre la règle pour les
+                # jonctions suivantes (GOAL-082).
+                if hors_fenetre or not self._fenetre.shrink():
                     fallbacks.append("un artiste déjà en attente repasse")
                     allowed = candidates
                     break
                 fallbacks.append("fenêtre de non-répétition rétrécie")
-                allowed = [
-                    t for t in self._fenetre.filter_out(candidates) if t.artist not in en_attente
-                ]
+                hors_fenetre = self._fenetre.filter_out(candidates)
+                allowed = [t for t in hors_fenetre if t.artist not in en_attente]
 
         track = self._tirer(allowed)
         if self._suites is not None:

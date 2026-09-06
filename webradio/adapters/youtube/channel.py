@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from webradio.adapters.podcast.feed import Episode
+from webradio.core.clock import Clock
 
 logger = logging.getLogger(__name__)
 
@@ -134,11 +135,34 @@ class YoutubeChannel:
         timeout: timedelta,
         fetch: Callable[[str, float], str] | None = None,
         resolve: Callable[[str, float], Resolved] | None = None,
+        clock: Clock | None = None,
+        cache: timedelta | None = None,
     ) -> None:
         self._delai = timeout.total_seconds()
         self._lire = fetch if fetch is not None else self._lire_par_urllib
         self._resoudre = resolve if resolve is not None else _resoudre_par_ytdlp
         self._chaines: dict[str, str] = {}
+        self._horloge = clock
+        self._duree_cache = cache
+        self._cache: dict[str, tuple[datetime, list[Episode]]] = {}
+
+    def cached(self, url: str, *, stale_ok: bool = False) -> list[Episode] | None:
+        """Ce que le cache tient de cette chaîne, sans appeler le réseau.
+
+        Même contrat que `PodcastFeed.cached` : la lecture d'une chaîne enchaîne
+        un flux Atom et une résolution `yt-dlp`, chacune bornée par
+        `youtube.timeout_seconds`, ce que le diffuseur n'attend pas
+        (SPECS.md §4.11).
+        """
+        if self._horloge is None or self._duree_cache is None:
+            return None
+        connu = self._cache.get(url)
+        if connu is None:
+            return None
+        expire = self._horloge.now() - connu[0] >= self._duree_cache
+        if expire and not stale_ok:
+            return None
+        return list(connu[1])
 
     def download(self, video_url: str, destination: str) -> None:
         """Télécharge l'audio complet dans un fichier local pour le diffuseur.
@@ -215,4 +239,6 @@ class YoutubeChannel:
                 audio=recent.audio,
                 duration=recent.duration,
             )
+        if self._horloge is not None and self._duree_cache is not None:
+            self._cache[channel_url] = (self._horloge.now(), episodes)
         return episodes

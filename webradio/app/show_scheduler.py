@@ -252,14 +252,9 @@ class Shows:
                 continue
             chaine = self._youtube.get(show.name)
             if chaine is not None and self._youtube_adapter is not None:
-                try:
-                    catalogues[show.name] = {chaine: self._youtube_adapter.episodes(chaine)}
-                except YoutubeUnavailable as failure:
-                    logger.warning(
-                        "chaîne YouTube de « %s » injoignable, case sautée : %s",
-                        show.name,
-                        failure,
-                    )
+                videos = self._videos_de(chaine, show.name)
+                if videos is not None:
+                    catalogues[show.name] = {chaine: videos}
                 continue
             for address in self._adresses.get(show.name, ()):
                 episodes = self._episodes_de(address, show.name)
@@ -278,6 +273,13 @@ class Shows:
         if en_fond is None or self._avance_de_lecture is None:
             return
         if not self._programme.opens_within(show, instant, self._avance_de_lecture):
+            return
+        chaine = self._youtube.get(show.name)
+        if chaine is not None and self._youtube_adapter is not None:
+            if self._youtube_adapter.cached(chaine) is None:
+                self._en_fond_une_fois(
+                    chaine, lambda: self._lire_la_chaine(chaine, show.name), en_fond
+                )
             return
         for address in self._adresses.get(show.name, ()):
             if self._flux.cached(address) is None:
@@ -305,6 +307,37 @@ class Shows:
         # musique s'intercalait entre chaque épisode d'une plage.
         return self._flux.cached(address, stale_ok=True)
 
+    def _videos_de(self, chaine: str, show_name: str) -> list[EpisodeDuFlux] | None:
+        """Le catalogue d'une chaîne, sans attendre le réseau quand un fil de
+        fond est disponible.
+
+        Lire une chaîne enchaîne un flux Atom et une résolution `yt-dlp`,
+        chacune bornée par `youtube.timeout_seconds` : bien au-delà de ce que le
+        diffuseur attend (SPECS.md §4.11). Même traitement que les podcasts.
+        """
+        adaptateur = self._youtube_adapter
+        if adaptateur is None:
+            return None
+        en_fond = self._en_fond
+        if en_fond is None:
+            return self._lire_la_chaine(chaine, show_name)
+        connu = adaptateur.cached(chaine)
+        if connu is not None:
+            return connu
+        self._en_fond_une_fois(chaine, lambda: self._lire_la_chaine(chaine, show_name), en_fond)
+        return adaptateur.cached(chaine, stale_ok=True)
+
+    def _lire_la_chaine(self, chaine: str, show_name: str) -> list[EpisodeDuFlux] | None:
+        if self._youtube_adapter is None:
+            return None
+        try:
+            return self._youtube_adapter.episodes(chaine)
+        except YoutubeUnavailable as failure:
+            logger.warning(
+                "chaîne YouTube de « %s » injoignable, case sautée : %s", show_name, failure
+            )
+            return None
+
     def _lire(self, address: str, show_name: str) -> list[EpisodeDuFlux] | None:
         try:
             return self._flux.episodes(address)
@@ -322,23 +355,31 @@ class Shows:
     def _lire_en_fond(
         self, address: str, show_name: str, en_fond: Callable[[Callable[[], None]], None]
     ) -> None:
-        """Une lecture à la fois par flux.
+        self._en_fond_une_fois(address, lambda: self._lire(address, show_name), en_fond)
 
-        Le fil de fond est unique et partagé : plusieurs flux muets y attendent
-        chacun leur délai, et sans ce témoin chaque jonction en empilerait une
-        de plus sur la file.
+    def _en_fond_une_fois(
+        self,
+        adresse: str,
+        travail: Callable[[], object],
+        en_fond: Callable[[Callable[[], None]], None],
+    ) -> None:
+        """Lance `travail` en fond, une seule fois par adresse à la fois.
+
+        Le fil de fond est unique et partagé : plusieurs sources muettes y
+        attendent chacune son délai, et sans ce témoin chaque jonction en
+        empilerait une de plus sur la file.
         """
         with self._verrou_lectures:
-            if address in self._lectures_lancees:
+            if adresse in self._lectures_lancees:
                 return
-            self._lectures_lancees.add(address)
+            self._lectures_lancees.add(adresse)
 
         def au_travail() -> None:
             try:
-                self._lire(address, show_name)
+                travail()
             finally:
                 with self._verrou_lectures:
-                    self._lectures_lancees.discard(address)
+                    self._lectures_lancees.discard(adresse)
 
         en_fond(au_travail)
 

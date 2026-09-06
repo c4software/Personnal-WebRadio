@@ -284,13 +284,14 @@ coupure d'antenne ; il en a ouvert une régression audible.
       une case de 23 h 55 n'était pas vue depuis 23 h 50. Et la règle de
       recouvrement appariait un jour et une tranche qui ne se rencontrent pas,
       refusant une émission du samedi 1 h sous une plage du samedi 22 h à 2 h.
-- [ ] **GOAL-081-T04** — Une chaîne YouTube se lit encore dans la requête que
+- [x] **GOAL-081-T04** — Une chaîne YouTube se lisait dans la requête que
       le diffuseur attend, et `yt-dlp` s'y résout : deux appels bornés par
       `youtube.timeout_seconds` (60 s en production) contre les 10 s du
       diffuseur, sans cache, à chaque jonction pendant deux jours. C'est la
-      classe de défaut que GOAL-080 vient de fermer pour les podcasts, avec un
-      budget pire. SPECS §4.11 et docs/podcast.md le disent maintenant, faute
-      de le corriger.
+      classe de défaut que GOAL-080 avait fermée pour les podcasts, avec un
+      budget pire. Corrigée de la même façon : un cache sur `YoutubeChannel`,
+      la lecture dans le fil de fond, et le préchauffage avant l'ouverture de
+      la case.
 
 ---
 
@@ -347,13 +348,15 @@ sur cinq tombait sur un artiste à titre unique.
       heure demande une quinzaine de titres, et 15 laisse encore 61 artistes
       éligibles. Aucun artiste au-dessus du seuil : il est relâché plutôt que
       la plage abandonnée, comme le fait la non-répétition.
-- [ ] **GOAL-082-T02** — La fenêtre de non-répétition est **vidée** quand une
+- [x] **GOAL-082-T02** — La fenêtre de non-répétition était vidée quand une
       plage impose un vivier étroit, et rien ne la remplit. `Queue._choisir`
       appelle `shrink()` en boucle jusqu'à ce que la fenêtre soit vide, alors
       que l'exclusion venait de `en_attente`, sur lequel elle n'a aucune prise.
       Conséquence à la sortie de la plage : les artistes passés juste avant
       redeviennent éligibles immédiatement, alors que §4.2 devait les tenir
-      cinq artistes. Trouvé en analysant, jamais entendu.
+      cinq artistes. Trouvé en analysant, jamais entendu. Elle ne rétrécit
+      plus que si c'est bien elle qui bloque ; le test échoue sans le
+      correctif, vérifié en le retirant.
 - [ ] **GOAL-082-T03** — Le même trou pour `random = "genre"`, latent : aucune
       plage ne l'utilise aujourd'hui. Il serait **pire** — le tirage d'un genre
       est uniforme, pas pondéré par les titres, et 110 des 227 genres de la

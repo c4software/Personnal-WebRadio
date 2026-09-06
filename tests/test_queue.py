@@ -509,3 +509,26 @@ def test_rompre_sans_autre_decennie_le_dit() -> None:
 
 def test_sans_suites_rien_ne_se_rompt() -> None:
     assert not Queue(FakeSource(CATALOGUE), ScriptedRandom([0])).break_run()
+
+
+def test_une_plage_au_vivier_etroit_ne_vide_pas_la_fenetre() -> None:
+    """La fenêtre ne rétrécit que si c'est elle qui bloque. Quand un artiste
+    imposé n'a qu'un titre, l'exclusion vient de l'attente : vider la fenêtre
+    n'y changeait rien, et à la sortie de la plage les artistes passés juste
+    avant redevenaient éligibles tout de suite (GOAL-082)."""
+    catalogue = [
+        track("a1", "Air", genre="pop"),
+        track("a2", "Autre", genre="pop"),
+        track("a3", "Encore", genre="pop"),
+        track("neuf", "Neuf", genre="pop"),
+        track("solo", "Solo", genre="rap"),
+    ]
+    file = Queue(FakeSource(catalogue), ScriptedRandom([0] * 40), Window(width=3), lookahead=3)
+    for _ in range(3):
+        file.next_pick(Constraint(genre="pop"))
+
+    for _ in range(3):
+        file.prepare(Constraint(artist="Solo"))
+
+    apres = file.next_pick(None)
+    assert apres.track.artist == "Neuf", "les trois artistes récents sont toujours tenus"
