@@ -369,6 +369,15 @@ class RadioProgramme:
         if self._emissions is not None:
             self._emissions.started(entry)
 
+    def track_started(self, track: Track) -> None:
+        """Un morceau vient de prendre l'antenne : l'encore ne le rendra plus.
+
+        C'est la prise d'antenne qui compte, pas la demande : l'avance du
+        diffuseur peut être jetée sans passer (SPECS.md §4.6).
+        """
+        if self._controle is not None:
+            self._controle.played(track)
+
     def show_dropped(self) -> None:
         """L'émission demandée a été jetée sans passer : elle reste à diffuser."""
         if self._emissions is not None:

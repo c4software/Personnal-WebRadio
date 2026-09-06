@@ -225,6 +225,8 @@ class LiquidsoapPlayout:
             finie, self._entree_en_cours = self._entree_en_cours, entry
             self._en_cours = pending
             self._commence_a = None if self._horloge is None else self._horloge.now()
+            if pending is not None and pending.kind is Kind.MUSIC and pending.track is not None:
+                self._programme.track_started(pending.track)
         self._signaler_l_emission(entry, None if pending is None else pending.rank)
         self._effacer_si_ephemere(finie)
         if pending is None:

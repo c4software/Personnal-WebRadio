@@ -6,7 +6,7 @@ import pytest
 
 from tests.fakes import FakeSource, track
 from webradio.core.clock import FrozenClock
-from webradio.core.control import Command, Control, Kind
+from webradio.core.control import PLAYED_MAX, Command, Control, Kind
 from webradio.core.jingles import JINGLE_ENCORE, Jingles
 from webradio.core.models import Track
 from webradio.core.queue import EmptyQueue
@@ -178,6 +178,44 @@ def test_encore_s_enchaine_sans_limite_borne_par_la_bibliotheque() -> None:
     for _ in range(20):
         courant = c.track_after_more(courant).track
     assert courant.identifier in {"1", "2", "3", "4"}
+
+
+def test_un_encore_ne_rend_pas_un_morceau_que_la_file_vient_de_passer() -> None:
+    """« Non joué » vaut aussi pour ce que la file a passé, pas seulement pour ce
+    que l'encore a servi (SPECS.md §4.6)."""
+    bowie_3 = track("5", "Bowie", "rock")
+    c = control([BOWIE_1, BOWIE_2, bowie_3])
+    c.played(BOWIE_1)
+    c.played(BOWIE_2)
+    assert c.track_after_more(BOWIE_2).track == bowie_3
+
+
+def test_un_artiste_passe_par_la_file_se_replie_sur_le_genre() -> None:
+    c = control()
+    c.played(BOWIE_1)
+    c.played(BOWIE_2)
+    pick = c.track_after_more(BOWIE_2)
+    assert pick.track == AIR_1
+    assert pick.fallbacks == ("artiste « Bowie » épuisé",)
+
+
+def test_la_memoire_des_titres_passes_est_bornee() -> None:
+    """Sans borne, des mois de diffusion videraient l'artiste (`PLAYED_MAX`)."""
+    c = control()
+    c.played(BOWIE_1)
+    for i in range(PLAYED_MAX):
+        c.played(track(f"rembourrage-{i}", "Autre", "rock"))
+    assert c.track_after_more(BOWIE_2).track == BOWIE_1
+
+
+def test_un_titre_qui_repasse_ne_consomme_pas_deux_places_dans_la_memoire() -> None:
+    """Sinon un titre matraqué chasserait tout le reste, et la borne ne vaudrait
+    plus que pour lui."""
+    c = control()
+    c.played(BOWIE_1)
+    for _ in range(PLAYED_MAX):
+        c.played(AIR_1)
+    assert c.track_after_more(BOWIE_2).track == PORTISHEAD
 
 
 def test_une_source_vide_refuse_de_servir_un_encore() -> None:

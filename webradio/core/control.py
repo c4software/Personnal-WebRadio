@@ -13,6 +13,7 @@ Trois règles :
   l'artiste longtemps après. C'est pourquoi aucune `Window` n'apparaît ici.
 """
 
+from collections import deque
 from dataclasses import dataclass
 from enum import Enum
 
@@ -35,6 +36,12 @@ class Kind(Enum):
 class Command(Enum):
     SKIP = "stop"
     MORE = "encore"
+
+
+# Combien de titres passés à l'antenne l'encore garde en mémoire. Sans borne,
+# la mémoire finirait par écarter tout l'artiste après quelques mois de
+# diffusion, et le repli sur le genre deviendrait la règle (SPECS.md §4.6).
+PLAYED_MAX = 200
 
 
 REFUSAL_REASONS = {
@@ -86,6 +93,10 @@ class Control:
         self._saut_demande = False
         self._encore: More | None = None
         self._servis: set[str] = set()
+        # Ce que la file a passé à l'antenne. « Non joué » (SPECS.md §4.6) ne se
+        # limite pas à ce que l'encore a servi lui-même : la file joue b1 puis
+        # b2, et un encore sur b2 rendait b1, qui venait de passer.
+        self._joues: deque[str] = deque(maxlen=PLAYED_MAX)
 
     @property
     def kind(self) -> Kind:
@@ -128,6 +139,16 @@ class Control:
         self._encore = None
         return requested
 
+    def played(self, track: Track) -> None:
+        """Retient un titre passé à l'antenne, pour que l'encore ne le rende pas.
+
+        À appeler à la prise d'antenne, pas à la demande : l'avance du diffuseur
+        peut être jetée sans passer (docs/liquidsoap.md §3).
+        """
+        if track.identifier in self._joues:
+            self._joues.remove(track.identifier)
+        self._joues.append(track.identifier)
+
     def track_after_more(self, courant: Track) -> Pick:
         """Même artiste, puis même genre, puis tirage libre ; chaque repli est rapporté.
 
@@ -136,7 +157,7 @@ class Control:
         cran.
         """
         fallbacks: list[str] = []
-        ecartes = self._servis | {courant.identifier}
+        ecartes = self._servis | set(self._joues) | {courant.identifier}
 
         candidates = [
             p for p in self._source.tracks_by(courant.artist) if p.identifier not in ecartes
@@ -157,7 +178,9 @@ class Control:
             candidates = [p for p in self._source.tracks(None) if p.identifier not in ecartes]
             # Quand toute la bibliothèque a été servie, on relâche l'exclusion
             # des morceaux déjà servis plutôt que de faire taire la radio
-            # (SPECS.md §5.1).
+            # (SPECS.md §5.1). La mémoire des titres passés n'est pas vidée :
+            # elle est bornée et se renouvelle d'elle-même, et la vider ferait
+            # revenir aussitôt ce qui vient de passer.
             if not candidates:
                 self._servis.clear()
                 fallbacks.append("bibliothèque entièrement servie : la chaîne repart")

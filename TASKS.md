@@ -467,9 +467,16 @@ Deux bloquants, douze corrections bornées, et une décision de l'auteur
       d'environnement `LIQUIDSOAP_URL` a disparu du Compose ; sans cette clé,
       `/skip` et `/requeue` partent sur `127.0.0.1` et sont journalisés en
       échec.
-- [ ] **GOAL-083-T11** — L'encore connaît ce que la file a joué (décision de
+- [x] **GOAL-083-T11** — L'encore connaît ce que la file a joué (décision de
       l'auteur, SPECS.md §4.6 « non joué ») : `Control` reçoit les titres
-      passés, fusionnés avec ceux qu'il a lui-même servis.
+      passés, fusionnés avec ceux qu'il a lui-même servis. `played()` alimente
+      une mémoire bornée (`PLAYED_MAX`, 200) que `track_after_more` écarte avec
+      `_servis` et le morceau courant. C'est `LiquidsoapPlayout.playing()` qui
+      l'alimente, à la prise d'antenne : une avance seulement demandée peut être
+      jetée sans passer. Le repli « bibliothèque entièrement servie » vide
+      `_servis` comme avant, mais **pas** la mémoire des passés : elle est bornée
+      et se renouvelle seule, et la vider ferait revenir aussitôt ce qui vient de
+      s'entendre.
 - [ ] **GOAL-083-T12** — Documentation : SPECS.md §6 réaligné sur le schéma
       réel, §4.12 réconcilié avec la n°16 ; ARCHITECTURE.md §4.1 note que la
       file compte sur `prepare()` avant chaque jonction ; les points restés

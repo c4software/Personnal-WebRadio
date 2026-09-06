@@ -364,6 +364,14 @@ aucun plafond. Ce qui le borne est la bibliothèque elle-même : quand il ne res
 plus de morceau non joué de l'artiste, la radio se replie sur le genre, puis sur
 le tirage libre.
 
+**« Non joué » vaut « non passé à l'antenne récemment (borne), ni servi par un
+encore »** — décision de l'auteur du 2026-09-06. L'encore ne connaissait que ce
+qu'il avait servi lui-même : la file passait deux morceaux du même artiste, et
+un encore sur le second rendait le premier, qui venait de s'entendre. La mémoire
+des titres passés est **bornée** ; au-delà, un vieux titre redevient éligible,
+sans quoi quelques mois de diffusion videraient l'artiste et le repli sur le
+genre deviendrait la règle.
+
 **`encore` outrepasse la règle de non-répétition (§4.2).** Les deux se
 contrediraient sinon : l'une réclame le même artiste, l'autre le lui interdit.
 C'est `encore` qui gagne, puisque c'est une demande explicite de l'auditeur — et

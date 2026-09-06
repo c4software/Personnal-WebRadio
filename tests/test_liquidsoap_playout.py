@@ -40,9 +40,10 @@ def _playout(
     shows: Shows | None = None,
     clock: FrozenClock | None = None,
     programme_class: type[RadioProgramme] = RadioProgramme,
+    draws: list[int] | None = None,
 ) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
     clock = clock if clock is not None else FrozenClock(MIDI)
-    random = ScriptedRandom([0] * 100)
+    random = ScriptedRandom(draws if draws is not None else [0] * 100)
     source = FakeSource(catalogue if catalogue is not None else CATALOGUE)
     jingles = Jingles(clock)
     counter = ListenerCount()
@@ -384,6 +385,43 @@ def test_la_liste_montre_le_morceau_force_des_le_vote(tmp_path: Path) -> None:
     a_venir = [u.track.identifier for u in playout.upcoming() if u.track is not None]
     assert a_venir[:2] == ["3", "2"]
     assert playout.next_entry() == "fake://3"
+
+
+BOWIE = [
+    track("1", "Bowie", genre="rock"),
+    track("2", "Bowie", genre="rock"),
+    track("3", "Bowie", genre="rock"),
+]
+
+
+def test_l_encore_ne_rend_pas_un_morceau_que_l_antenne_vient_de_passer(tmp_path: Path) -> None:
+    """La file passe 1 puis 2 ; un encore sur 2 rendait 1, qui venait de passer
+    (SPECS.md §4.6, GOAL-083-T11)."""
+    playout, radio, _clock = _playout(tmp_path, catalogue=BOWIE, draws=[0, 1, *[0] * 100])
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier == "fake://1"
+    playout.playing(premier)
+    deuxieme = playout.next_entry()
+    assert deuxieme == "fake://2"
+    playout.playing(deuxieme)
+
+    assert radio.vote(Vote.MORE).accepted
+    assert playout.next_entry() == "fake://3"
+
+
+def test_une_entree_seulement_demandee_ne_compte_pas_comme_passee(tmp_path: Path) -> None:
+    """C'est `playing()` qui alimente la mémoire, pas la demande : l'avance du
+    diffuseur peut être jetée sans passer (GOAL-083-T11)."""
+    playout, radio, _clock = _playout(tmp_path, catalogue=BOWIE, draws=[0, 1, *[0] * 100])
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier == "fake://1"
+    playout.playing(premier)
+    assert playout.next_entry() == "fake://2"  # demandée, jamais annoncée
+
+    assert radio.vote(Vote.MORE).accepted
+    assert playout.next_entry() == "fake://2"
 
 
 def test_l_a_suivre_saute_les_jingles(tmp_path: Path) -> None:
