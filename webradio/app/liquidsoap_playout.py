@@ -102,11 +102,15 @@ class LiquidsoapPlayout:
         # Reprise à neuf après une longue pause (SPECS.md §7 n°30) : la pause se
         # date au départ du dernier auditeur et se juge au retour.
         self._horloge = clock
+        # Un processus qui démarre ne sait pas depuis quand la pause dure ; le
+        # diffuseur, lui, tient toujours son avance. La pause est datée du
+        # démarrage : un retour tardif repart à neuf, un déploiement à chaud
+        # (premier battement > 0 aussitôt) ne coupe rien (SPECS.md §7 n°30).
         self._reprise_a_neuf = resume_fresh_after
         self._ordonner_requeue = order_requeue
         self._ordonner_skip = order_skip
         self._plafond = max_duration
-        self._pause_depuis: datetime | None = None
+        self._pause_depuis: datetime | None = clock.now() if clock is not None else None
         # Le rang de la demande en cours, et l'émission demandée qui n'a pas
         # encore commencé (entrée, rang). Sa diffusion ne s'inscrit qu'à la
         # prise d'antenne (SPECS.md §4.11.1).
@@ -461,7 +465,8 @@ class LiquidsoapPlayout:
         Le diffuseur annonce avant de rendre l'antenne (docs/liquidsoap.md
         §5.bis) : ce qui se décide ici s'applique pendant le silence. Le
         battement périodique redit le même compte : la pause se date à la
-        première annonce à zéro seulement.
+        première annonce à zéro seulement, ou au démarrage du processus s'il
+        n'a encore rien entendu.
         """
         self._auditeurs.declare(on_air=count > 0)
         if count == 0:

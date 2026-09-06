@@ -162,6 +162,32 @@ def test_le_saut_part_meme_sans_entree_connue_de_ce_processus(tmp_path: Path) ->
     assert ordres == ["requeue", "skip"]
 
 
+def test_un_redemarrage_pendant_une_longue_pause_repart_a_neuf(tmp_path: Path) -> None:
+    """Le processus qui démarre pendant une pause la date de son démarrage : sans
+    cela, le premier auditeur du matin retrouvait l'avance de la veille, que le
+    diffuseur tient toujours (SPECS.md §7 n°29 et n°30)."""
+    ordres: list[str] = []
+    playout, _radio, clock = _playout_avec_reprise(tmp_path, ordres)
+
+    clock.advance(timedelta(minutes=20))
+    playout.declare_listeners(1)
+
+    assert ordres == ["requeue", "skip"]
+
+
+def test_un_deploiement_a_chaud_ne_jette_rien(tmp_path: Path) -> None:
+    """Redémarré pendant qu'on écoute, le processus reçoit un battement > 0 dans
+    les quinze secondes : la pause datée au démarrage est courte, et le morceau
+    en cours n'est pas coupé (SPECS.md §7 n°30)."""
+    ordres: list[str] = []
+    playout, _radio, clock = _playout_avec_reprise(tmp_path, ordres)
+
+    clock.advance(timedelta(seconds=15))
+    playout.declare_listeners(1)
+
+    assert ordres == []
+
+
 def test_un_morceau_demande_n_est_pas_encore_a_l_antenne(tmp_path: Path) -> None:
     playout, radio, _ = _playout(tmp_path)
     playout.declare_listeners(1)

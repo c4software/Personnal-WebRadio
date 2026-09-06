@@ -1491,6 +1491,14 @@ voté avant la pause survit.
 > servi. Le retour est donc **muet** jusqu'au morceau frais, qui entre en
 > fondu. Mesuré : deux secondes de la veille, à plein volume sur la fin,
 > (docs/liquidsoap.md §11).
+> **Et le redémarrage a été tranché le 2026-09-06** (GOAL-083) : un processus
+> qui démarre ne sait pas depuis quand la pause dure, la pause est donc datée
+> de son démarrage — sinon le premier auditeur du matin après un déploiement
+> retrouvait l'avance de la veille, le cas de la n°29. Résidu assumé : un
+> auditeur qui revient moins de `playout.resume_fresh_seconds` après un
+> redémarrage retrouve l'avance que le diffuseur tenait, comme avant. Traiter
+> l'absence de date comme une pause longue coûterait plus cher : un
+> déploiement à chaud couperait le morceau en cours.
 
 **n°31 — Des tirages qui s'enchaînent ? Trois modes, portés par la plage.**
 Tranchée le 2026-08-31, demande directe de l'auteur. `mode` sur une plage :

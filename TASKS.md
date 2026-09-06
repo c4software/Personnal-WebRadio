@@ -434,10 +434,14 @@ Deux bloquants, douze corrections bornées, et une décision de l'auteur
       désormais le geste verrouillé. Les ordres sortants vers le diffuseur
       (`/requeue`, `/skip`) restent hors du verrou, sinon `/playout/next`
       attendrait leur POST.
-- [ ] **GOAL-083-T07** — `radio` redémarré pendant une pause ne datait pas la
+- [x] **GOAL-083-T07** — `radio` redémarré pendant une pause ne datait pas la
       pause : le premier auditeur du matin après un déploiement retrouvait
-      l'avance de la veille (le cas de la n°29). Sans pause datée ni entrée en
-      cours, le premier battement traite la reprise comme longue.
+      l'avance de la veille (le cas de la n°29). La pause est désormais datée
+      **au démarrage du processus**, et non traitée comme longue faute de date :
+      un déploiement à chaud reçoit son premier battement > 0 dans les quinze
+      secondes, la pause y est donc courte et le morceau en cours n'est pas
+      coupé. Résidu : un auditeur qui revient moins de `resume_fresh_seconds`
+      après un redémarrage retrouve l'avance du diffuseur (SPECS.md §7 n°30).
 - [ ] **GOAL-083-T08** — Les trois lecteurs réseau traduisent
       `http.client.HTTPException` (réponse tronquée) en erreur métier ; une
       date Atom malformée ne lève plus une `ValueError` brute ; l'identifiant
