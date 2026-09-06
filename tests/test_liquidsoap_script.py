@@ -210,6 +210,14 @@ def test_le_script_voyage_dans_l_image_du_diffuseur() -> None:
     assert str(SCRIPT) not in COMPOSE.read_text(), "le script ne se monte plus, il est dans l'image"
 
 
+def test_les_deux_services_lisent_le_meme_fuseau() -> None:
+    """Sans le fuseau de l'hôte, le journal du diffuseur est en UTC et celui
+    de `radio` en heure locale. Deux fuseaux pour un seul incident : le relevé
+    du 2026-09-06 a failli se lire de travers (GOAL-074-T04)."""
+    montages = COMPOSE.read_text().count("/etc/localtime:/etc/localtime:ro")
+    assert montages == 2, "les deux services montent le fuseau de l'hôte"
+
+
 def test_l_epingle_de_liquidsoap_ne_diverge_pas() -> None:
     """L'image du diffuseur et la vérification de syntaxe nomment la même
     version, sinon on valide contre une version qu'on ne déploie pas

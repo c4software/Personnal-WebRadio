@@ -234,13 +234,32 @@ matin n'en produit.
       sans auditeur — que rien de la veille ne s'entende, que le silence
       d'attente ne dure pas au point d'inquiéter, et que le morceau frais
       entre en fondu et non à froid.
-- [ ] **GOAL-074-T03** — `on_track` annonce sans bloquer le fil de diffusion,
+- [!] **GOAL-074-T03** — `on_track` annonce sans bloquer le fil de diffusion,
       comme `annoncer_le_direct`. Les deux témoins qu'il pose —
       `piste_commencee` et `direct_arme` — restent posés dans le fil : ce sont
       eux qui garantissent qu'un direct entre à la jonction
       (docs/liquidsoap.md §9), et les différer les décalerait.
-      **À écouter** (AGENTS.md §4.1) : qu'aucune jonction ne laisse de blanc.
-- [ ] **GOAL-074-T04** — Le conteneur du diffuseur lit l'heure de l'hôte.
+      **BLOQUÉ le 2026-09-06 : le remède naïf ment sur l'antenne.** Mesuré
+      (docs/liquidsoap.md §11) : `thread.run` **ne sérialise pas** — deux
+      annonces lancées à 2 s d'écart, la lente est doublée par la rapide. Un
+      jingle de 5 s suivi d'un morceau, avec l'API lente qu'on a, laisserait
+      le jingle affiché à l'antenne pendant la musique. Et la 2.3.3 n'offre
+      **aucun verrou** : `--list-functions` ne donne que `thread.run`,
+      `thread.run.recurrent`, `thread.delay`, `thread.on_error`,
+      `thread.pause`, `thread.when`.
+      Trois voies, et le choix appartient à l'auteur :
+      **(a)** ne rien changer — le trou de ~3 s reste, mais l'ordre est
+      garanti par le blocage lui-même, et T05 s'attaque à la cause ;
+      **(b)** une file consommée par un unique `thread.run.recurrent` —
+      l'ordre est tenu, mais la file est écrite par le fil de diffusion sans
+      protection : une annonce peut se perdre, donc un titre manquer au
+      journal ;
+      **(c)** un délai d'attente court propre à `/playout/playing` — le trou
+      est borné, et l'annonce est perdue quand l'API dépasse ce délai.
+      Aucune n'est gratuite. (a) est la seule qui ne perde jamais un titre.
+      **À écouter** si elle est levée (AGENTS.md §4.1) : qu'aucune jonction
+      ne laisse de blanc.
+- [x] **GOAL-074-T04** — Le conteneur du diffuseur lit l'heure de l'hôte.
       `docker-compose.yml` ne monte `/etc/localtime` que pour `radio` : les
       deux journaux sont dans deux fuseaux, ce qui a failli faire lire de
       travers l'incident du 2026-09-06. Sans effet sur la grille — le script

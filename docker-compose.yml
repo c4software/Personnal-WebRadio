@@ -88,6 +88,11 @@ services:
       # (docs/youtube.md §5). Lecture seule : il ne télécharge rien.
       - etat:/var/lib/local-webradio:ro
       - ${JINGLES:-./jingles}:/var/lib/local-webradio/jingles:ro
+      # Le fuseau de l'hôte, comme pour `radio`. Le diffuseur ne connaît aucun
+      # moment — la grille est dans le noyau — mais sans lui son journal est en
+      # UTC et celui de `radio` en heure locale : deux fuseaux pour un seul
+      # incident, et le relevé du 2026-09-06 a failli se lire de travers.
+      - /etc/localtime:/etc/localtime:ro
 
     # extra_hosts:
     #   - "music:100.64.0.3"

@@ -395,11 +395,19 @@ production porte bien « saut à antenne vide : le reliquat est jeté ». Ce que
 - Un auditeur ne reçoit que ce qui est encodé pendant qu'il écoute : couper le
   son à la source suffit, il n'y a pas de tampon à purger derrière.
 
+| `thread.run` sérialise-t-il les tâches qu'on lui donne ? | **Non.** Deux annonces lancées à 2 s d'écart, la première répondant en 6 s et la seconde tout de suite : côté API, « second » est reçu et répondu à 7,669 s, « premier » ne l'est qu'à 11,669 s. La seconde **double** la première. Passer `on_track` en asynchrone tel quel inverserait donc l'antenne — un jingle de 5 s suivi d'un morceau, avec une API lente, laisserait le jingle affiché sur la musique |
+| Un verrou pour les sérialiser ? | **Il n'y en a pas.** `liquidsoap --list-functions` de la 2.3.3 ne donne que `thread.run`, `thread.run.recurrent`, `thread.delay`, `thread.on_error`, `thread.pause`, `thread.when`. Aucun mutex, aucune file. `thread.run.recurrent` est le seul fil garanti unique — mais la file qu'il consommerait serait écrite sans protection par le fil de diffusion |
+| Le premier appel HTTP d'un processus | **Échoue, en 523, sans atteindre le serveur.** Constaté trois fois en maquette, l'API en écoute depuis plusieurs secondes et n'ayant rien reçu dans son journal. La même ligne apparaît au démarrage de chaque manche (« l'API n'a pas pris l'annonce des auditeurs (523) ») |
+
 ### Points incertains
 
 - [ ] **Pourquoi `/playout/next` met-il 4 s, et parfois davantage.** Constaté en
       production : 4 s le 2026-09-06, **28 s** le 2026-09-05 — au-delà
       d'`api_timeout`, ce qui a fait couper le diffuseur. La maquette impose le
       retard, elle ne l'explique pas. C'est GOAL-074-T05.
+- [ ] **Ce que le 523 du premier appel fait perdre en production.** Si la
+      règle vaut hors maquette, la première annonce d'un processus neuf est
+      perdue : après un redémarrage du diffuseur, l'antenne pourrait rester
+      muette d'un morceau. Non constaté en production, non expliqué.
 - [ ] Combien de temps de silence un auditeur accepte à la reprise avant de
       croire la radio en panne. Seule l'écoute le dira (AGENTS.md §4.1).
