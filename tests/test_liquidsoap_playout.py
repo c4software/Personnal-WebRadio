@@ -4,7 +4,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime, time, timedelta
 from pathlib import Path
 
-from tests.fakes import FakeSource, track
+from tests.fakes import FakeProgrammeEpieLeVerrou, FakeSource, track
 from webradio.adapters.podcast.feed import Episode as EpisodeDuFlux
 from webradio.adapters.state.database import SqliteState
 from webradio.adapters.web.api import Vote
@@ -39,6 +39,7 @@ def _playout(
     in_background: Callable[[Callable[[], None]], None] | None = None,
     shows: Shows | None = None,
     clock: FrozenClock | None = None,
+    programme_class: type[RadioProgramme] = RadioProgramme,
 ) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
     clock = clock if clock is not None else FrozenClock(MIDI)
     random = ScriptedRandom([0] * 100)
@@ -50,7 +51,7 @@ def _playout(
     # Même câblage que main.py : un encore replace l'avance du diffuseur, et
     # le programme connaît le morceau en cours.
     radio = LiveRadio(control, counter, requeue=lambda: branche[0].stash_for_replay())
-    programme = RadioProgramme(
+    programme = programme_class(
         queue=Queue(source, random, Window(width=1), lookahead=lookahead),
         source=source,
         grille=Schedule(bands or [], clock),
@@ -1015,3 +1016,106 @@ def test_une_emission_replacee_qui_prend_l_antenne_s_inscrit(tmp_path: Path) -> 
     assert radio.playing_kind() is Kind.SHOW
     passe = state.last_airing("A la French")
     assert passe is not None and passe.episode == "ep1"
+
+
+# ── Tout ce qui touche la file passe sous le verrou (GOAL-083-T06) ───────────
+
+CATALOGUE_LARGE = [track(str(i), f"artiste {i}", genre="rock") for i in range(1, 6)]
+
+
+def _playout_epie(
+    folder: Path,
+    *,
+    lookahead: int = 2,
+    resume_fresh_after: timedelta | None = None,
+    order_requeue: Callable[[], None] | None = None,
+) -> tuple[LiquidsoapPlayout, FakeProgrammeEpieLeVerrou, FrozenClock]:
+    playout, _, clock = _playout(
+        folder,
+        catalogue=CATALOGUE_LARGE,
+        lookahead=lookahead,
+        resume_fresh_after=resume_fresh_after,
+        order_requeue=order_requeue,
+        programme_class=FakeProgrammeEpieLeVerrou,
+    )
+    espion = playout._programme
+    assert isinstance(espion, FakeProgrammeEpieLeVerrou)
+    espion.epier(playout._verrou)
+    return playout, espion, clock
+
+
+def test_le_retrait_d_un_titre_de_la_file_se_fait_sous_le_verrou(tmp_path: Path) -> None:
+    """La préparation de fond boucle sur l'avance de la file ; la retirer sous
+    ses pieds lui faisait lever une `IndexError` non attrapée, et la
+    préparation s'arrêtait (GOAL-083-T06)."""
+    playout, espion, _ = _playout_epie(tmp_path)
+    playout.next_entry()
+    a_venir = playout.upcoming()
+    # Le premier est chez le diffuseur ; le second vient de l'avance de la file.
+    dans_la_file = a_venir[1].track
+    assert dans_la_file is not None
+
+    assert playout.withdraw(dans_la_file.identifier)
+
+    assert espion.verrous["withdraw"], "la file est touchée hors du verrou"
+
+
+def test_l_avance_jetee_se_jette_sous_le_verrou(tmp_path: Path) -> None:
+    """Le bouton « Autre thème » sur une suite jette l'avance de la file
+    (GOAL-059) pendant que la préparation de fond la lit (GOAL-083-T06)."""
+    playout, espion, _ = _playout_epie(tmp_path)
+    playout.next_entry()
+
+    playout.drop_advance()
+
+    assert espion.verrous["forget_advance"], "la file est touchée hors du verrou"
+
+
+def test_la_rupture_de_suite_se_fait_sous_le_verrou(tmp_path: Path) -> None:
+    """`main.py` appelait `RadioProgramme.break_run()` directement : la
+    charnière expose le geste verrouillé (GOAL-083-T06)."""
+    playout, espion, _ = _playout_epie(tmp_path)
+
+    playout.break_run()
+
+    assert espion.verrous["break_run"], "la suite est rompue hors du verrou"
+
+
+def test_l_avance_replacee_se_replace_sous_le_verrou(tmp_path: Path) -> None:
+    """Le vote « encore » et le battement replacent l'avance du diffuseur dans
+    le programme : la lecture du moment et le replacement touchent la file
+    (GOAL-083-T06)."""
+    playout, espion, _ = _playout_epie(tmp_path)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+    playout.next_entry()
+    espion.verrous.clear()
+
+    playout.stash_for_replay()
+
+    assert espion.verrous["current_moment"], "le moment est lu hors du verrou"
+    assert espion.verrous["replay_later"], "l'avance est replacée hors du verrou"
+
+
+def test_la_reprise_a_neuf_oublie_l_attente_sous_le_verrou(tmp_path: Path) -> None:
+    """Après une longue pause sans auditeur, tout repart d'un tirage neuf
+    (SPECS.md §7 n°30) : l'oubli vide la file (GOAL-083-T06)."""
+    ordres: list[str] = []
+    playout, espion, clock = _playout_epie(
+        tmp_path,
+        resume_fresh_after=timedelta(minutes=15),
+        order_requeue=lambda: ordres.append("requeue"),
+    )
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier)
+
+    playout.declare_listeners(0)
+    playout.next_entry()
+    espion.verrous.clear()
+    clock.advance(timedelta(minutes=20))
+    playout.declare_listeners(1)
+
+    assert espion.verrous["forget_pending"], "la file est vidée hors du verrou"

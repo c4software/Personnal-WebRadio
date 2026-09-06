@@ -212,6 +212,12 @@ de podcast** (SPECS.md §4.11) : ce qui ne doit pas faire attendre le diffuseur
 y passe, et l'unicité du fil borne ce que l'on empile. Rien n'est perdu si elle
 tarde : la file retombe sur un tirage neuf quand son avance est vide.
 
+Comme ce fil lit et écrit la file pendant qu'une requête peut la muter, **tout
+ce qui touche le programme ou sa file passe sous le verrou de la charnière** —
+retrait d'un titre, avance replacée ou jetée, rupture de suite, reprise à neuf ;
+les ordres sortants vers le diffuseur (`/requeue`, `/skip`) restent hors verrou,
+sinon `/playout/next` attendrait leur voyage.
+
 ### 4.2 Couper en le disant
 
 Laissé à lui-même, Liquidsoap réessaie sans fin et sert du silence

@@ -426,10 +426,14 @@ Deux bloquants, douze corrections bornées, et une décision de l'auteur
       L'ordre des demandes (`Pending.rank`) suffit : ce qui commence est plus
       récent que ce qui a été jeté. Une entrée déjà replacée est reprise de
       `_a_rejouer` avec sa nature, et l'émission qui s'y trouvait s'inscrit.
-- [ ] **GOAL-083-T06** — Les quatre chemins Flask qui mutent la file
+- [x] **GOAL-083-T06** — Les quatre chemins Flask qui mutent la file
       (`withdraw`, `stash_for_replay`, `drop_advance`, `forget_pending`)
       prennent le verrou que tient la préparation de fond ; une `IndexError`
-      était reproductible à deux fils.
+      était reproductible à deux fils. `break_run` s'y ajoute : `main.py`
+      appelait `RadioProgramme.break_run()` directement, la charnière expose
+      désormais le geste verrouillé. Les ordres sortants vers le diffuseur
+      (`/requeue`, `/skip`) restent hors du verrou, sinon `/playout/next`
+      attendrait leur POST.
 - [ ] **GOAL-083-T07** — `radio` redémarré pendant une pause ne datait pas la
       pause : le premier auditeur du matin après un déploiement retrouvait
       l'avance de la veille (le cas de la n°29). Sans pause datée ni entrée en

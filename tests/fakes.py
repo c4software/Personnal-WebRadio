@@ -4,8 +4,11 @@ Des Fakes, jamais des mocks générés à la volée (AGENTS.md §4) : un Fake se
 et son comportement est écrit une fois pour toutes.
 """
 
-from datetime import timedelta
+import threading
+from datetime import datetime, timedelta
 
+from webradio.app.playout import RadioProgramme
+from webradio.core.control import Kind
 from webradio.core.models import Track
 from webradio.core.sources import SourceUnavailable
 
@@ -75,3 +78,61 @@ class FakeSource:
         l'adresse depuis l'identifiant sans vérifier qu'il existe.
         """
         return f"fake://{track.identifier}"
+
+
+class FakeProgrammeEpieLeVerrou(RadioProgramme):
+    """Un programme qui note, geste par geste, si le verrou de la charnière
+    était tenu au moment où sa file a été touchée (GOAL-083-T06).
+
+    La préparation de fond lit et écrit la file dans un autre fil ; tout geste
+    venu d'une requête doit donc passer sous le même verrou. Le verrou est
+    réentrant : le redemander depuis le fil qui le tient réussit toujours, et
+    ne prouverait rien. On le demande depuis un fil neuf, joint aussitôt, ce
+    qui rend une réponse franche sans attente ni `sleep` (AGENTS.md §4).
+    """
+
+    def epier(self, verrou: threading.RLock) -> None:
+        self.verrous: dict[str, bool] = {}
+        self._verrou_epie = verrou
+
+    def _tenu(self, geste: str) -> None:
+        reponse: list[bool] = []
+
+        def essayer() -> None:
+            pris = self._verrou_epie.acquire(blocking=False)
+            if pris:
+                self._verrou_epie.release()
+            reponse.append(pris)
+
+        fil = threading.Thread(target=essayer)
+        fil.start()
+        fil.join()
+        self.verrous[geste] = not reponse[0]
+
+    def prepare(self, from_instant: datetime | None = None) -> None:
+        self._tenu("prepare")
+        super().prepare(from_instant)
+
+    def withdraw(self, identifier: str) -> bool:
+        self._tenu("withdraw")
+        return super().withdraw(identifier)
+
+    def forget_advance(self) -> None:
+        self._tenu("forget_advance")
+        super().forget_advance()
+
+    def forget_pending(self) -> None:
+        self._tenu("forget_pending")
+        super().forget_pending()
+
+    def break_run(self) -> bool:
+        self._tenu("break_run")
+        return super().break_run()
+
+    def current_moment(self) -> object:
+        self._tenu("current_moment")
+        return super().current_moment()
+
+    def replay_later(self, entry: str, kind: Kind, track: Track | None, label: str | None) -> None:
+        self._tenu("replay_later")
+        super().replay_later(entry, kind, track, label)

@@ -84,9 +84,11 @@ class LiquidsoapPlayout:
         self._programme = programme
         self._radio = radio
         self._auditeurs = listeners
-        self._verrou = (
-            threading.RLock()
-        )  # réentrant : next_entry tient le verrou quand le programme rappelle on_kind
+        # Réentrant : `next_entry` tient le verrou quand le programme rappelle
+        # `on_kind`. Il protège aussi tout ce qui touche `RadioProgramme` et sa
+        # file, que la préparation de fond lit dans un autre fil (GOAL-083-T06).
+        # Les ordres vers le diffuseur restent hors verrou : ce sont des POST.
+        self._verrou = threading.RLock()
         self._derniere: tuple[Kind, Track | None, str | None] = (Kind.MUSIC, None, None)
         self._en_attente: dict[str, Pending] = {}
         # Dossier des fichiers à usage unique (cache YouTube) : un fichier lu
@@ -379,10 +381,21 @@ class LiquidsoapPlayout:
             if self._ordonner_requeue is not None:
                 self._ordonner_requeue()
             return True
-        if not self._programme.withdraw(identifier):
+        with self._verrou:
+            retire = self._programme.withdraw(identifier)
+        if not retire:
             return False
         self._preparer_bientot()
         return True
+
+    def break_run(self) -> bool:
+        """Rompt la suite au hasard en cours (GOAL-059), sous le verrou.
+
+        Le câblage passe par ici plutôt que par `RadioProgramme` directement :
+        la file est lue par la préparation de fond, qui tient ce verrou.
+        """
+        with self._verrou:
+            return self._programme.break_run()
 
     def stash_for_replay(self) -> None:
         """Renvoie au programme les entrées demandées mais pas encore à
@@ -401,22 +414,22 @@ class LiquidsoapPlayout:
             ]
             for entry, _ in en_avance:
                 del self._en_attente[entry]
-        moment = self._programme.current_moment()
-        for entry, pending in en_avance:
-            shown = entry.split("?", 1)[0]
-            if pending.moment != moment:
-                logger.info("l'avance est rassise, son moment a fini : %s", shown)
-                self._oublier_l_emission([entry])
-                continue
-            logger.info("l'avance se replace : %s", shown)
-            # Une émission replacée n'est pas jetée : elle passera, plus tard.
-            # On oublie seulement le rang de sa demande, sinon le jingle de
-            # l'encore, décidé après elle, la ferait passer pour perdue. Elle
-            # reste demandée côté `Shows`, donc `due()` ne la rend pas une
-            # seconde fois ; `next_entry` réarme le rang en la resservant.
-            if self._emission_demandee is not None and self._emission_demandee[0] == entry:
-                self._emission_demandee = None
-            self._programme.replay_later(entry, pending.kind, pending.track, pending.label)
+            moment = self._programme.current_moment()
+            for entry, pending in en_avance:
+                shown = entry.split("?", 1)[0]
+                if pending.moment != moment:
+                    logger.info("l'avance est rassise, son moment a fini : %s", shown)
+                    self._oublier_l_emission([entry])
+                    continue
+                logger.info("l'avance se replace : %s", shown)
+                # Une émission replacée n'est pas jetée : elle passera, plus tard.
+                # On oublie seulement le rang de sa demande, sinon le jingle de
+                # l'encore, décidé après elle, la ferait passer pour perdue. Elle
+                # reste demandée côté `Shows`, donc `due()` ne la rend pas une
+                # seconde fois ; `next_entry` réarme le rang en la resservant.
+                if self._emission_demandee is not None and self._emission_demandee[0] == entry:
+                    self._emission_demandee = None
+                self._programme.replay_later(entry, pending.kind, pending.track, pending.label)
         # Sans attendre que le diffuseur redemande, pour que la liste des
         # prochains titres montre le morceau forcé dès le vote (GOAL-067), mais
         # hors de la requête : `on_connect` l'attend avant de rendre l'antenne,
@@ -433,9 +446,11 @@ class LiquidsoapPlayout:
             jetees = [e for e in self._en_attente if e != self._entree_en_cours]
             for entry in jetees:
                 del self._en_attente[entry]
-        self._oublier_l_emission(jetees)
-        self._programme.forget_advance()
+            self._oublier_l_emission(jetees)
+            self._programme.forget_advance()
         logger.info("l'avance est jetée : la suite est rompue, le diffuseur redemande")
+        # Le `/requeue` reste hors du verrou : c'est un POST vers le diffuseur,
+        # et `/playout/next` attendrait ce voyage.
         if self._ordonner_requeue is not None:
             self._ordonner_requeue()
 
@@ -526,8 +541,10 @@ class LiquidsoapPlayout:
         with self._verrou:
             jetees = list(self._en_attente)
             self._en_attente.clear()
-        self._oublier_l_emission(jetees)
-        self._programme.forget_pending()
+            self._oublier_l_emission(jetees)
+            self._programme.forget_pending()
+        # Les deux ordres partent hors du verrou : ce sont des POST vers le
+        # diffuseur, et `/playout/next` attendrait ces voyages.
         if self._ordonner_requeue is not None:
             self._ordonner_requeue()
         if self._ordonner_skip is not None:

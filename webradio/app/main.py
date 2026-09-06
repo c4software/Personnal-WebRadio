@@ -366,7 +366,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
         # Suite au hasard (GOAL-059) : rompue, et l'avance jetée sans être
         # replacée, car le moment n'a pas changé, seule l'ancre a changé. Sans
         # suite en cours, le prochain tirage en ouvre une de toute façon.
-        programme.break_run()
+        branche[0].break_run()
         branche[0].drop_advance()
         return Verdict(accepted=True)
 
