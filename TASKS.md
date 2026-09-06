@@ -375,7 +375,7 @@ des dates dans ses commentaires, des majuscules d'insistance et des citations
 d'arbitrage, et tout ce qu'on y ajoute depuis suit cette convention-là par
 mimétisme. §9 dit que cela « ne doit pas revenir ».
 
-- [ ] **GOAL-079-T01** — Réécrire les commentaires de
+- [x] **GOAL-079-T01** — Réécrire les commentaires de
       `webradio/adapters/liquidsoap/radio.liq` au ton d'AGENTS.md §9, dans un
       commit `style` à part. Chaque commentaire garde son **pourquoi** et perd
       sa date, son anecdote et ses majuscules ; ce que le relevé établit s'y

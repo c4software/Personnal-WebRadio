@@ -1,21 +1,19 @@
-# radio.liq — ce que Liquidsoap fait pour local-webradio, et rien de plus.
+# Ce que Liquidsoap fait pour local-webradio.
 #
-# Ce script ne décide de RIEN (ARCHITECTURE.md §4). Il demande le morceau
-# suivant à l'API, il annonce ses auditeurs à l'API, il encode et il sert.
-# Pas de playlist(), pas de hasard, pas de jingle, pas de chemin de fichier :
-# un test lit ce fichier et refuse tout cela (GOAL-016-T04).
+# Le script ne décide rien (ARCHITECTURE.md §4) : il demande le morceau suivant
+# à l'API, lui annonce ses auditeurs, encode et sert. Pas de playlist(), pas de
+# hasard, pas de jingle, pas de chemin de fichier ; un test le vérifie
+# (GOAL-016-T04).
 #
-# Validé par `liquidsoap --check` contre la version épinglée, dans
-# verifier.sh : la syntaxe change d'une version à l'autre
-# (docs/liquidsoap.md §1.7).
+# Validé par `liquidsoap --check` contre la version épinglée, dans verifier.sh :
+# la syntaxe change d'une version à l'autre (docs/liquidsoap.md §1.7).
 
 settings.log.stdout := true
 settings.log.level := 3
-# Une émission YouTube est un fichier de ~30 Mo que la résolution TÉLÉCHARGE
-# avant de jouer : 29 s (le défaut) ne suffisent pas toujours — constaté le
-# 2026-08-30, la vidéo a été abandonnée à la seconde près (docs/youtube.md).
+# La résolution télécharge la vidéo avant de jouer, une trentaine de Mo : le
+# défaut de 29 s ne suffit pas toujours (docs/youtube.md).
 settings.request.timeout := 120.
-# Et audio/webm manque à la table des extensions : sans elle, le fichier
+# audio/webm manque à la table des extensions ; sans elle le fichier
 # téléchargé n'a pas de nom et la résolution échoue.
 settings.http.mime.extnames := list.add(("audio/webm", ".webm"), settings.http.mime.extnames())
 settings.harbor.bind_addrs := ["0.0.0.0"]
@@ -30,9 +28,9 @@ name = environment.get(default="local-webradio", "RADIO_NAME")
 api_timeout = float_of_string(default=10., environment.get(default="10", "RADIO_API_TIMEOUT"))
 
 # ── Couper en le disant (SPECS.md §5.1) ─────────────────────────────────────
-# Liquidsoap, laissé à lui-même, réessaie sans fin et sert du silence
-# (docs/liquidsoap.md §3). Ici : l'API dit « fini » (204) ou ne répond pas deux
-# fois de suite → on s'arrête. Le superviseur relance un processus NEUF, et un
+# Laissé à lui-même, Liquidsoap réessaie sans fin et sert du silence
+# (docs/liquidsoap.md §3). Ici, on s'arrête quand l'API répond 204 ou ne répond
+# pas deux fois de suite. Le superviseur relance un processus neuf, et un
 # auditeur qui se rebranche redémarre une radio neuve (SPECS.md §4.7).
 failures = ref(0)
 
@@ -42,21 +40,19 @@ def stop_saying_why(why) =
 end
 
 # ── Un direct, sur instruction de l'API (SPECS.md §4.11, GOAL-015) ─────────
-# L'API rend `live:<fin en secondes Unix>:<url>`. Un direct ne peut pas être
-# une requête — la résolution d'un flux infini expire (docs/liquidsoap.md §5) —
-# donc il passe par `input.http`, démarré dès l'instruction (un morceau
-# d'avance, le temps qu'il se remplisse), mis à l'antenne **à la jonction**
-# (`direct_arme`, plus bas), et coupé à l'heure dite. `self_sync=false` :
-# sans lui, la rafale initiale du serveur accélère l'horloge de toute la
-# sortie et le morceau en cours est avalé (docs/liquidsoap.md §5).
+# L'API rend `live:<fin en secondes Unix>:<url>`. Un direct ne peut pas être une
+# requête : la résolution d'un flux infini expire (docs/liquidsoap.md §5). Il
+# passe donc par `input.http`, démarré dès l'instruction pour avoir le temps de
+# se remplir, mis à l'antenne à la jonction (`direct_arme`) et coupé à l'heure
+# dite. Sans `self_sync=false`, la rafale initiale du serveur accélère l'horloge
+# de la sortie et le morceau en cours est avalé (docs/liquidsoap.md §5).
 live_url = ref("")
 live_entry = ref("")
 live_pending = ref(false)
 live = input.http(id="live", start=false, self_sync=false, max_buffer=3., {live_url()})
 
 # Ce qu'il faut faire de l'avance quand le direct rend l'antenne. Un `ref` de
-# fonction parce que `stop_live` est défini avant `programme` ; il est rempli
-# plus bas, dès que `programme` existe.
+# fonction parce que `stop_live` est défini avant `programme` ; rempli plus bas.
 vider_l_avance = ref(fun () -> ())
 
 def stop_live(why) =
@@ -64,10 +60,9 @@ def stop_live(why) =
     live_pending := false
     live.stop()
     log("le direct se termine : #{why}")
-    # L'avance a dormi sous le direct : elle a été tirée à l'heure où la case
-    # s'est ouverte, pas à celle où elle se ferme. C'est la même rassise que
-    # celle d'une longue pause (SPECS.md §7 n°30), et le 2026-09-02 elle a
-    # valu deux minutes de musique hors plage à 8 h.
+    # L'avance a dormi sous le direct : elle a été tirée à l'ouverture de la
+    # case, pas à sa fermeture. Même rassise qu'après une longue pause
+    # (SPECS.md §7 n°30).
     purger = vider_l_avance()
     purger()
   end
@@ -92,12 +87,10 @@ def start_live(entry) =
   end
 end
 
-# Ce qui commence, pour l'API — l'entrée telle qu'elle l'a rendue. Appelée
-# depuis la transition qui met le direct à l'antenne, et de nulle part
-# ailleurs : `live.on_track` se déclenche DEUX fois au démarrage d'un
-# `input.http` (3 ms d'écart, docs/liquidsoap.md §9), et une piste d'avance
-# trop tôt — le direct s'annonçait pendant que la musique jouait encore, puis
-# la seconde annonce effaçait l'antenne pour toute la case.
+# Annonce le direct à l'API, avec l'entrée telle qu'elle l'a rendue. Appelée
+# depuis la transition qui met le direct à l'antenne, et de nulle part ailleurs :
+# `live.on_track` se déclenche deux fois au démarrage d'un `input.http` et une
+# piste trop tôt (docs/liquidsoap.md §9).
 def annoncer_le_direct() =
   answer = http.post(timeout=api_timeout, data=live_entry(), "#{api}/playout/playing")
   if answer.status_code != 204 then
@@ -111,8 +104,8 @@ def ask_next() =
   if answer.status_code == 200 then
     failures := 0
     entry = string.trim(answer)
-    # Sans la chaîne de requête : une URL de flux Subsonic porte le jeton d'accès
-    # (docs/subsonic.md), et un journal n'est pas un endroit pour un secret.
+    # Sans la chaîne de requête : une URL de flux Subsonic porte le jeton
+    # d'accès (docs/subsonic.md).
     shown = list.hd(default=entry, string.split(separator="\\?", entry))
     log("suivant : #{shown}")
     entry
@@ -132,8 +125,8 @@ def next_entry() =
   if entry == "" then
     null()
   elsif string.contains(prefix="live:", entry) then
-    # Un direct n'est pas une requête : on le lance, et on redemande tout de
-    # suite le morceau réel, pour que la file ne soit jamais vide.
+    # Un direct n'est pas une requête : on le lance, puis on redemande le
+    # morceau réel pour que la file ne soit jamais vide.
     start_live(entry)
     following = ask_next()
     if following == "" or string.contains(prefix="live:", following) then null()
@@ -144,27 +137,23 @@ def next_entry() =
 end
 
 # prefetch=1 est le minimum : à 0 la source n'est jamais prête
-# (docs/liquidsoap.md §3). Un morceau est donc toujours demandé d'avance.
+# (docs/liquidsoap.md §3).
 programme = request.dynamic(id="programme", retry_delay=5., prefetch=1, next_entry)
 
-# Ce qui COMMENCE, par opposition à ce qui a été demandé : c'est de là que
-# l'API sait ce qui passe (GOAL-016-T08).
-# L'annonce porte l'entrée, puis les étiquettes lues dans le fichier même :
-# si `radio` a redémarré et ne reconnaît pas l'entrée, il affichera au moins
-# ce que le décodeur sait — au lieu de rien pendant deux jonctions.
+# Ce qui commence réellement, par opposition à ce qui a été demandé : c'est de
+# là que l'API sait ce qui passe (GOAL-016-T08). L'annonce porte l'entrée puis
+# les étiquettes lues dans le fichier, pour que `radio` redémarré affiche au
+# moins ce que le décodeur sait.
 #
-# Ce `ref` est aussi le **seul témoin fiable** qu'une piste passe (relevé
-# docs/liquidsoap.md §9) : `radio` redémarré seul a perdu le sien, et croirait
-# l'antenne vide alors que ce processus tient un morceau depuis la veille.
+# Seul témoin fiable qu'une piste passe (docs/liquidsoap.md §9) : `radio`
+# redémarré a perdu le sien et croirait l'antenne vide.
 piste_commencee = ref(false)
 
-# Et c'est aussi le **seul signal de jonction** dont dispose le direct. Un
-# `switch(track_sensitive=true)` derrière `crossfade` ne reçoit aucune fin de
-# piste et cesse d'évaluer ses prédicats : en maquette, zéro évaluation sur
-# quatre jonctions, le direct n'obtenait jamais l'antenne ; en production le
-# 2026-09-02, 85 s de retard (docs/liquidsoap.md §9). Le `switch` évalue donc
-# en continu, et c'est ce témoin — armé ici, à un début de piste — qui garantit
-# que le direct n'entre pas au milieu d'un morceau (SPECS.md §4.11).
+# Seul signal de jonction dont dispose le direct. Un `switch(track_sensitive=true)`
+# derrière `crossfade` ne reçoit aucune fin de piste et cesse d'évaluer ses
+# prédicats (docs/liquidsoap.md §9). Le `switch` évalue donc en continu, et ce
+# témoin, armé à un début de piste, garantit que le direct n'entre pas au milieu
+# d'un morceau (SPECS.md §4.11).
 direct_arme = ref(false)
 
 def on_track(metadata) =
@@ -179,36 +168,31 @@ end
 programme.on_track(on_track)
 
 # ── Passer le morceau en cours (SPECS.md §4.6, GOAL-017) ───────────────────
-# C'est `radio` qui décide d'un saut — un vote `stop` accepté — et qui nous
+# C'est `radio` qui décide d'un saut, sur un vote `stop` accepté, et qui
 # l'ordonne par cette route. Le saut porte sur la file des morceaux : pendant
 # un direct ou un jingle, le noyau refuse le vote et l'ordre n'arrive jamais.
 #
-# Un saut à vide n'est PAS inoffensif : il reste enregistré et mange l'entrée
-# fraîche dès son départ — 7 ms constatées, et la cascade avale l'instruction
-# de direct qui suivait (docs/liquidsoap.md §9). D'où le refus ici plutôt
-# qu'un garde-fou chez l'appelant, qui ne sait pas ce que ce processus tient.
+# Un saut à vide n'est pas inoffensif : il reste enregistré et mange l'entrée
+# fraîche dès son départ (docs/liquidsoap.md §9). Le refus est ici plutôt que
+# chez l'appelant, qui ne sait pas ce que ce processus tient.
 #
-# Le compteur d'auditeurs vit ici, avant le saut, parce que le saut a besoin
-# de savoir si quelqu'un écoute. Il est tenu plus bas, par le harbor.
+# Le compteur d'auditeurs est déclaré avant le saut, qui a besoin de savoir si
+# quelqu'un écoute. Il est tenu plus bas, par le harbor.
 listeners = ref(0)
 
-# Un saut à antenne VIDE — la purge de reprise (SPECS.md §7 n°30), ou un
-# direct qui finit sans auditeur — ne s'exécute qu'au premier tirage, c'est
-# à dire quand le premier auditeur écoute déjà. Et `cross` tient en permanence
-# deux secondes déjà lues du morceau coupé : sans rien de plus, elles partent
-# en fondu de sortie sous le nez de cet auditeur. Constaté le 2026-09-02 à
-# 13 h 20 : un micro-flash du morceau de 11 h 03. Ce témoin dit à la
-# transition, plus bas, de jeter ce reliquat (docs/liquidsoap.md §10).
+# Un saut ordonné sans auditeur (purge de reprise, SPECS.md §7 n°30, ou fin de
+# direct) ne s'exécute qu'au premier tirage, quand quelqu'un écoute déjà. Or
+# `cross` tient deux secondes déjà lues du morceau coupé, qui partiraient en
+# fondu de sortie. Ce témoin dit à la transition de les jeter
+# (docs/liquidsoap.md §10).
 #
-# Il tait AUSSI l'antenne jusque-là. La transition ne s'exécute qu'une fois le
-# morceau frais bufférisé : quand l'API tarde à le rendre, la sortie a déjà
-# tiré le reliquat entier et il ne reste rien à jeter (docs/liquidsoap.md
-# §11).
+# Il tait aussi l'antenne jusque-là : la transition attend que le morceau frais
+# soit bufférisé, et si l'API tarde, la sortie a déjà servi le reliquat entier
+# (docs/liquidsoap.md §11).
 reliquat_a_taire = ref(false)
 
-# La rampe de prise d'antenne (GOAL-050) se déclare ici, loin du reste de son
-# mécanisme : la transition de `cross` la réarme à l'entrée du morceau frais,
-# et elle est définie plus haut que lui.
+# Déclarée ici, loin du reste de son mécanisme (GOAL-050) : la transition de
+# `cross` la réarme, et elle est définie plus haut que lui.
 antenne_prise = ref(0.)
 
 def sauter() =
@@ -228,9 +212,8 @@ def on_skip(request, response) =
 end
 harbor.http.register(port=port, method="POST", "/skip", on_skip)
 
-# Un « encore » accepté vide le morceau d'avance (GOAL-034) : sans cela, la
-# chanson déjà demandée s'intercalait et l'effet — jingle puis même artiste —
-# n'arrivait qu'avec un morceau de retard, ce qui rendait le jingle étrange.
+# Un encore accepté vide le morceau d'avance (GOAL-034) : sans cela la chanson
+# déjà demandée s'intercale et l'effet arrive un morceau trop tard.
 def on_requeue(request, response) =
   ignore(request)
   log("avance jetée sur ordre de l'API")
@@ -240,8 +223,8 @@ end
 harbor.http.register(port=port, method="POST", "/requeue", on_requeue)
 
 # La purge de fin de direct, maintenant que `programme` existe. Le script ne
-# choisit rien de plus qu'avant : il jette ce qui a rassis et **redemande** à
-# l'API, qui décide seule (ARCHITECTURE.md §4).
+# choisit rien : il jette ce qui a rassis et redemande à l'API
+# (ARCHITECTURE.md §4).
 vider_l_avance := fun () -> begin
   log("fin du direct : l'avance rassie est jetée, le reliquat coupé")
   programme.set_queue([])
@@ -251,10 +234,9 @@ end
 programme = normalize(programme)
 
 # Le fondu enchaîné de `crossfade`, à une exception près : après un saut à
-# antenne vide, le reliquat du morceau coupé (`a`) est jeté et le morceau
-# frais entre seul — sous le fondu de prise d'antenne, plus bas. Le reste est
-# l'appel même que fait `crossfade` (fades.liq de la 2.3.3, docs/liquidsoap.md
-# §10) : mêmes fondus, mêmes étiquettes d'annotation honorées.
+# antenne vide, le reliquat de `a` est jeté et `b` entre seul, sous le fondu de
+# prise d'antenne. Le reste reprend l'appel de `crossfade` (fades.liq de la
+# 2.3.3, docs/liquidsoap.md §10) : mêmes fondus, mêmes étiquettes honorées.
 def enchainer(a, b) =
   if reliquat_a_taire() then
     reliquat_a_taire := false
@@ -271,34 +253,33 @@ end
 programme = cross(duration=2., enchainer, programme)
 
 # Le direct prend la main à la jonction, jamais au milieu d'un morceau
-# (SPECS.md §4.11), et la rend dès qu'il s'arrête — à la seconde, sans
-# attendre de jonction, puisqu'un direct n'en a pas. APRÈS normalize et
-# crossfade : ces opérateurs refusent une source qui contrôle sa propre
-# latence, ce qu'est input.http — et `--check` ne le voit pas, seule
-# l'exécution le dit (docs/liquidsoap.md §5).
+# (SPECS.md §4.11), et la rend à la seconde dès qu'il s'arrête. Placé après
+# `normalize` et `cross` : ces opérateurs refusent une source qui contrôle sa
+# propre latence, ce qu'est `input.http`, et `--check` ne le voit pas
+# (docs/liquidsoap.md §5).
 #
-# `track_sensitive=false` **avec** `direct_arme` plutôt que `true` : voir le
-# témoin plus haut. La jonction ainsi obtenue tombe ~2 s avant la fin audible
-# du morceau — en plein fondu de sortie, qu'elle écourte. Compromis arbitré
-# par l'auteur le 2026-09-02 : deux secondes deux fois par jour valent mieux
-# qu'un direct qui entre à une heure non garantie.
-# L'annonce part d'ici, et d'ici seulement : c'est le seul instant où le
-# direct est réellement à l'antenne. `thread.run` parce qu'une transition
-# s'exécute dans le fil de diffusion — un POST qui bloque y ferait un trou.
+# `track_sensitive=false` plus `direct_arme` plutôt que `true` : voir le témoin
+# plus haut. La jonction obtenue tombe environ deux secondes avant la fin
+# audible du morceau, en plein fondu de sortie qu'elle écourte ; compromis
+# arbitré au profit d'une heure d'entrée garantie (SPECS.md §7 n°22).
+#
+# L'annonce part d'ici seulement, seul instant où le direct est à l'antenne.
+# `thread.run` parce qu'une transition s'exécute dans le fil de diffusion, où
+# un POST bloquant ferait un trou.
 def prise_direct(_, b) =
   log("le direct prend l'antenne")
   thread.run({annoncer_le_direct()})
   b
 end
 
-# Le retour à la musique s'annonce tout seul : la purge de `stop_live` force un
+# Le retour à la musique s'annonce seul : la purge de `stop_live` force un
 # tirage frais, dont le `on_track` dit ce qui commence.
 def rendu_direct(_, b) = b end
 
-# Nommé parce que le muet de la reprise a besoin du même prédicat que le
-# `switch` : un direct n'a rien de rassis à taire, et l'attendre le laisserait
-# silencieux toute sa case — la transition qui lève le muet ne s'exécute que
-# lorsque `programme` reprend l'antenne.
+# Nommé parce que le muet de la reprise lit le même prédicat que le `switch` :
+# un direct n'a rien de rassis à taire, et le muet le laisserait silencieux
+# toute sa case, la transition qui le lève n'ayant lieu qu'au retour de
+# `programme`.
 def direct_a_l_antenne() =
   direct_arme() and live_pending() and live.is_ready()
 end
@@ -318,14 +299,13 @@ end
 
 def announce() = announce_count(listeners()) end
 
-# Et PÉRIODIQUEMENT, pas seulement aux branchements : si `radio` redémarre
-# pendant que des auditeurs écoutent, son compteur repart à zéro et l'antenne
-# s'affiche vide alors qu'elle joue — constaté le 2026-08-30. Quinze secondes
-# de battement ressoudent l'état sans que personne ne s'en aperçoive.
+# Périodiquement, pas seulement aux branchements : si `radio` redémarre pendant
+# que des auditeurs écoutent, son compteur repart à zéro et l'antenne s'affiche
+# vide alors qu'elle joue. Le battement ressoude l'état.
 thread.run(every=15., announce)
 
-# L'annonce part AVANT la bascule du compteur : tant que le ref est à zéro,
-# l'antenne reste sur blank(), et l'API peut purger une avance rassise sans
+# L'annonce part avant la bascule du compteur : tant que le `ref` est à zéro
+# l'antenne reste sur `blank()`, et l'API peut purger une avance rassise sans
 # course avec la reprise du son (docs/liquidsoap.md §5.bis, SPECS.md §7 n°30).
 def on_connect(~headers, ~uri, ~protocol, ip) =
   ignore(headers) ignore(uri) ignore(protocol)
