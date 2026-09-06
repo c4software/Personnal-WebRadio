@@ -84,6 +84,11 @@ DEFAULT_PODCAST_CACHE_SECONDS = 900.0
 
 MAX_PORT = 65535
 
+# Plancher commun des délais réseau et de verrou. À 0, SQLite et le lecteur de
+# flux lèvent une ValueError à l'assemblage, et yt-dlp expire à chaque appel :
+# la configuration doit être refusée au démarrage (SPECS.md §6).
+MIN_TIMEOUT_SECONDS = 0.1
+
 # Attente maximale d'un verrou SQLite : la chaîne et le serveur web écrivent
 # dans la même base (ARCHITECTURE.md §5.1).
 DEFAULT_STATE_TIMEOUT = 5.0
@@ -818,7 +823,11 @@ def _subsonic(brut: Mapping[str, Any]) -> SubsonicSettings:
     return SubsonicSettings(
         artist_results=_entier(table, "artist_results", "subsonic", default=DEFAULT_ARTIST_RESULTS),
         timeout_seconds=_reel(
-            table, "timeout_seconds", "subsonic", default=DEFAULT_TIMEOUT_SECONDS, minimum=0.1
+            table,
+            "timeout_seconds",
+            "subsonic",
+            default=DEFAULT_TIMEOUT_SECONDS,
+            minimum=MIN_TIMEOUT_SECONDS,
         ),
         cache_seconds=_reel(table, "cache_seconds", "subsonic", default=DEFAULT_CACHE_SECONDS),
     )
@@ -870,7 +879,13 @@ def validate(brut: Mapping[str, Any]) -> Settings:
         bands=_plages(brut),
         state=StateSettings(
             database=_texte(state, "database", "state"),
-            timeout_seconds=_reel(state, "timeout_seconds", "state", default=DEFAULT_STATE_TIMEOUT),
+            timeout_seconds=_reel(
+                state,
+                "timeout_seconds",
+                "state",
+                default=DEFAULT_STATE_TIMEOUT,
+                minimum=MIN_TIMEOUT_SECONDS,
+            ),
         ),
         shows=_emissions(brut),
         programmes=_programmes(brut),
@@ -893,11 +908,16 @@ def validate(brut: Mapping[str, Any]) -> Settings:
                 "timeout_seconds",
                 "youtube",
                 default=60.0,
+                minimum=MIN_TIMEOUT_SECONDS,
             )
         ),
         podcast=PodcastSettings(
             timeout_seconds=_reel(
-                podcast, "timeout_seconds", "podcast", default=DEFAULT_PODCAST_TIMEOUT
+                podcast,
+                "timeout_seconds",
+                "podcast",
+                default=DEFAULT_PODCAST_TIMEOUT,
+                minimum=MIN_TIMEOUT_SECONDS,
             ),
             cache_seconds=_reel(
                 podcast, "cache_seconds", "podcast", default=DEFAULT_PODCAST_CACHE_SECONDS

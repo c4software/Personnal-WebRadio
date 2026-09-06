@@ -1033,3 +1033,34 @@ def test_une_emission_avant_une_plage_qui_enjambe_minuit_reste_acceptee() -> Non
         + 'days = ["saturday"]\ntime = "01:00"\n'
     )
     assert len([s for s in config.shows if s.name in ("Nuit", "Petit matin")]) == 2
+
+
+def test_un_delai_de_verrou_nul_est_refuse_en_nommant_state() -> None:
+    # `SqliteState` lève une ValueError brute à l'assemblage : le refus doit
+    # tomber à la validation, avec la clé (SPECS.md §6).
+    content = TOML_MINIMAL + "\ntimeout_seconds = 0\n"
+
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "state.timeout_seconds" in str(refus.value)
+
+
+def test_un_delai_de_podcast_nul_est_refuse_en_nommant_podcast() -> None:
+    content = TOML_MINIMAL + "\n[podcast]\ntimeout_seconds = 0\n"
+
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "podcast.timeout_seconds" in str(refus.value)
+
+
+def test_un_delai_youtube_nul_est_refuse_en_nommant_youtube() -> None:
+    # À 0, chaque appel à yt-dlp expire et l'émission est perdue sans que la
+    # configuration ait été mise en cause.
+    content = TOML_MINIMAL + "\n[youtube]\ntimeout_seconds = 0\n"
+
+    with pytest.raises(SettingsError) as refus:
+        _valider(content)
+
+    assert "youtube.timeout_seconds" in str(refus.value)

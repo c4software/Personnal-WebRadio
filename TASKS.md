@@ -447,7 +447,7 @@ Deux bloquants, douze corrections bornées, et une décision de l'auteur
       date Atom malformée ne lève plus une `ValueError` brute ; l'identifiant
       de chaîne YouTube se lit après `/channel/`, pas au dernier segment.
       Tests contre des réponses littérales tronquées (AGENTS.md §4).
-- [ ] **GOAL-083-T09** — `timeout_seconds = 0` est refusé à la validation pour
+- [x] **GOAL-083-T09** — `timeout_seconds = 0` est refusé à la validation pour
       `state`, `podcast` et `youtube`, comme pour `subsonic` : il passait puis
       plantait l'assemblage, ou perdait chaque émission YouTube en silence.
 - [ ] **GOAL-083-T10** — Interdits d'AGENTS.md §2 et tests creux : code mort
