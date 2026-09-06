@@ -348,7 +348,58 @@ morceau frais annoncé 2,1 s après la bascule.
 
 ### Points incertains
 
-- [ ] Le morceau frais entre alors **sans fondu propre**, sous la seule rampe
-      de prise d'antenne (2 s, §8). Une entrée de morceau à froid s'entend
-      différemment d'un fondu enchaîné ; seule l'oreille dira si la rampe
-      suffit.
+- [x] ~~Le morceau frais entre alors **sans fondu propre**, sous la seule rampe
+      de prise d'antenne (2 s, §8).~~ **Tranché par §11** : il n'entre même pas
+      toujours sous cette rampe. Elle est armée quand le `switch` rend
+      l'antenne, pas quand le morceau frais entre ; dès que l'attente dépasse
+      2 s, il entre à plein gain.
+- [ ] Les 160 ms mesurées ici valent pour une API qui répond sur-le-champ.
+      Le régime lent, et ce qu'il fait entendre, sont en §11.
+
+---
+
+## 11. Neuvième relevé — ce que `cross` sert quand l'entrée fraîche tarde (GOAL-074-T01, le 2026-09-06)
+
+> Même image (`v2.3.3`). Maquette **fidèle** : le vrai `radio.liq` en conteneur
+> contre une fausse API qui reproduit `declare_listeners` — la purge part de
+> l'intérieur du gestionnaire de `/playout/listeners`, avant la réponse, donc
+> pendant que le compteur du diffuseur est encore à zéro. Quatre tons purs de
+> 25 s (a = 440 Hz, b = 660 Hz, c = 880 Hz, d = 1100 Hz), un auditeur `curl`,
+> le flux MP3 reçu mesuré par fenêtres de 0,25 s : RMS, et fréquence dominante
+> par passages à zéro — c'est elle qui dit **quel** morceau passe. Un seul
+> paramètre change d'une manche à l'autre : le retard de `/playout/next`.
+
+Motif : le 2026-09-06 au matin, l'auteur entend encore un micro-flash de la
+veille, alors que le garde-fou de §10 (GOAL-055) fonctionne — le journal de
+production porte bien « saut à antenne vide : le reliquat est jeté ». Ce que
+§10 avait mesuré à **160 ms**, la production l'a montré à **7 s**.
+
+| Question | Constat |
+|---|---|
+| Qu'est-ce qui décide du délai de la transition de `cross` ? | **La latence de l'entrée fraîche, et elle seule.** La transition ne peut pas s'exécuter avant que `b` ait `duration` en tampon ; `b` n'existe qu'une fois `/next` répondu et le fichier résolu. Deux manches, même script, même scénario : `/next` instantané → `Analysis … (1.96s / 2.00s)`, transition dans la seconde ; `/next` retardé de 4 s → `Analysis … (0.00s / 2.00s)`, transition 4 s après le saut. La maquette de §10 répondait sur-le-champ : elle ne pouvait mesurer que le premier régime |
+| Où passe le tampon `before` pendant cette attente ? | **À l'antenne.** C'est ce que dit le `0.00s` : la transition ne trouve plus rien à jeter parce que la sortie a tout consommé. Mesuré dans le flux reçu : **2,00 s du ton `a`** — celui d'avant la pause — de 0,25 s à 2,25 s, sous la rampe de prise d'antenne, de −32,9 à **−16,7 dB**, soit ~87 % du volume à la fin. Le garde-fou de §10 s'exécute ensuite, sur un tampon vide : il ne protège que le régime rapide |
+| Que se passe-t-il une fois le tampon vidé ? | **L'antenne retombe sur `blank()`**, avec l'auditeur toujours branché : `programme` n'est plus prêt, le `switch` des auditeurs prend son second enfant. Mesuré : 2 s de silence absolu (−99 dB) entre le reliquat et le morceau frais. C'est la même ligne `Switch to blank with transition` vue en production le 2026-09-05 à 14:31:52, dix-neuf secondes avant que l'auditeur ne parte |
+| Le morceau frais entre-t-il en fondu ? | **Au hasard du calendrier.** `antenne_prise` est armé quand le `switch` rend l'antenne, pas quand le morceau frais entre. En maquette le repli sur `blank` a réarmé la rampe 2 s avant l'entrée du frais, qui a donc fondu (−44 → −19 dB). En production le 2026-09-06, l'antenne a été reprise à 07:28:25 et le frais est entré à 07:28:28 : la rampe de 2 s était épuisée, il est entré **à plein gain**. Le point incertain de §10 se règle donc dans le mauvais sens, et il n'est pas déterministe |
+| `output.harbor` sert-il une rafale d'octets déjà encodés à un auditeur qui se branche ? | **Non**, aux réglages de `radio.liq`. Protocole : A écoute le ton `a` à −16,7 dB, se débranche, l'antenne encode 1 s de silence, B se branche. Le flux de B commence sur le ton frais sous sa rampe, **sans aucune trace de `a`**. Un auditeur qui se rebranche n'hérite donc de rien : tout ce qu'il entend a été encodé pour lui. Le mot `burst` n'apparaît dans aucun réglage du script |
+
+### Ce que cela change
+
+- Le témoin de §10 est **nécessaire mais pas suffisant**. Il vide le tampon que
+  la transition tient encore ; il ne dit rien de ce que la sortie a déjà tiré
+  en attendant. Ce qui protège l'auditeur ne peut pas être une transition, qui
+  s'exécute trop tard : c'est le gain.
+- La reprise à neuf (SPECS.md §7 n°30) n'a pas de version « rapide » et de
+  version « lente ». Elle a un régime, et il dépend d'un temps de réponse —
+  donc de la bibliothèque, du réseau, de la charge. Ce qui s'est bien passé le
+  2026-09-02 était une API rapide, pas une correction complète.
+- Un auditeur ne reçoit que ce qui est encodé pendant qu'il écoute : couper le
+  son à la source suffit, il n'y a pas de tampon à purger derrière.
+
+### Points incertains
+
+- [ ] **Pourquoi `/playout/next` met-il 4 s, et parfois davantage.** Constaté en
+      production : 4 s le 2026-09-06, **28 s** le 2026-09-05 — au-delà
+      d'`api_timeout`, ce qui a fait couper le diffuseur. La maquette impose le
+      retard, elle ne l'explique pas. C'est GOAL-074-T05.
+- [ ] Combien de temps de silence un auditeur accepte à la reprise avant de
+      croire la radio en panne. Seule l'écoute le dira (AGENTS.md §4.1).

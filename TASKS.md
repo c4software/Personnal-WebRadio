@@ -174,7 +174,79 @@ reste REST (décision de l'auteur). **Aucun Goal ouvert.**
 une vraie coupure réseau depuis un téléphone, et le retour d'un écran
 verrouillé au bout de dix minutes.
 
-**Prochaine tâche** : aucune. Le prochain travail vient d'un `/goal`.
+**GOAL-074 est ouvert le 2026-09-06** : l'auteur a de nouveau entendu, en se
+branchant le matin, un micro-flash de la chanson de la veille avant que la
+radio ne bascule. Le garde-fou de GOAL-055 avait pourtant fonctionné — le
+journal le dit. Ce qu'il ne couvre pas : le temps que met `cross` à
+transitionner. Relevé en maquette à **160 ms** (docs/liquidsoap.md §10),
+mesuré à **7 s** en production le 2026-09-06 ; pendant ces 7 s l'antenne est
+déjà rendue et sert le reliquat de la veille.
+
+**Prochaine tâche** : GOAL-074-T01.
+
+---
+
+## GOAL-074 — La reprise ne laisse plus rien entendre de la veille, et l'annonce ne troue plus l'antenne
+
+Deux défauts constatés dans les journaux de production du 2026-09-06, tous
+deux dans `radio.liq`, tous deux invisibles aux tests (AGENTS.md §4.1).
+
+**Le flash.** À 07:28:21 UTC, la purge de reprise à neuf (SPECS.md §7 n°30)
+s'ordonne correctement et arme `reliquat_a_taire` ; l'antenne est rendue dans
+la même seconde ; la transition de `cross` qui doit jeter le reliquat ne
+s'exécute qu'à 07:28:28. Elle ne trouve alors plus que **0,04 s** à jeter
+(`cross: Analysis … 0.04s / 2.00s`), contre **1,99 s** les 2026-09-02 et
+2026-09-05. Les ~1,95 s manquantes sont sorties vers l'encodeur pendant
+l'attente : c'est le flash. Le morceau frais, lui, entre après la rampe de
+prise d'antenne, donc **à plein gain**.
+
+**Le trou.** `on_track` poste l'annonce à l'API dans le fil de diffusion,
+alors qu'`annoncer_le_direct` est enveloppé dans `thread.run` pour cette
+raison exacte. Les deux `catchup` de 2,79 s et 2,94 s du 2026-09-06 suivent
+exactement les deux annonces lentes ; aucune des six transitions rapides du
+matin n'en produit.
+
+- [x] **GOAL-074-T01** — Relever ce que la chaîne sert entre le saut et la
+      transition de `cross`, quand l'entrée fraîche tarde. docs/liquidsoap.md
+      §11. Trois constats : le délai de la transition ne dépend que de la
+      latence de l'entrée fraîche ; pendant l'attente le tampon `before` part
+      **à l'antenne** — 2,00 s du ton d'avant la pause, jusqu'à −16,7 dB, soit
+      ~87 % du volume — puis l'antenne retombe sur `blank()` ; et
+      `output.harbor` ne sert **aucune** rafale d'octets déjà encodés, ce qui
+      était l'autre hypothèse. Le garde-fou de §10 est donc nécessaire mais
+      pas suffisant : une transition s'exécute trop tard, seul le gain
+      protège.
+- [ ] **GOAL-074-T02** — L'antenne reste muette du saut à antenne vide
+      jusqu'à l'entrée du morceau frais, et le morceau frais entre sous la
+      rampe de prise d'antenne. Le témoin `reliquat_a_taire` existe déjà et
+      dit exactement cela ; `prise_direct` doit le lever, sinon un direct pris
+      entre le saut et la transition resterait silencieux toute la case.
+      SPECS.md §4.7 et §7 n°30 disent le comportement obtenu.
+      **À écouter** (AGENTS.md §4.1) : la reprise du matin après une nuit
+      sans auditeur — que rien de la veille ne s'entende, que le silence
+      d'attente ne dure pas au point d'inquiéter, et que le morceau frais
+      entre en fondu et non à froid.
+- [ ] **GOAL-074-T03** — `on_track` annonce sans bloquer le fil de diffusion,
+      comme `annoncer_le_direct`. Les deux témoins qu'il pose —
+      `piste_commencee` et `direct_arme` — restent posés dans le fil : ce sont
+      eux qui garantissent qu'un direct entre à la jonction
+      (docs/liquidsoap.md §9), et les différer les décalerait.
+      **À écouter** (AGENTS.md §4.1) : qu'aucune jonction ne laisse de blanc.
+- [ ] **GOAL-074-T04** — Le conteneur du diffuseur lit l'heure de l'hôte.
+      `docker-compose.yml` ne monte `/etc/localtime` que pour `radio` : les
+      deux journaux sont dans deux fuseaux, ce qui a failli faire lire de
+      travers l'incident du 2026-09-06. Sans effet sur la grille — le script
+      ne connaît aucun moment.
+- [ ] **GOAL-074-T05** — Mesurer ce que met `/playout/next` à répondre après
+      une purge, et le dire. Constaté : 4 s le 2026-09-06, **28 s** le
+      2026-09-05 — au-delà d'`api_timeout`, ce qui a fait **couper** le
+      diffuseur (« l'API ne répond plus »), 21 s de silence et un redémarrage
+      à froid. Si la cause dépasse la mesure, cette tâche ouvre un Goal plutôt
+      que de corriger à l'aveugle.
+
+Le correctif n'atteint l'antenne qu'après un `git push`, une image CI et un
+`docker compose pull` sur `frontal` : trois actions sortantes, à l'auteur
+(AGENTS.md §1.2).
 
 ---
 
@@ -255,6 +327,7 @@ verrouillé au bout de dix minutes.
 | GOAL-071 | Une plage `era_fan` choisit ses décennies | `[x]` — clos le 2026-09-02 ; **reste à écouter** la plage de 12 h |
 | GOAL-072 | Le verre d'iOS : la matière, la palette du système, un en-tête qui flotte | `[x]` — clos le 2026-09-03, rendu validé à l'œil le même jour |
 | GOAL-073 | L'état d'antenne poussé par SSE, et une coupure qui ne s'écrit plus | `[x]` — clos le 2026-09-03 ; **reste à constater** une coupure réseau et un retour d'arrière-plan depuis un téléphone |
+| GOAL-074 | La reprise ne laisse plus rien entendre de la veille, et l'annonce ne troue plus l'antenne | `[ ]` — ouvert le 2026-09-06 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
