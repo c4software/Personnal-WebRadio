@@ -182,7 +182,8 @@ class Radio(Protocol):
         """Le moment déclaré qui s'applique (programme ou plage), ou `None`.
 
         `None` en tirage libre. Une émission n'est pas un moment : elle se
-        voit par sa nature.
+        voit par sa nature. Tant qu'une émission ou un flash passe, aucun
+        moment n'est annoncé, la plage étant remplacée (SPECS.md §4.4).
         """
         ...
 

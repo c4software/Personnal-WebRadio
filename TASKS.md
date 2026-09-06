@@ -212,6 +212,9 @@ un battement d'heure pleine. **Au déploiement** : la configuration de
 production doit déclarer `liquidsoap.url = "http://liquidsoap:8000"`, la
 variable d'environnement ayant disparu du Compose.
 
+**GOAL-084 est clos le 2026-09-06** : l'antenne annonçait la plage de la grille
+pendant une émission, alors que l'émission la remplace.
+
 **Prochaine tâche** : GOAL-082-T04, le seuil de vivier appliqué ou non à
 l'ancre d'`artist_fan`, puis GOAL-078-T01, la couture de la grille derrière les
 titres. GOAL-075 attend sa mesure à l'antenne (T03), qui demande le
@@ -452,6 +455,29 @@ sur cinq tombait sur un artiste à titre unique.
 
 ---
 
+## GOAL-084 — L'antenne n'annonce plus la plage pendant une émission
+
+Ouvert le 2026-09-06 sur constat de l'auteur à l'antenne, à 20 h 04. L'émission
+« Podcasts - actus » (20:00→21:00 le dimanche) passait, la carte « Antenne »
+disait bien EMISSION avec le titre de l'épisode, et le sous-titre annonçait
+« Moment · Rock, Rock français, Alternatif & indé, Rock classique, Folk Rock
+(double dose) » — la plage de 20 h, que l'émission remplace (SPECS.md §4.4). La
+barre du lecteur affichait la même chose, et l'écran de verrouillage recevait ce
+libellé comme album.
+
+- [x] **GOAL-084-T01** — `LiveRadio` relayait le rappel `moment` sans regarder
+      ce qui passe, alors qu'elle retient déjà la nature déclarée. Tant qu'elle
+      vaut `SHOW` ou `NEWS`, `moment()` rend `None`, `moment_random()` rend faux
+      et `redraw_moment()` refuse avec son motif ; un jingle garde le moment,
+      l'habillage appartient à la plage. La correction vit dans la façade, pas
+      dans le câblage. Vérifié : le test « pendant une émission, aucun moment »
+      échoue sans le correctif, constaté en retirant la garde de `moment()`.
+
+**Reste à écouter** (AGENTS.md §4.1) : la barre du lecteur et l'écran de
+verrouillage pendant l'émission de dimanche prochain.
+
+---
+
 ## Vue d'ensemble
 
 | Goal | Titre | État |
@@ -539,6 +565,7 @@ sur cinq tombait sur un artiste à titre unique.
 | GOAL-082 | Une carte blanche ne rejoue plus le même titre toute l'heure | `[-]` — ouvert le 2026-09-06, sur constat à l'antenne |
 | GOAL-079 | Les commentaires du code reviennent au ton d'un développeur | `[x]` — clos le 2026-09-06 ; `radio.liq` et cinq fichiers Python |
 | GOAL-083 | Ce que la relecture du 2026-09-06 a trouvé | `[x]` — clos le 2026-09-06 ; la configuration de production doit déclarer `liquidsoap.url` |
+| GOAL-084 | L'antenne n'annonce plus la plage pendant une émission | `[x]` — clos le 2026-09-06 ; **reste à écouter** la barre et l'écran de verrouillage pendant une émission |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

@@ -29,6 +29,16 @@ from webradio.core.models import Track
 # pour retirer (SPECS.md §4.4).
 SANS_THEME_A_RETIRER = "aucun thème tiré au sort en ce moment : rien à retirer"
 
+# Une émission et un flash remplacent la plage (SPECS.md §4.4) : tant qu'ils
+# passent, il n'y a pas de moment à annoncer ni de thème à retirer. Un jingle
+# garde le moment, l'habillage appartient à la plage.
+NATURES_SANS_MOMENT = frozenset({Kind.NEWS, Kind.SHOW})
+
+MOTIFS_SANS_MOMENT = {
+    Kind.NEWS: "un flash d'information est en cours : il n'y a pas de thème à retirer",
+    Kind.SHOW: "une émission est en cours : il n'y a pas de thème à retirer",
+}
+
 
 class LiveRadio(Radio):
     """Ce que la radio répond à l'API.
@@ -152,9 +162,19 @@ class LiveRadio(Radio):
             return self._nature
 
     def moment(self) -> str | None:
-        if self._moment is None:
+        if self._moment is None or self._nature_sans_moment() is not None:
             return None
         return self._moment()
+
+    def _nature_sans_moment(self) -> Kind | None:
+        """La nature en cours si elle remplace la plage, sinon `None`.
+
+        Le câblage du moment lit la grille sans regarder ce qui passe : c'est
+        ici qu'on l'arrête, pour ne pas lui faire connaître la nature.
+        """
+        with self._verrou:
+            kind = self._nature
+        return kind if kind in NATURES_SANS_MOMENT else None
 
     def upcoming(self) -> list[UpcomingEntry]:
         if self._prochains is None or not self._station.on_air:
@@ -165,11 +185,17 @@ class LiveRadio(Radio):
         return self._ecarter is not None and self._ecarter(identifier)
 
     def moment_random(self) -> bool:
+        if self._nature_sans_moment() is not None:
+            return False
         return self._moment_au_hasard is not None and self._moment_au_hasard()
 
     def redraw_moment(self) -> Verdict:
         """Relaie le retirage au câblage, qui connaît la plage, le tirage et
-        l'avance à purger (GOAL-057). Sans câblage, refus."""
+        l'avance à purger (GOAL-057). Sans câblage, refus ; pendant une
+        émission ou un flash aussi, il n'y a pas de thème à retirer."""
+        sans_moment = self._nature_sans_moment()
+        if sans_moment is not None:
+            return Verdict(accepted=False, reason=MOTIFS_SANS_MOMENT[sans_moment])
         if self._retirer is None:
             return Verdict(accepted=False, reason=SANS_THEME_A_RETIRER)
         return self._retirer()

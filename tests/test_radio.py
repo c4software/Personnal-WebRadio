@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 from tests.fakes import FakeSource, track
 from webradio.adapters.web.api import Kind as NatureWeb
-from webradio.adapters.web.api import Vote
+from webradio.adapters.web.api import Verdict, Vote
 from webradio.app.radio import ListenerCount, LiveRadio
 from webradio.core.clock import FrozenClock
 from webradio.core.control import Command, Control, Kind
@@ -194,3 +194,67 @@ def test_la_liste_est_vide_quand_la_chaine_ne_tourne_pas() -> None:
     assert radio.upcoming() == []
     counter.declare(on_air=True)
     assert len(radio.upcoming()) == 1
+
+
+def _radio_avec_moment() -> tuple[LiveRadio, ListenerCount]:
+    radio, counter = _radio()
+    counter.declare(on_air=True)
+    radio._moment = lambda: "Moment · rock"
+    radio._moment_au_hasard = lambda: True
+    radio._retirer = lambda: Verdict(accepted=True)
+    return radio, counter
+
+
+def test_pendant_une_emission_l_antenne_n_annonce_aucun_moment() -> None:
+    """Une émission remplace la plage (SPECS.md §4.4) : annoncer la plage
+    ferait dire deux choses contradictoires à la page."""
+    radio, _ = _radio_avec_moment()
+    radio.declare(Kind.SHOW, None, label="Podcasts - actus")
+    assert radio.moment() is None
+
+
+def test_pendant_un_flash_l_antenne_n_annonce_aucun_moment() -> None:
+    radio, _ = _radio_avec_moment()
+    radio.declare(Kind.NEWS, None, label="France Info")
+    assert radio.moment() is None
+
+
+def test_pendant_une_emission_aucun_theme_n_est_tire_au_sort() -> None:
+    radio, _ = _radio_avec_moment()
+    radio.declare(Kind.SHOW, None, label="Podcasts - actus")
+    assert not radio.moment_random()
+
+
+def test_pendant_une_emission_le_retirage_est_refuse_en_le_disant() -> None:
+    radio, _ = _radio_avec_moment()
+    radio.declare(Kind.SHOW, None, label="Podcasts - actus")
+    verdict = radio.redraw_moment()
+    assert not verdict.accepted
+    assert verdict.reason == "une émission est en cours : il n'y a pas de thème à retirer"
+
+
+def test_pendant_un_flash_le_retirage_est_refuse_en_le_disant() -> None:
+    radio, _ = _radio_avec_moment()
+    radio.declare(Kind.NEWS, None, label="France Info")
+    verdict = radio.redraw_moment()
+    assert not verdict.accepted
+    assert verdict.reason is not None and "flash d'information" in verdict.reason
+
+
+def test_un_jingle_garde_le_moment_de_la_plage() -> None:
+    """L'habillage appartient à la plage : il ne la remplace pas."""
+    radio, _ = _radio_avec_moment()
+    radio.declare(Kind.JINGLE, None)
+    assert radio.moment() == "Moment · rock"
+    assert radio.moment_random()
+    assert radio.redraw_moment().accepted
+
+
+def test_la_musique_retrouve_le_moment_apres_une_emission() -> None:
+    radio, _ = _radio_avec_moment()
+    radio.declare(Kind.SHOW, None, label="Podcasts - actus")
+    assert radio.moment() is None
+    radio.declare(Kind.MUSIC, track("1", "Bowie", genre="rock"))
+    assert radio.moment() == "Moment · rock"
+    assert radio.moment_random()
+    assert radio.redraw_moment().accepted

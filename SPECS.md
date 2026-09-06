@@ -584,6 +584,12 @@ seulement quand l'API dit qu'il a un sens — elle ne le devine pas sur le
 libellé. **Depuis le 2026-09-02**, le bouton s'appelle « Autre thème » :
 « Retirer » se lisait aussi comme le retrait d'un titre de la liste.
 
+Pendant une émission (§4.11) ou un flash (§4.5), l'antenne **n'annonce aucun
+moment** : ils remplacent la plage (§4.4), et l'annoncer quand même ferait dire
+à la page deux choses contradictoires. Le bouton « Autre thème » n'y a donc pas
+de sens, et la demande est refusée avec son motif. La plage reprend son libellé
+dès que la musique revient.
+
 #### Écouter depuis la page
 
 **Depuis le 2026-09-02** (GOAL-060), la page porte un lecteur, si le TOML
