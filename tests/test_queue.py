@@ -428,6 +428,17 @@ def test_une_suite_d_artiste_peut_attendre_deux_fois() -> None:
     assert [t.artist for t in f.advance] == ["Air", "Air"]
 
 
+def test_un_artiste_en_attente_repasse_avant_un_artiste_de_la_fenetre() -> None:
+    """L'attente s'efface avant la fenêtre : un artiste qui attend déjà repasse
+    plutôt que celui qui vient de passer (SPECS.md §4.2)."""
+    catalogue = [track("a1", "Air"), track("b1", "Bowie"), track("b2", "Bowie")]
+    f = Queue(FakeSource(catalogue), ScriptedRandom([0] * 10), Window(width=5), lookahead=2)
+    assert f.next_pick().track.artist == "Air"
+    f.prepare()
+    f.prepare()
+    assert [t.artist for t in f.advance] == ["Bowie", "Bowie"]
+
+
 def test_une_petite_bibliotheque_laisse_repasser_un_artiste_en_attente() -> None:
     """Quand tout le catalogue attend déjà, un artiste en attente repasse
     plutôt que de laisser un trou."""
@@ -435,7 +446,7 @@ def test_une_petite_bibliotheque_laisse_repasser_un_artiste_en_attente() -> None
     f = Queue(FakeSource(deux), ScriptedRandom([0] * 10), Window(width=1), lookahead=3)
     for _ in range(3):
         f.prepare()
-    assert len(f.advance) == 3
+    assert [t.artist for t in f.advance] == ["Air", "Bowie", "Air"]
 
 
 def test_retirer_un_titre_de_l_avance() -> None:

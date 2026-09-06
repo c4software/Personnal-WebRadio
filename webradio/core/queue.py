@@ -265,13 +265,17 @@ class Queue:
                 # plage au vivier étroit, l'exclusion vient de l'attente : la
                 # vider ne changeait rien et faisait perdre la règle pour les
                 # jonctions suivantes (GOAL-082).
-                if hors_fenetre or not self._fenetre.shrink():
-                    fallbacks.append("un artiste déjà en attente repasse")
-                    allowed = candidates
-                    break
-                fallbacks.append("fenêtre de non-répétition rétrécie")
-                hors_fenetre = self._fenetre.filter_out(candidates)
-                allowed = [t for t in hors_fenetre if t.artist not in en_attente]
+                if not hors_fenetre and self._fenetre.shrink():
+                    fallbacks.append("fenêtre de non-répétition rétrécie")
+                    hors_fenetre = self._fenetre.filter_out(candidates)
+                    allowed = [t for t in hors_fenetre if t.artist not in en_attente]
+                    continue
+                # Seule l'attente s'efface : relâcher aussi la fenêtre ferait
+                # revenir le titre qui vient de passer (GOAL-083). `candidates`
+                # ne sert que si la fenêtre est vide et n'a rien laissé.
+                fallbacks.append("un artiste déjà en attente repasse")
+                allowed = hors_fenetre or candidates
+                break
 
         track = self._tirer(allowed)
         if self._suites is not None:

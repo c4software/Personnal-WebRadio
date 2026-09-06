@@ -199,8 +199,8 @@ l'autre dans la requête dépassaient le délai du diffuseur. **GOAL-081** a
 fermé la régression que GOAL-080 avait ouverte, un morceau de musique
 intercalé entre chaque épisode d'une plage.
 
-**Prochaine tâche** : GOAL-081-T04, puis GOAL-078-T01, la couture de la grille derrière les
-titres. GOAL-075 attend sa mesure à l'antenne (T03), qui demande le
+**Prochaine tâche** : GOAL-083, dans l'ordre de ses tâches (deux bloquants
+d'abord), puis GOAL-078-T01, la couture de la grille derrière les titres. GOAL-075 attend sa mesure à l'antenne (T03), qui demande le
 déploiement ; GOAL-079 est une réécriture de ton, à prendre quand elle
 n'interrompt rien.
 
@@ -372,6 +372,80 @@ sur cinq tombait sur un artiste à titre unique.
 
 ---
 
+## GOAL-083 — Ce que la relecture du 2026-09-06 a trouvé
+
+Ouvert le 2026-09-06 sur demande de l'auteur : une relecture de correction de
+tout `webradio/`, confrontée à SPECS.md, par lecture directe puis trois
+relectures en lecture seule (noyau, `app/`, adaptateurs). Chaque constat a été
+reproduit par script avant d'être retenu. Le rapport complet est dans
+`plans/analyse-l-impl-mentation-python-regarde-hazy-turing.md`.
+
+Deux bloquants, douze corrections bornées, et une décision de l'auteur
+(l'encore doit connaître ce que la file a joué). Un commit par tâche.
+
+- [x] **GOAL-083-T01** — La fenêtre de non-répétition n'est plus contournée
+      quand un artiste hors fenêtre attend déjà (`core/queue.py`). Quand
+      `hors_fenetre` n'est pas vide, le relâchement ne porte que sur
+      l'attente : `allowed = hors_fenetre`, jamais `candidates`. Le titre qui
+      vient de passer pouvait revenir, avec un journal désignant le mauvais
+      coupable (GOAL-082-T02). Le test affirme l'artiste tiré, pas une longueur.
+- [ ] **GOAL-083-T02** — Le noyau des suites, trois trous : rompre une suite
+      d'artiste écartait les pistes sans année (`queue.py`, `avoid_era` à
+      `None`) ; une plage au hasard dont le tirage échoue rendait la clé `None`
+      là où `moment_at` rend `(plage, occurrence, None)`, et l'avance était
+      jetée à chaque préparation (`bands.py`) ; `Runs` n'a qu'un état, et
+      préparer un titre sous l'occurrence suivante effaçait la suite en cours
+      sans journal — la mémoire s'indexe par occurrence, comme `mystery.py`.
+- [ ] **GOAL-083-T03** — Le jingle d'une heure tombée **pendant** une émission
+      ne passe plus à la jonction qui la suit (SPECS.md n°15). `due_now` n'est
+      appelé qu'aux jonctions, et une émission n'en a pas : les heures pleines
+      entre le début et la fin de l'émission sont abandonnées. Le test de
+      `test_jingles.py` qui appelait `during_show=True` pendant l'émission
+      testait une séquence qui n'existe pas.
+- [ ] **GOAL-083-T04** — Un épisode s'inscrit comme diffusé quand Liquidsoap
+      dit l'avoir commencé, pas quand il le demande. L'entrée rendue par
+      `/playout/next` n'est que l'avance ; la reprise à neuf, « Autre thème »
+      et la fin d'un direct la jettent sans la rejouer, et l'épisode
+      hebdomadaire ne passait plus jamais, même dans sa fenêtre de rattrapage.
+      Vaut pour les podcasts, YouTube et la case rendue d'un direct.
+- [ ] **GOAL-083-T05** — Le registre du diffuseur ne ment plus après un
+      direct ni sur un battement : l'avance que le script jette à la fin d'un
+      direct était annoncée puis resservie ; et un battement traité avant
+      `/playing` replaçait le morceau qui venait de commencer, rejoué deux fois.
+- [ ] **GOAL-083-T06** — Les quatre chemins Flask qui mutent la file
+      (`withdraw`, `stash_for_replay`, `drop_advance`, `forget_pending`)
+      prennent le verrou que tient la préparation de fond ; une `IndexError`
+      était reproductible à deux fils.
+- [ ] **GOAL-083-T07** — `radio` redémarré pendant une pause ne datait pas la
+      pause : le premier auditeur du matin après un déploiement retrouvait
+      l'avance de la veille (le cas de la n°29). Sans pause datée ni entrée en
+      cours, le premier battement traite la reprise comme longue.
+- [ ] **GOAL-083-T08** — Les trois lecteurs réseau traduisent
+      `http.client.HTTPException` (réponse tronquée) en erreur métier ; une
+      date Atom malformée ne lève plus une `ValueError` brute ; l'identifiant
+      de chaîne YouTube se lit après `/channel/`, pas au dernier segment.
+      Tests contre des réponses littérales tronquées (AGENTS.md §4).
+- [ ] **GOAL-083-T09** — `timeout_seconds = 0` est refusé à la validation pour
+      `state`, `podcast` et `youtube`, comme pour `subsonic` : il passait puis
+      plantait l'assemblage, ou perdait chaque émission YouTube en silence.
+- [ ] **GOAL-083-T10** — Interdits d'AGENTS.md §2 et tests creux : code mort
+      (`_dans_la_plage`, `Pending.nature`, `MusicSource.genres()`), paramètres
+      ignorés (`now_playing`, `command` de `vote_weight`), `timeout=3` et URL
+      de Liquidsoap en dur dans `main.py` (vers le TOML, SPECS.md §6) ; tests
+      renommés ou réécrits (`test_weighting`, `test_control:136`,
+      `test_show_scheduler:200`).
+- [ ] **GOAL-083-T11** — L'encore connaît ce que la file a joué (décision de
+      l'auteur, SPECS.md §4.6 « non joué ») : `Control` reçoit les titres
+      passés, fusionnés avec ceux qu'il a lui-même servis.
+- [ ] **GOAL-083-T12** — Documentation : SPECS.md §6 réaligné sur le schéma
+      réel, §4.12 réconcilié avec la n°16 ; ARCHITECTURE.md §4.1 note que la
+      file compte sur `prepare()` avant chaque jonction ; les points restés
+      ouverts (changement d'heure, thème perdu sur panne, sel Subsonic dans le
+      hasard du tirage, `feed` + `end`, durées de l'avance non plafonnées,
+      `annotate:` imbriqué) consignés en SPECS.md §7 ou docs/liquidsoap.md.
+
+---
+
 ---
 
 ## Vue d'ensemble
@@ -460,6 +534,7 @@ sur cinq tombait sur un artiste à titre unique.
 | GOAL-080 | Ce qu'une plage podcasts expose, et que la revue a trouvé | `[x]` — clos le 2026-09-06 ; **reste à écouter** le début d'une plage |
 | GOAL-082 | Une carte blanche ne rejoue plus le même titre toute l'heure | `[-]` — ouvert le 2026-09-06, sur constat à l'antenne |
 | GOAL-079 | Les commentaires du code reviennent au ton d'un développeur | `[x]` — clos le 2026-09-06 ; `radio.liq` et cinq fichiers Python |
+| GOAL-083 | Ce que la relecture du 2026-09-06 a trouvé | `[-]` — ouvert le 2026-09-06 ; deux bloquants, douze tâches |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
