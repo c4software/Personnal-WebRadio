@@ -189,11 +189,15 @@ diffuseur), **GOAL-076** (petit, protège les deux suivants), **GOAL-077** (la
 plage podcasts), **GOAL-078** (la couture de la grille — après GOAL-077, qui
 lui donne le bon jeu de périodes).
 
-**GOAL-076 et GOAL-077 sont clos le 2026-09-06.** Le thème d'une plage « au
+**GOAL-076, GOAL-077 et GOAL-080 sont clos le 2026-09-06.** Le thème d'une plage « au
 hasard » ne se retire plus tout seul — défaut trouvé en relisant, constaté par
 un test, jamais entendu. Et une émission peut tenir plusieurs flux et déclarer
 sa fin : les six podcasts demandés par l'auteur tiennent en deux plages le
-week-end, groupées par longueur.
+week-end, groupées par longueur. **GOAL-080** a fermé ce que la revue de
+GOAL-077 avait trouvé — dont une coupure d'antenne : trois flux lus l'un après
+l'autre dans la requête dépassaient le délai du diffuseur. **GOAL-081** a
+fermé la régression que GOAL-080 avait ouverte, un morceau de musique
+intercalé entre chaque épisode d'une plage.
 
 **Prochaine tâche** : GOAL-081-T04, puis GOAL-078-T01, la couture de la grille derrière les
 titres. GOAL-075 attend sa mesure à l'antenne (T03), qui demande le
@@ -253,10 +257,6 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
       reprise du matin. Ce qu'il faudra regarder : le délai entre
       « avance jetée sur ordre de l'API » et le « suivant : » qui suit, dans
       le journal du diffuseur.
-
----
-
----
 
 ---
 
@@ -327,8 +327,6 @@ l'avance ne bouge pas.
       « Programme · Le vendredi de Chloé 18:00–20:00 » s'annonce-t-elle ?
 - [ ] **GOAL-078-T04** — L'horizon de la couture vient du TOML, avec son
       défaut déclaré (SPECS.md §6). Aucune durée en dur.
-
----
 
 ---
 
