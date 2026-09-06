@@ -275,7 +275,7 @@ Le schéma a commencé par une table :
 
 ```sql
 CREATE TABLE IF NOT EXISTS emissions_diffusees (
-    emission   TEXT PRIMARY KEY,   -- le `name` déclaré au TOML
+    emission   TEXT PRIMARY KEY,   -- le `name` du TOML, ou `<name>/<flux>` si l'émission en a plusieurs
     episode    TEXT NOT NULL,      -- le guid de l'épisode diffusé
     diffuse_le TEXT NOT NULL       -- ISO 8601, pour le diagnostic seulement
 );

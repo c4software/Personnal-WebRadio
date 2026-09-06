@@ -222,7 +222,7 @@ class ShowSchedule:
     def open_slot(
         self,
         show: Show,
-        duration: timedelta,
+        duration: timedelta | None,
         instant: datetime,
     ) -> Slot | None:
         """La case si elle est ouverte à cet instant, `None` sinon.
@@ -239,7 +239,7 @@ class ShowSchedule:
         fin = self._fin_declaree(show, start)
         if fin is not None:
             return None if instant >= fin else Slot(show, start, fin)
-        if instant >= start + duration:
+        if duration is None or instant >= start + duration:
             return None
         return Slot(show, start, start + duration if show.is_live else None)
 
@@ -267,7 +267,10 @@ class ShowSchedule:
         ouvertes: list[Slot] = []
         for show in self._emissions:
             duration = show.duration if show.is_live else durations.get(show.name)
-            if duration is None:
+            # Une plage ne se borne pas à la durée de ce qu'elle diffuse : sa
+            # fin est déclarée, et c'est la charnière qui saute la case quand
+            # aucun de ses flux n'a de neuf (SPECS.md §7 n°35).
+            if duration is None and not show.chains_episodes:
                 continue
             case = self.open_slot(show, duration, instant)
             if case is not None:

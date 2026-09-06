@@ -279,7 +279,7 @@ neuf, on joue son épisode, on recommence ; à `end`, l'épisode en cours **fini
       dont un seul a du neuf ; plus rien nulle part, case sautée ; à graine
       fixe, la même soirée pioche le même flux ; l'épisode entamé finit après
       `end`.
-- [ ] **GOAL-077-T03** — La charnière : `app/show_scheduler.py` tient
+- [x] **GOAL-077-T03** — La charnière : `app/show_scheduler.py` tient
       plusieurs adresses par émission, enchaîne dans la case, et nomme le flux
       tiré dans son journal. La clé de mémoire passe à `<name>/<feed>` —
       changement de ce que garde la base, donc ARCHITECTURE.md §5.

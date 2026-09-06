@@ -381,6 +381,7 @@ def test_un_jingle_du_passe_meme_quand_les_emissions_sont_cablees(tmp_path: Path
         state,
         clock,
         {},
+        ScriptedRandom([0] * 50),
     )
     source = FakeSource(CATALOGUE)
     random = ScriptedRandom([0] * 200)

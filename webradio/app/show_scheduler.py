@@ -20,7 +20,15 @@ from webradio.adapters.podcast.feed import PodcastFeed, PodcastUnavailable
 from webradio.adapters.state.database import SqliteState, StateUnavailable
 from webradio.adapters.youtube.channel import YoutubeChannel, YoutubeUnavailable
 from webradio.core.clock import Clock
-from webradio.core.shows import Episode, Show, ShowSchedule, Slot, episode_to_air
+from webradio.core.rng import Random
+from webradio.core.shows import (
+    Episode,
+    Show,
+    ShowSchedule,
+    Slot,
+    episode_among,
+    episode_to_air,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -34,7 +42,8 @@ class Shows:
         feed: PodcastFeed,
         state: SqliteState,
         clock: Clock,
-        addresses: dict[str, str],
+        addresses: dict[str, tuple[str, ...]],
+        random: Random,
         streams: dict[str, str] | None = None,
         youtube_channels: dict[str, str] | None = None,
         youtube: YoutubeChannel | None = None,
@@ -44,7 +53,11 @@ class Shows:
         self._flux = feed
         self._etat = state
         self._horloge = clock
+        # Un nom d'émission vers ses flux. Une émission ordinaire en a un ;
+        # une plage podcasts en a plusieurs, et tire lequel à chaque jonction
+        # (SPECS.md §7 n°35).
         self._adresses = addresses
+        self._hasard = random
         # Les directs (nom vers URL) ne passent ni par le podcast ni par la
         # base : chaque occurrence de la case est diffusée (SPECS.md §7 n°22),
         # et `_cases_rendues` suffit pour ne la rendre qu'une fois.
@@ -73,7 +86,8 @@ class Shows:
         catalogues = self._catalogues(instant)
         durations = {
             name: episodes[0].duration
-            for name, episodes in catalogues.items()
+            for name, par_flux in catalogues.items()
+            for episodes in [next(iter(par_flux.values()), [])]
             if episodes and episodes[0].duration is not None
         }
         case = self._programme.due(durations, instant)
@@ -81,9 +95,10 @@ class Shows:
             return None
         if case.show.is_live:
             return self._direct_de(case, instant)
+        par_flux = catalogues.get(case.show.name, {})
         if case.show.name in self._youtube:
-            return self._video_de(case.show, catalogues.get(case.show.name, []))
-        return self._episode_de(case.show, catalogues.get(case.show.name, []))
+            return self._video_de(case.show, next(iter(par_flux.values()), []))
+        return self._episode_de(case.show, par_flux)
 
     def _direct_de(self, case: Slot, instant: datetime) -> tuple[Show, str, str | None] | None:
         """Un direct, rendu une fois par case, avec l'heure absolue de sa fin.
@@ -204,13 +219,18 @@ class Shows:
             logger.info("« %s » n'a rien de neuf : la case est sautée", show.name)
         return chosen
 
-    def _catalogues(self, instant: object) -> dict[str, list[EpisodeDuFlux]]:
+    def _catalogues(self, instant: object) -> dict[str, dict[str, list[EpisodeDuFlux]]]:
         """Lit les flux des émissions dont une case a pu commencer.
 
         On lit avant de savoir si on s'en servira : sans la durée, on ne peut
         pas dire si la case est encore ouverte (décision n°13).
+
+        Un catalogue **par flux**, pas par émission : une plage podcasts en a
+        plusieurs et doit savoir lequel offre quoi. Les six flux de l'auteur
+        pèsent 21,5 Mo et ~1,9 s (docs/podcast.md §4.bis) — un cache est dû,
+        c'est GOAL-077-T06.
         """
-        catalogues: dict[str, list[EpisodeDuFlux]] = {}
+        catalogues: dict[str, dict[str, list[EpisodeDuFlux]]] = {}
         for show in self._programme.shows:
             if show.is_live:
                 continue
@@ -219,7 +239,7 @@ class Shows:
             chaine = self._youtube.get(show.name)
             if chaine is not None and self._youtube_adapter is not None:
                 try:
-                    catalogues[show.name] = self._youtube_adapter.episodes(chaine)
+                    catalogues[show.name] = {chaine: self._youtube_adapter.episodes(chaine)}
                 except YoutubeUnavailable as failure:
                     logger.warning(
                         "chaîne YouTube de « %s » injoignable, case sautée : %s",
@@ -227,48 +247,83 @@ class Shows:
                         failure,
                     )
                 continue
-            address = self._adresses.get(show.name)
-            if address is None:
-                continue
-            try:
-                catalogues[show.name] = self._flux.episodes(address)
-            except PodcastUnavailable as failure:
-                logger.warning(
-                    "flux de « %s » injoignable, pas de rattrapage : %s", show.name, failure
-                )
+            for address in self._adresses.get(show.name, ()):
+                try:
+                    catalogues.setdefault(show.name, {})[address] = self._flux.episodes(address)
+                except PodcastUnavailable as failure:
+                    # Un flux muet ne prive pas les autres : une plage tire
+                    # parmi ceux qui ont répondu (SPECS.md §7 n°35).
+                    logger.warning(
+                        "flux « %s » de « %s » injoignable : %s",
+                        address.split("?", 1)[0],
+                        show.name,
+                        failure,
+                    )
         return catalogues
 
     def _episode_de(
-        self, show: Show, catalogue: list[EpisodeDuFlux]
+        self, show: Show, par_flux: dict[str, list[EpisodeDuFlux]]
     ) -> tuple[Show, str, str | None] | None:
-        if not catalogue:
+        """L'épisode à diffuser, tiré parmi les flux qui ont du neuf.
+
+        La mémoire est **par flux**, pas par émission : une plage en a
+        plusieurs, et ce qu'elle a déjà passé de l'un ne dit rien de l'autre
+        (SPECS.md §7 n°35). D'où la clé `<émission>/<flux>` — une émission à
+        flux unique garde donc sa propre clé, distincte de l'ancienne.
+        """
+        if not par_flux:
             return None
-        try:
-            deja = self._etat.last_airing(show.name)
-        except StateUnavailable as failure:
-            # Sans mémoire, on rediffuserait le même épisode en boucle. Sauter
-            # la case est moins gênant (SPECS.md §4.11).
-            logger.warning("mémoire indisponible, émission « %s » sautée : %s", show.name, failure)
-            return None
-        choisi = episode_to_air(
-            [
+        catalogues: dict[str, list[Episode]] = {}
+        deja: dict[str, str] = {}
+        for address, episodes in par_flux.items():
+            if not episodes:
+                continue
+            try:
+                passe = self._etat.last_airing(self._cle_de_memoire(show, address))
+            except StateUnavailable as failure:
+                # Sans mémoire, on rediffuserait le même épisode en boucle.
+                # Sauter la case est moins gênant (SPECS.md §4.11).
+                logger.warning(
+                    "mémoire indisponible, émission « %s » sautée : %s", show.name, failure
+                )
+                return None
+            if passe is not None:
+                deja[address] = passe.episode
+            catalogues[address] = [
                 Episode(
                     guid=e.identifier,
                     published_at=e.published_at,
                     duration=e.duration if e.duration is not None else timedelta(0),
                     kind="full",
                 )
-                for e in catalogue
-            ],
-            deja.episode if deja is not None else None,
-        )
-        if choisi is None:
+                for e in episodes
+            ]
+        tire = episode_among(catalogues, deja, self._hasard)
+        if tire is None:
             logger.info("« %s » n'a rien de neuf : la case est sautée", show.name)
             return None
+        address, choisi = tire
+        catalogue = par_flux[address]
+        if len(par_flux) > 1:
+            logger.info(
+                "« %s » tire le flux %s", show.name, address.split("?", 1)[0].rsplit("/", 1)[-1]
+            )
         audio = next(e.audio for e in catalogue if e.identifier == choisi.guid)
         titre = next((e.title for e in catalogue if e.identifier == choisi.guid), None)
         try:
-            self._etat.record_airing(show.name, choisi.guid)
+            self._etat.record_airing(self._cle_de_memoire(show, address), choisi.guid)
         except StateUnavailable as failure:
             logger.warning("diffusion non retenue, elle se rejouera : %s", failure)
         return show, audio, titre
+
+    def _cle_de_memoire(self, show: Show, address: str) -> str:
+        """Ce sous quoi la base retient une diffusion (ARCHITECTURE.md §5).
+
+        Le nom seul quand l'émission n'a qu'un flux — c'est la clé historique,
+        et la changer ferait rejouer une fois le dernier épisode de chaque
+        émission au déploiement. `<émission>/<flux>` dès qu'il y en a
+        plusieurs : chacun a sa propre notion de « déjà passé ».
+        """
+        if len(self._adresses.get(show.name, ())) <= 1:
+            return show.name
+        return f"{show.name}/{address}"

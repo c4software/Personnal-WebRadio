@@ -12,6 +12,7 @@ from webradio.adapters.state.database import SqliteState
 from webradio.adapters.youtube.channel import YoutubeUnavailable
 from webradio.app.show_scheduler import Shows
 from webradio.core.clock import FrozenClock
+from webradio.core.rng import ScriptedRandom
 from webradio.core.shows import Show, ShowSchedule
 
 VENDREDI_20H = datetime(2026, 8, 28, 20, 0, tzinfo=UTC)  # 2026-08-28 est un vendredi
@@ -61,7 +62,8 @@ def _emissions(
             feed,  # type: ignore[arg-type]
             state,
             clock,
-            {"A la French": "https://exemple.test/flux.xml"},
+            {"A la French": ("https://exemple.test/flux.xml",)},
+            ScriptedRandom([0] * 50),
         ),
         state,
     )
@@ -165,6 +167,7 @@ def _direct(tmp_path: Path, clock: FrozenClock) -> Shows:
         state,
         clock,
         {},
+        ScriptedRandom([0] * 50),
         streams={"Flash": FRANCEINFO},
     )
 
@@ -246,6 +249,7 @@ def _youtube_show(
         state,
         clock,
         {},
+        ScriptedRandom([0] * 50),
         youtube_channels={"Hardisk": "https://www.youtube.com/@hardisk"},
         youtube=yt,  # type: ignore[arg-type]
         youtube_cache=cache if cache is not None else tmp_path / "cache",
@@ -325,3 +329,101 @@ def test_un_reste_d_une_autre_video_n_est_jamais_servi(tmp_path: Path) -> None:
 def test_une_chaine_injoignable_laisse_la_musique(tmp_path: Path) -> None:
     clock = FrozenClock(VENDREDI_20H)
     assert _youtube_show(tmp_path, FakeYoutube([], injoignable=True), clock).due() is None
+
+
+# ── Une plage podcasts : plusieurs flux, un tirage par jonction (n°35) ───────
+
+
+class FeedParUrl:
+    """Un flux d'essai qui rend un catalogue différent selon l'adresse."""
+
+    def __init__(self, par_url: dict[str, list[EpisodeDuFlux]]) -> None:
+        self._par_url = par_url
+        self.lues: list[str] = []
+
+    def episodes(self, url: str) -> list[EpisodeDuFlux]:
+        self.lues.append(url)
+        if url not in self._par_url:
+            message = f"flux d'essai injoignable : {url}"
+            raise PodcastUnavailable(message)
+        return list(self._par_url[url])
+
+
+LEGEND_URL = "https://exemple.test/legend.xml"
+KONBINI_URL = "https://exemple.test/konbini.xml"
+PLAGE = Show(name="Soirée podcasts", days=("friday",), hour=time(20), end=time(23))
+
+
+def _plage(
+    tmp_path: Path, feed: FeedParUrl, clock: FrozenClock, indices: list[int] | None = None
+) -> tuple[Shows, SqliteState]:
+    state = SqliteState(
+        tmp_path / "etat.sqlite3",
+        clock,
+        lock_timeout=timedelta(seconds=5),
+        vote_half_life=timedelta(days=90),
+    )
+    return (
+        Shows(
+            ShowSchedule([PLAGE]),
+            feed,  # type: ignore[arg-type]
+            state,
+            clock,
+            {"Soirée podcasts": (LEGEND_URL, KONBINI_URL)},
+            ScriptedRandom(indices if indices is not None else [0] * 50),
+        ),
+        state,
+    )
+
+
+def test_une_plage_lit_tous_ses_flux_et_tire_l_un_d_eux(tmp_path: Path) -> None:
+    """Chaque flux a sa propre notion de « plus récent non diffusé » : il faut
+    donc les lire tous avant de tirer (SPECS.md §7 n°35)."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    due = emissions.due()
+
+    assert due is not None
+    assert sorted(feed.lues) == sorted([LEGEND_URL, KONBINI_URL])
+    assert due[1] in ("https://exemple.test/l1.mp3", "https://exemple.test/k1.mp3")
+
+
+def test_un_flux_injoignable_ne_prive_pas_la_plage_des_autres(tmp_path: Path) -> None:
+    """Une émission à flux unique n'a pas lieu si son flux est muet. Une plage,
+    si : elle tire parmi ceux qui ont répondu."""
+    feed = FeedParUrl({KONBINI_URL: [_episode("k1")]})
+    emissions, _ = _plage(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    due = emissions.due()
+
+    assert due is not None
+    assert due[1] == "https://exemple.test/k1.mp3"
+
+
+def test_la_memoire_d_une_plage_est_tenue_par_flux(tmp_path: Path) -> None:
+    """Ce qu'une plage a déjà passé d'un flux ne dit rien de l'autre : sans une
+    mémoire par flux, un seul épisode diffusé fermerait toute la case."""
+    feed = FeedParUrl({LEGEND_URL: [_episode("l1")], KONBINI_URL: [_episode("k1")]})
+    horloge = FrozenClock(VENDREDI_20H)
+    emissions, _ = _plage(tmp_path, feed, horloge, indices=[0, 0])
+
+    premier = emissions.due()
+    second = emissions.due()
+
+    assert premier is not None and second is not None
+    assert premier[1] != second[1], "le flux épuisé sort de la pioche, l'autre reste"
+    assert emissions.due() is None, "les deux épuisés, la case est sautée"
+
+
+def test_une_emission_a_flux_unique_garde_sa_cle_de_memoire_historique(tmp_path: Path) -> None:
+    """Changer la clé ferait rejouer une fois le dernier épisode de chaque
+    émission au déploiement. Le nom seul reste la clé tant qu'il n'y a qu'un
+    flux (ARCHITECTURE.md §5)."""
+    feed = FakeFeed([_episode("e1")])
+    emissions, state = _emissions(tmp_path, feed, FrozenClock(VENDREDI_20H))
+
+    assert emissions.due() is not None
+
+    passe = state.last_airing("A la French")
+    assert passe is not None and passe.episode == "e1"
