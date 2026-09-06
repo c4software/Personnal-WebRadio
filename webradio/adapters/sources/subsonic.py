@@ -19,6 +19,7 @@ Le code suit docs/subsonic.md. Les comportements constatés qui le contraignent 
 """
 
 import hashlib
+import http.client
 import json
 import logging
 import urllib.error
@@ -97,7 +98,10 @@ class UrllibTransport:
                 return HttpResponse(code=int(answer.status), body=_texte(answer.read()))
         except urllib.error.HTTPError as error:
             return HttpResponse(code=int(error.code), body=_texte(error.read()))
-        except OSError as error:
+        # Une réponse coupée en route lève `http.client.HTTPException`, qui
+        # n'hérite pas d'`OSError` : sans elle, elle sortirait d'ici brute et
+        # ferait un 500 sur `/playout/next` (ARCHITECTURE.md §7).
+        except (OSError, http.client.HTTPException) as error:
             message = f"serveur Subsonic injoignable : {error}"
             raise SourceUnavailable(message) from error
 
@@ -355,7 +359,7 @@ class SubsonicSource:
         """
         try:
             answer = self._transport.fetch(self._url(method, params))
-        except OSError as error:
+        except (OSError, http.client.HTTPException) as error:
             message = f"« {method} » : serveur Subsonic injoignable ({error})"
             raise SourceUnavailable(message) from error
 

@@ -1,6 +1,9 @@
 """Une chaîne YouTube vue comme un flux d'épisodes (GOAL-025, docs/youtube.md)."""
 
+import http.client
+import urllib.request
 from datetime import UTC, datetime, timedelta
+from types import TracebackType
 
 import pytest
 
@@ -24,6 +27,25 @@ ATOM = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 PAGE = '<html><link rel="canonical" href="https://www.youtube.com/channel/UCexemple123"></html>'
+
+ATOM_DATE_ILLISIBLE = """<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015"
+      xmlns="http://www.w3.org/2005/Atom">
+  <entry>
+    <yt:videoId>datee</yt:videoId>
+    <title>Datée</title>
+    <published>2026-08-29T09:00:45+00:00</published>
+  </entry>
+  <entry>
+    <yt:videoId>illisible</yt:videoId>
+    <title>Sans date exploitable</title>
+    <published>pas-une-date</published>
+  </entry>
+</feed>
+"""
+
+# Un flux dont la connexion a lâché en cours de corps.
+FLUX_TRONQUE = b'<?xml version="1.0" encoding="UTF-8"?><feed><entry>'
 
 
 class FakeReseau:
@@ -83,6 +105,68 @@ def test_une_adresse_channel_ne_demande_aucune_page() -> None:
     reseau = FakeReseau()
     _chaine(reseau).episodes("https://www.youtube.com/channel/UCdirect")
     assert all("feeds" in u for u in reseau.lus)
+
+
+def test_l_identifiant_se_lit_apres_channel_et_non_au_dernier_segment() -> None:
+    """L'onglet des vidéos d'une chaîne finit par `/videos` : c'est le segment
+    qui suit `/channel/` qui identifie la chaîne (docs/youtube.md §1)."""
+    reseau = FakeReseau()
+    _chaine(reseau).episodes("https://www.youtube.com/channel/UCexemple123/videos")
+
+    assert reseau.lus == ["https://www.youtube.com/feeds/videos.xml?channel_id=UCexemple123"]
+
+
+def test_une_adresse_channel_a_query_string_ou_barre_finale_donne_le_meme_identifiant() -> None:
+    reseau = FakeReseau()
+    chaine = _chaine(reseau)
+    chaine.episodes("https://www.youtube.com/channel/UCexemple123/?view=0")
+    chaine.episodes("https://www.youtube.com/channel/UCexemple123/videos?view=0")
+
+    assert reseau.lus == [
+        "https://www.youtube.com/feeds/videos.xml?channel_id=UCexemple123",
+        "https://www.youtube.com/feeds/videos.xml?channel_id=UCexemple123",
+    ]
+
+
+def test_une_video_a_la_date_illisible_est_ecartee_sans_perdre_les_autres() -> None:
+    """Même règle que les podcasts : sans date, l'entrée ne se classe pas, elle
+    est écartée en le journalisant plutôt que de lever une `ValueError`."""
+    reseau = FakeReseau(flux=ATOM_DATE_ILLISIBLE)
+    episodes = _chaine(reseau).episodes("https://www.youtube.com/channel/UCx")
+
+    assert [e.identifier for e in episodes] == ["datee"]
+
+
+class _ReponseTronquee:
+    """Ce que `urlopen` rend quand la connexion lâche en cours de corps."""
+
+    def __enter__(self) -> "_ReponseTronquee":
+        return self
+
+    def __exit__(
+        self,
+        genre: type[BaseException] | None,
+        value: BaseException | None,
+        trace: TracebackType | None,
+    ) -> None:
+        return None
+
+    def read(self) -> bytes:
+        raise http.client.IncompleteRead(FLUX_TRONQUE)
+
+
+def test_un_flux_atom_tronque_se_dit(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`http.client.IncompleteRead` n'est pas une `OSError` : sans traduction,
+    elle traverserait le planificateur au lieu de sauter la case."""
+
+    def ouvrir(requete: object, timeout: float) -> _ReponseTronquee:  # noqa: ARG001
+        return _ReponseTronquee()
+
+    monkeypatch.setattr(urllib.request, "urlopen", ouvrir)
+    chaine = YoutubeChannel(timeout=timedelta(seconds=5))
+
+    with pytest.raises(YoutubeUnavailable, match="ne répond pas"):
+        chaine.episodes("https://www.youtube.com/channel/UCx")
 
 
 def test_une_page_sans_lien_canonique_se_dit() -> None:

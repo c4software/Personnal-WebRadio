@@ -5,7 +5,9 @@ Y compris celles que le relevé annonce sans les avoir observées
 épisode sans enclosure. Aucun test ne touche au réseau.
 """
 
+import http.client
 from datetime import UTC, datetime, timedelta
+from types import TracebackType
 
 import pytest
 
@@ -15,6 +17,7 @@ from webradio.adapters.podcast import (
     PodcastUnavailable,
     UrllibReader,
 )
+from webradio.adapters.podcast import feed as module_feed
 from webradio.core.clock import FrozenClock
 
 URL = "https://feeds.acast.com/public/shows/a-la-french"
@@ -27,6 +30,9 @@ ENTETE = (
     "<channel><title>A la French</title>"
 )
 PIED = "</channel></rss>"
+
+# Un flux dont la connexion a lâché en cours de corps.
+FLUX_TRONQUE = b'<?xml version="1.0"?><rss version="2.0"><channel><item>'
 
 
 def item(
@@ -202,6 +208,40 @@ def test_un_schema_d_url_refuse_ne_part_pas_sur_le_reseau() -> None:
     reader = UrllibReader(lock_timeout=timedelta(seconds=5))
     with pytest.raises(PodcastUnavailable, match="schéma d'URL refusé"):
         reader.read("file:///etc/passwd")
+
+
+class _ReponseTronquee:
+    """Ce que `urlopen` rend quand la connexion lâche en cours de corps."""
+
+    def __enter__(self) -> "_ReponseTronquee":
+        return self
+
+    def __exit__(
+        self,
+        genre: type[BaseException] | None,
+        value: BaseException | None,
+        trace: TracebackType | None,
+    ) -> None:
+        return None
+
+    def read(self) -> bytes:
+        raise http.client.IncompleteRead(FLUX_TRONQUE)
+
+
+def test_un_flux_tronque_devient_un_podcast_indisponible(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`http.client.IncompleteRead` n'est pas une `OSError` : sans traduction,
+    elle sortirait brute du lecteur (ARCHITECTURE.md §7)."""
+
+    def ouvrir(url: str, timeout: float) -> _ReponseTronquee:  # noqa: ARG001
+        return _ReponseTronquee()
+
+    monkeypatch.setattr(module_feed, "urlopen", ouvrir)
+    reader = UrllibReader(lock_timeout=timedelta(seconds=5))
+
+    with pytest.raises(PodcastUnavailable, match="injoignable"):
+        reader.read(URL)
 
 
 def test_un_delai_d_attente_nul_est_refuse() -> None:

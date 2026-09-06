@@ -21,6 +21,7 @@ from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
+from http.client import HTTPException
 from typing import Protocol
 from urllib.error import URLError
 from urllib.parse import urlsplit
@@ -95,7 +96,9 @@ class UrllibReader:
         try:
             with urlopen(url, timeout=self._delai_attente.total_seconds()) as answer:
                 content: bytes = answer.read()
-        except (URLError, OSError, ValueError) as error:
+        # `HTTPException` couvre la réponse tronquée et le statut illisible :
+        # elle n'hérite pas d'`OSError`, et sortirait sinon brute d'ici.
+        except (URLError, OSError, ValueError, HTTPException) as error:
             message = f"flux de podcast injoignable : {url}"
             raise PodcastUnavailable(message) from error
         return content

@@ -442,7 +442,7 @@ Deux bloquants, douze corrections bornées, et une décision de l'auteur
       secondes, la pause y est donc courte et le morceau en cours n'est pas
       coupé. Résidu : un auditeur qui revient moins de `resume_fresh_seconds`
       après un redémarrage retrouve l'avance du diffuseur (SPECS.md §7 n°30).
-- [ ] **GOAL-083-T08** — Les trois lecteurs réseau traduisent
+- [x] **GOAL-083-T08** — Les trois lecteurs réseau traduisent
       `http.client.HTTPException` (réponse tronquée) en erreur métier ; une
       date Atom malformée ne lève plus une `ValueError` brute ; l'identifiant
       de chaîne YouTube se lit après `/channel/`, pas au dernier segment.

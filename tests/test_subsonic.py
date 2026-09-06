@@ -6,6 +6,7 @@ versionné (AGENTS.md §4). Les identifiants sont fictifs.
 """
 
 import hashlib
+import http.client
 import io
 import logging
 import urllib.error
@@ -51,6 +52,9 @@ IDENTIFIANT_INCONNU = """
 """
 
 ECHEC_SANS_DETAIL = '{"subsonic-response": {"status": "failed", "version": "1.16.1"}}'
+
+# Une page search3 dont la connexion a lâché en cours de corps.
+TRONQUEE = b'{"subsonic-response":{"status":"ok","searchResult3":{"song":['
 
 DEUX_CHANSONS = """
 {"subsonic-response": {"status": "ok", "version": "1.16.1", "searchResult3": {"song": [
@@ -127,6 +131,13 @@ class UnreachableTransport:
         raise ConnectionRefusedError(message)
 
 
+class TruncatedTransport:
+    """Un transport dont la réponse est coupée en route (docs/subsonic.md §5)."""
+
+    def fetch(self, url: str) -> HttpResponse:  # noqa: ARG002
+        raise http.client.IncompleteRead(TRONQUEE)
+
+
 UN_SOIR = datetime(2026, 8, 31, 20, 0, tzinfo=UTC)
 
 
@@ -142,7 +153,7 @@ def _source(
     body: str = "",
     code: int = 200,
     *,
-    transport: ScriptedTransport | UnreachableTransport | None = None,
+    transport: ScriptedTransport | UnreachableTransport | TruncatedTransport | None = None,
     cache: float = 0.0,
     clock: FrozenClock | None = None,
 ) -> SubsonicSource:
@@ -574,6 +585,38 @@ def test_le_transport_traduit_une_panne_de_connexion() -> None:
         transport.fetch("http://exemple.local/rest/ping")
 
     assert "injoignable" in str(failure.value)
+
+
+def test_le_transport_traduit_une_reponse_tronquee() -> None:
+    """Une page `search3` coupée en route lève `http.client.IncompleteRead`, qui
+    n'est pas une `OSError` : sans traduction, elle ferait un 500 sur
+    `/playout/next` (ARCHITECTURE.md §7)."""
+
+    class Tronquee(_ReponseUrllib):
+        def read(self) -> bytes:
+            raise http.client.IncompleteRead(TRONQUEE)
+
+    def ouvrir(requete: object, timeout: float) -> _ReponseUrllib:  # noqa: ARG001
+        return Tronquee(200, TRONQUEE)
+
+    transport = UrllibTransport(timeout_seconds=1.0, ouvrir=ouvrir)
+
+    with pytest.raises(SourceUnavailable) as failure:
+        transport.fetch("http://exemple.local/rest/search3")
+
+    assert "injoignable" in str(failure.value)
+
+
+def test_une_reponse_tronquee_devient_une_source_indisponible() -> None:
+    """L'exception traverse aussi un transport tiers : l'adaptateur la traduit à
+    son tour, sans citer l'URL qui porte le jeton (AGENTS.md §2)."""
+    source = _source(transport=TruncatedTransport())
+
+    with pytest.raises(SourceUnavailable) as failure:
+        source.tracks()
+
+    assert "injoignable" in str(failure.value)
+    assert MOT_DE_PASSE not in str(failure.value)
 
 
 def test_le_transport_par_defaut_existe_sans_etre_appele() -> None:

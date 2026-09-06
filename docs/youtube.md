@@ -28,6 +28,21 @@ dont la « pièce jointe » se résout par `yt-dlp` au dernier moment :
   puisque le RSS ne la porte pas ;
 - la trace en base par `videoId`, comme un `guid` de podcast.
 
+### 2.1 Les adresses de chaîne que le code accepte
+
+Ce que `YoutubeChannel._channel_id` fait de l'adresse configurée — c'est le
+code qui est décrit ici, pas ce que YouTube reconnaît :
+
+| Adresse configurée | Identifiant retenu |
+|---|---|
+| `https://www.youtube.com/channel/UC…` | `UC…`, sans lire la page |
+| `https://www.youtube.com/channel/UC…/videos` | `UC…` : c'est le segment qui **suit** `/channel/`, pas le dernier |
+| `https://www.youtube.com/channel/UC…/?view=0` | `UC…` : la query string et la barre finale sont ignorées |
+| `https://www.youtube.com/@handle` | celui du lien canonique de la page (§1), lu une fois puis mis en cache |
+
+Une entrée du flux Atom dont `<published>` n'est pas une date ISO 8601 est
+écartée en le journalisant, comme un épisode de podcast sans `pubDate`.
+
 ## 3. Points incertains
 
 - [ ] YouTube peut exiger une preuve d'humanité ou limiter `yt-dlp` sans

@@ -13,6 +13,7 @@ Trois points viennent du relevé [docs/youtube.md](../../../docs/youtube.md) :
   la vidéo candidate est résolue.
 """
 
+import http.client
 import logging
 import re
 import subprocess
@@ -22,6 +23,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from urllib.parse import urlsplit
 
 from webradio.adapters.podcast.feed import Episode
 from webradio.core.clock import Clock
@@ -123,6 +125,18 @@ def _telecharger_par_ytdlp(video_url: str, destination: str, timeout: float) -> 
     _p.Path(part).rename(destination)
 
 
+def _publie_le(texte: str) -> datetime | None:
+    """Lit `published` (ISO 8601). `None` si la date est illisible.
+
+    Même règle que `feed._publie_le` pour les podcasts : sans date, l'entrée ne
+    peut pas être classée du plus récent au plus ancien, l'appelant l'écarte.
+    """
+    try:
+        return datetime.fromisoformat(texte)
+    except ValueError:
+        return None
+
+
 class YoutubeChannel:
     """Le même contrat que `PodcastFeed` : des épisodes, du plus récent au plus ancien.
 
@@ -179,7 +193,15 @@ class YoutubeChannel:
         try:
             with urllib.request.urlopen(request, timeout=timeout) as reponse:
                 return str(reponse.read().decode("utf-8", errors="replace"))
-        except (urllib.error.URLError, OSError, TimeoutError) as failure:
+        # `http.client.HTTPException` (réponse tronquée, statut illisible) n'est
+        # pas une `OSError` : sans elle, elle traverserait le planificateur au
+        # lieu de sauter la case (ARCHITECTURE.md §7).
+        except (
+            urllib.error.URLError,
+            OSError,
+            TimeoutError,
+            http.client.HTTPException,
+        ) as failure:
             message = f"« {url} » ne répond pas : {failure}"
             raise YoutubeUnavailable(message) from failure
 
@@ -189,8 +211,13 @@ class YoutubeChannel:
         Le lien canonique de la page fait foi (docs/youtube.md §1). Le résultat
         est mis en cache : une chaîne ne change pas d'identifiant.
         """
-        if "/channel/" in channel_url:
-            return channel_url.rstrip("/").rsplit("/", 1)[-1]
+        # L'identifiant est le segment qui suit `/channel/`, pas le dernier :
+        # l'onglet des vidéos donne `/channel/UC…/videos`.
+        segments = urlsplit(channel_url).path.strip("/").split("/")
+        if "channel" in segments:
+            apres = segments[segments.index("channel") + 1 :]
+            if apres and apres[0]:
+                return apres[0]
         connu = self._chaines.get(channel_url)
         if connu is not None:
             return connu
@@ -220,11 +247,15 @@ class YoutubeChannel:
             published = entry.findtext("a:published", namespaces=ATOM)
             if not video or not published:
                 continue
+            published_at = _publie_le(published)
+            if published_at is None:
+                logger.info("vidéo à la date illisible écartée dans « %s »", channel_url)
+                continue
             episodes.append(
                 Episode(
                     identifier=video,
                     title=entry.findtext("a:title", namespaces=ATOM) or video,
-                    published_at=datetime.fromisoformat(published),
+                    published_at=published_at,
                     audio="",
                     duration=None,
                 )
