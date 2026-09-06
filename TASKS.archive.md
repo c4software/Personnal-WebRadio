@@ -2929,6 +2929,10 @@ mesuré, et rien n'est corrigé.
       désormais que le seul minuteur de la page ne demande rien au serveur.
       `setPositionState` n'est appelé qu'à la réception d'un message, sous
       `try/catch` : le navigateur fait avancer la position lui-même.
+      **Constaté à l'œil le 2026-09-06 au soir** : le filet du lecteur
+      dépassait aux angles, droit sur toute la largeur d'un cadre aux coins
+      arrondis. Il est rentré de la valeur du rayon et ses bouts sont
+      arrondis.
 
 **GOAL-085 est clos le 2026-09-06.** L'antenne dit maintenant la durée de ce
 qui passe et ce qui en est écoulé, quand elle les connaît : la longueur attendue

@@ -115,10 +115,10 @@ button[disabled] { cursor: default; }
   display: flex; flex-direction: column; padding: 0.6rem 0.6rem 0.6rem 0.75rem;
 }
 .barre .progression-barre {
-  position: absolute; top: 0; left: 0; right: 0; height: 2px; overflow: hidden;
-  border-radius: 1.375rem 1.375rem 0 0; background: var(--remplissage);
+  position: absolute; top: 0; left: 1.375rem; right: 1.375rem; height: 2px; overflow: hidden;
+  border-radius: 999px; background: var(--remplissage);
 }
-.barre .progression-barre .avancee { height: 100%; background: var(--accent); }
+.barre .progression-barre .avancee { height: 100%; border-radius: inherit; background: var(--accent); }
 .barre .pochette {
   width: 3.25rem; height: 3.25rem; flex: none; border-radius: 0.8rem; display: grid; place-items: center;
   background: var(--remplissage); color: var(--accent); box-shadow: var(--reflet);
