@@ -2337,3 +2337,101 @@ SSE tiennent dans Flask nu, et `EventSource` reconnecte de lui-même.
       Goal n'ajoute ni dossier ni fichier.
       **À constater** (AGENTS.md §4.1) : écran verrouillé, application repliée,
       retour au bout de dix minutes — la page doit se remettre à l'heure seule.
+
+---
+
+## GOAL-074 — La reprise ne laisse plus rien entendre de la veille, et l'annonce ne troue plus l'antenne
+
+Deux défauts constatés dans les journaux de production du 2026-09-06, tous
+deux dans `radio.liq`, tous deux invisibles aux tests (AGENTS.md §4.1).
+
+**Le flash.** À 07:28:21 UTC, la purge de reprise à neuf (SPECS.md §7 n°30)
+s'ordonne correctement et arme `reliquat_a_taire` ; l'antenne est rendue dans
+la même seconde ; la transition de `cross` qui doit jeter le reliquat ne
+s'exécute qu'à 07:28:28. Elle ne trouve alors plus que **0,04 s** à jeter
+(`cross: Analysis … 0.04s / 2.00s`), contre **1,99 s** les 2026-09-02 et
+2026-09-05. Les ~1,95 s manquantes sont sorties vers l'encodeur pendant
+l'attente : c'est le flash. Le morceau frais, lui, entre après la rampe de
+prise d'antenne, donc **à plein gain**.
+
+**Le trou.** `on_track` poste l'annonce à l'API dans le fil de diffusion,
+alors qu'`annoncer_le_direct` est enveloppé dans `thread.run` pour cette
+raison exacte. Les deux `catchup` de 2,79 s et 2,94 s du 2026-09-06 suivent
+exactement les deux annonces lentes ; aucune des six transitions rapides du
+matin n'en produit.
+
+- [x] **GOAL-074-T01** — Relever ce que la chaîne sert entre le saut et la
+      transition de `cross`, quand l'entrée fraîche tarde. docs/liquidsoap.md
+      §11. Trois constats : le délai de la transition ne dépend que de la
+      latence de l'entrée fraîche ; pendant l'attente le tampon `before` part
+      **à l'antenne** — 2,00 s du ton d'avant la pause, jusqu'à −16,7 dB, soit
+      ~87 % du volume — puis l'antenne retombe sur `blank()` ; et
+      `output.harbor` ne sert **aucune** rafale d'octets déjà encodés, ce qui
+      était l'autre hypothèse. Le garde-fou de §10 est donc nécessaire mais
+      pas suffisant : une transition s'exécute trop tard, seul le gain
+      protège.
+- [x] **GOAL-074-T02** — L'antenne reste muette du saut à antenne vide
+      jusqu'à l'entrée du morceau frais, et le morceau frais entre sous la
+      rampe de prise d'antenne. Le témoin `reliquat_a_taire` existe déjà et
+      dit exactement cela ; `prise_direct` doit le lever, sinon un direct pris
+      entre le saut et la transition resterait silencieux toute la case.
+      SPECS.md §4.7 et §7 n°30 disent le comportement obtenu.
+      Mesuré sur la maquette de §11, API retardée de 4 s : le ton d'avant la
+      pause passe de −16,7 dB à **−99 dB** (silence absolu), et le morceau
+      frais entre sous la rampe (−45 → −19 dB) au lieu d'entrer à froid.
+      Aucune régression sur le régime rapide. Le garde-fou du direct est
+      **raisonné, pas mesuré** : la maquette n'a pas su créer la course — la
+      transition a jeté le reliquat une seconde avant que le direct ne prenne
+      l'antenne. Il reste parce que rien d'autre ne lève le muet quand
+      `programme` ne reprend jamais l'antenne.
+      **À écouter** (AGENTS.md §4.1) : la reprise du matin après une nuit
+      sans auditeur — que rien de la veille ne s'entende, que le silence
+      d'attente ne dure pas au point d'inquiéter, et que le morceau frais
+      entre en fondu et non à froid.
+- [x] ~~**GOAL-074-T03** — `on_track` annonce sans bloquer le fil de
+      diffusion.~~ **Abandonnée le 2026-09-06, sur arbitrage de l'auteur : on
+      ne change rien.** Le remède évident est faux, et la mesure le dit
+      (docs/liquidsoap.md §11) : `thread.run` **ne sérialise pas** — deux
+      annonces lancées à 2 s d'écart, la lente est doublée par la rapide — et
+      la 2.3.3 n'offre **aucun verrou**. Déplacer l'annonce dans un fil
+      laisserait le jingle affiché à l'antenne pendant la musique dès que
+      l'API tarde. Les deux autres voies perdent une annonce, donc un titre au
+      journal. Le blocage garantit l'ordre ; le trou de ~3 s reste, et c'est
+      **GOAL-075** qui s'attaque à sa cause — un tirage lent. Si GOAL-075
+      ramène le tirage sous la seconde, la question ne se pose plus.
+
+- [x] **GOAL-074-T04** — Le conteneur du diffuseur lit l'heure de l'hôte.
+      `docker-compose.yml` ne monte `/etc/localtime` que pour `radio` : les
+      deux journaux sont dans deux fuseaux, ce qui a failli faire lire de
+      travers l'incident du 2026-09-06. Sans effet sur la grille — le script
+      ne connaît aucun moment.
+- [x] **GOAL-074-T05** — Mesurer ce que met `/playout/next` à répondre après
+      une purge, et le dire. **Mesuré, et la cause est chez nous.**
+      Le premier `/next` d'une reprise : **4 s** le 2026-09-06 (purge 07:28:21
+      UTC, réponse 07:28:25) ; le 2026-09-05, **plus de 10 s** — au-delà
+      d'`api_timeout` — deux échecs de suite, et le diffuseur a **coupé**
+      (« l'API ne répond plus »), 21 s de silence et un redémarrage à froid.
+      Les `/next` du régime établi, eux, répondent en 0 à 2 s.
+      La cause : `next_entry` appelle `prepare()` **dans la requête**
+      (`app/liquidsoap_playout.py:128`), qui remplit toute l'avance —
+      `draw.lookahead = 8` en production. Le premier `/next` d'une reprise
+      paie donc neuf tirages, contre un cache de bibliothèque
+      (`subsonic.cache_seconds = 3600`) forcément expiré après une pause de
+      17 h. Chaque tirage rouvre la bibliothèque chez Navidrome.
+      Le remède — préparer hors de la requête — touche la concurrence de la
+      chaîne : il ouvre **GOAL-075**, comme prévu, plutôt que de se corriger
+      ici à l'aveugle.
+
+**Clos le 2026-09-06.** Quatre tâches faites, une abandonnée sur arbitrage.
+Le flash de la veille ne s'entend plus (mesuré : −16,7 dB → −99 dB), le
+morceau frais entre en fondu, les deux journaux sont dans le même fuseau, et
+la lenteur du premier tirage est mesurée — elle ouvre GOAL-075.
+
+**Reste à écouter** (AGENTS.md §4.1, et rien ne le fera automatiquement) : la
+reprise du matin après une nuit sans auditeur — que rien de la veille ne
+s'entende, que le silence d'attente n'inquiète pas, et que le morceau frais
+entre en fondu.
+
+Le correctif n'atteint l'antenne qu'après un `git push`, une image CI et un
+`docker compose pull` sur `frontal` : trois actions sortantes, à l'auteur
+(AGENTS.md §1.2).

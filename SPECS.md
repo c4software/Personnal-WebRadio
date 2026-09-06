@@ -1491,6 +1491,38 @@ non-répétition voit ce qui attend. Rien d'autre : ni réordonner, ni forcer.
 > entière, et parce que chaque titre d'avance est un appel à la source. La
 > n°5 tient : ce qui joue n'est jamais coupé, seule l'avance — que personne
 > n'entend encore — regarde devant elle.
+> **Amendée le 2026-09-06** : la liste ne s'arrête plus au dernier titre tiré.
+> Elle **coud** derrière lui les périodes de la grille effective — « 20:00
+> Hardisk », « → 22:00 Rock » — sans rien tirer de plus. L'auteur voulait voir
+> la suite ; allonger l'avance pour cela aurait été le mauvais remède : au-delà
+> de la première frontière de plage, tout est re-tiré à chaque `stop`, et une
+> avance de trente titres vide la non-répétition de son sens, puisqu'elle voit
+> ce qui attend. La profondeur reste donc bornée ; c'est la **vue** qui va plus
+> loin, et elle ne décide rien.
+
+**n°35 — Une plage « podcasts » ? Une émission à plusieurs flux, pas une
+plage.** Tranchée le 2026-09-06 par l'auteur, sur analyse du code. Une
+`[[shows]]` gagne `feeds` — plusieurs adresses au lieu d'une — et `end`. Entre
+`time` et `end`, la radio tire **un flux au hasard parmi ceux qui ont un
+épisode non diffusé**, joue son épisode, puis recommence. À `end`, **l'épisode
+en cours finit** : c'est la n°5, ce qui passe n'est jamais coupé. La pioche est
+uniforme entre les flux, pas entre les épisodes — sans quoi le podcast le plus
+prolifique écraserait les autres. Un flux sans rien de neuf est écarté de la
+pioche ; tous épuisés, la case est sautée et journalisée. La n°14 tient dans
+chaque flux : c'est le `full` le plus récent non diffusé, on ne redescend pas.
+> *Raison* : tout ce qu'une plage fait est faux pour un épisode — elle tire des
+> pistes par artiste, genre et décennie, les coupe au plafond et les soumet aux
+> votes ; un épisode dure soixante-dix minutes, n'a ni artiste ni genre, et ne
+> se vote pas. En faire une plage obligerait à trouer chaque règle du tirage
+> d'une exception « sauf podcast ». À l'inverse, tout ce qu'une émission fait
+> est déjà ce qu'on veut : remplacer la programmation, abandonner les jingles
+> (n°15), refuser les votes, se souvenir de ce qui a été diffusé, apparaître
+> dans la grille. Il ne manquait que deux traits, et le direct a déjà le
+> second. Ce n'est donc pas un troisième mécanisme — la n°19 est assez lourde
+> comme cela.
+> *Conséquence assumée* : un épisode médian de soixante-dix-sept minutes lancé
+> peu avant `end` déborde sur ce qui suit. C'est le prix de la n°5, et il
+> s'entend — la plage suivante commence en retard.
 
 **n°6 — La forme des commandes ? Une API.** Tranchée le 2026-08-30. `stop` et
 `encore` sont des appels d'API, et l'interface web n'a aucun chemin privilégié :

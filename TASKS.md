@@ -182,109 +182,24 @@ transitionner. Relevé en maquette à **160 ms** (docs/liquidsoap.md §10),
 mesuré à **7 s** en production le 2026-09-06 ; pendant ces 7 s l'antenne est
 déjà rendue et sert le reliquat de la veille.
 
-**Prochaine tâche** : GOAL-074-T03 attend un arbitrage de l'auteur (trois
-voies, aucune gratuite), puis GOAL-075-T01.
+**GOAL-074 est clos le 2026-09-06** : le micro-flash de la chanson de la
+veille, entendu à la reconnexion du matin. Le garde-fou de GOAL-055 avait
+pourtant fonctionné — il ne couvrait que le cas où l'API répond vite. La
+transition de `cross` ne s'exécute qu'une fois le morceau frais bufférisé, et
+la sortie servait le reliquat en attendant. Le témoin porte désormais sur le
+gain. T03 est **abandonnée sur arbitrage** : `thread.run` ne sérialise pas et
+la 2.3.3 n'a aucun verrou, donc le remède évident ferait mentir l'antenne.
+**Reste à écouter** la reprise du matin.
+
+**Quatre Goals ouverts**, dans cet ordre : **GOAL-075** (le premier tirage
+d'une reprise, qui fixe la durée du silence et a déjà fait couper le
+diffuseur), **GOAL-076** (petit, protège les deux suivants), **GOAL-077** (la
+plage podcasts), **GOAL-078** (la couture de la grille — après GOAL-077, qui
+lui donne le bon jeu de périodes).
+
+**Prochaine tâche** : GOAL-075-T01.
 
 ---
-
-## GOAL-074 — La reprise ne laisse plus rien entendre de la veille, et l'annonce ne troue plus l'antenne
-
-Deux défauts constatés dans les journaux de production du 2026-09-06, tous
-deux dans `radio.liq`, tous deux invisibles aux tests (AGENTS.md §4.1).
-
-**Le flash.** À 07:28:21 UTC, la purge de reprise à neuf (SPECS.md §7 n°30)
-s'ordonne correctement et arme `reliquat_a_taire` ; l'antenne est rendue dans
-la même seconde ; la transition de `cross` qui doit jeter le reliquat ne
-s'exécute qu'à 07:28:28. Elle ne trouve alors plus que **0,04 s** à jeter
-(`cross: Analysis … 0.04s / 2.00s`), contre **1,99 s** les 2026-09-02 et
-2026-09-05. Les ~1,95 s manquantes sont sorties vers l'encodeur pendant
-l'attente : c'est le flash. Le morceau frais, lui, entre après la rampe de
-prise d'antenne, donc **à plein gain**.
-
-**Le trou.** `on_track` poste l'annonce à l'API dans le fil de diffusion,
-alors qu'`annoncer_le_direct` est enveloppé dans `thread.run` pour cette
-raison exacte. Les deux `catchup` de 2,79 s et 2,94 s du 2026-09-06 suivent
-exactement les deux annonces lentes ; aucune des six transitions rapides du
-matin n'en produit.
-
-- [x] **GOAL-074-T01** — Relever ce que la chaîne sert entre le saut et la
-      transition de `cross`, quand l'entrée fraîche tarde. docs/liquidsoap.md
-      §11. Trois constats : le délai de la transition ne dépend que de la
-      latence de l'entrée fraîche ; pendant l'attente le tampon `before` part
-      **à l'antenne** — 2,00 s du ton d'avant la pause, jusqu'à −16,7 dB, soit
-      ~87 % du volume — puis l'antenne retombe sur `blank()` ; et
-      `output.harbor` ne sert **aucune** rafale d'octets déjà encodés, ce qui
-      était l'autre hypothèse. Le garde-fou de §10 est donc nécessaire mais
-      pas suffisant : une transition s'exécute trop tard, seul le gain
-      protège.
-- [x] **GOAL-074-T02** — L'antenne reste muette du saut à antenne vide
-      jusqu'à l'entrée du morceau frais, et le morceau frais entre sous la
-      rampe de prise d'antenne. Le témoin `reliquat_a_taire` existe déjà et
-      dit exactement cela ; `prise_direct` doit le lever, sinon un direct pris
-      entre le saut et la transition resterait silencieux toute la case.
-      SPECS.md §4.7 et §7 n°30 disent le comportement obtenu.
-      Mesuré sur la maquette de §11, API retardée de 4 s : le ton d'avant la
-      pause passe de −16,7 dB à **−99 dB** (silence absolu), et le morceau
-      frais entre sous la rampe (−45 → −19 dB) au lieu d'entrer à froid.
-      Aucune régression sur le régime rapide. Le garde-fou du direct est
-      **raisonné, pas mesuré** : la maquette n'a pas su créer la course — la
-      transition a jeté le reliquat une seconde avant que le direct ne prenne
-      l'antenne. Il reste parce que rien d'autre ne lève le muet quand
-      `programme` ne reprend jamais l'antenne.
-      **À écouter** (AGENTS.md §4.1) : la reprise du matin après une nuit
-      sans auditeur — que rien de la veille ne s'entende, que le silence
-      d'attente ne dure pas au point d'inquiéter, et que le morceau frais
-      entre en fondu et non à froid.
-- [!] **GOAL-074-T03** — `on_track` annonce sans bloquer le fil de diffusion,
-      comme `annoncer_le_direct`. Les deux témoins qu'il pose —
-      `piste_commencee` et `direct_arme` — restent posés dans le fil : ce sont
-      eux qui garantissent qu'un direct entre à la jonction
-      (docs/liquidsoap.md §9), et les différer les décalerait.
-      **BLOQUÉ le 2026-09-06 : le remède naïf ment sur l'antenne.** Mesuré
-      (docs/liquidsoap.md §11) : `thread.run` **ne sérialise pas** — deux
-      annonces lancées à 2 s d'écart, la lente est doublée par la rapide. Un
-      jingle de 5 s suivi d'un morceau, avec l'API lente qu'on a, laisserait
-      le jingle affiché à l'antenne pendant la musique. Et la 2.3.3 n'offre
-      **aucun verrou** : `--list-functions` ne donne que `thread.run`,
-      `thread.run.recurrent`, `thread.delay`, `thread.on_error`,
-      `thread.pause`, `thread.when`.
-      Trois voies, et le choix appartient à l'auteur :
-      **(a)** ne rien changer — le trou de ~3 s reste, mais l'ordre est
-      garanti par le blocage lui-même, et T05 s'attaque à la cause ;
-      **(b)** une file consommée par un unique `thread.run.recurrent` —
-      l'ordre est tenu, mais la file est écrite par le fil de diffusion sans
-      protection : une annonce peut se perdre, donc un titre manquer au
-      journal ;
-      **(c)** un délai d'attente court propre à `/playout/playing` — le trou
-      est borné, et l'annonce est perdue quand l'API dépasse ce délai.
-      Aucune n'est gratuite. (a) est la seule qui ne perde jamais un titre.
-      **À écouter** si elle est levée (AGENTS.md §4.1) : qu'aucune jonction
-      ne laisse de blanc.
-- [x] **GOAL-074-T04** — Le conteneur du diffuseur lit l'heure de l'hôte.
-      `docker-compose.yml` ne monte `/etc/localtime` que pour `radio` : les
-      deux journaux sont dans deux fuseaux, ce qui a failli faire lire de
-      travers l'incident du 2026-09-06. Sans effet sur la grille — le script
-      ne connaît aucun moment.
-- [x] **GOAL-074-T05** — Mesurer ce que met `/playout/next` à répondre après
-      une purge, et le dire. **Mesuré, et la cause est chez nous.**
-      Le premier `/next` d'une reprise : **4 s** le 2026-09-06 (purge 07:28:21
-      UTC, réponse 07:28:25) ; le 2026-09-05, **plus de 10 s** — au-delà
-      d'`api_timeout` — deux échecs de suite, et le diffuseur a **coupé**
-      (« l'API ne répond plus »), 21 s de silence et un redémarrage à froid.
-      Les `/next` du régime établi, eux, répondent en 0 à 2 s.
-      La cause : `next_entry` appelle `prepare()` **dans la requête**
-      (`app/liquidsoap_playout.py:128`), qui remplit toute l'avance —
-      `draw.lookahead = 8` en production. Le premier `/next` d'une reprise
-      paie donc neuf tirages, contre un cache de bibliothèque
-      (`subsonic.cache_seconds = 3600`) forcément expiré après une pause de
-      17 h. Chaque tirage rouvre la bibliothèque chez Navidrome.
-      Le remède — préparer hors de la requête — touche la concurrence de la
-      chaîne : il ouvre **GOAL-075**, comme prévu, plutôt que de se corriger
-      ici à l'aveugle.
-
-Le correctif n'atteint l'antenne qu'après un `git push`, une image CI et un
-`docker compose pull` sur `frontal` : trois actions sortantes, à l'auteur
-(AGENTS.md §1.2).
 
 ---
 
@@ -315,6 +230,114 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
       légitime a dépassé `api_timeout`. Décider si ce délai doit distinguer
       « lente » de « morte », ou si T01 suffit à ce que la question ne se pose
       plus.
+
+---
+
+## GOAL-076 — Le thème d'une plage « au hasard » ne se retire plus tout seul
+
+Ouvert le 2026-09-06, sur analyse de code, **sans constat à l'antenne** — c'est
+un chemin trouvé en lisant, pas un défaut entendu. Petit, indépendant, et il
+protège GOAL-077 comme GOAL-078.
+
+`core/mystery.py` ne retient qu'**une** occurrence : celle en cours. Or la
+préparation tire chaque créneau sous le moment de son heure estimée
+(`app/playout.py`, décision n°34) : si un créneau futur tombe dans une **autre**
+occurrence d'une plage `random`, la mémoire est remplacée par l'occurrence
+future, et le battement suivant — qui redemande le moment courant — n'y
+retrouve plus rien et **retire** le thème en cours. Clé changée, avance
+rassise, `requeue`.
+
+Le chemin existe déjà à `lookahead = 8` dès qu'une plage `random` en suit une
+autre à moins de trente minutes. Il devient nominal si l'avance s'allonge.
+
+- [ ] **GOAL-076-T01** — Un test qui rejoue une soirée où l'avance franchit
+      la frontière entre deux plages `random`, et affirme que le thème en
+      cours ne bouge pas. Horloge et graine fixées, comme le reste : il doit
+      échouer avant le correctif. `tests/test_mystery.py` ne couvre
+      aujourd'hui que la succession, jamais l'alternance.
+- [ ] **GOAL-076-T02** — La mémoire des thèmes tirés porte sur l'occurrence,
+      pas sur « la dernière consultée ». Ce que « occurrence » veut dire
+      exactement est à établir en lisant `core/bands.py` : la clé existe déjà
+      pour dater l'avance (n°33), c'est probablement elle.
+
+---
+
+## GOAL-077 — Une plage « podcasts » : plusieurs flux, tirés au hasard
+
+Ouvert le 2026-09-06, demande de l'auteur, forme tranchée le même jour
+(SPECS.md §7 **n°35**) : c'est une **émission à plusieurs flux**, pas une
+plage. Entre `time` et `end`, on tire un flux au hasard parmi ceux qui ont du
+neuf, on joue son épisode, on recommence ; à `end`, l'épisode en cours **finit**
+(n°5), quitte à déborder.
+
+- [ ] **GOAL-077-T01** — Relever ce qu'exposent réellement les flux voulus par
+      l'auteur (AGENTS.md §3). `docs/podcast.md` §5 le dit lui-même : le relevé
+      ne porte que sur **un** hébergeur, Acast, et « un second podcast, chez un
+      autre hébergeur, n'aura pas les mêmes garanties ». Relever aussi le coût
+      de lecture : `_catalogues` relit **tous** les flux à chaque jonction,
+      sans cache — 3,5 Mo pour LEGEND seul, donc ~17 Mo par jonction à cinq
+      flux. Si le coût est réel, il devient une tâche.
+- [ ] **GOAL-077-T02** — Le noyau : `core/shows.py` choisit parmi plusieurs
+      catalogues, avec une mémoire **par flux** et une pioche uniforme entre
+      flux, par le hasard injecté. Une case à fin déclarée est ouverte jusqu'à
+      `end`, comme celle d'un direct, et non jusqu'à la durée d'un épisode
+      (c'est un autre régime que le rattrapage de la n°13). Tests : deux flux
+      dont un seul a du neuf ; plus rien nulle part, case sautée ; à graine
+      fixe, la même soirée pioche le même flux ; l'épisode entamé finit après
+      `end`.
+- [ ] **GOAL-077-T03** — La charnière : `app/show_scheduler.py` tient
+      plusieurs adresses par émission, enchaîne dans la case, et nomme le flux
+      tiré dans son journal. La clé de mémoire passe à `<name>/<feed>` —
+      changement de ce que garde la base, donc ARCHITECTURE.md §5.
+- [ ] **GOAL-077-T04** — La configuration : `feeds` et `end` dans
+      `adapters/config/schema.py`, exclusifs de `feed`/`stream`/`youtube`,
+      refusés là où ils n'ont pas de sens. **Une règle à trancher en chemin** :
+      la détection de collision juge aujourd'hui « la case déclarée » ; une
+      plage de deux heures qui contient l'heure d'une autre émission n'est
+      plus vue. `webradio.exemple.toml`, SPECS.md §6 et §4.11.
+- [ ] **GOAL-077-T05** — La grille et la page : `core/planning.py` lit déjà
+      `Show.duration` — une case à fin déclarée s'y insère sans règle
+      nouvelle ; `app/main.py::_periode` doit nommer « podcasts » comme il
+      nomme `live` et `youtube`.
+      **À écouter** (AGENTS.md §4.1) : la jonction d'entrée, l'enchaînement de
+      deux épisodes d'éditeurs différents — les niveaux ne se ressemblent
+      pas — et le débordement à `end`.
+
+---
+
+## GOAL-078 — La liste des prochains titres coud la grille derrière elle
+
+Ouvert le 2026-09-06, demande de l'auteur, forme tranchée le même jour
+(SPECS.md §7 **n°34 amendée**). Après GOAL-077 : la plage podcasts ajoute à la
+grille une émission **dont la fin est déclarée**, et c'est précisément ce que
+la liste sait dater. Écrite avant, la couture le serait contre des émissions
+sans fin, puis retouchée.
+
+Aujourd'hui la liste s'arrête à ~30 min, et devant un programme ou un podcast
+elle s'arrête net — on ne continue qu'après ce qu'on sait **nommer et dater**
+(GOAL-070). Rien ne relie les titres tirés au Planning, qui sait pourtant tout.
+
+**Rien n'est tiré de plus : zéro décision, zéro tirage jeté.** La profondeur de
+l'avance ne bouge pas.
+
+- [ ] **GOAL-078-T01** — Le noyau : `core/planning.py` rend les périodes
+      effectives **entre deux instants**, celle en cours comprise. `day()` ne
+      rend que celles qui commencent dans la journée : une période ouverte à
+      l'instant demandé et commencée la veille n'y figure pas.
+- [ ] **GOAL-078-T02** — `upcoming()` ajoute ces périodes après le dernier
+      titre daté, et ne s'arrête plus net sur ce qu'il ne sait pas dater : il
+      le nomme, puis reprend à la période suivante. Comment une période se
+      représente à côté d'un titre — une nature de plus, ou une fin sur ce qui
+      existe — est à trancher en écrivant.
+- [ ] **GOAL-078-T03** — L'API les rend, et la page les met en mots avec les
+      fonctions du Planning. Aucun calcul dans le gabarit, et surtout pas une
+      reconstruction à partir de `/api/planning` : il est figé à l'assemblage,
+      l'heure de couture dépend de l'antenne.
+      **Une question à l'auteur en chemin** : SPECS.md §4.8 dit que pendant un
+      programme, rien n'est annoncé. Cela visait sa musique — la **période**
+      « Programme · Le vendredi de Chloé 18:00–20:00 » s'annonce-t-elle ?
+- [ ] **GOAL-078-T04** — L'horizon de la couture vient du TOML, avec son
+      défaut déclaré (SPECS.md §6). Aucune durée en dur.
 
 ---
 
@@ -395,8 +418,11 @@ exactement le temps de ce tirage. Le raccourcir raccourcit l'attente.
 | GOAL-071 | Une plage `era_fan` choisit ses décennies | `[x]` — clos le 2026-09-02 ; **reste à écouter** la plage de 12 h |
 | GOAL-072 | Le verre d'iOS : la matière, la palette du système, un en-tête qui flotte | `[x]` — clos le 2026-09-03, rendu validé à l'œil le même jour |
 | GOAL-073 | L'état d'antenne poussé par SSE, et une coupure qui ne s'écrit plus | `[x]` — clos le 2026-09-03 ; **reste à constater** une coupure réseau et un retour d'arrière-plan depuis un téléphone |
-| GOAL-074 | La reprise ne laisse plus rien entendre de la veille, et l'annonce ne troue plus l'antenne | `[-]` — ouvert le 2026-09-06 ; T01, T02, T04, T05 faites ; **T03 bloquée** sur un arbitrage |
+| GOAL-074 | La reprise ne laisse plus rien entendre de la veille, et l'annonce ne troue plus l'antenne | `[x]` — clos le 2026-09-06 ; T03 abandonnée sur arbitrage ; **reste à écouter** la reprise du matin |
 | GOAL-075 | Le premier tirage d'une reprise ne fait plus attendre l'antenne | `[ ]` — ouvert le 2026-09-06 par GOAL-074-T05 |
+| GOAL-076 | Le thème d'une plage « au hasard » ne se retire plus tout seul | `[ ]` — ouvert le 2026-09-06, sur analyse, sans constat à l'antenne |
+| GOAL-077 | Une plage « podcasts » : plusieurs flux, tirés au hasard | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°35) |
+| GOAL-078 | La liste des prochains titres coud la grille derrière elle | `[ ]` — ouvert le 2026-09-06, forme tranchée (n°34 amendée) |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
