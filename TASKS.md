@@ -271,7 +271,7 @@ neuf, on joue son épisode, on recommence ; à `end`, l'épisode en cours **fini
       plage de deux heures d'autant plus souvent (n°5).
       À dire à l'auteur : « Les Grosses Têtes » est le flux d'**extraits**,
       6 minutes de médiane, pas les deux heures d'antenne.
-- [ ] **GOAL-077-T02** — Le noyau : `core/shows.py` choisit parmi plusieurs
+- [x] **GOAL-077-T02** — Le noyau : `core/shows.py` choisit parmi plusieurs
       catalogues, avec une mémoire **par flux** et une pioche uniforme entre
       flux, par le hasard injecté. Une case à fin déclarée est ouverte jusqu'à
       `end`, comme celle d'un direct, et non jusqu'à la durée d'un épisode

@@ -4,11 +4,13 @@ from datetime import UTC, datetime, time, timedelta
 
 import pytest
 
+from webradio.core.rng import ScriptedRandom
 from webradio.core.shows import (
     ConflictingShows,
     Episode,
     Show,
     ShowSchedule,
+    episode_among,
     episode_to_air,
 )
 
@@ -233,3 +235,98 @@ def test_un_podcast_n_a_pas_de_fin_connue_d_avance() -> None:
     case = grille.due({"Quotidienne": timedelta(minutes=30)}, le_vendredi(12, 4))
     assert case is not None
     assert case.end is None
+
+
+# ── Une plage d'épisodes : plusieurs flux, une fin déclarée (n°35) ───────────
+
+SOIREE = Show(name="Soirée podcasts", days=("friday",), hour=time(20), end=time(22))
+NUIT = Show(name="Nuit podcasts", days=("friday",), hour=time(23), end=time(1))
+
+
+def test_une_plage_declare_sa_fin_au_lieu_de_sa_duree() -> None:
+    assert SOIREE.chains_episodes
+    assert not SOIREE.is_live
+    assert not FRENCH.chains_episodes
+
+
+def test_une_plage_ne_declare_pas_aussi_une_duree() -> None:
+    """La durée borne la case d'un direct, la fin borne celle d'une plage :
+    les deux ensemble ne voudraient rien dire (SPECS.md §7 n°35)."""
+    with pytest.raises(ValueError, match="durée ET une fin"):
+        Show(name="Confuse", days=("all",), hour=time(20), duration=UNE_HEURE, end=time(22))
+
+
+def test_une_plage_reste_ouverte_quelle_que_soit_la_duree_de_l_episode() -> None:
+    """La case d'un podcast ordinaire dure ce que dure son épisode (n°13). Une
+    plage, non : elle enchaîne jusqu'à sa fin déclarée."""
+    grille = ShowSchedule([SOIREE])
+    court = {"Soirée podcasts": timedelta(minutes=10)}
+
+    assert grille.due(court, le_vendredi(20, 5)) is not None
+    assert grille.due(court, le_vendredi(21, 55)) is not None, "la case n'a pas fermé à 20 h 10"
+    assert grille.due(court, le_vendredi(22, 1)) is None
+
+
+def test_une_plage_annonce_sa_fin_declaree() -> None:
+    """La grille effective en a besoin pour reprendre après (GOAL-068)."""
+    case = ShowSchedule([SOIREE]).due({"Soirée podcasts": UNE_HEURE}, le_vendredi(20, 5))
+    assert case is not None
+    assert case.end == le_vendredi(22)
+
+
+def test_une_plage_qui_enjambe_minuit_finit_le_lendemain() -> None:
+    grille = ShowSchedule([NUIT])
+    duree = {"Nuit podcasts": UNE_HEURE}
+    case = grille.due(duree, le_vendredi(23, 30))
+    assert case is not None
+    assert case.end == le_vendredi(23).replace(day=5, hour=1)
+    assert grille.due(duree, le_vendredi(23).replace(day=5, hour=1, minute=1)) is None
+
+
+# ── La pioche entre plusieurs flux (n°35) ───────────────────────────────────
+
+
+def test_un_flux_se_tire_au_sort_parmi_ceux_qui_ont_du_neuf() -> None:
+    """La pioche est uniforme entre les flux, jamais entre les épisodes : le
+    podcast le plus prolifique écraserait les autres — 1 894 épisodes contre
+    101 chez l'auteur (docs/podcast.md §4.bis)."""
+    catalogues = {
+        "legend": [episode("l1", 20), episode("l2", 21)],
+        "konbini": [episode("k1", 19)],
+    }
+    tire = episode_among(catalogues, {}, ScriptedRandom([1]))
+
+    assert tire is not None
+    source, retenu = tire
+    assert (source, retenu.guid) == ("legend", "l2"), "le plus récent DANS le flux tiré"
+
+
+def test_un_flux_epuise_sort_de_la_pioche_sans_faire_echouer_les_autres() -> None:
+    """La règle du plus récent non diffusé (n°14) vaut par flux, avec sa propre
+    mémoire : un flux sans rien de neuf ne doit pas priver la case."""
+    catalogues = {"legend": [episode("l1", 20)], "konbini": [episode("k1", 19)]}
+    tire = episode_among(catalogues, {"legend": "l1"}, ScriptedRandom([0]))
+
+    assert tire is not None
+    assert tire[0] == "konbini", "un seul flux offrait du neuf, c'est lui"
+
+
+def test_tous_les_flux_epuises_ne_diffusent_rien() -> None:
+    """La case est alors sautée, comme une émission sans épisode neuf."""
+    catalogues = {"legend": [episode("l1", 20)], "konbini": [episode("k1", 19)]}
+    assert episode_among(catalogues, {"legend": "l1", "konbini": "k1"}, ScriptedRandom([0])) is None
+    assert episode_among({}, {}, ScriptedRandom([0])) is None
+
+
+def test_a_graine_fixee_la_meme_soiree_pioche_les_memes_flux() -> None:
+    """Le hasard est injecté : une soirée se rejoue (AGENTS.md §4)."""
+    catalogues = {
+        "konbini": [episode("k1", 19)],
+        "legend": [episode("l1", 20)],
+        "hugo": [episode("h1", 21)],
+    }
+    indices = [2, 0, 1]
+    premiere = [episode_among(catalogues, {}, ScriptedRandom(indices)) for _ in range(1)]
+    seconde = [episode_among(catalogues, {}, ScriptedRandom(indices)) for _ in range(1)]
+
+    assert premiere == seconde

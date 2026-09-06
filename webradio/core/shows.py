@@ -5,9 +5,12 @@ Le noyau ne lit aucun flux RSS : les épisodes lui sont fournis, comme les piste
 
 - une case est-elle ouverte maintenant ? Une émission manquée est rattrapée dans
   la limite de sa propre durée, depuis le début (SPECS.md §7 n°13). La durée est
-  un paramètre, car elle n'est connue qu'après lecture du flux ;
+  un paramètre, car elle n'est connue qu'après lecture du flux. Une case à
+  **fin déclarée** échappe à cette règle : elle est ouverte jusqu'à son heure de
+  fin et enchaîne les épisodes (SPECS.md §7 n°35) ;
 - quel épisode retenir ? Le `full` le plus récent non encore diffusé ; s'il l'a
-  déjà été, la case est sautée (SPECS.md §7 n°14).
+  déjà été, la case est sautée (SPECS.md §7 n°14). Avec plusieurs flux, la
+  règle vaut dans chacun, et le flux se tire au sort parmi ceux qui ont du neuf.
 
 Une émission suspend la grille, la non-répétition et les jingles : cela se
 traduit par l'absence de tirage pendant sa durée, sans code ici
@@ -17,6 +20,8 @@ traduit par l'absence de tirage pendant sa durée, sans code ici
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
+
+from webradio.core.rng import Random
 
 EVERY_DAY = "all"
 EPISODE_COMPLET = "full"
@@ -54,14 +59,30 @@ class Show:
     # (SPECS.md §4.11, §7 n°22). `None` pour un podcast, dont la durée se lit
     # dans le flux.
     duration: timedelta | None = None
+    # L'heure de fin d'une plage d'épisodes (SPECS.md §7 n°35). La case reste
+    # ouverte jusque-là et en enchaîne plusieurs, au lieu de durer ce que dure
+    # son épisode. Une fin qui précède l'heure de début enjambe minuit.
+    end: time | None = None
 
     @property
     def is_live(self) -> bool:
         return self.duration is not None
 
+    @property
+    def chains_episodes(self) -> bool:
+        """Une plage : sa fin est déclarée, elle enchaîne au lieu de s'arrêter
+        au premier épisode."""
+        return self.end is not None
+
     def __post_init__(self) -> None:
         if self.duration is not None and self.duration <= timedelta(0):
             message = f"« {self.name} » a une durée nulle : elle ne diffuserait rien"
+            raise ValueError(message)
+        if self.end is not None and self.duration is not None:
+            message = f"« {self.name} » déclare une durée ET une fin : l'une des deux suffit"
+            raise ValueError(message)
+        if self.end == self.hour:
+            message = f"« {self.name} » finit à son heure de début : elle ne diffuserait rien"
             raise ValueError(message)
         if not self.name:
             message = "une émission sans nom ne peut pas être désignée dans un conflit"
@@ -122,6 +143,34 @@ def episode_to_air(episodes: Sequence[Episode], already_aired: str | None = None
     return recent
 
 
+def episode_among(
+    catalogues: Mapping[str, Sequence[Episode]],
+    already_aired: Mapping[str, str],
+    random: Random,
+) -> tuple[str, Episode] | None:
+    """Un flux tiré au sort parmi ceux qui ont du neuf, et son épisode.
+
+    La pioche est uniforme **entre les flux**, pas entre les épisodes : sans
+    cela le podcast le plus prolifique écraserait les autres — 1 894 épisodes
+    contre 101 chez l'auteur (docs/podcast.md §4.bis, SPECS.md §7 n°35).
+
+    La règle du plus récent non diffusé (n°14) vaut dans chaque flux, avec sa
+    propre mémoire : un flux épuisé sort de la pioche, il ne fait pas échouer
+    les autres. Tous épuisés, il n'y a rien à diffuser et la case est sautée.
+
+    Les flux sont parcourus dans l'ordre de leur nom : à graine fixée, la même
+    soirée se rejoue (AGENTS.md §4).
+    """
+    offres = [
+        (source, episode)
+        for source in sorted(catalogues)
+        if (episode := episode_to_air(catalogues[source], already_aired.get(source))) is not None
+    ]
+    if not offres:
+        return None
+    return random.pick(offres)
+
+
 class ShowSchedule:
     # Pas nommée `Programme` : depuis SPECS.md §4.13, un programme est une plage
     # alimentée par une liste de lecture (`core/programmes.py`).
@@ -178,12 +227,31 @@ class ShowSchedule:
     ) -> Slot | None:
         """La case si elle est ouverte à cet instant, `None` sinon.
 
-        Une case n'est ouverte que pendant la durée de son épisode.
+        Une case n'est ouverte que pendant la durée de son épisode — sauf une
+        plage, ouverte jusqu'à sa fin déclarée quelle que soit cette durée
+        (SPECS.md §7 n°35). L'épisode entamé avant la fin la dépasse : c'est la
+        n°5, ce qui passe n'est jamais coupé, et la jonction qui suit trouve la
+        case fermée.
         """
         start = self.slot_start(show, instant)
-        if start is None or instant >= start + duration:
+        if start is None:
+            return None
+        fin = self._fin_declaree(show, start)
+        if fin is not None:
+            return None if instant >= fin else Slot(show, start, fin)
+        if instant >= start + duration:
             return None
         return Slot(show, start, start + duration if show.is_live else None)
+
+    @staticmethod
+    def _fin_declaree(show: Show, start: datetime) -> datetime | None:
+        """L'heure de fin de cette occurrence, `None` si la case n'en déclare
+        pas. Une fin qui précède l'heure de début enjambe minuit, comme une
+        plage musicale (`core/bands.py`)."""
+        if show.end is None:
+            return None
+        fin = datetime.combine(start.date(), show.end, tzinfo=start.tzinfo)
+        return fin if fin > start else fin + timedelta(days=1)
 
     def due(self, durations: Mapping[str, timedelta], instant: datetime) -> Slot | None:
         """La case ouverte à cet instant, ou `None`.
