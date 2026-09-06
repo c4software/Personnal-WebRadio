@@ -238,18 +238,30 @@ class DeclaredProgramme:
 class Show:
     """Une émission diffusée à jours et heure fixes (SPECS.md §4.11).
 
-    Exactement une source : `feed` (podcast), `youtube` (chaîne) ou `stream`
-    (direct). Un direct exige `duration_minutes`, puisqu'il faut le couper ;
-    les autres sources l'interdisent.
+    Exactement une source : `feed` (podcast), `feeds` (plusieurs podcasts),
+    `youtube` (chaîne) ou `stream` (direct). Un direct exige
+    `duration_minutes`, puisqu'il faut le couper ; les autres sources
+    l'interdisent.
+
+    `end` fait de la case une **plage** : elle enchaîne les épisodes jusqu'à
+    cette heure au lieu de s'arrêter au premier (SPECS.md §7 n°35). Réservée
+    aux podcasts, seule source dont on puisse tirer plusieurs épisodes.
     """
 
     name: str
     days: tuple[str, ...]
     hour: time
     feed: str | None = None
+    feeds: tuple[str, ...] = ()
     stream: str | None = None
     youtube: str | None = None
     duration_minutes: int | None = None
+    end: time | None = None
+
+    @property
+    def addresses(self) -> tuple[str, ...]:
+        """Les flux de cette émission, qu'elle en déclare un ou plusieurs."""
+        return self.feeds if self.feeds else ((self.feed,) if self.feed else ())
 
 
 @dataclass(frozen=True, slots=True)
@@ -570,6 +582,18 @@ def _liste_decennies(table: Mapping[str, Any], key: str, prefix: str) -> tuple[i
     return tuple(value)
 
 
+def _flux(table: Mapping[str, Any], prefix: str, name: str) -> tuple[str, ...]:
+    """Les adresses d'une plage podcasts, au moins une (SPECS.md §7 n°35)."""
+    # `_liste_textes` refuse déjà la liste vide et les entrées non textuelles.
+    adresses = _liste_textes(table, "feeds", prefix)
+    if len(set(adresses)) != len(adresses):
+        _refuser(
+            _chemin(prefix, "feeds"),
+            f"« {name} » déclare deux fois le même flux : il sortirait deux fois plus souvent",
+        )
+    return adresses
+
+
 def _jours(table: Mapping[str, Any], prefix: str) -> tuple[str, ...]:
     """Les jours d'une déclaration : une liste de noms, ou le raccourci `"all"`.
 
@@ -627,16 +651,27 @@ def _emissions(brut: Mapping[str, Any]) -> tuple[Show, ...]:
         prefix = f"shows[{index}]"
         _verifier_cles(
             table,
-            ("name", "feed", "stream", "youtube", "duration_minutes", "days", "time"),
+            (
+                "name",
+                "feed",
+                "feeds",
+                "stream",
+                "youtube",
+                "duration_minutes",
+                "days",
+                "time",
+                "end",
+            ),
             prefix,
         )
         name = _texte(table, "name", prefix)
-        sources = [key for key in ("feed", "stream", "youtube") if key in table]
+        sources = [key for key in ("feed", "feeds", "stream", "youtube") if key in table]
         if len(sources) != 1:
             _refuser(
                 prefix,
                 f"« {name} » doit avoir exactement une source : "
-                "`feed` (podcast), `stream` (direct) ou `youtube` (chaîne)",
+                "`feed` (podcast), `feeds` (plusieurs podcasts), "
+                "`stream` (direct) ou `youtube` (chaîne)",
             )
         if "stream" in table and "duration_minutes" not in table:
             _refuser(
@@ -645,12 +680,20 @@ def _emissions(brut: Mapping[str, Any]) -> tuple[Show, ...]:
             )
         if "stream" not in table and "duration_minutes" in table:
             _refuser(prefix, f"« {name} » : sa durée se lit à la source, pas ici")
+        if "end" in table and not ({"feed", "feeds"} & set(table)):
+            _refuser(
+                prefix,
+                f"« {name} » : `end` fait enchaîner des épisodes, "
+                "ce qu'un direct et une chaîne ne savent pas faire",
+            )
         shows.append(
             Show(
                 name=name,
                 days=_jours(table, prefix),
                 hour=_heure(table, "time", prefix),
+                end=_heure(table, "end", prefix) if "end" in table else None,
                 feed=_texte(table, "feed", prefix) if "feed" in table else None,
+                feeds=_flux(table, prefix, name) if "feeds" in table else (),
                 stream=_texte(table, "stream", prefix) if "stream" in table else None,
                 youtube=_texte(table, "youtube", prefix) if "youtube" in table else None,
                 duration_minutes=(
@@ -665,10 +708,15 @@ def _emissions(brut: Mapping[str, Any]) -> tuple[Show, ...]:
 
 
 def _refuser_les_collisions(shows: Sequence[Show]) -> None:
-    """Refuse deux émissions au même jour et à la même heure, en les nommant.
+    """Refuse deux émissions qui se disputeraient l'antenne, en les nommant.
 
     La radio ne peut pas en diffuser deux à la fois et ne choisit pas à la
     place de l'auteur (SPECS.md §5).
+
+    Deux cas : la même heure le même jour, et une **plage** dont l'intervalle
+    contient l'heure d'une autre émission. Le second n'était pas vu tant
+    qu'aucune case ne durait : une plage de trois heures avale les créneaux
+    qu'elle recouvre, sans que rien ne le dise (SPECS.md §7 n°35).
     """
     occupes: dict[tuple[str, time], str] = {}
     for show in shows:
@@ -682,6 +730,31 @@ def _refuser_les_collisions(shows: Sequence[Show]) -> None:
                     f"le {jour} à {show.hour.isoformat('minutes')}",
                 )
             occupes[creneau] = show.name
+    for plage in shows:
+        if plage.end is None:
+            continue
+        for autre in shows:
+            if autre is plage or not _memes_jours(plage, autre):
+                continue
+            if _dans_la_plage(autre.hour, plage.hour, plage.end):
+                debut = plage.hour.isoformat("minutes")
+                fin = plage.end.isoformat("minutes")
+                _refuser(
+                    "shows",
+                    f"« {autre.name} » commence à {autre.hour.isoformat('minutes')}, "
+                    f"pendant « {plage.name} » (de {debut} à {fin})",
+                )
+
+
+def _memes_jours(une: Show, autre: Show) -> bool:
+    return bool(set(une.days) & set(autre.days))
+
+
+def _dans_la_plage(heure: time, debut: time, fin: time) -> bool:
+    """Une plage dont la fin précède le début enjambe minuit."""
+    if debut < fin:
+        return debut <= heure < fin
+    return heure >= debut or heure < fin
 
 
 def _subsonic(brut: Mapping[str, Any]) -> SubsonicSettings:

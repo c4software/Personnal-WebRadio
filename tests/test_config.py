@@ -904,3 +904,88 @@ def test_une_adresse_de_flux_vide_est_refusee_en_le_nommant() -> None:
     with pytest.raises(SettingsError) as refus:
         _valider(TOML_MINIMAL + '\n[web]\nstream_url = ""\n')
     assert "web.stream_url" in str(refus.value)
+
+
+# ── Une plage podcasts : plusieurs flux, une fin (GOAL-077, n°35) ────────────
+
+PLAGE_TOML = (
+    '\n[[shows]]\nname = "Soirée podcasts"\n'
+    'feeds = ["https://a.test/rss", "https://b.test/rss"]\n'
+    'days = ["saturday"]\ntime = "20:00"\nend = "23:00"\n'
+)
+
+
+def test_une_plage_podcasts_declare_plusieurs_flux_et_une_fin() -> None:
+    config = _valider(TOML_MINIMAL + PLAGE_TOML)
+    plage = next(s for s in config.shows if s.name == "Soirée podcasts")
+    assert plage.feeds == ("https://a.test/rss", "https://b.test/rss")
+    assert plage.end == time(23)
+    assert plage.addresses == plage.feeds
+
+
+def test_une_emission_a_flux_unique_expose_la_meme_liste_d_adresses() -> None:
+    """La charnière ne connaît que `addresses` : un flux ou plusieurs se lisent
+    pareil, et rien en aval n'a à distinguer les deux."""
+    config = _valider(
+        TOML_MINIMAL
+        + '\n[[shows]]\nname = "Solo"\nfeed = "https://x.test/rss"\n'
+        + 'days = ["monday"]\ntime = "20:00"\n'
+    )
+    assert next(s for s in config.shows if s.name == "Solo").addresses == ("https://x.test/rss",)
+
+
+def test_une_plage_sans_aucun_flux_est_refusee() -> None:
+    """Refusée par la lecture de liste elle-même, qui nomme la clé fautive."""
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL
+            + '\n[[shows]]\nname = "Vide"\nfeeds = []\ndays = ["saturday"]\ntime = "20:00"\n'
+        )
+    assert "shows[0].feeds" in str(refus.value)
+
+
+def test_un_flux_declare_deux_fois_est_refuse() -> None:
+    """Il sortirait deux fois plus souvent que les autres, sans que rien ne le
+    dise : la pioche est uniforme entre les flux (SPECS.md §7 n°35)."""
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL
+            + '\n[[shows]]\nname = "Doublon"\nfeeds = ["https://a.test/rss", "https://a.test/rss"]\n'
+            + 'days = ["saturday"]\ntime = "20:00"\n'
+        )
+    assert "Doublon" in str(refus.value)
+
+
+def test_un_direct_ne_declare_pas_de_fin_de_plage() -> None:
+    """`end` fait enchaîner des épisodes ; un direct n'en a pas."""
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL
+            + '\n[[shows]]\nname = "Flash"\nstream = "https://x.test/flux.mp3"\n'
+            + 'duration_minutes = 5\ndays = ["all"]\ntime = "12:00"\nend = "13:00"\n'
+        )
+    assert "Flash" in str(refus.value)
+
+
+def test_une_plage_qui_recouvre_une_autre_emission_est_refusee() -> None:
+    """La règle d'avant ne voyait que l'égalité des heures : une plage de trois
+    heures avalait les créneaux qu'elle recouvre, sans que rien ne le dise."""
+    with pytest.raises(SettingsError) as refus:
+        _valider(
+            TOML_MINIMAL
+            + PLAGE_TOML
+            + '\n[[shows]]\nname = "Avalée"\nfeed = "https://c.test/rss"\n'
+            + 'days = ["saturday"]\ntime = "21:30"\n'
+        )
+    assert "Avalée" in str(refus.value)
+    assert "Soirée podcasts" in str(refus.value)
+
+
+def test_une_emission_hors_de_la_plage_reste_acceptee() -> None:
+    config = _valider(
+        TOML_MINIMAL
+        + PLAGE_TOML
+        + '\n[[shows]]\nname = "Après"\nfeed = "https://c.test/rss"\n'
+        + 'days = ["saturday"]\ntime = "23:30"\n'
+    )
+    assert len([s for s in config.shows if s.name in ("Après", "Soirée podcasts")]) == 2

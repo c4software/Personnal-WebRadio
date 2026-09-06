@@ -427,6 +427,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             duration=(
                 timedelta(minutes=e.duration_minutes) if e.duration_minutes is not None else None
             ),
+            end=e.end,
         )
         for e in settings.shows
     ]
@@ -460,7 +461,7 @@ def build(config: Config) -> tuple[LiquidsoapPlayout, LiveRadio, EffectiveSchedu
             ),
             state,
             clock,
-            {e.name: (e.feed,) for e in settings.shows if e.feed is not None},
+            {e.name: e.addresses for e in settings.shows if e.addresses},
             random,
             streams={e.name: e.stream for e in settings.shows if e.stream is not None},
             youtube_channels={e.name: e.youtube for e in settings.shows if e.youtube is not None},

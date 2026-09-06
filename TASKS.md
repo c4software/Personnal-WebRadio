@@ -283,7 +283,7 @@ neuf, on joue son épisode, on recommence ; à `end`, l'épisode en cours **fini
       plusieurs adresses par émission, enchaîne dans la case, et nomme le flux
       tiré dans son journal. La clé de mémoire passe à `<name>/<feed>` —
       changement de ce que garde la base, donc ARCHITECTURE.md §5.
-- [ ] **GOAL-077-T04** — La configuration : `feeds` et `end` dans
+- [x] **GOAL-077-T04** — La configuration : `feeds` et `end` dans
       `adapters/config/schema.py`, exclusifs de `feed`/`stream`/`youtube`,
       refusés là où ils n'ont pas de sens. **Une règle à trancher en chemin** :
       la détection de collision juge aujourd'hui « la case déclarée » ; une

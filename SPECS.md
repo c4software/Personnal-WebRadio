@@ -894,6 +894,29 @@ days = ["mardi", "jeudi"]
 time = "21:00"
 ```
 
+Une **plage de podcasts** (§7 n°35) se déclare de la même façon, avec deux
+clés de plus : `feeds` à la place de `feed`, et `end` :
+
+```toml
+[[shows]]
+name  = "Podcasts - longs formats"
+feeds = [
+  "https://feeds.acast.com/public/shows/legend-1",
+  "https://feeds.audiomeans.fr/feed/f57a29ac-....xml",
+]
+days = ["saturday", "sunday"]
+time = "21:00"
+end  = "23:00"
+```
+
+Entre `time` et `end`, la radio tire un flux au hasard parmi ceux qui ont un
+épisode non diffusé, joue son épisode, puis recommence. La pioche est uniforme
+**entre les flux**, jamais entre les épisodes. L'épisode entamé avant `end`
+finit (§7 n°5) : une plage déborde donc d'autant plus que ses flux sont longs.
+`end` est réservée aux podcasts — un direct et une chaîne YouTube n'enchaînent
+rien — et une émission dont l'heure tombe **pendant** une plage du même jour
+fait échouer le démarrage, comme deux émissions à la même heure.
+
 `jours` vaut `"tous"` ou une liste de jours de la semaine ; `heure` est un moment
 de la journée. **Rien de plus.** Ce choix est délibéré : des champs déclaratifs
 n'exigent aucun analyseur syntaxique, se testent directement, et couvrent les
