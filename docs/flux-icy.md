@@ -201,8 +201,11 @@ icy-br: 128
   n'a toujours pas été essayée.
 - Entrer en cours de route (§2) et les changements de format (§3) restent sans
   objet : un seul encodeur, un seul format.
-- Les métadonnées de titre (§4) ne sont pas envoyées dans le flux ; l'API les
-  porte. Toujours ouvert : est-ce attendu par un lecteur ?
+- Les métadonnées de titre (§4) n'étaient alors pas envoyées dans le flux ;
+  l'API les portait seule. **Ce n'est plus vrai depuis le 2026-09-07**
+  (GOAL-088) : le flux négocie `icy-metaint` et porte un `StreamTitle` à chaque
+  jonction, sur une image de la branche 2.4 — la 2.3.3 ne le pouvait pas
+  (docs/liquidsoap.md §15).
 
 **La matrice des vrais lecteurs (§6) reste entière** : `GOAL-016-T12`.
 

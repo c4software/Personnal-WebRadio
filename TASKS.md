@@ -241,11 +241,28 @@ oubliée. Ouvert sur le résidu consigné par la relecture de GOAL-086-T06 ; deu
 tâches, deux commits. **Reste à écouter** (AGENTS.md §4.1) : un vrai « Passer »
 en plage, l'épisode qui prend l'antenne et celui qui suit.
 
-**Prochaine tâche** : GOAL-088-T06, l'écoute par l'auteur dans de vrais
-lecteurs, puis GOAL-088-T07 (documentation). GOAL-088-T05 est faite : le direct
-porte son libellé dans `live:<fin>:<libellé>:<url>`. Restent ensuite
-GOAL-082-T04 (le seuil de vivier de l'ancre d'`artist_fan`) et GOAL-075-T03,
-qui attend le déploiement.
+**GOAL-088 est clos le 2026-09-07** : le flux annonce ce qui passe aux lecteurs.
+« Artiste - Titre » pour une chanson, le libellé de la page pour tout le reste —
+un jingle par sa nature, une émission par son nom et son épisode, un direct par
+le nom de l'émission, posé à la prise d'antenne parce que son flux n'envoie
+rien. Il a fallu changer d'image : la 2.3.3 ne négocie jamais `icy-metaint`,
+aucune version publiée ne porte le correctif, et l'épingle est devenue un
+condensat de la branche 2.4 — `radio.liq` migré dans le même commit. Rejouer les
+treize relevés antérieurs sur cette image a trouvé une régression que le sujet
+n'annonçait pas : en 2.4, `normalize` consomme sa source sans auditeur, donc un
+morceau était tiré, décodé et annoncé au démarrage, contre SPECS.md §1 — corrigé
+par GOAL-088-T08, une garde `source.available` avant `cross`. Le défaut
+multi-auditeurs de la 2.4 est accepté et consigné (§7 n°47). **Reste à écouter**
+(AGENTS.md §4.1) : le titre affiché dans VLC, cliamp, un navigateur et une
+enceinte, un changement de titre sans décrochage, deux lecteurs en même temps,
+le fondu à une jonction ordinaire, un « Passer » sur un vrai épisode, la reprise
+du matin et la montée de gain de `normalize` sur son premier morceau, un jingle
+horaire et un générique, le flash de midi et le retour à la musique.
+**GOAL-089 est ouvert** par cette clôture : trois résidus qui demandent l'amont,
+une manche de plus ou la pile réelle.
+
+**Prochaine tâche** : GOAL-082-T04 (le seuil de vivier de l'ancre
+d'`artist_fan`), puis GOAL-075-T03, qui attend le déploiement.
 
 ---
 
@@ -469,201 +486,28 @@ verrouillage pendant l'émission de dimanche prochain.
 
 ---
 
-## GOAL-088 — Le flux annonce le titre en cours aux lecteurs
+## GOAL-089 — Les résidus du passage à la branche 2.4
 
-Ouvert le 2026-09-07 à la demande de l'auteur : un lecteur qui consomme le flux
-(cliamp, VLC) doit afficher la chanson en cours. Le mécanisme est celui de tous
-les lecteurs de webradio : les métadonnées ICY en ligne (`icy-metaint`,
-`StreamTitle`). Constaté en maquette le même jour : l'image épinglée
-`v2.3.3` ne les négocie jamais (bug amont, docs/liquidsoap.md §6) ; l'image de
-branche `v2.4.x-latest` (2.4.6+git) les émet, mais aucune version publiée ne
-porte le correctif (2.4.5 du 2026-06-15, correctif du 2026-07-22).
+Ouvert le 2026-09-07 par la clôture de GOAL-088. Trois points que le Goal a
+laissés ouverts sans les inventer : ils demandent l'amont, une manche de plus,
+ou la pile réelle.
 
-Décisions de l'auteur : épingler la branche 2.4 **par condensat** ; chanson =
-« Artiste - Titre » construit par Liquidsoap depuis les étiquettes ; hors
-chanson, le **libellé de l'interface**, construit par le script depuis
-`radio_kind`/`radio_label` ; le direct reçoit son libellé par un champ de plus
-dans `live:<fin>:<libellé>:<url>` ; pas de `StreamUrl`. Le défaut de la
-branche 2.4 — chaque bloc ICY n'est livré qu'à **un seul** auditeur, corrigé
-amont sur `main`/2.5 seulement (PR #5003) — est **accepté et consigné**
-(SPECS.md §7 n°47), à revoir quand l'amont le porte sur 2.4.
-
-Ce que l'analyse préalable a établi (maquettes dans le scratchpad, à consigner
-en T01) : la 2.4 exige `synchronous=true` sur les rappels de source,
-`null` nu, `on_connect`/`on_disconnect` par méthode ; `fetch()` y devient
-asynchrone et casse `/skip-fresh` (3,75 s de blanc, remède `request.resolve`
-+ `add` mesuré sans blanc) ; `normalize` placé **avant** `cross` supprime les
-métadonnées et le fondu enchaîné (ordre à inverser) ; `annotate:title=`
-écrase le titre mais l'artiste du fichier subsiste, seul `metadata.map(strip=true)`
-rend un libellé propre ; un fichier sans étiquette n'émet rien ; France Info
-n'envoie rien, `metadata.map(insert_missing=true)` sur `input.http` donne un
-titre à la prise d'antenne.
-
-- [x] **GOAL-088-T01** — Relevé : consigner dans docs/liquidsoap.md (§15) la
-      branche 2.4 — les quatre changements de `--check`, `fetch()` asynchrone
-      et `resolve`+`add`, `normalize` après `cross`, ce que `StreamTitle` donne
-      (titre seul, `title=` sur un fichier étiqueté, `strip=true`, direct avec
-      et sans métadonnée, moment du changement au fondu), le bug
-      multi-auditeurs et son état amont ; réécrire §6 ; fermer docs/flux-icy.md
-      §4 pour ce qui est tranché.
-      **Fait** : docs/liquidsoap.md §15 en sept sections (`--check`, `fetch()`
-      asynchrone et `resolve`+`add`, `normalize` après `cross`, `StreamTitle`,
-      le direct, le moment du changement au fondu, le bug multi-auditeurs),
-      §6 réécrit, en-tête disant que §15 relève la 2.4 ; docs/flux-icy.md §4
-      et §6 tranchés sauf le décrochage, laissé à GOAL-088-T06.
-- [x] **GOAL-088-T02** — Épingler `savonet/liquidsoap@sha256:…` (branche
-      `v2.4.x-latest`, 2.4.6+git du 2026-09-05) dans `Dockerfile.liquidsoap`
-      et `verifier.sh`, le test exigeant un condensat identique aux deux
-      endroits ; migrer `radio.liq` dans le même commit (`synchronous`,
-      `null`, `on_connect` par méthode, `fetch()` → `resolve`+`add`,
-      `normalize` après `cross`, masquages renommés) ; `./verifier.sh` passe
-      contre l'image épinglée. **À écouter** : une jonction ordinaire (le fondu
-      tient), un « Passer » en plage (pas de blanc).
-      **Fait** : `Dockerfile.liquidsoap` et `verifier.sh` épinglent
-      `savonet/liquidsoap@sha256:b27b11cf…` (tag d'origine `v2.4.x-latest`,
-      2.4.6+git@284f9c903), le test exige un condensat aux deux endroits ;
-      `radio.liq` migré d'un bloc — `on_track(synchronous=true, …)`, `null` nu,
-      `on_connect`/`on_disconnect` par méthode sur la sortie, `/skip-fresh`
-      réécrit en `next_entry()` + `request.resolve` + `add` (`fetch()` est
-      asynchrone en 2.4), `cross` avant `normalize`, masquages renommés
-      (`address`, `tags`, `annoncer_la_piste`, `req`). `--check` est silencieux
-      et `./verifier.sh` passe contre l'image épinglée. Maquette fidèle rejouée
-      sur 2.4 (vrai `radio.liq`, fausse API, épisode lourd servi à 50 000 o/s,
-      auditeur `curl`) : `/skip-fresh` répond en 8,013 s, le ton en cours tient
-      sans discontinuité jusqu'au saut, fondu de 0,5 s puis l'entrée fraîche —
-      **aucune fenêtre de silence**.
-      **Reste à écouter** (AGENTS.md §4.1) : une jonction ordinaire, pour
-      savoir si le fondu tient avec `normalize` derrière `cross`, et un
-      « Passer » en plage sur un vrai épisode.
-- [x] **GOAL-088-T03** — Rejouer en maquette fidèle sur 2.4 les relevés que la
-      migration remet en cause : §5.bis (annoncer avant de rendre l'antenne,
-      `on_connect` par méthode), §9 (`on_track` synchrone, direct), §10 et §11
-      (reliquat, muet de reprise, rampe, avec `cross` avant `normalize`), §12
-      et §14 (`/skip-fresh` réécrit) ; consigner.
-      **Fait** : onze manches sur le vrai `radio.liq` monté dans l'image
-      épinglée, fausse API horodatée, tons purs et flux mesuré par fenêtres de
-      0,25 s, plus un **témoin** 2.3.3 avec le script d'avant la migration
-      (`fb75f2d^`) — c'est lui qui distingue la version du script. Consigné en
-      docs/liquidsoap.md §16, et la liste « à rejouer » de §15 est cochée.
-      Bilan : **tout se rejoue à l'identique sauf un défaut**, ouvert en T08 —
-      en 2.4 `normalize` tire la source sans auditeur, donc un morceau est
-      tiré, décodé et annoncé au démarrage (SPECS.md §1). Le reste tient :
-      `icy-metaint: 8192` négocié sur le vrai script, annonce avant bascule,
-      `/requeue` et `/skip` en 7 et 1 ms pendant que `on_connect` attend 3 s,
-      `listeners 0` en 226 ms sur un `curl` tué (§4 n'avait jamais mesuré une
-      déconnexion brutale), direct pris 10 ms après l'`on_track` qui l'arme et
-      annoncé par la transition, reliquat jeté et rampe de 2 s en régime lent
-      comme rapide, `/skip-fresh` qui saute quand même sur un 404 (sans blanc)
-      et sur un direct. Le `523` de §11 n'est pas reproduit ; le coût passe de
-      1,0 à 1,9 % de CPU au repos et de 3,1 à 3,7 % avec un auditeur.
-      **Reste à écouter** (AGENTS.md §4.1) : la reprise du matin après une
-      longue pause, les fondus `liq_fade_*` d'un jingle (§1.4, §7), et si la
-      demi-seconde de musique qui précède un direct pioché par « Passer »
-      s'entend comme un accroc.
-      **Prochaine tâche** : GOAL-088-T04.
-- [x] **GOAL-088-T04** — Hors chanson, le flux annonce le libellé de
-      l'interface : `metadata.map(strip=true, …)` dans `radio.liq` d'après
-      `radio_kind`/`radio_label`, un jingle étiqueté compris ; test du script
-      (maquette `--check` et maquette ICY reproductible). **À écouter** : un
-      jingle horaire et un générique dans VLC.
-      **Fait** : `metadata.map(strip=true, libelle_hors_chanson, programme)`
-      posé entre `cross` et `normalize`. La carte reproduit la règle de la page
-      (`antenne.title || antenne.kind`) : une chanson garde « Artiste - Titre »
-      assemblé des étiquettes, une émission annonce son libellé
-      (`<émission> · <épisode>`, celui que la page affiche), un jingle — qui
-      n'a jamais de `radio_label` — annonce sa nature, `jingle`. Mesuré sur la
-      maquette fidèle de §16/§17 (image épinglée, vrai `radio.liq`, fausse API,
-      quatre fichiers **tous étiquetés**, `curl -H "Icy-MetaData: 1"`,
-      docs/liquidsoap.md §18) : `'Un - La'`, `'jingle'` (le témoin sans la
-      carte disait `'Deux - Le'`), `'A la French · n° 12'` (témoin
-      `'Trois - Les'`), `'Quatre - Lu'` ; blocs aux mêmes numéros que le
-      témoin, `Analysis … (1,98 s / 0,50 s)` — le fondu court du jingle tient.
-      Ce que `/playout/playing` reçoit est **inchangé**, corps par corps : la
-      carte est posée après le `on_track` de `programme`. La même carte avant
-      `cross` donne le même résultat ; écartée pour laisser `cross` lire les
-      métadonnées intactes. SPECS.md §4.9 dit ce qui est annoncé par nature.
-      **Reste à écouter** (AGENTS.md §4.1) : un jingle horaire et un générique
-      de moment dans VLC — le libellé `jingle` s'affiche à la place du titre du
-      fichier, et rien ici ne dit ce qu'un vrai lecteur en fait.
-      **Prochaine tâche** : GOAL-088-T05.
-- [x] **GOAL-088-T05** — Le direct porte un titre : `live:<fin>:<libellé>:<url>`
-      produit par `show_scheduler.py` (libellé sans deux-points, garanti par
-      l'API), relu par `liquidsoap_playout.py`, posé par `metadata.map` sur
-      `input.http` dans `radio.liq` ; tests. **À écouter** : le flash de midi,
-      et le titre qui revient à la musique.
-      **Fait** : `_direct_de` rend `live:<fin>:<libellé>:<url>`, le libellé
-      étant le nom de l'émission — celui que la page affiche, une case de
-      direct n'ayant pas d'épisode. Les deux-points y sont **remplacés par une
-      espace** plutôt que refusés : le direct passe quand même, et l'URL, seule
-      à en porter, reste le dernier champ. Le script lit le libellé au
-      troisième champ et recompose l'adresse depuis le quatrième. La
-      restauration après redémarrage relit cette instruction comme elle relit
-      les annotations : un `radio` redémarré pendant le flash affiche
-      l'émission et sa fin au lieu de garder le morceau d'avant.
-      **Mesuré sur la maquette fidèle** (image épinglée, vrai `radio.liq`,
-      fausse API, direct servi sans métadonnée comme France Info,
-      `curl -H "Icy-MetaData: 1"`, docs/liquidsoap.md §19), trois manches :
-      `'Un - La'` à 3,58 s, **`'Flash franceinfo'` à 26,11 s** — 0,14 s avant
-      l'audio du direct —, `'Un - La'` à 53,25 s sur les deux secondes de
-      reliquat, `'Trois - Les'` à 55,30 s sur l'entrée fraîche. Le témoin
-      d'avant la tâche n'annonce **rien** de toute la case : le lecteur y garde
-      le titre de la chanson d'avant.
-      **Un écart avec §15.5, corrigé** : `metadata.map` seule ne parle qu'au
-      début de la piste de `input.http`, or le direct coule depuis
-      l'instruction — 21 s plus tôt en maquette, une chanson entière en
-      production —, et le bloc se perd. `live_raw.insert_metadata` dans la
-      transition `prise_direct` le pose à la prise d'antenne ; la carte reste
-      pour que rien du distant ne passe (`update=false`, `strip` sans objet).
-      `/playout/playing` reçoit le nouveau format, une fois, à la prise
-      d'antenne.
-      **Reste à écouter** (AGENTS.md §4.1) : le flash de midi dans un vrai
-      lecteur, et le titre qui revient à la musique à la fin de la case.
-      **Prochaine tâche** : GOAL-088-T06, puis T07.
-- [ ] **GOAL-088-T06** — Constater dans de vrais lecteurs (VLC, cliamp,
-      navigateur, enceinte) : titre affiché, changement de titre sans
-      décrochage, deux lecteurs en même temps ; consigner dans
-      docs/flux-icy.md. Écoute seule, par l'auteur.
-- [ ] **GOAL-088-T07** — Documentation : SPECS.md §4.9 et §7 (n°23 précisée,
-      n°46, n°47), ARCHITECTURE.md §4 et §8.5 (épingle par condensat, image
-      de 1,12 Go), carte du dépôt (§9). §4 dit encore « rien de décodé sans
-      auditeur, ~0,8 % d'un cœur » : les deux sont faux tant que T08 n'est pas
-      faite (docs/liquidsoap.md §16.1 et §16.7).
-- [x] **GOAL-088-T08** — Ouverte par T03 le 2026-09-07, sur mesure. En 2.4,
-      `normalize` consomme sa source en continu quelle que soit la sortie :
-      placé **avant** le `switch` des auditeurs dans `radio.liq`, il fait tirer,
-      décoder et annoncer un morceau alors que `blank()` est à l'antenne et que
-      personne n'écoute (docs/liquidsoap.md §16.1). Mesuré : `NEXT#0` 1 s après
-      le démarrage, `PLAYING` dans la foulée, auditeur trois secondes plus tard
-      qui prend le morceau en cours. Le témoin 2.3.3 ne tire rien avant le
-      branchement. Trois conséquences : SPECS.md §1 n'est plus tenu,
-      `piste_commencee` est vrai dès le démarrage — le garde-fou du saut à vide
-      (§9) ne refuse plus rien —, et le premier bloc ICY est vide.
-      Isolé opérateur par opérateur : ce n'est ni `cross`, ni l'ordre des deux,
-      ni `on_track`, ni `input.http`. Instruire le remède (déplacer `normalize`
-      après le `switch` des auditeurs, ou s'en passer) sans reperdre le fondu de
-      §15.3, et le mesurer sur la même maquette.
-      **Fait** : `programme = source.available(programme, {listeners() > 0})`
-      posé **avant** `cross`. Sept pistes mesurées sur la maquette de T03,
-      30 s de démarrage sans auditeur chacune (docs/liquidsoap.md §17) : le
-      script tel quel tire trois fois et décode deux morceaux ; la même garde
-      posée **après** `cross` ne change rien (`cross` commence une piste pour
-      répondre à `normalize`) ; `normalize` après le `switch` des auditeurs,
-      `normalize.old` et le retrait pur et simple laissent **un** tirage sans
-      décodage — donc une avance qui vieillit ; `enabled={listeners() > 0}` est
-      sans effet ; la garde avant `cross` ne tire **rien**, comme le témoin
-      2.3.3. Rejoué sur la piste retenue : `/skip` à vide de nouveau refusé et
-      le premier morceau intact, `icy-metaint: 8192` et un `StreamTitle` à
-      chaque jonction, `Analysis … (1,98 s / 2,00 s)` — le fondu enchaîné de
-      §15.3 tient —, rampe de prise d'antenne de 2 s, direct pris à la jonction
-      et rendu à l'heure dite sur deux cases, reprise sans aucune trace du
-      morceau d'avant la pause en régime rapide comme lent, « Passer » en
-      8,014 s sans blanc. Coût au repos 1,17 à 1,45 % d'un cœur contre 1,79 à
-      2,00 % avec le défaut.
-      **Reste à écouter** (AGENTS.md §4.1) : rien du niveau sonore ne change —
-      `normalize` garde ses réglages et sa place —, mais il ne travaille plus
-      qu'à l'antenne : ce que donne sa montée de gain sur le premier morceau
-      d'une reprise ne se mesure pas ici.
-      **Prochaine tâche** : GOAL-088-T04.
+- [ ] **GOAL-089-T01** — Revoir SPECS.md §7 n°47 quand l'amont porte la PR
+      #5003 sur la branche 2.4 — ou quand la 2.5 accepte notre script. Tant que
+      le défaut dure, un bloc ICY n'est livré qu'à un seul auditeur
+      (docs/liquidsoap.md §15.7). Ce qu'il faudra faire : reprendre l'épingle,
+      rejouer la manche à trois auditeurs de §15.7, et refermer la décision.
+- [ ] **GOAL-089-T02** — Mesurer ce que devient le tampon de `cross` quand le
+      **dernier auditeur part au milieu d'un morceau**. La garde
+      `source.available(programme, {listeners() > 0})` de GOAL-088-T08 n'est pas
+      `track_sensitive` : la source devient indisponible sur-le-champ, et aucune
+      manche n'a mesuré le rebranchement qui suit hors de la purge de reprise
+      (docs/liquidsoap.md §17, points incertains).
+- [ ] **GOAL-089-T03** — Le direct sur la pile réelle : ce que `input.http`
+      fait du **vrai** France Info (§5 et §16 l'ont simulé par un serveur
+      local), et ce qu'un distant qui **envoie** de l'ICY donne sous
+      `update=false` — la carte doit l'écarter, ce n'est pas mesuré
+      (docs/liquidsoap.md §19, points incertains).
 
 ---
 
@@ -758,7 +602,8 @@ titre à la prise d'antenne.
 | GOAL-085 | L'antenne dit où en est ce qui passe | `[x]` — clos le 2026-09-06 ; **reste à écouter** le décalage entre la barre et l'oreille, et l'écran de verrouillage |
 | GOAL-086 | Passer un épisode pioche un autre épisode | `[x]` — clos le 2026-09-06 ; **reste à écouter** un « Passer » sur un vrai épisode lourd et un redéploiement en pleine plage |
 | GOAL-087 | Après un « Passer », les deux entrées en vol sont des épisodes | `[x]` — clos le 2026-09-06 ; **reste à écouter** un vrai « Passer » en plage, l'épisode qui prend l'antenne et celui qui suit |
-| GOAL-088 | Le flux annonce le titre en cours aux lecteurs (ICY) | `[ ]` — ouvert le 2026-09-07 |
+| GOAL-088 | Le flux annonce le titre en cours aux lecteurs (ICY) | `[x]` — clos le 2026-09-07 ; **reste à écouter** le titre affiché dans de vrais lecteurs, un changement de titre sans décrochage, et deux lecteurs en même temps |
+| GOAL-089 | Les résidus du passage à la branche 2.4 | `[ ]` — ouvert le 2026-09-07 par la clôture de GOAL-088 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

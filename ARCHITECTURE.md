@@ -146,7 +146,7 @@ Liquidsoap  ──« morceau suivant ? »──▶  adapters/liquidsoap  ──�
 | Conséquence | Détail |
 |---|---|
 | Ce qu'on gagne | Enchaînement, fondus, niveau, fan-out, auditeur lent, déconnexion brutale, direct borné dans le temps — éprouvés ailleurs, pas écrits ici |
-| Ce qu'on paie | Un processus debout en permanence (rien de décodé sans auditeur, ~0,8 % d'un cœur) ; une image de 1,12 Go ; un script `.liq` dont la syntaxe dépend de la version |
+| Ce qu'on paie | Un processus debout en permanence (rien de décodé sans auditeur, 1,2 à 1,5 % d'un cœur sur la branche 2.4, docs/liquidsoap.md §17.3) ; une image de 1,12 Go ; un script `.liq` dont la syntaxe dépend de la version |
 | Ce qu'il faut surveiller | **Que Liquidsoap ne décide jamais.** Une `playlist()` dans le script, un `random` de Liquidsoap, un jingle inséré par le script : c'est le noyau contourné, et ce qu'aucun test ne verra |
 
 **Le script n'a pas de raccourci**, comme l'interface web (§6) : il demande le
@@ -160,8 +160,8 @@ place l'économie de la machine en troisième. Liquidsoap réencode tout vers un
 seul format (`%mp3(bitrate=…)` dans `radio.liq`) : un lecteur ne voit jamais le
 format changer, quelle que soit l'hétérogénéité de la bibliothèque
 (docs/subsonic.md §3.1). Le coût mesuré est de l'ordre d'un pour cent d'un
-cœur (docs/ffmpeg.md §2.bis, docs/liquidsoap.md §1.3) : il n'y a rien à
-optimiser.
+cœur sans auditeur et de quatre avec (docs/ffmpeg.md §2.bis,
+docs/liquidsoap.md §17.3) : il n'y a rien à optimiser.
 
 ### 4.1 Un flux, N auditeurs, un morceau d'avance
 
@@ -805,6 +805,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 ├── pyproject.toml ....... paquet, ruff, mypy, pytest, couverture
 ├── verifier.sh .......... LA commande de vérification (AGENTS.md §5.2)
 ├── Dockerfile, docker-compose.yml, .dockerignore
+├── Dockerfile.liquidsoap  l'image du diffuseur : l'amont épinglée par condensat PLUS radio.liq (§8.5.2)
 ├── docker-compose.dev.yml  surcharge : construire le code en cours (§8.5.4)
 ├── jingles/ ............. les jingles de l'auteur — versionné vide, contenu ignoré
 ├── outils/ .............. des scripts hors ligne qui FABRIQUENT des fichiers, en conteneur — voir son README
@@ -852,7 +853,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   ├── subsonic.md ..... relevé de l'API Subsonic telle que Navidrome l'implémente
 │   ├── franceinfo.md .... relevé du flash d'information — source non confirmée
 │   ├── podcast.md ....... relevé des flux de podcast des émissions
-│   ├── liquidsoap.md .... relevé de Liquidsoap (2.3.3 puis 2.4), et ce qui a décidé la migration
+│   ├── liquidsoap.md .... relevé de Liquidsoap (2.3.3, puis la branche 2.4 épinglée), et ce qui a décidé la migration
 │   ├── ffmpeg.md ........ relevé historique — vaut pour ce que Liquidsoap fait en dessous
 │   ├── youtube.md ....... relevé : RSS de chaîne, yt-dlp, URL qui expirent
 │   └── flux-icy.md ...... relevé de ce qu'attendent les lecteurs de webradio

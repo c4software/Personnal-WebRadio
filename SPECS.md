@@ -20,8 +20,8 @@ d'interruptions d'information et d'**émissions** programmées.
 Elle n'existe **que lorsqu'on l'écoute** : rien n'est décodé ni demandé tant que
 personne n'est branché ; la musique démarre à la première connexion et s'arrête
 à la dernière. Depuis le 2026-08-30 (§7 n°23), un processus de diffusion reste
-debout entre deux écoutes — il encode du silence à moins d'un pour cent d'un
-cœur — mais il ne tire aucun morceau, n'interroge pas la bibliothèque et ne fait
+debout entre deux écoutes — il encode du silence, pour un peu plus d'un pour
+cent d'un cœur (§7 n°23) — mais il ne tire aucun morceau, n'interroge pas la bibliothèque et ne fait
 avancer ni la file ni la non-répétition.
 
 L'expérience recherchée :
@@ -860,8 +860,9 @@ Un réencodage permanent vers un format unique est donc la voie par défaut, et
 elle est assumée. Chercher moins coûteux est une **optimisation**, jamais un
 prétexte à violer cet ordre.
 
-**Et il annonce ce qui passe.** Le flux porte le titre en cours (`StreamTitle`
-des métadonnées ICY), et ce titre est **ce que l'interface affiche** :
+**Et il annonce ce qui passe** (§7 n°46). Le flux porte le titre en cours
+(`StreamTitle` des métadonnées ICY), et ce titre est **ce que l'interface
+affiche** :
 
 - une **chanson** s'annonce « Artiste - Titre », assemblé des étiquettes du
   fichier ;
@@ -878,8 +879,8 @@ Un lecteur voit le titre changer un peu avant de l'entendre changer : le
 changement tombe au début du fondu enchaîné (docs/liquidsoap.md §15.6). Un
 auditeur qui se branche en cours de morceau n'affiche rien jusqu'à la jonction
 suivante, et deux lecteurs branchés ensemble ne reçoivent pas les mêmes titres —
-défaut du diffuseur, accepté par décision de l'auteur (docs/liquidsoap.md
-§15.7 ; la décision rejoint §7 en GOAL-088-T07).
+défaut du diffuseur, accepté par décision de l'auteur (§7 n°47,
+docs/liquidsoap.md §15.7).
 
 ### 4.10 D'où vient la musique
 
@@ -1632,6 +1633,13 @@ fond, sert, et gère les auditeurs.
 > cœur. Une image de 967 Mo, et un langage de script dont la syntaxe change
 > d'une version à l'autre : le script est validé par `liquidsoap --check` dans
 > la vérification, contre la version épinglée.
+>
+> **Précisée le 2026-09-07** (GOAL-088) : l'épingle n'est plus une version mais
+> un **condensat de la branche 2.4**, aucune version publiée ne portant le
+> correctif des métadonnées ICY qu'exige la n°46 (docs/liquidsoap.md §15) — et
+> cela coûte une image de **1,12 Go** au lieu de 967 Mo, **1,2 à 1,5 % d'un
+> cœur** au repos au lieu de 1,0 % (docs/liquidsoap.md §17.3), et un amont qui
+> annonce désormais `output.harbor` comme peu maintenu.
 
 **n°27 — Un journal des titres ? Oui, borné.** Tranchée le 2026-08-30 par
 l'auteur. Ce qui commence — musique et émissions, pas l'habillage — s'inscrit
@@ -1959,6 +1967,25 @@ attendre la réponse**.
 > et prenait l'antenne au saut. La première résolue passe, l'autre devient
 > l'avance et sera jetée à `end` si elle n'a pas commencé (n°43).
 
+**n°46 — Le flux annonce ce qui passe en `StreamTitle`.** Tranchée le
+2026-09-07 par l'auteur (GOAL-088). Le flux porte les métadonnées ICY en ligne,
+et le titre annoncé est **celui que l'interface affiche** : « Artiste - Titre »
+pour une chanson, assemblé des étiquettes du fichier ; le libellé de la page
+pour tout le reste — une émission par son nom et son épisode, un jingle par sa
+nature, un direct par le nom de l'émission. **Pas de `StreamUrl`.**
+> *Raison* : afficher le titre est **attendu** d'un lecteur de webradio
+> (docs/flux-icy.md §4), et cliamp ne lit que `StreamTitle`. Hors chanson, les
+> étiquettes du fichier ne veulent rien dire — un jingle horaire annonçait le
+> nom de son fichier —, et une seconde formulation du libellé divergerait de la
+> page : le script reproduit donc sa règle, `radio_label` sinon `radio_kind`
+> (docs/liquidsoap.md §15.4 et §18). Le direct n'envoie aucune métadonnée : son
+> libellé voyage dans l'instruction et le diffuseur le pose à la prise
+> d'antenne (docs/liquidsoap.md §19). `StreamUrl` est écarté : rien dans le
+> produit n'a d'adresse à donner, et la pochette n'est de toute façon pas
+> transportable par ce protocole.
+> *Ce que cela coûte* : l'épingle passe à un condensat de la branche 2.4
+> (n°23), et le défaut multi-auditeurs de la n°47 vient avec.
+
 ### Encore ouvert
 
 **n°9 — L'écoute n'est pas un cas d'arrêt.**
@@ -2052,3 +2079,16 @@ sous la mauvaise plage — le titre est tiré pour un moment qu'il n'atteindra
 pas, et la revalidation le jette à la préparation d'après. Ce qui le
 trancherait : appliquer le même plafond aux durées de l'avance, ou établir que
 l'écart reste sous la minute et l'écrire.
+
+**n°47 — Un bloc ICY n'est livré qu'à un seul auditeur.** Ouverte le
+2026-09-07 par GOAL-088, **et acceptée en l'état par l'auteur.** Sur la branche
+2.4 épinglée (n°23), chaque bloc de métadonnées est consommé par un seul des
+lecteurs branchés : sur trois auditeurs, l'un reçoit les titres 1 à 3, un autre
+le quatrième, le troisième aucun ; et un lecteur qui rejoint en cours de morceau
+n'affiche rien jusqu'à la jonction suivante — encore faut-il qu'il gagne le
+tirage (docs/liquidsoap.md §15.7). Ce que cela coûte : le titre qu'un lecteur
+affiche ne dit rien de ce que les autres voient. §3 ne prévoit qu'un auditeur,
+et le son, lui, est intact. Ce qui le trancherait : l'amont a corrigé le défaut
+sur `main` (PR #5003, fusionnée le 2026-04-28) mais ne l'a **pas** porté sur
+2.4 ; la question se rouvre le jour où il le porte, ou le jour où la 2.5 accepte
+notre script.
