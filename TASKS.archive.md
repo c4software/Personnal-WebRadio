@@ -3462,8 +3462,10 @@ l'amont portera #5003 sur 2.4.
 **Reste à écouter** (AGENTS.md §4.1) — c'était GOAL-088-T06, et c'est une
 écoute par l'auteur :
 
-- le **titre affiché** dans VLC, cliamp, un navigateur et une enceinte, un
-  libellé accentué et ponctué compris (`A la French · n° 12`) ;
+- ~~le **titre affiché** dans VLC, cliamp, un navigateur et une enceinte~~ —
+  **écoute validée le 2026-09-07** : l'auteur voit le titre en cours de
+  lecture dans son lecteur, après déploiement ; reste un libellé accentué et
+  ponctué (`A la French · n° 12`), et les autres lecteurs de la matrice ;
 - un **changement de titre** qui ferait décrocher un lecteur : aucune maquette
   ne le dira, `curl` ne décroche de rien (docs/flux-icy.md §4) ;
 - **deux lecteurs en même temps**, pour voir ce que le défaut n°47 donne à

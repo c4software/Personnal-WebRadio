@@ -602,7 +602,7 @@ ou la pile réelle.
 | GOAL-085 | L'antenne dit où en est ce qui passe | `[x]` — clos le 2026-09-06 ; **reste à écouter** le décalage entre la barre et l'oreille, et l'écran de verrouillage |
 | GOAL-086 | Passer un épisode pioche un autre épisode | `[x]` — clos le 2026-09-06 ; **reste à écouter** un « Passer » sur un vrai épisode lourd et un redéploiement en pleine plage |
 | GOAL-087 | Après un « Passer », les deux entrées en vol sont des épisodes | `[x]` — clos le 2026-09-06 ; **reste à écouter** un vrai « Passer » en plage, l'épisode qui prend l'antenne et celui qui suit |
-| GOAL-088 | Le flux annonce le titre en cours aux lecteurs (ICY) | `[x]` — clos le 2026-09-07 ; **reste à écouter** le titre affiché dans de vrais lecteurs, un changement de titre sans décrochage, et deux lecteurs en même temps |
+| GOAL-088 | Le flux annonce le titre en cours aux lecteurs (ICY) | `[x]` — clos le 2026-09-07 ; **écoute validée le 2026-09-07** pour le titre affiché ; **reste à écouter** un changement de titre sans décrochage, deux lecteurs en même temps, et le reste de la matrice des lecteurs |
 | GOAL-089 | Les résidus du passage à la branche 2.4 | `[ ]` — ouvert le 2026-09-07 par la clôture de GOAL-088 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
