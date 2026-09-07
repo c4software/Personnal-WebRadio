@@ -188,17 +188,22 @@ def test_l_avance_se_jette_sur_ordre_de_l_api() -> None:
 
 def test_passer_un_episode_remplace_l_avance_avant_de_sauter() -> None:
     """Vider l'avance puis sauter laisse 5,75 s de blanc, le temps que l'entrée
-    fraîche se résolve ; `fetch()` avant le saut garde l'antenne pleine. L'ordre
+    fraîche se résolve ; résoudre avant le saut garde l'antenne pleine. L'ordre
     est imposé : `set_queue` détruit les requêtes de la file, donc une entrée
     fraîche obtenue avant lui ne survivrait pas (docs/liquidsoap.md §12 et §14,
-    GOAL-086-T05)."""
+    GOAL-086-T05). `fetch()` ne convient plus : il rend la main aussitôt et
+    résout en arrière-plan (docs/liquidsoap.md §15.2, GOAL-088-T02)."""
     code = _code()
     assert '"/skip-fresh"' in code
     route = re.search(r"def on_skip_fresh.*?\nend\n", code, re.DOTALL)
     assert route is not None
     corps = route.group()
-    assert corps.index("programme.set_queue([])") < corps.index("programme.fetch()")
-    assert corps.index("programme.fetch()") < corps.index("sauter()")
+    assert "programme.fetch()" not in corps, (
+        "en 2.4 il est asynchrone : le saut trouve la file vide"
+    )
+    assert corps.index("programme.set_queue([])") < corps.index("request.resolve(")
+    assert corps.index("request.resolve(") < corps.index("programme.add(")
+    assert corps.index("programme.add(") < corps.index("sauter()")
 
 
 def test_passer_un_episode_se_refuse_a_vide_comme_un_saut() -> None:
@@ -228,7 +233,7 @@ def test_l_annonce_du_morceau_date_son_debut() -> None:
     """Une ré-annonce arrive après le début : sans l'instant du début, l'écoulé
     annoncé à l'antenne repartirait de zéro (GOAL-086-T03)."""
     code = _code()
-    corps = re.search(r"def on_track.*?\nend\n", code, re.DOTALL)
+    corps = re.search(r"def annoncer_la_piste.*?\nend\n", code, re.DOTALL)
     assert corps is not None
     assert '"#{time()}"' in corps.group()
 
@@ -245,8 +250,12 @@ def test_la_prise_d_antenne_se_fond() -> None:
 def test_le_branchement_s_annonce_avant_de_rendre_l_antenne() -> None:
     """L'antenne reste muette tant que le compteur est à zéro, ce qui laisse
     l'API purger une avance rassise sans course (docs/liquidsoap.md §5.bis,
-    GOAL-041)."""
+    GOAL-041). Les rappels sont posés par méthode sur la sortie : en 2.4
+    l'argument d'`output.harbor` est déprécié et change de type
+    (docs/liquidsoap.md §15.1)."""
     code = _code()
+    assert "radio.on_connect(synchronous=true, on_connect)" in code
+    assert "radio.on_disconnect(synchronous=true, on_disconnect)" in code
     connect = code[code.index("def on_connect") : code.index("def on_disconnect")]
     annonce = connect.index("announce_count(listeners() + 1)")
     bascule = connect.index("listeners := listeners() + 1")
@@ -277,9 +286,12 @@ def test_chaque_service_lit_le_fuseau_de_l_hote(service: str) -> None:
 
 def test_l_epingle_de_liquidsoap_ne_diverge_pas() -> None:
     """L'image du diffuseur et la vérification de syntaxe nomment la même
-    version, sinon on valide contre une version qu'on ne déploie pas
-    (docs/liquidsoap.md §1.7)."""
-    depuis = re.search(r"^FROM (savonet/liquidsoap:\S+)", DOCKERFILE.read_text(), re.M)
-    validee = re.search(r"LIQUIDSOAP_IMAGE:-(savonet/liquidsoap:\S+?)\}", VERIFIER.read_text())
+    image, sinon on valide contre une version qu'on ne déploie pas
+    (docs/liquidsoap.md §1.7). Un condensat, pas un tag : la branche 2.4 est la
+    seule à émettre les métadonnées ICY et son tag flotte, donc un tag ne
+    fixerait rien (docs/liquidsoap.md §15)."""
+    epingle = r"savonet/liquidsoap@sha256:[0-9a-f]{64}"
+    depuis = re.search(rf"^FROM ({epingle})$", DOCKERFILE.read_text(), re.M)
+    validee = re.search(rf"LIQUIDSOAP_IMAGE:-({epingle})\}}", VERIFIER.read_text())
     assert depuis is not None and validee is not None
     assert depuis.group(1) == validee.group(1)

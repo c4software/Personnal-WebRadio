@@ -56,7 +56,7 @@ done < <(grep -rnE '\b(TODO|FIXME)\b' webradio/ tests/ --include='*.py' 2>/dev/n
 echo "── script Liquidsoap ─────────────────────────────────────"
 # La syntaxe change de version en version (docs/liquidsoap.md §1.7) : le
 # script se valide contre l'image épinglée, jamais contre un binaire local.
-LIQUIDSOAP_IMAGE="${LIQUIDSOAP_IMAGE:-savonet/liquidsoap:v2.3.3}"
+LIQUIDSOAP_IMAGE="${LIQUIDSOAP_IMAGE:-savonet/liquidsoap@sha256:b27b11cfccd466265f605cd3de143bc019f4e0ed58db464297f04ed6ebea3efc}"
 if command -v docker >/dev/null 2>&1; then
   docker run --rm -v "$PWD/webradio/adapters/liquidsoap:/liq:ro" \
     "$LIQUIDSOAP_IMAGE" liquidsoap --check /liq/radio.liq

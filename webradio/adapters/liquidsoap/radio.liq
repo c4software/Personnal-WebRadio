@@ -78,14 +78,14 @@ end
 def start_live(entry) =
   parts = string.split(separator=":", entry)
   ends_at = float_of_string(default=0., list.nth(default="0", parts, 1))
-  url = string.concat(separator=":", list.tl(list.tl(parts)))
+  address = string.concat(separator=":", list.tl(list.tl(parts)))
   remaining = ends_at - time()
   if live_pending() then
     log(level=2, "un direct est déjà en cours, instruction ignorée")
   elsif remaining <= 0. then
     log(level=2, "direct déjà terminé à sa demande, ignoré")
   else
-    live_url := url
+    live_url := address
     live_entry := entry
     live_pending := true
     live.start()
@@ -131,13 +131,13 @@ end
 def next_entry() =
   entry = ask_next()
   if entry == "" then
-    null()
+    null
   elsif string.contains(prefix="live:", entry) then
     # Un direct n'est pas une requête : on le lance, puis on redemande le
     # morceau réel pour que la file ne soit jamais vide.
     start_live(entry)
     following = ask_next()
-    if following == "" or string.contains(prefix="live:", following) then null()
+    if following == "" or string.contains(prefix="live:", following) then null
     else request.create(following) end
   else
     request.create(entry)
@@ -164,12 +164,12 @@ piste_commencee = ref(false)
 # d'un morceau (SPECS.md §4.11).
 direct_arme = ref(false)
 
-def on_track(metadata) =
+def annoncer_la_piste(tags) =
   piste_commencee := true
   direct_arme := live_pending()
   # La quatrième ligne date le début : une ré-annonce arrive plus tard, et
   # l'écoulé annoncé à l'antenne repartirait de zéro (SPECS.md §4.8).
-  body = metadata["initial_uri"] ^ "\n" ^ metadata["artist"] ^ "\n" ^ metadata["title"]
+  body = tags["initial_uri"] ^ "\n" ^ tags["artist"] ^ "\n" ^ tags["title"]
          ^ "\n" ^ "#{time()}"
   derniere_annonce := body
   answer = http.post(timeout=api_timeout, data=body, "#{api}/playout/playing")
@@ -177,12 +177,15 @@ def on_track(metadata) =
     log(level=2, "l'API n'a pas pris l'annonce du morceau (#{answer.status_code})")
   end
 end
-programme.on_track(on_track)
+# `synchronous` est exigé de tous les rappels de source en 2.4
+# (docs/liquidsoap.md §15.1). Vrai : l'annonce part du fil de diffusion, comme
+# en 2.3.3.
+programme.on_track(synchronous=true, annoncer_la_piste)
 
 # Redit la dernière annonce, telle quelle. C'est `radio` qui l'ordonne, au
 # premier battement d'un processus qui ne sait pas ce qui passe.
-def on_announce(request, response) =
-  ignore(request)
+def on_announce(req, response) =
+  ignore(req)
   if derniere_annonce() == "" then
     log("ré-annonce demandée, mais rien n'a encore été annoncé")
     response.data("rien annoncé")
@@ -230,8 +233,8 @@ def sauter() =
   programme.skip()
 end
 
-def on_skip(request, response) =
-  ignore(request)
+def on_skip(req, response) =
+  ignore(req)
   if piste_commencee() then
     log("saut demandé par l'API")
     sauter()
@@ -244,8 +247,8 @@ harbor.http.register(port=port, method="POST", "/skip", on_skip)
 
 # Un encore accepté vide le morceau d'avance (GOAL-034) : sans cela la chanson
 # déjà demandée s'intercale et l'effet arrive un morceau trop tard.
-def on_requeue(request, response) =
-  ignore(request)
+def on_requeue(req, response) =
+  ignore(req)
   log("avance jetée sur ordre de l'API")
   programme.set_queue([])
   response.data("vidé")
@@ -256,19 +259,34 @@ harbor.http.register(port=port, method="POST", "/requeue", on_requeue)
 # l'avance puis sauter laisse 5,75 s de blanc, le temps que l'entrée fraîche se
 # résolve ; remplacer d'abord garde l'antenne pleine jusqu'à la bascule
 # (docs/liquidsoap.md §12). L'ordre est imposé : une requête rendue par
-# `queue()` est détruite par le `set_queue` suivant, donc `fetch()` ne peut pas
-# précéder la purge (§14).
+# `queue()` est détruite par le `set_queue` suivant, donc la résolution ne peut
+# pas précéder la purge (§14).
 #
-# `fetch()` bloque ce gestionnaire toute la résolution, jusqu'à
-# `settings.request.timeout` : l'API poste sans attendre la réponse, et ce
-# journal est le seul témoin de ce qui s'est passé.
-def on_skip_fresh(request, response) =
-  ignore(request)
+# En 2.4, `fetch()` rend `unit` et résout en arrière-plan : le saut tomberait
+# sur une file vide, 3,75 s de blanc mesurées. Le gestionnaire tire donc
+# lui-même, résout, puis ajoute la requête (docs/liquidsoap.md §15.2).
+# `request.resolve` bloque ce gestionnaire toute la résolution, avec le budget
+# du tirage ordinaire (`settings.request.timeout`) : l'API poste sans attendre
+# la réponse, et ce journal est le seul témoin de ce qui s'est passé.
+def on_skip_fresh(req, response) =
+  ignore(req)
   if piste_commencee() then
     log("épisode passé sur ordre de l'API : l'avance est remplacée avant le saut")
     programme.set_queue([])
-    resolue = programme.fetch()
-    log("entrée fraîche résolue : #{resolue}")
+    fraiche = next_entry()
+    if null.defined(fraiche) then
+      r = null.get(fraiche)
+      if request.resolve(r) then
+        ignore(programme.add(r))
+        log("entrée fraîche résolue et mise en file")
+      else
+        log(level=2, "l'entrée fraîche ne s'est pas résolue, le saut aura un blanc")
+      end
+    else
+      # Un direct ou une API à court : le tirage d'avance que la purge réveille
+      # reste le seul recours.
+      log(level=2, "aucune entrée fraîche à mettre en file")
+    end
     sauter()
     log("épisode passé : le saut est fait")
   else
@@ -287,12 +305,10 @@ vider_l_avance := fun () -> begin
   if piste_commencee() then sauter() end
 end
 
-programme = normalize(programme)
-
 # Le fondu enchaîné de `crossfade`, à une exception près : après un saut à
 # antenne vide, le reliquat de `a` est jeté et `b` entre seul, sous le fondu de
-# prise d'antenne. Le reste reprend l'appel de `crossfade` (fades.liq de la
-# 2.3.3, docs/liquidsoap.md §10) : mêmes fondus, mêmes étiquettes honorées.
+# prise d'antenne. Le reste reprend l'appel de `crossfade` (fades.liq,
+# docs/liquidsoap.md §10) : mêmes fondus, mêmes étiquettes honorées.
 def enchainer(a, b) =
   if reliquat_a_taire() then
     reliquat_a_taire := false
@@ -307,6 +323,10 @@ def enchainer(a, b) =
   end
 end
 programme = cross(duration=2., enchainer, programme)
+
+# Après `cross`, jamais avant : en 2.4, `normalize` devant lui supprime les
+# métadonnées et le recouvrement (docs/liquidsoap.md §15.3).
+programme = normalize(programme)
 
 # Le direct prend la main à la jonction, jamais au milieu d'un morceau
 # (SPECS.md §4.11), et la rend à la seconde dès qu'il s'arrête. Placé après
@@ -363,11 +383,10 @@ thread.run(every=15., announce)
 # L'annonce part avant la bascule du compteur : tant que le `ref` est à zéro
 # l'antenne reste sur `blank()`, et l'API peut purger une avance rassise sans
 # course avec la reprise du son (docs/liquidsoap.md §5.bis, SPECS.md §7 n°30).
-def on_connect(~headers, ~uri, ~protocol, ip) =
-  ignore(headers) ignore(uri) ignore(protocol)
+def on_connect(client) =
   announce_count(listeners() + 1)
   listeners := listeners() + 1
-  log("auditeur #{ip} branché — #{listeners()} à l'écoute")
+  log("auditeur #{client.ip} branché — #{listeners()} à l'écoute")
 end
 
 def on_disconnect(ip) =
@@ -405,10 +424,15 @@ end
 
 on_air = amplify(gain_antenne, on_air)
 
-output.harbor(
+radio = output.harbor(
   %mp3(bitrate=bitrate),
   port=port, mount=mount,
   headers=[("icy-name", name), ("icy-br", "#{bitrate}")],
-  on_connect=on_connect, on_disconnect=on_disconnect,
   on_air
 )
+
+# Par méthode : en 2.4 les arguments `on_connect` et `on_disconnect` sont
+# dépréciés, et le rappel reçoit un enregistrement au lieu d'en-têtes
+# (docs/liquidsoap.md §15.1).
+radio.on_connect(synchronous=true, on_connect)
+radio.on_disconnect(synchronous=true, on_disconnect)

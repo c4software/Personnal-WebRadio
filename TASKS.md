@@ -241,9 +241,10 @@ oubliée. Ouvert sur le résidu consigné par la relecture de GOAL-086-T06 ; deu
 tâches, deux commits. **Reste à écouter** (AGENTS.md §4.1) : un vrai « Passer »
 en plage, l'épisode qui prend l'antenne et celui qui suit.
 
-**Prochaine tâche** : GOAL-088-T02, déplacer l'épingle sur la branche 2.4 par
-condensat et migrer `radio.liq` — le relevé qui la commande est consigné
-(docs/liquidsoap.md §15). Restent ensuite GOAL-082-T04 (le
+**Prochaine tâche** : GOAL-088-T03, rejouer en maquette fidèle sur la 2.4 les
+relevés que la migration remet en cause (§5.bis, §9, §10, §11, §12, §14) —
+l'épingle est désormais un condensat de la branche 2.4 et `radio.liq` est
+migré. Restent ensuite GOAL-082-T04 (le
 seuil de vivier de l'ancre d'`artist_fan`) et GOAL-075-T03, qui attend le
 déploiement.
 
@@ -511,7 +512,7 @@ titre à la prise d'antenne.
       le direct, le moment du changement au fondu, le bug multi-auditeurs),
       §6 réécrit, en-tête disant que §15 relève la 2.4 ; docs/flux-icy.md §4
       et §6 tranchés sauf le décrochage, laissé à GOAL-088-T06.
-- [ ] **GOAL-088-T02** — Épingler `savonet/liquidsoap@sha256:…` (branche
+- [x] **GOAL-088-T02** — Épingler `savonet/liquidsoap@sha256:…` (branche
       `v2.4.x-latest`, 2.4.6+git du 2026-09-05) dans `Dockerfile.liquidsoap`
       et `verifier.sh`, le test exigeant un condensat identique aux deux
       endroits ; migrer `radio.liq` dans le même commit (`synchronous`,
@@ -519,6 +520,22 @@ titre à la prise d'antenne.
       `normalize` après `cross`, masquages renommés) ; `./verifier.sh` passe
       contre l'image épinglée. **À écouter** : une jonction ordinaire (le fondu
       tient), un « Passer » en plage (pas de blanc).
+      **Fait** : `Dockerfile.liquidsoap` et `verifier.sh` épinglent
+      `savonet/liquidsoap@sha256:b27b11cf…` (tag d'origine `v2.4.x-latest`,
+      2.4.6+git@284f9c903), le test exige un condensat aux deux endroits ;
+      `radio.liq` migré d'un bloc — `on_track(synchronous=true, …)`, `null` nu,
+      `on_connect`/`on_disconnect` par méthode sur la sortie, `/skip-fresh`
+      réécrit en `next_entry()` + `request.resolve` + `add` (`fetch()` est
+      asynchrone en 2.4), `cross` avant `normalize`, masquages renommés
+      (`address`, `tags`, `annoncer_la_piste`, `req`). `--check` est silencieux
+      et `./verifier.sh` passe contre l'image épinglée. Maquette fidèle rejouée
+      sur 2.4 (vrai `radio.liq`, fausse API, épisode lourd servi à 50 000 o/s,
+      auditeur `curl`) : `/skip-fresh` répond en 8,013 s, le ton en cours tient
+      sans discontinuité jusqu'au saut, fondu de 0,5 s puis l'entrée fraîche —
+      **aucune fenêtre de silence**.
+      **Reste à écouter** (AGENTS.md §4.1) : une jonction ordinaire, pour
+      savoir si le fondu tient avec `normalize` derrière `cross`, et un
+      « Passer » en plage sur un vrai épisode.
 - [ ] **GOAL-088-T03** — Rejouer en maquette fidèle sur 2.4 les relevés que la
       migration remet en cause : §5.bis (annoncer avant de rendre l'antenne,
       `on_connect` par méthode), §9 (`on_track` synchrone, direct), §10 et §11

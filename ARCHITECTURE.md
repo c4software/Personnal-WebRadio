@@ -146,7 +146,7 @@ Liquidsoap  ──« morceau suivant ? »──▶  adapters/liquidsoap  ──�
 | Conséquence | Détail |
 |---|---|
 | Ce qu'on gagne | Enchaînement, fondus, niveau, fan-out, auditeur lent, déconnexion brutale, direct borné dans le temps — éprouvés ailleurs, pas écrits ici |
-| Ce qu'on paie | Un processus debout en permanence (rien de décodé sans auditeur, ~0,8 % d'un cœur) ; une image de 967 Mo ; un script `.liq` dont la syntaxe dépend de la version |
+| Ce qu'on paie | Un processus debout en permanence (rien de décodé sans auditeur, ~0,8 % d'un cœur) ; une image de 1,12 Go ; un script `.liq` dont la syntaxe dépend de la version |
 | Ce qu'il faut surveiller | **Que Liquidsoap ne décide jamais.** Une `playlist()` dans le script, un `random` de Liquidsoap, un jingle inséré par le script : c'est le noyau contourné, et ce qu'aucun test ne verra |
 
 **Le script n'a pas de raccourci**, comme l'interface web (§6) : il demande le
@@ -706,8 +706,10 @@ AGENTS.md §4.1, aucun n'est couvert automatiquement.
 
 Ce projet a une dépendance lourde et versionnée : **Liquidsoap**, dont la
 syntaxe change de version en version (docs/liquidsoap.md §1.7). Le Compose
-épingle l'image contre laquelle le relevé a été établi — `v2.3.3` — et
-`verifier.sh` valide le script **dans cette image**. La même chose valait pour
+épingle l'image contre laquelle le relevé a été établi — la branche 2.4, par
+**condensat**, aucune version publiée ne portant le correctif des métadonnées
+ICY (docs/liquidsoap.md §15) — et `verifier.sh` valide le script **dans cette
+image**. La même chose valait pour
 ffmpeg avant la migration, et pour la même raison.
 
 ### 8.5.2 Deux services
@@ -734,7 +736,7 @@ script voyage désormais **dans une image** (`Dockerfile.liquidsoap`), publiée
 par la CI à côté de celle de `radio` : déployer redevient un seul geste, et la
 dérive devient impossible. L'épingle est nommée à deux endroits — le `FROM` et
 `verifier.sh`, qui valide la syntaxe contre elle — et un test refuse qu'elles
-divergent.
+divergent, comme il refuse un tag flottant à la place du condensat.
 
 Navidrome n'est **pas** dans le Compose : il existe déjà, il appartient à
 l'auteur, et le projet n'a pas à le déployer (SPECS.md §2 — gérer la
@@ -848,7 +850,7 @@ met à jour quand la **structure** change, pas à chaque fichier ajouté.
 │   ├── subsonic.md ..... relevé de l'API Subsonic telle que Navidrome l'implémente
 │   ├── franceinfo.md .... relevé du flash d'information — source non confirmée
 │   ├── podcast.md ....... relevé des flux de podcast des émissions
-│   ├── liquidsoap.md .... relevé de Liquidsoap 2.3.3, et ce qui a décidé la migration
+│   ├── liquidsoap.md .... relevé de Liquidsoap (2.3.3 puis 2.4), et ce qui a décidé la migration
 │   ├── ffmpeg.md ........ relevé historique — vaut pour ce que Liquidsoap fait en dessous
 │   ├── youtube.md ....... relevé : RSS de chaîne, yt-dlp, URL qui expirent
 │   └── flux-icy.md ...... relevé de ce qu'attendent les lecteurs de webradio

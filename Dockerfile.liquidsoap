@@ -10,11 +10,14 @@
 # dise — le déploiement du 2026-09-02 a mis à jour `radio` et laissé le
 # diffuseur à la veille.
 #
-# La version est épinglée ici ET dans verifier.sh, qui valide la syntaxe contre
-# elle : un test refuse qu'elles divergent. La syntaxe de Liquidsoap change de
-# version en version (docs/liquidsoap.md §1.7) ; l'épingle ne bouge qu'avec un
-# relevé.
-FROM savonet/liquidsoap:v2.3.3
+# L'épingle est un condensat, ici ET dans verifier.sh, qui valide la syntaxe
+# contre elle : un test refuse qu'elles divergent. La syntaxe de Liquidsoap
+# change de version en version (docs/liquidsoap.md §1.7) ; l'épingle ne bouge
+# qu'avec un relevé. Un condensat plutôt qu'un tag parce qu'aucune version
+# publiée ne porte le correctif des métadonnées ICY : seule la branche 2.4 les
+# émet, et son tag flotte (docs/liquidsoap.md §15).
+# savonet/liquidsoap:v2.4.x-latest, 2.4.6+git@284f9c903, image du 2026-09-05.
+FROM savonet/liquidsoap@sha256:b27b11cfccd466265f605cd3de143bc019f4e0ed58db464297f04ed6ebea3efc
 
 COPY webradio/adapters/liquidsoap/radio.liq /etc/local-webradio/radio.liq
 
