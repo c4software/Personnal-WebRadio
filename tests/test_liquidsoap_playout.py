@@ -2,7 +2,7 @@
 
 import logging
 from collections.abc import Callable
-from datetime import UTC, datetime, time, timedelta
+from datetime import UTC, datetime, time, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -707,6 +707,25 @@ def test_la_liste_des_prochains_titres_porte_l_heure_estimee(tmp_path: Path) -> 
         clock.now() + timedelta(minutes=9),
     ]
     assert playout.up_next() == (liste[0].kind, liste[0].track, liste[0].label)
+
+
+def test_un_debut_date_en_utc_est_ramene_au_fuseau_de_l_horloge(tmp_path: Path) -> None:
+    """Le diffuseur date le début en secondes Unix, lues en UTC. La grille et
+    les jingles horaires vivent dans le fuseau de l'horloge : sans conversion,
+    l'heure estimée porte un autre fuseau et la couture lit la grille deux
+    heures à côté."""
+    paris = timezone(timedelta(hours=2))
+    clock = FrozenClock(MIDI.astimezone(paris))
+    playout, _radio, _clock = _playout(tmp_path, catalogue=TROIS, lookahead=2, clock=clock)
+    playout.declare_listeners(1)
+    premier = playout.next_entry()
+    assert premier is not None
+    playout.playing(premier, started_at=MIDI)
+    playout.next_entry()
+
+    liste = playout.upcoming()
+    assert liste[0].at == clock.now() + timedelta(minutes=3)
+    assert all(i.at is None or i.at.tzinfo is paris for i in liste)
 
 
 def test_sans_morceau_en_cours_connu_la_liste_n_a_pas_d_heure(tmp_path: Path) -> None:

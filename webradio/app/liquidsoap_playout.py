@@ -390,7 +390,7 @@ class LiquidsoapPlayout:
             # inscrirait le titre une seconde fois au journal.
             logger.info("ré-annonce de ce qui passe déjà : rien n'est redéclaré")
             return
-        debut = started_at if started_at is not None else self._maintenant()
+        debut = self._maintenant() if started_at is None else self._dans_le_fuseau(started_at)
         with self._verrou:
             pending = self._en_attente.pop(entry, None)
             if pending is None:
@@ -437,6 +437,15 @@ class LiquidsoapPlayout:
 
     def _maintenant(self) -> datetime | None:
         return None if self._horloge is None else self._horloge.now()
+
+    def _dans_le_fuseau(self, instant: datetime) -> datetime:
+        """`instant` dans le fuseau de l'horloge. Le diffuseur date en secondes
+        Unix, lues en UTC ; la grille et les jingles horaires se calculent dans
+        le fuseau de l'horloge, et un instant en UTC les décalerait de l'écart
+        entre les deux."""
+        if self._horloge is None:
+            return instant
+        return instant.astimezone(self._horloge.now().tzinfo)
 
     def _restaurer(
         self, entry: str, artist: str | None, title: str | None, debut: datetime | None
