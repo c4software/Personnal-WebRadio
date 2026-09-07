@@ -242,11 +242,9 @@ tâches, deux commits. **Reste à écouter** (AGENTS.md §4.1) : un vrai « Pass
 en plage, l'épisode qui prend l'antenne et celui qui suit.
 
 **Prochaine tâche** : GOAL-088-T04, le libellé de l'interface dans le flux hors
-chanson (`metadata.map(strip=true, …)`). GOAL-088-T08, ouverte par T03, la
-précède si l'auteur veut l'antenne conforme à SPECS.md §1 d'abord : en 2.4,
-`normalize` tire la source sans auditeur. Restent ensuite GOAL-082-T04 (le
-seuil de vivier de l'ancre d'`artist_fan`) et GOAL-075-T03, qui attend le
-déploiement.
+chanson (`metadata.map(strip=true, …)`). GOAL-088-T08 est faite : l'antenne ne
+tire plus rien sans auditeur. Restent ensuite GOAL-082-T04 (le seuil de vivier
+de l'ancre d'`artist_fan`) et GOAL-075-T03, qui attend le déploiement.
 
 ---
 
@@ -581,7 +579,7 @@ titre à la prise d'antenne.
       de 1,12 Go), carte du dépôt (§9). §4 dit encore « rien de décodé sans
       auditeur, ~0,8 % d'un cœur » : les deux sont faux tant que T08 n'est pas
       faite (docs/liquidsoap.md §16.1 et §16.7).
-- [ ] **GOAL-088-T08** — Ouverte par T03 le 2026-09-07, sur mesure. En 2.4,
+- [x] **GOAL-088-T08** — Ouverte par T03 le 2026-09-07, sur mesure. En 2.4,
       `normalize` consomme sa source en continu quelle que soit la sortie :
       placé **avant** le `switch` des auditeurs dans `radio.liq`, il fait tirer,
       décoder et annoncer un morceau alors que `blank()` est à l'antenne et que
@@ -595,6 +593,28 @@ titre à la prise d'antenne.
       ni `on_track`, ni `input.http`. Instruire le remède (déplacer `normalize`
       après le `switch` des auditeurs, ou s'en passer) sans reperdre le fondu de
       §15.3, et le mesurer sur la même maquette.
+      **Fait** : `programme = source.available(programme, {listeners() > 0})`
+      posé **avant** `cross`. Sept pistes mesurées sur la maquette de T03,
+      30 s de démarrage sans auditeur chacune (docs/liquidsoap.md §17) : le
+      script tel quel tire trois fois et décode deux morceaux ; la même garde
+      posée **après** `cross` ne change rien (`cross` commence une piste pour
+      répondre à `normalize`) ; `normalize` après le `switch` des auditeurs,
+      `normalize.old` et le retrait pur et simple laissent **un** tirage sans
+      décodage — donc une avance qui vieillit ; `enabled={listeners() > 0}` est
+      sans effet ; la garde avant `cross` ne tire **rien**, comme le témoin
+      2.3.3. Rejoué sur la piste retenue : `/skip` à vide de nouveau refusé et
+      le premier morceau intact, `icy-metaint: 8192` et un `StreamTitle` à
+      chaque jonction, `Analysis … (1,98 s / 2,00 s)` — le fondu enchaîné de
+      §15.3 tient —, rampe de prise d'antenne de 2 s, direct pris à la jonction
+      et rendu à l'heure dite sur deux cases, reprise sans aucune trace du
+      morceau d'avant la pause en régime rapide comme lent, « Passer » en
+      8,014 s sans blanc. Coût au repos 1,17 à 1,45 % d'un cœur contre 1,79 à
+      2,00 % avec le défaut.
+      **Reste à écouter** (AGENTS.md §4.1) : rien du niveau sonore ne change —
+      `normalize` garde ses réglages et sa place —, mais il ne travaille plus
+      qu'à l'antenne : ce que donne sa montée de gain sur le premier morceau
+      d'une reprise ne se mesure pas ici.
+      **Prochaine tâche** : GOAL-088-T04.
 
 ---
 

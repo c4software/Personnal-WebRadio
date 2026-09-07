@@ -15,7 +15,8 @@
 > laquelle l'épingle s'est déplacée pour obtenir les métadonnées ICY — et il dit
 > lesquelles des sections précédentes sont à rejouer. **§16 les rejoue sur la
 > 2.4**, avec le vrai `radio.liq` migré : c'est lui qui dit, pour chacune, si le
-> constat de la 2.3.3 tient encore.
+> constat de la 2.3.3 tient encore. **§17 referme le seul défaut qu'il a
+> trouvé**, `normalize` qui tire sa source sans auditeur.
 
 ---
 
@@ -899,7 +900,9 @@ Ce que cela casse, mesuré :
 - Le premier bloc ICY servi est vide : le titre a été émis avant le
   branchement (§15.7), et le lecteur n'affiche rien jusqu'à la jonction.
 
-**Non corrigé ici** : c'est GOAL-088-T08.
+**Non corrigé ici** : c'est GOAL-088-T08. **Corrigé depuis, et mesuré en §17** :
+une `source.available` posée **avant** `cross` fige la chaîne jusqu'au premier
+auditeur, et le démarrage à vide ne tire plus rien.
 
 ### 16.2 Les en-têtes et l'ICY sur le vrai script (§1.5, §3, §6)
 
@@ -1017,3 +1020,89 @@ même manche, l'image de 1,12 Go contre celle de 967 Mo.
       matin après une longue pause, les fondus `liq_fade_*` d'un jingle (§1.4,
       §7), et si les 0,5 s de musique avant un direct pioché par « Passer »
       (§16.6) s'entendent comme un accroc ou comme une jonction.
+
+---
+
+## 17. Quinzième relevé — `normalize` sans auditeur (GOAL-088-T08, le 2026-09-07)
+
+> **Même image épinglée** que §16
+> (`savonet/liquidsoap@sha256:b27b11cfccd466265f605cd3de143bc019f4e0ed58db464297f04ed6ebea3efc`,
+> 2.4.6+git@284f9c903) et **même maquette fidèle** : le `radio.liq` du dépôt —
+> ici une copie par piste, un opérateur de différence — monté dans le
+> conteneur en `--network host`, devant la fausse API horodatée de §16, quatre
+> tons purs de 25 s étiquetés (a = 440 Hz « Un - La », b = 660, c = 880,
+> d = 1100), un auditeur `curl`, le flux mesuré par fenêtres de 0,25 s (RMS et
+> fréquence dominante). Six pistes essayées, puis six manches sur la piste
+> retenue.
+
+Motif : §16.1. En 2.4, `normalize` consomme sa source en continu quelle que
+soit la sortie ; placé avant le `switch` des auditeurs, il faisait tirer,
+décoder et annoncer un morceau devant `blank()`.
+
+### 17.1 Ce qui arrête le tirage, et ce qui ne l'arrête pas
+
+Manche identique pour les six : le script démarré, **personne branché**,
+30 secondes de journal d'API.
+
+| Piste | Ce qu'elle change | Constat |
+|---|---|---|
+| Le script tel quel (témoin du défaut) | — | **Trois tirages, deux pistes décodées** : `NEXT#0` à 2,085 s (1 s après le démarrage), `PLAYING /liq/a.mp3` à 2,192 s, `NEXT#1` dans la milliseconde, puis `PLAYING /liq/b.mp3` et `NEXT#2` à 25,1 s. La chaîne joue dans le vide, morceau après morceau |
+| `source.available` **après** `cross`, avant `normalize` | `programme = source.available(programme, {listeners() > 0})` posé ligne 329 | **Insuffisant** : `NEXT#0`, `PLAYING a` et `NEXT#1` tombent quand même, aux mêmes instants. Rendre la source indisponible **derrière** `cross` n'empêche pas `cross` de commencer une piste pour répondre à `normalize` ; seul l'enchaînement s'arrête ensuite |
+| `normalize` **après** le `switch` des auditeurs | `on_air = normalize(on_air)` | **Un tirage** (`NEXT#0`), aucun `PLAYING`. Le morceau demandé n'est pas décodé, mais il est demandé — donc l'avance vieillit sans auditeur (SPECS.md §7 n°30) |
+| Sans `normalize` du tout | ligne retirée | **Un tirage**, aucun `PLAYING`. Identique à la précédente : c'est bien `normalize` seul qui décodait |
+| `normalize.old` à la place | l'implémentation d'avant la 2.0 | **Un tirage**, aucun `PLAYING`. `normalize.old` ne tire pas sa source ; le défaut appartient au `normalize` bâti sur `rms` + `delay_line` + `track_audio_amplify` (§15.3) |
+| `normalize(enabled={listeners() > 0}, …)` | le seul paramètre de `-h normalize` qui parle d'activité | **Sans effet** : trois tirages, deux `PLAYING`, comme le témoin. `enabled` gouverne le gain, pas la consommation. Aucun autre paramètre (`target`, `up`, `down`, `window`, `lookahead`, `threshold`, `track_sensitive`) ne touche au tirage |
+| **`source.available` avant `cross`** (piste retenue) | `programme = source.available(programme, {listeners() > 0})` posé juste avant `cross` | **Rien** : aucun `NEXT`, aucun `PLAYING`, aucun décodage en 30 s. C'est le comportement du témoin 2.3.3 de §16.1 |
+
+Le reste du script n'a pas à changer : `sauter()`, `set_queue`, `add` et
+`skip()` visent la liaison `programme` **d'avant** le masquage, donc toujours
+le `request.dynamic` (§14).
+
+### 17.2 La piste retenue, rejouée
+
+Six manches sur `source.available` avant `cross`.
+
+| Manche | Constat |
+|---|---|
+| Démarrage sans auditeur, 30 s | **Aucun `NEXT`, aucun `PLAYING`.** Le journal du script s'arrête à « Switch to blank » |
+| `/skip` sans auditeur, puis un auditeur | « saut demandé à vide : rien ne passe, il mangerait le premier morceau », et `a` joue entier ensuite (440 Hz sous la rampe dès 4,25 s). Le garde-fou de §9 refuse de nouveau |
+| Premier auditeur puis une jonction | `icy-metaint: 8192` négocié ; `NEXT#0` **75 ms** après `LISTENERS 1`, `PLAYING` 121 ms après ; rampe de prise d'antenne de **2 s** (440 Hz : −52,8 dB à 4,25 s, −40,0, −34,1, −30,3, −27,4, −25,2, −23,3, −21,7, −20,5 dB à 6,25 s) ; jonction avec `Analysis … (1,98 s / 2,00 s)`, recouvrement mesuré de 27,25 à 27,75 s ; blocs ICY `StreamTitle='Un - La'` puis `'Deux - Le'` |
+| Prise et fin d'un direct (deux cases) | Pris **à la jonction** (`Analysis` puis « le direct prend l'antenne » dans la même seconde), annoncé **une** fois par la transition (`PLAYING live:…`), 1500 Hz de 26,25 à 65,00 s ; fin de case : purge, saut, `Analysis … (2,00 s / 0,00 s)`, 1 s de `d` puis la case suivante. Conforme à §16.4 |
+| Reprise après une pause, `/next` immédiat | « saut à antenne vide : le reliquat est jeté », **aucune fenêtre à 440 Hz**, `c` à 4,25 s à −54,1 dB sous la rampe |
+| Reprise, `/next` retardé de 4 s | Silence numérique jusqu'à 8,25 s, **aucune trace de 440 Hz**, puis `c` à −50,5 dB sous la rampe — les chiffres de §16.5 |
+| « Passer » sur un épisode lourd (50 000 o/s) | `/skip-fresh` répond en **8,014 s** (8,013 s en T02), `a` tient jusqu'à 19,50 s **sans blanc**, puis `d` — le second tirage a gagné la course, comme en §16.6. `Analysis … (1,98 s / 2,00 s)` |
+
+### 17.3 Deux constats de passage
+
+| Question | Constat |
+|---|---|
+| §5 : « `normalize`/`crossfade` en aval d'un `switch` contenant `input.http` est refusé à l'exécution » | **Plus vrai en 2.4.** La piste « `normalize` après le `switch` des auditeurs » a joué une manche entière de direct — deux cases prises et rendues — sans « This source may control its own latency » et sans redémarrage du conteneur. Elle a été écartée pour son tirage à vide, pas pour ce refus |
+| Le coût au repos (§16.7, ARCHITECTURE.md §4) | **1,45 % puis 1,17 %** d'un cœur sans auditeur (72,6 puis 82,2 MiB), contre 1,79 et 2,00 % avec le défaut ; **3,97 % puis 4,75 %** avec un auditeur (87,5 et 86,4 MiB). Le décodage à vide disparaît, le « ~0,8 % » d'ARCHITECTURE.md §4 reste inexact |
+
+### Ce que cela change
+
+- **`radio.liq` porte une garde de plus** : `source.available(programme,
+  {listeners() > 0})` juste avant `cross`. Le `switch` des auditeurs ne suffit
+  plus depuis la 2.4 — il dit ce qui sort, pas ce qui est tiré.
+- **La place est imposée** : derrière `cross`, la garde laisse `cross`
+  commencer une piste. C'est le seul écart mesuré entre les deux placements.
+- **SPECS.md §1 est de nouveau tenu**, et la phrase « rien de décodé sans
+  auditeur » d'ARCHITECTURE.md §4 redevient exacte ; le chiffre de CPU qui la
+  suit, lui, reste faux (GOAL-088-T07).
+- **§16.1 est refermé.**
+
+### Points incertains
+
+- [ ] **Pourquoi `normalize` tire en 2.4** reste sans explication amont
+      (§16.1) : on sait seulement que `normalize.old` ne le fait pas, et que
+      `enabled` n'y change rien. Si l'amont corrige `normalize`, la garde
+      devient inutile mais reste sans effet.
+- [ ] **Le niveau sonore n'a pas été écouté** (AGENTS.md §4.1). Les manches
+      montrent la montée lente de `normalize` après la rampe (−19,9 dB à 6,75 s,
+      −14,1 dB à 26,0 s sur un ton pur) ; ce que cela donne sur de la musique
+      ne se mesure pas ici.
+- [ ] **Le dernier auditeur qui part au milieu d'un morceau.** La garde n'est
+      pas `track_sensitive`, la source devient indisponible sur-le-champ —
+      comme le `switch` juste après. Aucune manche n'a mesuré ce que devient
+      alors le tampon de `cross` au rebranchement suivant, hors de la purge de
+      reprise déjà rejouée ici.

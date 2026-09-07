@@ -322,6 +322,12 @@ def enchainer(a, b) =
                  initial_fade_out_metadata=a.metadata, a.source, b.source)
   end
 end
+# En 2.4, `normalize` consomme sa source en continu quelle que soit la sortie :
+# la chaîne tirait, décodait et annonçait un morceau avec `blank()` à l'antenne
+# (docs/liquidsoap.md §17). Rendre la source indisponible avant `cross` la fige
+# jusqu'au premier auditeur, comme en 2.3.3 (SPECS.md §1). Ici et pas plus bas :
+# posée après `cross`, elle laisse encore `cross` commencer une piste.
+programme = source.available(programme, {listeners() > 0})
 programme = cross(duration=2., enchainer, programme)
 
 # Après `cross`, jamais avant : en 2.4, `normalize` devant lui supprime les

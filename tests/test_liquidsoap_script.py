@@ -54,6 +54,19 @@ def test_rien_ne_joue_sans_auditeur() -> None:
     assert "blank()" in _code()
 
 
+def test_rien_n_est_tire_ni_decode_sans_auditeur() -> None:
+    """Le `switch` sur les auditeurs ne suffit pas : en 2.4, `normalize` tire sa
+    source quelle que soit la sortie, et la chaîne décodait et annonçait un
+    morceau devant `blank()` (docs/liquidsoap.md §17). La source est rendue
+    indisponible avant `cross`, qui sinon commence une piste pour lui répondre.
+    """
+    code = _code()
+    garde = "programme = source.available(programme, {listeners() > 0})"
+    assert garde in code
+    assert code.index(garde) < code.index("programme = cross(")
+    assert code.index(garde) < code.index("programme = normalize(")
+
+
 def test_un_direct_est_une_instruction_de_l_api_pas_du_script() -> None:
     """L'adresse et la fin du direct viennent de l'API, pas du script (GOAL-015)."""
     code = _code()
