@@ -241,9 +241,9 @@ oubliée. Ouvert sur le résidu consigné par la relecture de GOAL-086-T06 ; deu
 tâches, deux commits. **Reste à écouter** (AGENTS.md §4.1) : un vrai « Passer »
 en plage, l'épisode qui prend l'antenne et celui qui suit.
 
-**Prochaine tâche** : GOAL-088-T04, le libellé de l'interface dans le flux hors
-chanson (`metadata.map(strip=true, …)`). GOAL-088-T08 est faite : l'antenne ne
-tire plus rien sans auditeur. Restent ensuite GOAL-082-T04 (le seuil de vivier
+**Prochaine tâche** : GOAL-088-T05, le direct porte un titre
+(`live:<fin>:<libellé>:<url>`). GOAL-088-T04 est faite : hors chanson, le flux
+annonce le libellé de l'interface. Restent ensuite GOAL-082-T04 (le seuil de vivier
 de l'ancre d'`artist_fan`) et GOAL-075-T03, qui attend le déploiement.
 
 ---
@@ -560,11 +560,31 @@ titre à la prise d'antenne.
       demi-seconde de musique qui précède un direct pioché par « Passer »
       s'entend comme un accroc.
       **Prochaine tâche** : GOAL-088-T04.
-- [ ] **GOAL-088-T04** — Hors chanson, le flux annonce le libellé de
+- [x] **GOAL-088-T04** — Hors chanson, le flux annonce le libellé de
       l'interface : `metadata.map(strip=true, …)` dans `radio.liq` d'après
       `radio_kind`/`radio_label`, un jingle étiqueté compris ; test du script
       (maquette `--check` et maquette ICY reproductible). **À écouter** : un
       jingle horaire et un générique dans VLC.
+      **Fait** : `metadata.map(strip=true, libelle_hors_chanson, programme)`
+      posé entre `cross` et `normalize`. La carte reproduit la règle de la page
+      (`antenne.title || antenne.kind`) : une chanson garde « Artiste - Titre »
+      assemblé des étiquettes, une émission annonce son libellé
+      (`<émission> · <épisode>`, celui que la page affiche), un jingle — qui
+      n'a jamais de `radio_label` — annonce sa nature, `jingle`. Mesuré sur la
+      maquette fidèle de §16/§17 (image épinglée, vrai `radio.liq`, fausse API,
+      quatre fichiers **tous étiquetés**, `curl -H "Icy-MetaData: 1"`,
+      docs/liquidsoap.md §18) : `'Un - La'`, `'jingle'` (le témoin sans la
+      carte disait `'Deux - Le'`), `'A la French · n° 12'` (témoin
+      `'Trois - Les'`), `'Quatre - Lu'` ; blocs aux mêmes numéros que le
+      témoin, `Analysis … (1,98 s / 0,50 s)` — le fondu court du jingle tient.
+      Ce que `/playout/playing` reçoit est **inchangé**, corps par corps : la
+      carte est posée après le `on_track` de `programme`. La même carte avant
+      `cross` donne le même résultat ; écartée pour laisser `cross` lire les
+      métadonnées intactes. SPECS.md §4.9 dit ce qui est annoncé par nature.
+      **Reste à écouter** (AGENTS.md §4.1) : un jingle horaire et un générique
+      de moment dans VLC — le libellé `jingle` s'affiche à la place du titre du
+      fichier, et rien ici ne dit ce qu'un vrai lecteur en fait.
+      **Prochaine tâche** : GOAL-088-T05.
 - [ ] **GOAL-088-T05** — Le direct porte un titre : `live:<fin>:<libellé>:<url>`
       produit par `show_scheduler.py` (libellé sans deux-points, garanti par
       l'API), relu par `liquidsoap_playout.py`, posé par `metadata.map` sur

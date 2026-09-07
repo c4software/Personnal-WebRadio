@@ -251,6 +251,30 @@ def test_l_annonce_du_morceau_date_son_debut() -> None:
     assert '"#{time()}"' in corps.group()
 
 
+def test_le_flux_annonce_le_libelle_de_l_interface_hors_chanson() -> None:
+    """Une chanson garde « Artiste - Titre », le reste annonce son libellé.
+    `annotate:title=` laisse l'artiste du fichier et une valeur vide ne retire
+    pas la clé : seul `metadata.map(strip=true, …)` nettoie
+    (docs/liquidsoap.md §15.4, §18).
+
+    La carte vient après `cross`, qui lit les `liq_fade_*` d'un jingle, et
+    avant `normalize`, qui derrière lui supprimerait les métadonnées (§15.3).
+    Elle est aussi après le `on_track` de `programme` : ce que l'API reçoit ne
+    change pas.
+    """
+    code = _code()
+    carte = "programme = metadata.map(strip=true, libelle_hors_chanson, programme)"
+    assert carte in code
+    corps = re.search(r"def libelle_hors_chanson.*?\nend\n", code, re.DOTALL)
+    assert corps is not None
+    assert 'tags["radio_kind"]' in corps.group()
+    assert 'tags["radio_label"]' in corps.group()
+    assert '("artist", "")' in corps.group()
+    assert code.index("programme.on_track(") < code.index(carte)
+    assert code.index("programme = cross(") < code.index(carte)
+    assert code.index(carte) < code.index("programme = normalize(")
+
+
 def test_la_prise_d_antenne_se_fond() -> None:
     """Le premier auditeur a un fondu d'entrée. `fade.in` ne fond pas une
     source déjà entamée : c'est la transition qui arme un `amplify`

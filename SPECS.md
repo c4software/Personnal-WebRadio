@@ -860,6 +860,23 @@ Un réencodage permanent vers un format unique est donc la voie par défaut, et
 elle est assumée. Chercher moins coûteux est une **optimisation**, jamais un
 prétexte à violer cet ordre.
 
+**Et il annonce ce qui passe.** Le flux porte le titre en cours (`StreamTitle`
+des métadonnées ICY), et ce titre est **ce que l'interface affiche** :
+
+- une **chanson** s'annonce « Artiste - Titre », assemblé des étiquettes du
+  fichier ;
+- une **émission** s'annonce par son libellé, celui de la page : le nom de
+  l'émission, suivi du titre de l'épisode quand il est connu ;
+- un **jingle** — horaire, générique de moment, jingle de vote — n'a pas de
+  libellé déclaré : il s'annonce par sa nature, `jingle`, comme la page.
+
+Un lecteur voit le titre changer un peu avant de l'entendre changer : le
+changement tombe au début du fondu enchaîné (docs/liquidsoap.md §15.6). Un
+auditeur qui se branche en cours de morceau n'affiche rien jusqu'à la jonction
+suivante, et deux lecteurs branchés ensemble ne reçoivent pas les mêmes titres —
+défaut du diffuseur, accepté par décision de l'auteur (docs/liquidsoap.md
+§15.7 ; la décision rejoint §7 en GOAL-088-T07).
+
 ### 4.10 D'où vient la musique
 
 La musique vient de **sources** déclarées dans le TOML. Subsonic en est une ;

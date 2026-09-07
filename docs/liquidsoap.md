@@ -1106,3 +1106,59 @@ Six manches sur `source.available` avant `cross`.
       comme le `switch` juste après. Aucune manche n'a mesuré ce que devient
       alors le tampon de `cross` au rebranchement suivant, hors de la purge de
       reprise déjà rejouée ici.
+
+---
+
+## 18. Seizième relevé — le libellé hors chanson dans le flux (GOAL-088-T04, le 2026-09-07)
+
+> **Même image épinglée** que §16 et §17
+> (`savonet/liquidsoap@sha256:b27b11cfccd466265f605cd3de143bc019f4e0ed58db464297f04ed6ebea3efc`)
+> et **même maquette fidèle** : le `radio.liq` du dépôt — ici une copie par
+> piste — monté dans le conteneur en `--network host`, devant la fausse API
+> horodatée de §16. Quatre fichiers de 25 s **tous étiquetés** (a = « Un - La »,
+> b = « Deux - Le », c = « Trois - Les », d = « Quatre - Lu »), rendus par
+> `/playout/next` avec les annotations que la charnière produit vraiment : une
+> chanson, un **jingle étiqueté sans `radio_label`** (avec ses `liq_fade_*`),
+> un épisode d'émission, une chanson. Un auditeur `curl -H "Icy-MetaData: 1"`,
+> le flux découpé par l'analyseur de blocs de §15.
+
+Ce que §15.4 avait mesuré sur une maquette réduite, rejoué sur le script du
+dépôt, et la place de `metadata.map` tranchée.
+
+| Entrée servie | `StreamTitle` sans la carte (témoin) | `StreamTitle` avec la carte |
+|---|---|---|
+| `annotate:radio_kind="musique",radio_label="La",radio_duration="25":/liq/a.mp3` | `'Un - La'` | `'Un - La'` |
+| `annotate:liq_fade_in=0.2,liq_fade_out=0.2,liq_cross_duration=0.5,radio_kind="jingle":/liq/b.mp3` | `'Deux - Le'` — les étiquettes du fichier | `'jingle'` |
+| `annotate:radio_kind="emission",radio_label="A la French · n° 12",radio_duration="25":/liq/c.mp3` | `'Trois - Les'` | `'A la French · n° 12'` |
+| `annotate:radio_kind="musique",radio_label="Lu",radio_duration="25":/liq/d.mp3` | `'Quatre - Lu'` | `'Quatre - Lu'` |
+
+Un jingle n'a pas de `radio_label` : la charnière n'en pose un que si le
+programme a déclaré un libellé, et un jingle n'en déclare aucun. La carte se
+replie donc sur `radio_kind`, ce que l'interface fait déjà (`antenne.title ||
+antenne.kind`). Un générique de moment est un jingle : même entrée, même
+libellé.
+
+| Question | Constat |
+|---|---|
+| La place de la carte : après `cross`, avant `normalize` | **Marche.** Blocs `StreamTitle` aux mêmes numéros que le témoin (7, 54, 102, 147), `Analysis … (1,98 s / 0,50 s)` puis `(0,48 s / 2,00 s)` — le fondu court du jingle est honoré |
+| La même carte **avant** `cross` | **Marche aussi**, résultat identique au bloc près : `strip=true` ne retire que les clés vidées, les `liq_fade_*` traversent. Écartée pour laisser `cross` lire les métadonnées intactes |
+| Ce que `/playout/playing` reçoit | **Inchangé.** Les quatre corps sont identiques dans les trois manches, préfixe `annotate:` et étiquettes du fichier compris — le jingle est annoncé à l'API avec `Deux` et `Le`. La carte est posée après le `on_track` de `programme`, qui vise le `request.dynamic` d'avant les masquages |
+| `icy-metaint` | **8192**, comme en §16.2 |
+
+### Ce que cela change
+
+- **Le flux annonce ce que l'interface affiche** : la carte reproduit la règle
+  de la page — le libellé déclaré, sinon la nature — au lieu d'une seconde
+  formulation qui divergerait.
+- **L'API ne voit rien de la carte** : le registre de la charnière continue de
+  lire l'entrée annotée et les étiquettes du fichier.
+- **§15.4 est confirmé sur le vrai script**, jingle étiqueté compris.
+
+### Points incertains
+
+- [ ] **Une entrée sans annotation** — un morceau demandé avant un redémarrage
+      de `radio` — garde ses étiquettes : `radio_kind` vide laisse la carte
+      sans effet. Déduit de la règle, pas mesuré.
+- [ ] **Ce que les vrais lecteurs affichent** d'un libellé accentué et ponctué
+      (`A la French · n° 12`) : `curl` reçoit de l'UTF-8, aucun lecteur ne l'a
+      montré. C'est GOAL-088-T06.

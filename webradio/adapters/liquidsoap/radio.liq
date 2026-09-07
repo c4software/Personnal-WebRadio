@@ -330,6 +330,25 @@ end
 programme = source.available(programme, {listeners() > 0})
 programme = cross(duration=2., enchainer, programme)
 
+# ── Ce que les lecteurs affichent hors chanson (SPECS.md §4.9) ─────────────
+# Une chanson garde « Artiste - Titre », que Liquidsoap assemble des étiquettes
+# du fichier. Le reste annonce le libellé de l'interface, qui affiche le titre
+# déclaré ou, à défaut, la nature. Annoter `title=` ne suffirait pas : l'artiste
+# du fichier subsiste, et une valeur vide ne retire pas la clé — seul
+# `strip=true` nettoie (docs/liquidsoap.md §15.4).
+#
+# Après le `on_track` de `programme`, donc sans effet sur ce que l'API reçoit.
+def libelle_hors_chanson(tags) =
+  nature = tags["radio_kind"]
+  if nature == "" or nature == "musique" then
+    []
+  else
+    libelle = if tags["radio_label"] == "" then nature else tags["radio_label"] end
+    [("title", libelle), ("artist", "")]
+  end
+end
+programme = metadata.map(strip=true, libelle_hors_chanson, programme)
+
 # Après `cross`, jamais avant : en 2.4, `normalize` devant lui supprime les
 # métadonnées et le recouvrement (docs/liquidsoap.md §15.3).
 programme = normalize(programme)
