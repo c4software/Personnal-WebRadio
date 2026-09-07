@@ -47,16 +47,27 @@ end
 derniere_annonce = ref("")
 
 # ── Un direct, sur instruction de l'API (SPECS.md §4.11, GOAL-015) ─────────
-# L'API rend `live:<fin en secondes Unix>:<url>`. Un direct ne peut pas être une
-# requête : la résolution d'un flux infini expire (docs/liquidsoap.md §5). Il
-# passe donc par `input.http`, démarré dès l'instruction pour avoir le temps de
-# se remplir, mis à l'antenne à la jonction (`direct_arme`) et coupé à l'heure
-# dite. Sans `self_sync=false`, la rafale initiale du serveur accélère l'horloge
-# de la sortie et le morceau en cours est avalé (docs/liquidsoap.md §5).
+# L'API rend `live:<fin en secondes Unix>:<libellé>:<url>`. Un direct ne peut
+# pas être une requête : la résolution d'un flux infini expire
+# (docs/liquidsoap.md §5). Il passe donc par `input.http`, démarré dès
+# l'instruction pour avoir le temps de se remplir, mis à l'antenne à la jonction
+# (`direct_arme`) et coupé à l'heure dite. Sans `self_sync=false`, la rafale
+# initiale du serveur accélère l'horloge de la sortie et le morceau en cours est
+# avalé (docs/liquidsoap.md §5).
 live_url = ref("")
 live_entry = ref("")
+live_label = ref("")
 live_pending = ref(false)
-live = input.http(id="live", start=false, self_sync=false, max_buffer=3., {live_url()})
+live_raw = input.http(id="live", start=false, self_sync=false, max_buffer=3., {live_url()})
+
+# Le libellé que les lecteurs affichent pendant le direct (SPECS.md §4.9). Le
+# flux distant n'envoie aucune métadonnée (docs/franceinfo.md), et sans ce
+# titre le lecteur garde celui du morceau d'avant toute la case
+# (docs/liquidsoap.md §15.5). `update=false` : la carte remplace ce qui vient
+# du distant, un `artist` relayé ne survit donc pas.
+live = metadata.map(
+  insert_missing=true, update=false, fun (_) -> [("title", live_label())], live_raw
+)
 
 # Ce qu'il faut faire de l'avance quand le direct rend l'antenne. Un `ref` de
 # fonction parce que `stop_live` est défini avant `programme` ; rempli plus bas.
@@ -65,7 +76,7 @@ vider_l_avance = ref(fun () -> ())
 def stop_live(why) =
   if live_pending() then
     live_pending := false
-    live.stop()
+    live_raw.stop()
     log("le direct se termine : #{why}")
     # L'avance a dormi sous le direct : elle a été tirée à l'ouverture de la
     # case, pas à sa fermeture. Même rassise qu'après une longue pause
@@ -78,7 +89,10 @@ end
 def start_live(entry) =
   parts = string.split(separator=":", entry)
   ends_at = float_of_string(default=0., list.nth(default="0", parts, 1))
-  address = string.concat(separator=":", list.tl(list.tl(parts)))
+  # Le libellé n'a pas de deux-points, l'API le garantit ; l'URL en a, et c'est
+  # elle qu'on recompose.
+  label = list.nth(default="", parts, 2)
+  address = string.concat(separator=":", list.tl(list.tl(list.tl(parts))))
   remaining = ends_at - time()
   if live_pending() then
     log(level=2, "un direct est déjà en cours, instruction ignorée")
@@ -87,8 +101,9 @@ def start_live(entry) =
   else
     live_url := address
     live_entry := entry
+    live_label := label
     live_pending := true
-    live.start()
+    live_raw.start()
     log("direct demandé pour #{int_of_float(remaining)} s")
     thread.run(delay=remaining, {stop_live("heure de fin atteinte")})
   end
@@ -369,6 +384,11 @@ programme = normalize(programme)
 # un POST bloquant ferait un trou.
 def prise_direct(_, b) =
   log("le direct prend l'antenne")
+  # Le titre est posé ici, sur la source brute, et pas seulement par la carte :
+  # celle-ci ne parle qu'au début de la piste, or le flux coule depuis
+  # l'instruction, parfois une jonction entière plus tôt, et le bloc est alors
+  # perdu avant l'antenne (docs/liquidsoap.md §19).
+  live_raw.insert_metadata([("title", live_label())])
   thread.run({annoncer_le_direct()})
   b
 end

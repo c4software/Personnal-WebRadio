@@ -13,7 +13,7 @@ import logging
 import threading
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from webradio.app.length import Length
@@ -463,6 +463,8 @@ class LiquidsoapPlayout:
         coupe mais un `encore` ne pèse rien — il est accepté sans être retenu
         (`LiveRadio.vote`).
         """
+        if entry.startswith(LIVE):
+            return self._restaurer_un_direct(entry, debut)
         annotations, _ = _lire_les_annotations(entry)
         annoncee = annotations.get(KIND)
         if annoncee is None:
@@ -486,6 +488,37 @@ class LiquidsoapPlayout:
             self._radio.declare(
                 kind, None, libelle, length=length, started_at=debut, skippable=passable
             )
+        return True
+
+    def _restaurer_un_direct(self, entry: str, debut: datetime | None) -> bool:
+        """Déclare un direct inconnu du registre d'après son instruction, et dit
+        s'il a été déclaré.
+
+        Un direct n'est pas annoté (`_decrire`) : c'est l'instruction
+        `live:<fin en secondes Unix>:<libellé>:<url>` qui porte son libellé et
+        sa fin. Le libellé n'a pas de deux-points (`show_scheduler`), l'URL en
+        a : les trois premiers champs se lisent, le reste est l'adresse.
+
+        Rien n'est inscrit au programme : un direct ne laisse aucune trace en
+        base (SPECS.md §7 n°22).
+        """
+        champs = entry.split(":", 3)
+        if len(champs) < 4:
+            logger.info("instruction de direct illisible, l'antenne reste inconnue : %s", entry)
+            return False
+        try:
+            fin = datetime.fromtimestamp(int(champs[1]), tz=UTC)
+        except ValueError:
+            logger.info("fin de direct illisible, l'antenne reste inconnue : %s", champs[1])
+            return False
+        logger.info("direct d'avant ce démarrage, restauré par son instruction : %s", champs[2])
+        self._radio.declare(
+            Kind.SHOW,
+            None,
+            champs[2],
+            length=Length(until=self._dans_le_fuseau(fin)),
+            started_at=debut,
+        )
         return True
 
     def _oublier_les_demandes_anterieures(self, rang: int) -> None:

@@ -210,7 +210,9 @@ processus d'avant (SPECS.md §7 n°42 et n°43). Le chemin de la restauration :
 1. `next_entry` préfixe chaque entrée d'un `annotate:` qui la décrit —
    `radio_kind`, `radio_label`, `radio_duration`, valeurs citées et échappées
    (docs/liquidsoap.md §13). Un direct n'est pas annoté : le script reconnaît
-   son entrée à son préfixe `live:`.
+   son entrée à son préfixe `live:`. C'est son instruction qui le décrit —
+   `live:<fin en secondes Unix>:<libellé>:<url>` — et la restauration la relit
+   comme elle relit les annotations.
 2. `radio.liq` garde dans un `ref` le dernier corps posté à `/playout/playing`,
    horodaté par l'horloge du diffuseur, et le redit tel quel sur `POST
    /announce`.

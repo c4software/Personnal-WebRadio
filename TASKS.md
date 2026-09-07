@@ -241,10 +241,11 @@ oubliée. Ouvert sur le résidu consigné par la relecture de GOAL-086-T06 ; deu
 tâches, deux commits. **Reste à écouter** (AGENTS.md §4.1) : un vrai « Passer »
 en plage, l'épisode qui prend l'antenne et celui qui suit.
 
-**Prochaine tâche** : GOAL-088-T05, le direct porte un titre
-(`live:<fin>:<libellé>:<url>`). GOAL-088-T04 est faite : hors chanson, le flux
-annonce le libellé de l'interface. Restent ensuite GOAL-082-T04 (le seuil de vivier
-de l'ancre d'`artist_fan`) et GOAL-075-T03, qui attend le déploiement.
+**Prochaine tâche** : GOAL-088-T06, l'écoute par l'auteur dans de vrais
+lecteurs, puis GOAL-088-T07 (documentation). GOAL-088-T05 est faite : le direct
+porte son libellé dans `live:<fin>:<libellé>:<url>`. Restent ensuite
+GOAL-082-T04 (le seuil de vivier de l'ancre d'`artist_fan`) et GOAL-075-T03,
+qui attend le déploiement.
 
 ---
 
@@ -585,11 +586,39 @@ titre à la prise d'antenne.
       de moment dans VLC — le libellé `jingle` s'affiche à la place du titre du
       fichier, et rien ici ne dit ce qu'un vrai lecteur en fait.
       **Prochaine tâche** : GOAL-088-T05.
-- [ ] **GOAL-088-T05** — Le direct porte un titre : `live:<fin>:<libellé>:<url>`
+- [x] **GOAL-088-T05** — Le direct porte un titre : `live:<fin>:<libellé>:<url>`
       produit par `show_scheduler.py` (libellé sans deux-points, garanti par
       l'API), relu par `liquidsoap_playout.py`, posé par `metadata.map` sur
       `input.http` dans `radio.liq` ; tests. **À écouter** : le flash de midi,
       et le titre qui revient à la musique.
+      **Fait** : `_direct_de` rend `live:<fin>:<libellé>:<url>`, le libellé
+      étant le nom de l'émission — celui que la page affiche, une case de
+      direct n'ayant pas d'épisode. Les deux-points y sont **remplacés par une
+      espace** plutôt que refusés : le direct passe quand même, et l'URL, seule
+      à en porter, reste le dernier champ. Le script lit le libellé au
+      troisième champ et recompose l'adresse depuis le quatrième. La
+      restauration après redémarrage relit cette instruction comme elle relit
+      les annotations : un `radio` redémarré pendant le flash affiche
+      l'émission et sa fin au lieu de garder le morceau d'avant.
+      **Mesuré sur la maquette fidèle** (image épinglée, vrai `radio.liq`,
+      fausse API, direct servi sans métadonnée comme France Info,
+      `curl -H "Icy-MetaData: 1"`, docs/liquidsoap.md §19), trois manches :
+      `'Un - La'` à 3,58 s, **`'Flash franceinfo'` à 26,11 s** — 0,14 s avant
+      l'audio du direct —, `'Un - La'` à 53,25 s sur les deux secondes de
+      reliquat, `'Trois - Les'` à 55,30 s sur l'entrée fraîche. Le témoin
+      d'avant la tâche n'annonce **rien** de toute la case : le lecteur y garde
+      le titre de la chanson d'avant.
+      **Un écart avec §15.5, corrigé** : `metadata.map` seule ne parle qu'au
+      début de la piste de `input.http`, or le direct coule depuis
+      l'instruction — 21 s plus tôt en maquette, une chanson entière en
+      production —, et le bloc se perd. `live_raw.insert_metadata` dans la
+      transition `prise_direct` le pose à la prise d'antenne ; la carte reste
+      pour que rien du distant ne passe (`update=false`, `strip` sans objet).
+      `/playout/playing` reçoit le nouveau format, une fois, à la prise
+      d'antenne.
+      **Reste à écouter** (AGENTS.md §4.1) : le flash de midi dans un vrai
+      lecteur, et le titre qui revient à la musique à la fin de la case.
+      **Prochaine tâche** : GOAL-088-T06, puis T07.
 - [ ] **GOAL-088-T06** — Constater dans de vrais lecteurs (VLC, cliamp,
       navigateur, enceinte) : titre affiché, changement de titre sans
       décrochage, deux lecteurs en même temps ; consigner dans

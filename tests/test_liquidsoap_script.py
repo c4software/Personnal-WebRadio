@@ -114,6 +114,30 @@ def test_le_script_refuse_un_saut_a_vide() -> None:
     assert re.search(r"if piste_commencee\(\) then", code)
 
 
+def test_un_direct_annonce_son_libelle_aux_lecteurs() -> None:
+    """Le flux distant n'envoie aucune métadonnée (docs/franceinfo.md) : sans
+    titre posé par le script, le lecteur garde celui du morceau d'avant toute
+    la case (docs/liquidsoap.md §15.5, §19). Le libellé arrive par
+    l'instruction, dont l'URL reste le dernier champ (GOAL-088-T05).
+    """
+    code = _code()
+    debut = re.search(r"def start_live\(entry\).*?\nend\n", code, re.DOTALL)
+    assert debut is not None
+    assert 'label = list.nth(default="", parts, 2)' in debut.group()
+    assert "list.tl(list.tl(list.tl(parts)))" in debut.group(), "l'URL porte des deux-points"
+    assert "live_label := label" in debut.group()
+    carte = re.search(r"live = metadata\.map\(.*?\)\n", code, re.DOTALL)
+    assert carte is not None
+    assert "insert_missing=true" in carte.group(), "le distant n'envoie rien"
+    assert "update=false" in carte.group(), "rien du distant ne doit passer"
+    assert '[("title", live_label())]' in carte.group()
+    prise = re.search(r"def prise_direct.*?\nend\n", code, re.DOTALL)
+    assert prise is not None
+    assert 'live_raw.insert_metadata([("title", live_label())])' in prise.group(), (
+        "la carte ne parle qu'au début de la piste, une jonction trop tôt"
+    )
+
+
 def test_la_fin_d_un_direct_jette_l_avance_rassie() -> None:
     """L'avance a été tirée à l'ouverture du direct, pas à sa fermeture : elle
     est rassise et doit être purgée (docs/liquidsoap.md §9, GOAL-051)."""

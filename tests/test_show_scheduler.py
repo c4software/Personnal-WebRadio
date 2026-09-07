@@ -273,7 +273,36 @@ def test_un_direct_du_est_une_instruction_avec_son_heure_de_fin(tmp_path: Path) 
     show, entry, _titre, _longueur, _passable = due
     assert show is FLASH
     fin = int((VENDREDI_20H + timedelta(minutes=9)).timestamp())
-    assert entry == f"live:{fin}:{FRANCEINFO}"
+    assert entry == f"live:{fin}:Flash:{FRANCEINFO}"
+
+
+def test_le_libelle_d_un_direct_perd_ses_deux_points(tmp_path: Path) -> None:
+    """Le diffuseur découpe l'instruction sur les deux-points et recompose
+    l'URL depuis le dernier champ (`radio.liq`) : un nom d'émission ponctué
+    décalerait l'adresse. L'API garantit un libellé sans deux-points
+    (SPECS.md §4.9)."""
+    clock = FrozenClock(VENDREDI_20H)
+    ponctue = Show(name="Flash : info", days=("all",), hour=time(20), duration=timedelta(minutes=9))
+    shows = Shows(
+        ShowSchedule([ponctue]),
+        FakeFeed([]),  # type: ignore[arg-type]
+        SqliteState(
+            tmp_path / "etat.sqlite3",
+            clock,
+            lock_timeout=timedelta(seconds=5),
+            vote_half_life=timedelta(days=90),
+        ),
+        clock,
+        {},
+        ScriptedRandom([0] * 50),
+        streams={"Flash : info": FRANCEINFO},
+    )
+
+    due = shows.due()
+
+    assert due is not None
+    fin = int((VENDREDI_20H + timedelta(minutes=9)).timestamp())
+    assert due[1] == f"live:{fin}:Flash info:{FRANCEINFO}"
 
 
 def test_un_direct_n_est_rendu_qu_une_fois_par_case(tmp_path: Path) -> None:
@@ -309,7 +338,7 @@ def test_un_direct_jete_avant_l_antenne_peut_reprendre_sa_case(tmp_path: Path) -
     due = shows.due()
     assert due is not None
     fin = int((VENDREDI_20H + timedelta(minutes=9)).timestamp())
-    assert due[1] == f"live:{fin}:{FRANCEINFO}", "la fin reste celle de la case"
+    assert due[1] == f"live:{fin}:Flash:{FRANCEINFO}", "la fin reste celle de la case"
 
 
 def test_une_case_de_direct_finie_est_sautee_sans_rattrapage(tmp_path: Path) -> None:
@@ -326,7 +355,7 @@ def test_un_direct_ne_lit_aucun_flux_et_ne_laisse_aucune_trace(tmp_path: Path) -
 
     assert due is not None
     fin = int((VENDREDI_20H + timedelta(minutes=9)).timestamp())
-    assert due[1] == f"live:{fin}:{FRANCEINFO}", "l'antenne, pas l'épisode du flux"
+    assert due[1] == f"live:{fin}:Flash:{FRANCEINFO}", "l'antenne, pas l'épisode du flux"
     assert feed.lectures == 0
     # La base ne doit connaître aucune diffusion : un direct ne se mémorise pas.
     state = SqliteState(

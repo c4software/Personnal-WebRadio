@@ -1801,6 +1801,48 @@ def test_une_entree_dont_la_nature_ne_se_lit_pas_reste_inconnue(tmp_path: Path) 
     assert antenne is not None and antenne.kind is NatureWeb.UNKNOWN
 
 
+def test_un_direct_d_avant_le_redemarrage_restaure_son_libelle_et_sa_fin(
+    tmp_path: Path,
+) -> None:
+    """Un direct n'est pas annoté : c'est son instruction qui le décrit,
+    `live:<fin en secondes Unix>:<libellé>:<url>` (GOAL-088-T05). Sans elle, un
+    `radio` redémarré pendant le flash laisserait le morceau d'avant à
+    l'antenne jusqu'au bout de la case (SPECS.md §7 n°42)."""
+    diffuseur = FakeDiffuseur()
+    playout, radio, clock = _playout_neuf(tmp_path, diffuseur)
+    playout.declare_listeners(1)
+    fin = int((clock.now() + timedelta(minutes=6)).timestamp())
+
+    playout.playing(f"live:{fin}:Flash franceinfo:https://exemple.test/direct.mp3")
+
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.kind is NatureWeb.SHOW
+    assert antenne.title == "Flash franceinfo"
+    assert antenne.duration_seconds == 360, "la fin est absolue, pas une durée"
+
+
+@pytest.mark.parametrize(
+    "instruction",
+    [
+        "live:1788794282:Flash franceinfo",
+        "live:tout-a-l-heure:Flash franceinfo:https://exemple.test/direct.mp3",
+    ],
+)
+def test_une_instruction_de_direct_illisible_n_annonce_rien(
+    instruction: str, tmp_path: Path
+) -> None:
+    """Tronquée ou mal datée, elle ne se devine pas : mieux vaut une antenne
+    inconnue qu'un libellé et une fin inventés."""
+    diffuseur = FakeDiffuseur()
+    playout, radio, _clock = _playout_neuf(tmp_path, diffuseur)
+    playout.declare_listeners(1)
+
+    playout.playing(instruction)
+
+    assert radio.on_air_now().title is None  # type: ignore[union-attr]
+
+
 def test_un_titre_a_guillemets_et_virgules_traverse_l_annotation(tmp_path: Path) -> None:
     """L'analyseur de Liquidsoap refuse l'entrée entière sur une valeur mal
     citée, et elle n'est alors jamais jouée (docs/liquidsoap.md §13)."""

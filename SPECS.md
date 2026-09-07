@@ -868,7 +868,11 @@ des métadonnées ICY), et ce titre est **ce que l'interface affiche** :
 - une **émission** s'annonce par son libellé, celui de la page : le nom de
   l'émission, suivi du titre de l'épisode quand il est connu ;
 - un **jingle** — horaire, générique de moment, jingle de vote — n'a pas de
-  libellé déclaré : il s'annonce par sa nature, `jingle`, comme la page.
+  libellé déclaré : il s'annonce par sa nature, `jingle`, comme la page ;
+- un **direct** s'annonce par le nom de l'émission, celui du TOML. Son flux
+  n'envoie aucune métadonnée (docs/franceinfo.md), donc le libellé voyage dans
+  l'instruction (§7 n°22) et le diffuseur le pose à la prise d'antenne ; au
+  retour, la musique se réannonce.
 
 Un lecteur voit le titre changer un peu avant de l'entendre changer : le
 changement tombe au début du fondu enchaîné (docs/liquidsoap.md §15.6). Un
@@ -1585,7 +1589,10 @@ a une durée obligatoire, pas de rattrapage, pas de trace en base.
 > de phrase » à la fin de la case est acceptable. Seule l'écoute le dira.
 >
 > **Mise en œuvre, constatée le 2026-08-30** (GOAL-015) : l'API rend au
-> diffuseur une instruction `live:<fin en secondes Unix>:<url>` ; la fin est
+> diffuseur une instruction `live:<fin en secondes Unix>:<url>`, devenue
+> `live:<fin en secondes Unix>:<libellé>:<url>` le 2026-09-07 (GOAL-088-T05,
+> §4.9) — l'API garantit un libellé sans deux-points, l'URL en porte et reste
+> le dernier champ ; la fin est
 > **absolue**, quelle que soit l'heure où la jonction arrive. Deux conséquences
 > mesurées, cohérentes avec « pas de rattrapage » : une case **plus courte que
 > deux morceaux** peut être sautée entièrement — le diffuseur a toujours un

@@ -36,6 +36,17 @@ from webradio.core.shows import (
 logger = logging.getLogger(__name__)
 
 
+def _sans_deux_points(libelle: str) -> str:
+    """Le libellé d'un direct, débarrassé de ses deux-points.
+
+    Le diffuseur découpe l'instruction sur ce caractère et recompose l'URL
+    depuis le dernier champ (`adapters/liquidsoap/radio.liq`) : un deux-points
+    dans le libellé décalerait l'adresse. Les espaces sont normalisés au
+    passage, comme dans les annotations (`liquidsoap_playout._citer`).
+    """
+    return " ".join(libelle.replace(":", " ").split())
+
+
 @dataclass(frozen=True, slots=True)
 class _Demandee:
     """Une émission rendue au diffuseur, qui n'a pas encore pris l'antenne.
@@ -263,11 +274,14 @@ class Shows:
     def _direct_de(self, case: Slot) -> tuple[Show, str, str | None, Length, bool] | None:
         """Un direct, rendu une fois par case, avec l'heure absolue de sa fin.
 
-        L'entrée `live:<fin en secondes Unix>:<url>` est lue par Liquidsoap
-        (`adapters/liquidsoap/radio.liq`) : capter cette URL et couper à cette
-        heure, quelle que soit l'heure de la jonction. Une deuxième demande
-        dans la même case rend `None`, sinon le direct redémarrerait à chaque
-        jonction jusqu'à la fin de la case.
+        L'entrée `live:<fin en secondes Unix>:<libellé>:<url>` est lue par
+        Liquidsoap (`adapters/liquidsoap/radio.liq`) : capter cette URL, couper
+        à cette heure quelle que soit l'heure de la jonction, et annoncer ce
+        libellé aux lecteurs — le flux d'un direct n'en porte aucun
+        (docs/franceinfo.md, SPECS.md §4.9). Le libellé est celui de la page,
+        donc le nom de l'émission : une case de direct n'a pas d'épisode.
+        Une deuxième demande dans la même case rend `None`, sinon le direct
+        redémarrerait à chaque jonction jusqu'à la fin de la case.
         """
         cle = (case.show.name, case.start)
         if cle in self._cases_rendues:
@@ -275,7 +289,7 @@ class Shows:
         url = self._directs.get(case.show.name)
         if url is None or case.end is None:
             return None
-        entry = f"live:{int(case.end.timestamp())}:{url}"
+        entry = f"live:{int(case.end.timestamp())}:{_sans_deux_points(case.show.name)}:{url}"
         self._demandees[entry] = _Demandee(show=case.show.name, entry=entry, slot=cle)
         logger.info(
             "direct « %s » jusqu'à %s — %s",

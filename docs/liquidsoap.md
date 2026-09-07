@@ -778,8 +778,8 @@ Maquette ICY décrite en tête, `icy-metaint: 8192` négocié.
 |---|---|
 | `input.http` vers un distant qui **envoie** de l'ICY | **Relayé.** `'Un - La'` apparaît à la prise d'antenne (9,22 s, l'audio du direct à 9,25 s) |
 | Un distant qui n'en envoie **pas** — le cas de France Info (docs/franceinfo.md) | **Rien n'est émis**, et le titre d'avant reste affiché pendant toute la case |
-| Titrer le direct depuis le script | `live = metadata.map(insert_missing=true, fun (_) -> [("title","Direct France Info")], live_raw)` donne `'Direct France Info'` à 9,22 s, **à travers** `switch(track_sensitive=false, transitions=…)` posé derrière `cross`. `update=false` si l'on ne veut rien retenir du distant |
-| La variante par la transition | `live_raw.insert_metadata([...])` **dans** la transition donne le même résultat. Elle doit viser la **source brute**, pas le `b` de la transition, pour rester homogène en type |
+| Titrer le direct depuis le script | `live = metadata.map(insert_missing=true, fun (_) -> [("title","Direct France Info")], live_raw)` donne `'Direct France Info'` à 9,22 s, **à travers** `switch(track_sensitive=false, transitions=…)` posé derrière `cross`. `update=false` si l'on ne veut rien retenir du distant. **Corrigé par §19** : la carte ne parle qu'au début de la piste, et le direct coule depuis l'instruction — ici la prise d'antenne suivait de peu le démarrage, ce qui n'est pas le cas du vrai script |
+| La variante par la transition | `live_raw.insert_metadata([...])` **dans** la transition donne le même résultat. Elle doit viser la **source brute**, pas le `b` de la transition, pour rester homogène en type. C'est elle qui a été retenue, en plus de la carte (§19.2) |
 | Le **retour** à la musique en milieu de piste | **Aucun bloc n'est rejoué** — `replay_metadata=true` n'y change rien. Sans objet pour `radio.liq` : la fin de direct y purge et saute, donc une piste neuve commence |
 
 ### 15.6 Quand le titre change, par rapport au son
@@ -1162,3 +1162,91 @@ libellé.
 - [ ] **Ce que les vrais lecteurs affichent** d'un libellé accentué et ponctué
       (`A la French · n° 12`) : `curl` reçoit de l'UTF-8, aucun lecteur ne l'a
       montré. C'est GOAL-088-T06.
+
+---
+
+## 19. Dix-septième relevé — le titre du direct (GOAL-088-T05, le 2026-09-07)
+
+> **Même image épinglée** que §16 à §18
+> (`savonet/liquidsoap@sha256:b27b11cfccd466265f605cd3de143bc019f4e0ed58db464297f04ed6ebea3efc`)
+> et **même maquette fidèle** : le `radio.liq` du dépôt monté dans le conteneur
+> en `--network host`, devant la fausse API horodatée de §16. Suite servie par
+> `/playout/next` : une chanson annotée (`a.mp3`, 440 Hz, étiquetée
+> « Un - La »), une instruction de direct, puis des chansons. Le direct est
+> servi par la même fausse API, `/live.mp3` : un ton continu à 1500 Hz débité à
+> 16 000 o/s, **sans aucune métadonnée**, comme France Info
+> (docs/franceinfo.md). Un auditeur `curl -H "Icy-MetaData: 1"`, blocs découpés
+> par l'analyseur de §15, audio mesuré par fenêtres de 0,25 s.
+
+Trois manches, mêmes fichiers, même suite :
+
+| Manche | Script | Instruction |
+|---|---|---|
+| `vtemoin` | celui d'avant la tâche | `live:<fin>:<url>` |
+| `vcarte` | la carte seule | `live:<fin>:<libellé>:<url>` |
+| `vfinal` | la carte **et** l'insertion dans la transition | `live:<fin>:<libellé>:<url>` |
+
+### 19.1 La chronologie mesurée
+
+| Instant audio | `vtemoin` | `vcarte` | `vfinal` |
+|---|---|---|---|
+| 3,58 s — la chanson commence (audio 3,25 s) | `'Un - La'` | `'Un - La'` | `'Un - La'` |
+| 26,25 s — **le direct prend l'antenne** | **aucun bloc** | **aucun bloc** | `'Flash franceinfo'` **à 26,11 s**, 0,14 s avant son audio |
+| 26 à 53 s — toute la case | rien : le lecteur affiche encore `'Un - La'` | idem | `'Flash franceinfo'` |
+| 53 s — fin de case, purge et saut | `'Un - La'` à 53,25 s — les 2 s de reliquat que `cross` tient (§16.4) | aucun bloc | `'Un - La'` à 53,25 s |
+| 55 s — l'entrée fraîche | `'Trois - Les'` à 55,30 s | `'Trois - Les'` à 54,78 s | `'Trois - Les'` à 55,30 s |
+| 78,5 s — la suivante | `'Quatre - Lu'` à 78,34 s | à 77,82 s | à 78,34 s |
+
+`icy-metaint: 8192` dans les trois manches, 171 blocs, mêmes instants audio à
+la fenêtre près (440 Hz de 3,25 à 26,25 s, 1500 Hz jusqu'à 53,00 s).
+
+### 19.2 La carte seule ne suffit pas
+
+`metadata.map(insert_missing=true, update=false, fun (_) -> [("title",
+live_label())], live_raw)` ne parle qu'au **début de la piste** de
+`input.http`. Or le script démarre le direct **à l'instruction**, pour lui
+laisser le temps de se remplir, et ne le met à l'antenne qu'à la jonction
+suivante : 21 s plus tard ici, une chanson entière en production. Le bloc est
+émis dans une source que personne ne tire, et il est perdu — c'est `vcarte`,
+qui ne dit rien de plus que le témoin.
+
+§15.5 mesurait le contraire parce que sa maquette mettait le direct à
+l'antenne dans la seconde qui suivait son démarrage. Le même effet se voit ici
+sur une manche où la **deuxième** case a été prise 0,6 s après le redémarrage
+de `input.http` : là, la carte seule a bien donné le titre.
+
+Le remède est celui que §15.5 donnait en variante :
+`live_raw.insert_metadata([("title", live_label())])` **dans la transition**
+`prise_direct`, qui est le seul instant où le direct est à l'antenne. Les deux
+tiennent ensemble : l'insertion garantit le titre à la prise d'antenne, la
+carte garantit que **rien du distant** ne passe ensuite (`update=false` : elle
+remplace, un `artist` relayé ne survit pas — `strip` n'a donc rien à faire
+ici).
+
+### 19.3 Ce que l'API reçoit
+
+`PLAYING live:1788800289:Flash franceinfo:http://127.0.0.1:8080/live.mp3` :
+l'entrée telle que l'API l'a rendue, **une** fois, à la prise d'antenne.
+`annoncer_le_direct` n'a pas changé ; c'est la charnière qui relit le nouveau
+format.
+
+### Ce que cela change
+
+- **Le direct annonce son libellé** (SPECS.md §4.9), qui arrive par un champ de
+  plus dans l'instruction : `live:<fin>:<libellé>:<url>`. Le libellé n'a pas de
+  deux-points, l'API le garantit ; l'URL en porte et reste le dernier champ.
+- **Le titre est posé deux fois** : par la carte au début de la piste, par
+  l'insertion à la prise d'antenne. La seconde est celle qui compte.
+- **Le retour à la musique se réannonce** : la fin de case purge et saute, donc
+  une piste neuve commence et son `on_track` émet. Les 2 s de reliquat de
+  §16.4 portent leur propre titre au passage.
+
+### Points incertains
+
+- [ ] **Deux cases de direct qui se suivent** n'ont été vues qu'une fois, sur
+      une manche montée autrement (la suite bouclait). Le titre y était bien
+      annoncé aux deux prises.
+- [ ] **Un distant qui envoie de l'ICY** : `update=false` doit l'écarter, ce
+      n'est pas mesuré ici — la maquette imite France Info, qui n'envoie rien.
+- [ ] **Ce qu'un vrai lecteur fait** d'un titre qui change à la prise d'antenne
+      puis revient à la musique : c'est GOAL-088-T06 (AGENTS.md §4.1).
