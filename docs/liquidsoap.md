@@ -10,10 +10,12 @@
 **Version constatée** : `Liquidsoap 2.3.3`. Image : **967 Mo**.
 
 > **Depuis le 2026-09-07, le relevé porte sur deux versions.** Les sections 1 à
-> 14 valent pour la 2.3.3. **§15 relève la branche 2.4**
+> 14 ont été mesurées sur la 2.3.3. **§15 relève la branche 2.4**
 > (`savonet/liquidsoap:v2.4.x-latest`, 2.4.6+git, image de **1,12 Go**), vers
-> laquelle l'épingle se déplace pour obtenir les métadonnées ICY — et il dit
-> lesquelles des sections précédentes sont à rejouer.
+> laquelle l'épingle s'est déplacée pour obtenir les métadonnées ICY — et il dit
+> lesquelles des sections précédentes sont à rejouer. **§16 les rejoue sur la
+> 2.4**, avec le vrai `radio.liq` migré : c'est lui qui dit, pour chacune, si le
+> constat de la 2.3.3 tient encore.
 
 ---
 
@@ -818,13 +820,20 @@ l'API l'apprend deux secondes avant lui.
   décision de l'auteur), à revoir quand l'amont porte #5003 sur 2.4. Tant qu'il
   dure, un titre affiché par un lecteur ne dit rien de ce que les autres voient.
 - **Des relevés antérieurs cessent d'être garantis**, parce qu'ils ont tous été
-  faits sur la 2.3.3. À rejouer sur 2.4 en GOAL-088-T03 : §1.5, §3 et §6
-  (en-têtes, ICY) ; §5.bis et §9 (`on_connect` par méthode, annoncer avant de
-  rendre l'antenne, `on_track` synchrone, direct) ; §10 et §11 (reliquat, muet
-  de reprise, rampe, avec `cross` devant `normalize`) ; §12 et §14
-  (`/skip-fresh` réécrit) ; §1.4 et §7 (les fondus `liq_fade_*`, à l'écoute) ;
-  §5 (`input.http` sur la pile Compose) ; §11 (le premier appel HTTP en 523) ;
-  et le coût en CPU et en mémoire, l'image passant de 967 Mo à 1,12 Go.
+  faits sur la 2.3.3. Rejoués sur 2.4 en GOAL-088-T03, et le résultat est en
+  **§16** :
+  - [x] §1.5, §3 et §6 — en-têtes, `icy-metaint` sur le vrai script ;
+  - [x] §5.bis et §9 — `on_connect` par méthode, annoncer avant de rendre
+        l'antenne, `on_track` synchrone, direct ;
+  - [x] §10 et §11 — reliquat, muet de reprise, rampe, avec `cross` devant
+        `normalize` ;
+  - [x] §12 et §14 — `/skip-fresh` réécrit ;
+  - [x] §11 — le premier appel HTTP en 523 (non reproduit) ;
+  - [x] le coût en CPU et en mémoire, l'image passant de 967 Mo à 1,12 Go ;
+  - [ ] §1.4 et §7 — les fondus `liq_fade_*`, qui ne se constatent qu'à
+        l'écoute (AGENTS.md §4.1) ;
+  - [ ] §5 — `input.http` contre le vrai France Info, sur la pile Compose ;
+        §16 l'a simulé par un serveur local.
 
 ### Points incertains
 
@@ -842,3 +851,169 @@ l'API l'apprend deux secondes avant lui.
 - [ ] **Un changement de titre peut-il faire décrocher un lecteur ?** Aucune
       maquette ne le dira : `curl` ne décroche de rien. C'est GOAL-088-T06, à
       l'écoute, sur de vrais lecteurs (docs/flux-icy.md §4, AGENTS.md §4.1).
+
+---
+
+## 16. Quatorzième relevé — les relevés rejoués sur la 2.4 (GOAL-088-T03, le 2026-09-07)
+
+> **Image épinglée** : `savonet/liquidsoap@sha256:b27b11cfccd466265f605cd3de143bc019f4e0ed58db464297f04ed6ebea3efc`
+> (2.4.6+git@284f9c903). Maquette **fidèle** : le **vrai `radio.liq` du dépôt**
+> monté en lecture seule dans le conteneur, `--network host`, devant une fausse
+> API Python qui sert `/playout/next`, `/playout/playing` et
+> `/playout/listeners` et horodate tout à la milliseconde. Quatre tons purs de
+> 25 s étiquetés (a = 440 Hz « Un - La », b = 660, c = 880, d = 1100), un
+> auditeur `curl`, le flux MP3 reçu mesuré par fenêtres de 0,25 s : RMS et
+> fréquence dominante — c'est elle qui dit **quel** morceau passe. Le direct est
+> simulé par une route `/live.mp3` qui débite un ton de 1500 Hz à 16 000 o/s ;
+> l'épisode lourd et le 404 par deux autres routes de la même API. Onze manches.
+>
+> **Témoin** : les mêmes manches sur `savonet/liquidsoap:v2.3.3` avec le script
+> d'**avant** la migration (`git show fb75f2d^:…/radio.liq`). Sans lui, on ne
+> saurait pas distinguer ce que la version change de ce que le script change.
+
+### 16.1 Un défaut trouvé : `normalize` tire la source sans auditeur
+
+C'est le seul écart qui casse quelque chose, et il ne vient pas de là où on
+l'attendait.
+
+| Relevé d'origine | Ce qui a été rejoué | Constat 2.4 |
+|---|---|---|
+| §5.bis : « au démarrage à froid, **aucun** appel avant le premier auditeur » | Le script lancé, personne branché, journal de l'API pendant 6 s | **Différent, et c'est un défaut.** `NEXT#0` part **1 s après le démarrage** (à 2,054 s de la manche), le morceau est préparé, `on_track` tombe et `PLAYING /liq/a.mp3` est posté à 2,172 s. L'auditeur ne se branche qu'à 4,979 s et prend le morceau **en cours** |
+| Le même scénario sur la 2.3.3 | Script d'avant la migration, image `v2.3.3` | **Rien avant l'auditeur** : `LISTENERS 1` à 6,983 s, puis `NEXT#0` à 7,089 s — 106 ms après. C'est bien la 2.4 qui change |
+| D'où cela vient | Six manches d'isolement, un opérateur à la fois | **`normalize`.** Ordre inversé (`normalize` devant `cross`) : tire quand même. Sans `cross` du tout : tire quand même. Maquette minimale `request.dynamic` → `switch(listeners)` → `output.harbor` : **ne tire pas** ; plus `on_track(synchronous=true)` : ne tire pas ; plus `input.http(start=false)` et son `switch` : ne tire pas ; **plus `normalize` : tire**, deux entrées en 122 ms |
+
+En 2.4, `normalize` est bâti sur `rms` + `delay_line` + `track_audio_amplify`
+(§15.3) et consomme sa source en continu, quelle que soit la sortie. Comme il
+est **avant** le `switch` des auditeurs dans `radio.liq`, la chaîne décode et
+tire pendant que `blank()` est à l'antenne.
+
+Ce que cela casse, mesuré :
+
+- SPECS.md §1 (« rien n'est décodé ni demandé sans auditeur ») n'est plus tenu :
+  un morceau est tiré, décodé et **annoncé** à l'API sans personne à l'écoute.
+- Le premier auditeur d'un processus neuf prend le morceau en cours de route :
+  2,8 s manquées en manche A.
+- `piste_commencee` est vrai dès le démarrage. Le garde-fou de §9 (« un saut à
+  vide mange le premier morceau ») ne refuse donc plus rien sur un processus qui
+  vient de démarrer.
+- Le premier bloc ICY servi est vide : le titre a été émis avant le
+  branchement (§15.7), et le lecteur n'affiche rien jusqu'à la jonction.
+
+**Non corrigé ici** : c'est GOAL-088-T08.
+
+### 16.2 Les en-têtes et l'ICY sur le vrai script (§1.5, §3, §6)
+
+| Relevé d'origine | Ce qui a été rejoué | Constat 2.4 |
+|---|---|---|
+| §3 : `icy-name` et `icy-br` servis tels quels | `curl -sD` sur `/stream` | **Identique** : `icy-name: local-webradio`, `icy-br: 128`, `Content-type: audio/mpeg` |
+| §1.5 / §6 : `icy-metaint` jamais négocié, même avec `Icy-MetaData: 1` | La même requête avec l'en-tête, sur le **vrai** script cette fois | **Différent** : `icy-metaint: 8192` dans la réponse. Le témoin 2.3.3, même requête : aucun `icy-metaint`. §15.4 ne valait que pour la maquette réduite ; il vaut pour le script du dépôt |
+| §15.4 : les blocs `StreamTitle` | Flux découpé par `metaint`, 26,6 s d'audio | **52 blocs**, un `StreamTitle` à la jonction : `StreamTitle='Deux - Le';` au bloc 46 (23,55 s d'audio). Sans `Icy-MetaData: 1`, pas de `metaint` et pas un octet de plus dans le flux |
+| Le premier bloc | — | **Vide**, l'auditeur ayant rejoint en cours de piste (§15.7, aggravé par §16.1) |
+
+### 16.3 Le branchement (§5.bis, §9)
+
+Manche : `/playout/listeners` qui dort **3 s** avant de répondre, et qui poste
+`/requeue` puis `/skip` au diffuseur depuis son gestionnaire, avant de répondre
+— exactement ce que fait `declare_listeners`.
+
+| Relevé d'origine | Ce qui a été rejoué | Constat 2.4 |
+|---|---|---|
+| §5.bis : annoncer **avant** de rendre l'antenne | `on_connect` par méthode (2.4) ; instants du POST, de la réponse et de la bascule | **Identique.** `LISTENERS 1` posté à 4,974 s, l'API répond à 7,983 s, et c'est **alors seulement** que « auditeur branché » et `Switch to switch with transition` tombent. L'ordre annonce-puis-bascule survit au passage par méthode |
+| §5.bis : pas d'interblocage quand l'API tarde | `/requeue` puis `/skip` postés pendant que `on_connect` attend | **Identique** : `200` en **7 ms** et **1 ms** (2.3.3 : ~5 ms chacun). La purge s'exécute pendant l'attente (« avance jetée », « saut demandé » dans la même seconde), le tirage frais part et l'antenne est encore sur `blank()` |
+| Le dernier auditeur parti | `curl` arrivé à son terme | **Identique** : `LISTENERS 0` **dans les 100 ms** |
+| §4 : « la déconnexion brutale d'un lecteur, non essayée » | `kill -9` sur le `curl`, horodaté à la milliseconde | **Mesuré pour la première fois** : `SIGKILL` à `…173.856`, `LISTENERS 0` à `…174.082` — **226 ms**. Le point incertain de §4 se referme pour ce cas-là seulement (voir les points incertains) |
+
+### 16.4 Le direct (§9)
+
+Manche : un direct instruit au tirage d'avance, pris à la jonction suivante,
+rendu à l'heure dite ; deux cases enchaînées.
+
+| Relevé d'origine | Ce qui a été rejoué | Constat 2.4 |
+|---|---|---|
+| §9 : `on_track` arme `piste_commencee` et `direct_arme` | `on_track(synchronous=true, …)`, forme imposée par la 2.4 (§15.1) | **Identique** : l'annonce part du fil de diffusion et le témoin est armé au même instant. Rien ne trahit le changement de signature |
+| §9 : le direct prend l'antenne ~1 s après le début de piste qui l'arme | Instants de l'`on_track` et du `Switch to live with transition` | **Plus rapide, et l'écart s'explique** : **10 ms** (`on_track` à 25,126 s, bascule et annonce à 25,136 s). §9 mesurait le délai de remplissage d'un `input.http` démarré à l'instant ; ici il coulait depuis 20 s. La règle « à la jonction, jamais au milieu » tient dans les deux cas |
+| §9 : l'annonce du direct vient de la **transition**, une seule fois | Corps reçu par `/playout/playing` | **Identique** : `PLAYING live:1788794282:http://…` — l'entrée telle que l'API l'a rendue, **une** fois par prise d'antenne, sur les deux cases |
+| §9 : l'avance dort **sous** le direct | Journal pendant la case | **Identique** : `d` est préparé et annoncé pendant que le direct est à l'antenne |
+| §9 : la fin du direct purge et saute | Fin de case, avec un auditeur branché | **Identique** : « l'avance rassie est jetée, le reliquat coupé », `Analysis … (2.00 s / 0.00 s)`, nouveau `on_track` **1,9 s** après. Les deux secondes que `cross` tient du morceau gelé **passent quand même** (1,25 s de `d` mesurées à l'antenne) : `reliquat_a_taire` n'est armé qu'à antenne vide, et la case s'est terminée devant un auditeur. C'est le comportement de §10, pas un écart de version |
+
+### 16.5 Le reliquat, le muet et la rampe (§10, §11)
+
+Manche de §11 rejouée : un auditeur écoute, part, et revient six secondes plus
+tard ; la purge part de l'intérieur du gestionnaire de `/playout/listeners`. Un
+seul paramètre change d'une manche à l'autre : le retard de `/playout/next`.
+L'établissement du flux coûte 3,00 s dans cette maquette — c'est l'origine des
+temps donnés ci-dessous.
+
+| Relevé d'origine | Ce qui a été rejoué | Constat 2.4 |
+|---|---|---|
+| §10 : `cross` tient deux secondes du morceau coupé, la transition les jette | Régime rapide, `/next` immédiat, avec `cross` **avant** `normalize` | **Identique** : `Analysis … (1.88 s / 2.00 s)`, « saut à antenne vide : le reliquat est jeté », l'entrée fraîche à 4,25 s du flux — 1,25 s après l'établissement. **Aucune fenêtre à 440 Hz** : rien du morceau d'avant la pause |
+| §11 : en régime lent, la sortie a déjà servi le reliquat, puis 2 s de blanc | `/next` retardé de **4 s** | **Identique au correctif de §11** : `Analysis … (0.00 s / 2.00 s)`, silence numérique complet jusqu'à 8,00 s, **aucune trace de 440 Hz**, puis `c` |
+| §11 : le morceau frais entre sous une rampe réarmée (`gain_antenne`) | Fenêtres de 0,25 s à l'entrée du morceau frais | **Identique** : −50,5 dB à 8,25 s, puis −39,8, −34,5, −30,9, −28,2, −26,0, −24,1, −22,5, −21,3 et le plateau à −21,0 dB à 10,50 s. La rampe fait bien ses **2 s** |
+| §15.3 : `cross` derrière `normalize` ne fonctionne plus | L'ordre inversé du script migré, sur le vrai `radio.liq` | **Confirmé dans le bon sens** : `Analysis` à chaque jonction, recouvrement de 2 s, fondu enchaîné audible sur toutes les manches |
+| §11 : « le premier appel HTTP d'un processus échoue en 523 » | Les journaux des **dix** démarrages de conteneur de ce relevé | **Non reproduit** : pas un seul `523`, et la première annonce (`LISTENERS 0` du battement) est répondue `204` à chaque fois. Le défaut de §11 ne se constate pas sur la 2.4 |
+
+### 16.6 « Passer » quand l'entrée fraîche se dérobe (§12, §14)
+
+`/skip-fresh` réécrit en `next_entry()` + `request.resolve` + `add` (§15.2)
+avait déjà été mesuré sans blanc en T02. Deux cas de bord restaient.
+
+| Relevé d'origine | Ce qui a été rejoué | Constat 2.4 |
+|---|---|---|
+| §12 : la route combinée garde l'antenne pleine | L'entrée fraîche répond **404** | **Le saut tombe quand même**, et **sans blanc** : `/skip-fresh` répond en 6,2 ms, le journal dit « l'entrée fraîche ne s'est pas résolue, le saut aura un blanc », mais le tirage d'avance que `set_queue([])` a réveillé avait déjà résolu `c` — `a` tient jusqu'à 11,50 s (−15,8 dB à l'ordre, −26,8 dB en fin de fondu), `c` entre à 11,75 s. **Le message du journal est pessimiste** : il décrit ce qui arriverait si le second tirage tardait |
+| §12 : un « Passer » coûte deux tirages, et le plus vite résolu gagne | `next_entry()` rend un **direct** | **Le saut tombe quand même.** Le gestionnaire tire `live:…` (« direct demandé pour 39 s »), redemande, retombe sur un `live:` (« un direct est déjà en cours, instruction ignorée »), conclut « aucune entrée fraîche à mettre en file » et saute ; réponse en **4,6 ms**. Le tirage d'avance réveillé sert `c`, dont l'`on_track` **arme le direct** : `c` s'entend **0,5 s** puis le direct prend l'antenne. Deux manches identiques |
+
+### 16.7 Le coût (ARCHITECTURE.md §4)
+
+`docker stats --no-stream`, deux lectures à cinq secondes d'écart, même machine,
+même manche, l'image de 1,12 Go contre celle de 967 Mo.
+
+| Relevé d'origine | Ce qui a été rejoué | Constat 2.4 |
+|---|---|---|
+| ARCHITECTURE.md §4 : « rien de décodé sans auditeur, ~0,8 % d'un cœur » | Conteneur sans auditeur | **1,79 % puis 2,00 %** de CPU, **83,0** puis **82,3 MiB**. Témoin 2.3.3 : **1,03 %** et **0,97 %**, 322,3 puis 328,4 MiB. Le surcroît de CPU est celui de §16.1 — la 2.4 décode pendant ce temps |
+| §3 : « 80 Mo, 3 % de CPU avec un auditeur » | Un auditeur `curl` | **3,84 % puis 3,57 %**, **87,4** puis **86,0 MiB**. Témoin 2.3.3 : 3,04 % et 3,14 %, 81,7 puis 81,0 MiB. Même ordre de grandeur, ~0,6 point de CPU et ~5 MiB de plus |
+
+### Ce que cela change
+
+- **GOAL-088-T08 est ouverte** : `normalize` doit cesser de tirer la source
+  quand personne n'écoute (§16.1). C'est SPECS.md §1 qui est en jeu, pas un
+  détail de journal.
+- **ARCHITECTURE.md §4 est faux sur deux points** — « rien de décodé sans
+  auditeur » et « ~0,8 % d'un cœur » — tant que T08 n'est pas faite. La
+  correction du document appartient à GOAL-088-T07.
+- **Rien d'autre n'a bougé.** Les huit comportements sur lesquels le script
+  s'appuie — annoncer avant de rendre l'antenne, l'absence d'interblocage, le
+  témoin de piste, la prise du direct à la jonction, l'annonce par la
+  transition, la purge de fin de case, le reliquat jeté, la rampe réarmée —
+  se rejouent à l'identique sur la 2.4, aux millisecondes près.
+- **§1.5 et §6 sont périmés pour la 2.4** : le vrai script négocie
+  `icy-metaint` et émet des `StreamTitle`. C'est ce que GOAL-088 cherchait.
+- Le `523` du premier appel HTTP (§11) **ne se reproduit pas** sur la 2.4. Rien
+  ne dit qu'il a été corrigé ; il n'est simplement plus observable ici.
+- **Une nuance de §3** : « `prefetch=1` demande un morceau avant le premier
+  auditeur » valait pour la maquette naïve de GOAL-016, pas pour le script du
+  dépôt — le témoin 2.3.3 ne tire rien avant le branchement. C'est §5.bis qui
+  était exact.
+
+### Points incertains
+
+- [ ] **Pourquoi `normalize` tire en 2.4.** L'opérateur est identifié, la cause
+      amont ne l'est pas — §15.3 signalait déjà une zone mouvante (issue #5382,
+      PR #5378 fusionnée puis annulée). Le remède est à instruire en T08 ; on ne
+      sait pas encore si un placement différent suffit.
+- [ ] **La déconnexion vraiment brutale.** Ce qui a été mesuré est un `curl`
+      tué : le noyau ferme la socket proprement, et le diffuseur l'apprend en
+      226 ms. Un câble arraché ou une machine éteinte ne ferment rien, et le
+      délai serait celui du `keepalive` TCP — **non mesuré**, la maquette étant
+      en `--network host`.
+- [ ] **Le direct est simulé.** `input.http` a été branché sur un serveur local
+      débitant un ton ; les 15 s de mise en route de §3 et les **deux**
+      `on_track` de §9 au démarrage d'un `input.http` n'ont pas été rejoués
+      contre le vrai France Info (§5, à faire sur la pile Compose).
+- [ ] **La mémoire de la 2.3.3 au repos** (322 MiB, contre 83 MiB en 2.4) n'est
+      pas expliquée et repose sur deux lectures d'une seule manche.
+- [ ] **Le multi-auditeurs** n'a pas été rejoué ici : §15.7 tient, un bloc ICY
+      n'est livré qu'à un seul auditeur.
+- [ ] **Ce qui ne s'entend pas en maquette** (AGENTS.md §4.1) : la reprise du
+      matin après une longue pause, les fondus `liq_fade_*` d'un jingle (§1.4,
+      §7), et si les 0,5 s de musique avant un direct pioché par « Passer »
+      (§16.6) s'entendent comme un accroc ou comme une jonction.

@@ -241,10 +241,10 @@ oubliée. Ouvert sur le résidu consigné par la relecture de GOAL-086-T06 ; deu
 tâches, deux commits. **Reste à écouter** (AGENTS.md §4.1) : un vrai « Passer »
 en plage, l'épisode qui prend l'antenne et celui qui suit.
 
-**Prochaine tâche** : GOAL-088-T03, rejouer en maquette fidèle sur la 2.4 les
-relevés que la migration remet en cause (§5.bis, §9, §10, §11, §12, §14) —
-l'épingle est désormais un condensat de la branche 2.4 et `radio.liq` est
-migré. Restent ensuite GOAL-082-T04 (le
+**Prochaine tâche** : GOAL-088-T04, le libellé de l'interface dans le flux hors
+chanson (`metadata.map(strip=true, …)`). GOAL-088-T08, ouverte par T03, la
+précède si l'auteur veut l'antenne conforme à SPECS.md §1 d'abord : en 2.4,
+`normalize` tire la source sans auditeur. Restent ensuite GOAL-082-T04 (le
 seuil de vivier de l'ancre d'`artist_fan`) et GOAL-075-T03, qui attend le
 déploiement.
 
@@ -536,12 +536,32 @@ titre à la prise d'antenne.
       **Reste à écouter** (AGENTS.md §4.1) : une jonction ordinaire, pour
       savoir si le fondu tient avec `normalize` derrière `cross`, et un
       « Passer » en plage sur un vrai épisode.
-- [ ] **GOAL-088-T03** — Rejouer en maquette fidèle sur 2.4 les relevés que la
+- [x] **GOAL-088-T03** — Rejouer en maquette fidèle sur 2.4 les relevés que la
       migration remet en cause : §5.bis (annoncer avant de rendre l'antenne,
       `on_connect` par méthode), §9 (`on_track` synchrone, direct), §10 et §11
       (reliquat, muet de reprise, rampe, avec `cross` avant `normalize`), §12
-      et §14 (`/skip-fresh` réécrit) ; consigner. **À écouter** : la reprise du
-      matin après une longue pause.
+      et §14 (`/skip-fresh` réécrit) ; consigner.
+      **Fait** : onze manches sur le vrai `radio.liq` monté dans l'image
+      épinglée, fausse API horodatée, tons purs et flux mesuré par fenêtres de
+      0,25 s, plus un **témoin** 2.3.3 avec le script d'avant la migration
+      (`fb75f2d^`) — c'est lui qui distingue la version du script. Consigné en
+      docs/liquidsoap.md §16, et la liste « à rejouer » de §15 est cochée.
+      Bilan : **tout se rejoue à l'identique sauf un défaut**, ouvert en T08 —
+      en 2.4 `normalize` tire la source sans auditeur, donc un morceau est
+      tiré, décodé et annoncé au démarrage (SPECS.md §1). Le reste tient :
+      `icy-metaint: 8192` négocié sur le vrai script, annonce avant bascule,
+      `/requeue` et `/skip` en 7 et 1 ms pendant que `on_connect` attend 3 s,
+      `listeners 0` en 226 ms sur un `curl` tué (§4 n'avait jamais mesuré une
+      déconnexion brutale), direct pris 10 ms après l'`on_track` qui l'arme et
+      annoncé par la transition, reliquat jeté et rampe de 2 s en régime lent
+      comme rapide, `/skip-fresh` qui saute quand même sur un 404 (sans blanc)
+      et sur un direct. Le `523` de §11 n'est pas reproduit ; le coût passe de
+      1,0 à 1,9 % de CPU au repos et de 3,1 à 3,7 % avec un auditeur.
+      **Reste à écouter** (AGENTS.md §4.1) : la reprise du matin après une
+      longue pause, les fondus `liq_fade_*` d'un jingle (§1.4, §7), et si la
+      demi-seconde de musique qui précède un direct pioché par « Passer »
+      s'entend comme un accroc.
+      **Prochaine tâche** : GOAL-088-T04.
 - [ ] **GOAL-088-T04** — Hors chanson, le flux annonce le libellé de
       l'interface : `metadata.map(strip=true, …)` dans `radio.liq` d'après
       `radio_kind`/`radio_label`, un jingle étiqueté compris ; test du script
@@ -558,7 +578,23 @@ titre à la prise d'antenne.
       docs/flux-icy.md. Écoute seule, par l'auteur.
 - [ ] **GOAL-088-T07** — Documentation : SPECS.md §4.9 et §7 (n°23 précisée,
       n°46, n°47), ARCHITECTURE.md §4 et §8.5 (épingle par condensat, image
-      de 1,12 Go), carte du dépôt (§9).
+      de 1,12 Go), carte du dépôt (§9). §4 dit encore « rien de décodé sans
+      auditeur, ~0,8 % d'un cœur » : les deux sont faux tant que T08 n'est pas
+      faite (docs/liquidsoap.md §16.1 et §16.7).
+- [ ] **GOAL-088-T08** — Ouverte par T03 le 2026-09-07, sur mesure. En 2.4,
+      `normalize` consomme sa source en continu quelle que soit la sortie :
+      placé **avant** le `switch` des auditeurs dans `radio.liq`, il fait tirer,
+      décoder et annoncer un morceau alors que `blank()` est à l'antenne et que
+      personne n'écoute (docs/liquidsoap.md §16.1). Mesuré : `NEXT#0` 1 s après
+      le démarrage, `PLAYING` dans la foulée, auditeur trois secondes plus tard
+      qui prend le morceau en cours. Le témoin 2.3.3 ne tire rien avant le
+      branchement. Trois conséquences : SPECS.md §1 n'est plus tenu,
+      `piste_commencee` est vrai dès le démarrage — le garde-fou du saut à vide
+      (§9) ne refuse plus rien —, et le premier bloc ICY est vide.
+      Isolé opérateur par opérateur : ce n'est ni `cross`, ni l'ordre des deux,
+      ni `on_track`, ni `input.http`. Instruire le remède (déplacer `normalize`
+      après le `switch` des auditeurs, ou s'en passer) sans reperdre le fondu de
+      §15.3, et le mesurer sur la même maquette.
 
 ---
 
