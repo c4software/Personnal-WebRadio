@@ -241,9 +241,11 @@ oubliée. Ouvert sur le résidu consigné par la relecture de GOAL-086-T06 ; deu
 tâches, deux commits. **Reste à écouter** (AGENTS.md §4.1) : un vrai « Passer »
 en plage, l'épisode qui prend l'antenne et celui qui suit.
 
-**Prochaine tâche** : GOAL-082-T04, le seuil de vivier appliqué ou non à l'ancre
-d'`artist_fan`. Puis GOAL-075-T03, la mesure à l'antenne du premier tirage d'une
-reprise, qui attend le déploiement.
+**Prochaine tâche** : GOAL-088-T02, déplacer l'épingle sur la branche 2.4 par
+condensat et migrer `radio.liq` — le relevé qui la commande est consigné
+(docs/liquidsoap.md §15). Restent ensuite GOAL-082-T04 (le
+seuil de vivier de l'ancre d'`artist_fan`) et GOAL-075-T03, qui attend le
+déploiement.
 
 ---
 
@@ -467,6 +469,82 @@ verrouillage pendant l'émission de dimanche prochain.
 
 ---
 
+## GOAL-088 — Le flux annonce le titre en cours aux lecteurs
+
+Ouvert le 2026-09-07 à la demande de l'auteur : un lecteur qui consomme le flux
+(cliamp, VLC) doit afficher la chanson en cours. Le mécanisme est celui de tous
+les lecteurs de webradio : les métadonnées ICY en ligne (`icy-metaint`,
+`StreamTitle`). Constaté en maquette le même jour : l'image épinglée
+`v2.3.3` ne les négocie jamais (bug amont, docs/liquidsoap.md §6) ; l'image de
+branche `v2.4.x-latest` (2.4.6+git) les émet, mais aucune version publiée ne
+porte le correctif (2.4.5 du 2026-06-15, correctif du 2026-07-22).
+
+Décisions de l'auteur : épingler la branche 2.4 **par condensat** ; chanson =
+« Artiste - Titre » construit par Liquidsoap depuis les étiquettes ; hors
+chanson, le **libellé de l'interface**, construit par le script depuis
+`radio_kind`/`radio_label` ; le direct reçoit son libellé par un champ de plus
+dans `live:<fin>:<libellé>:<url>` ; pas de `StreamUrl`. Le défaut de la
+branche 2.4 — chaque bloc ICY n'est livré qu'à **un seul** auditeur, corrigé
+amont sur `main`/2.5 seulement (PR #5003) — est **accepté et consigné**
+(SPECS.md §7 n°47), à revoir quand l'amont le porte sur 2.4.
+
+Ce que l'analyse préalable a établi (maquettes dans le scratchpad, à consigner
+en T01) : la 2.4 exige `synchronous=true` sur les rappels de source,
+`null` nu, `on_connect`/`on_disconnect` par méthode ; `fetch()` y devient
+asynchrone et casse `/skip-fresh` (3,75 s de blanc, remède `request.resolve`
++ `add` mesuré sans blanc) ; `normalize` placé **avant** `cross` supprime les
+métadonnées et le fondu enchaîné (ordre à inverser) ; `annotate:title=`
+écrase le titre mais l'artiste du fichier subsiste, seul `metadata.map(strip=true)`
+rend un libellé propre ; un fichier sans étiquette n'émet rien ; France Info
+n'envoie rien, `metadata.map(insert_missing=true)` sur `input.http` donne un
+titre à la prise d'antenne.
+
+- [x] **GOAL-088-T01** — Relevé : consigner dans docs/liquidsoap.md (§15) la
+      branche 2.4 — les quatre changements de `--check`, `fetch()` asynchrone
+      et `resolve`+`add`, `normalize` après `cross`, ce que `StreamTitle` donne
+      (titre seul, `title=` sur un fichier étiqueté, `strip=true`, direct avec
+      et sans métadonnée, moment du changement au fondu), le bug
+      multi-auditeurs et son état amont ; réécrire §6 ; fermer docs/flux-icy.md
+      §4 pour ce qui est tranché.
+      **Fait** : docs/liquidsoap.md §15 en sept sections (`--check`, `fetch()`
+      asynchrone et `resolve`+`add`, `normalize` après `cross`, `StreamTitle`,
+      le direct, le moment du changement au fondu, le bug multi-auditeurs),
+      §6 réécrit, en-tête disant que §15 relève la 2.4 ; docs/flux-icy.md §4
+      et §6 tranchés sauf le décrochage, laissé à GOAL-088-T06.
+- [ ] **GOAL-088-T02** — Épingler `savonet/liquidsoap@sha256:…` (branche
+      `v2.4.x-latest`, 2.4.6+git du 2026-09-05) dans `Dockerfile.liquidsoap`
+      et `verifier.sh`, le test exigeant un condensat identique aux deux
+      endroits ; migrer `radio.liq` dans le même commit (`synchronous`,
+      `null`, `on_connect` par méthode, `fetch()` → `resolve`+`add`,
+      `normalize` après `cross`, masquages renommés) ; `./verifier.sh` passe
+      contre l'image épinglée. **À écouter** : une jonction ordinaire (le fondu
+      tient), un « Passer » en plage (pas de blanc).
+- [ ] **GOAL-088-T03** — Rejouer en maquette fidèle sur 2.4 les relevés que la
+      migration remet en cause : §5.bis (annoncer avant de rendre l'antenne,
+      `on_connect` par méthode), §9 (`on_track` synchrone, direct), §10 et §11
+      (reliquat, muet de reprise, rampe, avec `cross` avant `normalize`), §12
+      et §14 (`/skip-fresh` réécrit) ; consigner. **À écouter** : la reprise du
+      matin après une longue pause.
+- [ ] **GOAL-088-T04** — Hors chanson, le flux annonce le libellé de
+      l'interface : `metadata.map(strip=true, …)` dans `radio.liq` d'après
+      `radio_kind`/`radio_label`, un jingle étiqueté compris ; test du script
+      (maquette `--check` et maquette ICY reproductible). **À écouter** : un
+      jingle horaire et un générique dans VLC.
+- [ ] **GOAL-088-T05** — Le direct porte un titre : `live:<fin>:<libellé>:<url>`
+      produit par `show_scheduler.py` (libellé sans deux-points, garanti par
+      l'API), relu par `liquidsoap_playout.py`, posé par `metadata.map` sur
+      `input.http` dans `radio.liq` ; tests. **À écouter** : le flash de midi,
+      et le titre qui revient à la musique.
+- [ ] **GOAL-088-T06** — Constater dans de vrais lecteurs (VLC, cliamp,
+      navigateur, enceinte) : titre affiché, changement de titre sans
+      décrochage, deux lecteurs en même temps ; consigner dans
+      docs/flux-icy.md. Écoute seule, par l'auteur.
+- [ ] **GOAL-088-T07** — Documentation : SPECS.md §4.9 et §7 (n°23 précisée,
+      n°46, n°47), ARCHITECTURE.md §4 et §8.5 (épingle par condensat, image
+      de 1,12 Go), carte du dépôt (§9).
+
+---
+
 ## Vue d'ensemble
 
 | Goal | Titre | État |
@@ -558,6 +636,7 @@ verrouillage pendant l'émission de dimanche prochain.
 | GOAL-085 | L'antenne dit où en est ce qui passe | `[x]` — clos le 2026-09-06 ; **reste à écouter** le décalage entre la barre et l'oreille, et l'écran de verrouillage |
 | GOAL-086 | Passer un épisode pioche un autre épisode | `[x]` — clos le 2026-09-06 ; **reste à écouter** un « Passer » sur un vrai épisode lourd et un redéploiement en pleine plage |
 | GOAL-087 | Après un « Passer », les deux entrées en vol sont des épisodes | `[x]` — clos le 2026-09-06 ; **reste à écouter** un vrai « Passer » en plage, l'épisode qui prend l'antenne et celui qui suit |
+| GOAL-088 | Le flux annonce le titre en cours aux lecteurs (ICY) | `[ ]` — ouvert le 2026-09-07 |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).

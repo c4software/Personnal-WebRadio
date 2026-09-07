@@ -114,12 +114,26 @@ déréférençant ce qui vient de disparaître.
 
 ## 4. Les métadonnées
 
-- [ ] Faut-il annoncer le titre en cours, et par quel mécanisme ? Est-ce attendu,
-      ou seulement agréable ?
+- [x] ~~Faut-il annoncer le titre en cours, et par quel mécanisme ? Est-ce
+      attendu, ou seulement agréable ?~~ **Tranché le 2026-09-07 (GOAL-088)** :
+      c'est **attendu**. Le mécanisme est celui de tous les lecteurs de
+      webradio — les métadonnées ICY en ligne, négociées par l'en-tête client
+      `Icy-MetaData: 1`, la réponse portant `icy-metaint` et le flux un bloc
+      `StreamTitle='…';` tous les `metaint` octets. **cliamp ne lit que
+      `StreamTitle`** ; le flux ne portera pas de `StreamUrl` (décision de
+      l'auteur). Ce que Liquidsoap en fait est relevé dans
+      docs/liquidsoap.md §15.
 - [ ] Un changement de métadonnée peut-il, à lui seul, provoquer une coupure chez
-      certains lecteurs ?
-- [ ] Que faut-il annoncer pendant un jingle ou un flash, où il n'y a ni titre ni
-      artiste ?
+      certains lecteurs ? **Toujours ouvert** : aucune maquette ne le dira,
+      `curl` ne décroche de rien. À l'écoute, sur de vrais lecteurs
+      (GOAL-088-T06, AGENTS.md §4.1).
+- [x] ~~Que faut-il annoncer pendant un jingle ou un flash, où il n'y a ni titre
+      ni artiste ?~~ **Tranché le 2026-09-07, décision de l'auteur** : hors
+      chanson, le flux annonce le **libellé de l'interface** — celui que la page
+      affiche déjà —, construit par `radio.liq` depuis `radio_kind` et
+      `radio_label`. Une chanson reste « Artiste - Titre ». Un fichier sans
+      étiquette n'émet **rien** et laisse le titre précédent affiché
+      (docs/liquidsoap.md §15.4) : le libellé n'est donc pas facultatif.
 
 ## 5. Plusieurs auditeurs
 
@@ -142,8 +156,11 @@ construction de la question des changements de format (§1 à 3).
       ffmpeg. **VLC, un navigateur, une enceinte connectée et une application de
       radios n'ont pas été essayés** — or c'est le plus intolérant d'entre eux
       qui fixera la contrainte (SPECS.md §4.9).
-- [ ] Les **métadonnées de titre** (§4) : attendues ou seulement agréables, et
-      un changement peut-il à lui seul faire décrocher un lecteur ?
+- [x] ~~Les **métadonnées de titre** (§4) : attendues ou seulement agréables~~ —
+      **attendues**, et le mécanisme est arrêté (§4, GOAL-088).
+- [ ] Un changement de titre peut-il, à lui seul, faire **décrocher** un
+      lecteur ? Reste entier, et c'est le seul point de §4 qui le reste
+      (GOAL-088-T06).
 - [ ] La détection d'une déconnexion **brutale** (§5) — SPECS.md §4.7 en dépend :
       sans elle, la chaîne tourne pour un auditeur qui n'existe plus.
 - [ ] Le placement du tampon pour qu'un auditeur lent ne ralentisse pas les

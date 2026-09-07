@@ -9,6 +9,12 @@
 
 **Version constatée** : `Liquidsoap 2.3.3`. Image : **967 Mo**.
 
+> **Depuis le 2026-09-07, le relevé porte sur deux versions.** Les sections 1 à
+> 14 valent pour la 2.3.3. **§15 relève la branche 2.4**
+> (`savonet/liquidsoap:v2.4.x-latest`, 2.4.6+git, image de **1,12 Go**), vers
+> laquelle l'épingle se déplace pour obtenir les métadonnées ICY — et il dit
+> lesquelles des sections précédentes sont à rejouer.
+
 ---
 
 ## 1. Ce qui a été constaté
@@ -190,23 +196,33 @@ Liquidsoap demande la piste suivante et annonce ses auditeurs.
 | La purge complète | `/requeue` (l'avance rassise ne jouera jamais) **puis** `/skip` (le reliquat du morceau interrompu est coupé) : l'entrée fraîche démarre **137 ms** après l'annonce. Sans le `/skip`, ~2 s de reliquat passent d'abord |
 | `/skip` sans morceau en cours | **Pas inoffensif** : envoyé alors que rien n'a jamais joué, le saut reste enregistré et **mange le premier morceau** dès son départ (5 ms). Ne sauter que si un morceau passait quand la pause a commencé |
 
-## 6. Points incertains — les métadonnées dans le flux (GOAL-020)
+## 6. Les métadonnées dans le flux (GOAL-020, réécrit le 2026-09-07)
 
 - [x] ~~Le mécanisme qui active les métadonnées ICY reste à trouver.~~
       **Trouvé le 2026-08-30, et c'est un bug amont** : `harbor.ml` passe les
       en-têtes clients **en minuscules** aux gestionnaires, et `harbor_output.ml`
       cherche `"Icy-MetaData"` avec sa casse — l'assertion échoue toujours,
       `metaint` devient −1, rien n'est émis. Constaté cassé en 2.3.3 **et** en
-      2.4.5 ; corrigé sur `main` (`List.assoc_opt "icy-metadata"`), non publié.
-      À réessayer au prochain déplacement d'épingle. La 2.4.5 casse par
-      ailleurs notre script — `http.post` exige `synchronous`, `null()` est
-      déprécié — ce qui reconfirme §1.7 : on ne bouge l'épingle qu'avec un
-      relevé complet.
+      2.4.5.
+      **Corrigé sur la branche 2.4 depuis le 2026-07-22** (commit « fix ICY
+      metadata negotiation », `1110b719`), mais dans aucune version publiée : la
+      dernière est la 2.4.5 du 2026-06-15. L'image de branche
+      `v2.4.x-latest` émet bien `icy-metaint` et les `StreamTitle` — §15 le
+      mesure, et c'est ce qui décide le déplacement de l'épingle (GOAL-088).
+      La 2.4.5 cassait par ailleurs notre script ; §15 dit exactement ce qu'il
+      faut y changer, et confirme que `http.post` n'était **pas** en cause.
+- [ ] **Chaque bloc ICY n'est livré qu'à un seul auditeur** sur la branche 2.4
+      (§15.7). Corrigé amont par la PR #5003, fusionnée sur `main` le
+      2026-04-28 mais **pas** portée sur `v2.4.x` ; la mesure sur
+      `rolling-release-v2.5.x` le confirme réparé. Le défaut est **accepté et
+      consigné** — décision de l'auteur, SPECS.md §7 n°47 — et se rouvrira le
+      jour où l'amont le porte sur la 2.4.
 - [ ] La **pochette** : le protocole ICY ne transporte que `StreamTitle` et
       `StreamUrl`. Aucun flux MP3 n'embarque d'image ; les lecteurs qui en
-      affichent une la récupèrent par un autre canal. Si l'envie reste, la
-      piste sérieuse est `StreamUrl` pointant vers notre API — à relever
-      contre de vrais lecteurs.
+      affichent une la récupèrent par un autre canal. La seule piste restait
+      `StreamUrl` pointant vers notre API — **écartée par décision de l'auteur**
+      (GOAL-088) : le flux ne portera pas de `StreamUrl`. La question de la
+      pochette reste donc ouverte, et sans piste ouverte de ce côté.
 
 ---
 
@@ -663,3 +679,166 @@ qu'un : `fetch()` **d'abord** (la file passe à deux), puis
       ne l'était pas.
       **Reste à écouter** (AGENTS.md §4.1) : un vrai « Passer » en plage,
       l'épisode qui prend l'antenne et celui qui suit.
+
+---
+
+## 15. Treizième relevé — la branche 2.4 et les métadonnées ICY (GOAL-088-T01, le 2026-09-07)
+
+> **Changement d'image.** Toutes les sections qui précèdent portent sur
+> `savonet/liquidsoap:v2.3.3`. Celle-ci relève la **branche 2.4** :
+> `savonet/liquidsoap:v2.4.x-latest`, soit « Liquidsoap 2.4.6+git@284f9c903 »,
+> condensat `sha256:b27b11cfccd466265f605cd3de143bc019f4e0ed58db464297f04ed6ebea3efc`
+> (`docker inspect --format '{{index .RepoDigests 0}}'`). Image **1,12 Go** au
+> lieu de 967 Mo.
+>
+> Deux méthodes. Pour le script : une copie de `radio.liq` passée à
+> `liquidsoap --check` contre l'image 2.4, corrigée et repassée jusqu'à `rc=0`.
+> Pour les métadonnées : une maquette réduite — `request.dynamic(prefetch=1)`
+> → `mksafe` → `output.harbor(%mp3(bitrate=128))` — branchée par
+> `curl -H "Icy-MetaData: 1"`, le flux enregistré tel quel et découpé par un
+> analyseur Python qui suit `icy-metaint: 8192` (16 000 o/s à 128 kb/s, donc un
+> bloc toutes les 0,512 s) et n'imprime que les blocs qui **changent**. Les tons
+> purs et la mesure de fréquence par passages à zéro sont ceux de §11 et §12.
+>
+> Comparaison faite à chaque fois avec la 2.3.3, et avec
+> `savonet/liquidsoap:rolling-release-v2.5.x` (2.5.0+git@4198c46, publié le
+> 2026-09-06) là où la 2.4 se révèle défaillante.
+
+Motif : GOAL-088 veut que le flux annonce le titre en cours (`StreamTitle`).
+§6 avait constaté que la 2.3.3 ne négocie **jamais** `icy-metaint`, même avec
+`Icy-MetaData: 1` — bug amont de casse : `harbor.ml` passe les en-têtes clients
+en minuscules, `harbor_output.ml` cherche `"Icy-MetaData"`, et l'assertion
+`assert (List.assoc "Icy-MetaData" headers = "1")` (ligne 454 du tag `v2.3.3`)
+échoue toujours. Le correctif amont existe — commit « fix ICY metadata
+negotiation » du 2026-07-22, `1110b719` sur la branche `v2.4.x-latest`, entrée
+CHANGES.md du 2026-08-04 — mais **aucune version publiée ne le porte** : la
+dernière est la 2.4.5 du 2026-06-15. Sur Docker Hub, le tag `v2.4.x-latest`
+date du 2026-09-05 et `rolling-release-v2.5.x` du 2026-09-06.
+
+### 15.1 Ce que la 2.4 refuse de notre `radio.liq`
+
+Quatre changements, obtenus en itérant `liquidsoap --check` jusqu'à `rc=0`.
+
+| Question | Constat |
+|---|---|
+| `programme.on_track(on_track)` | **Refusé** (`Error 15: Missing arguments in function application: synchronous : bool`). En 2.4, **tous** les rappels de source exigent `synchronous` : `on_track`, `on_metadata`, `on_connect`, `on_disconnect`, `on_frame`, `on_wake_up` (commit amont « Make synchronous argument required in callbacks », #4619, 2025-08-10). La forme qui compile est `programme.on_track(synchronous=true, on_track)` |
+| `http.post` est-il en cause ? | **Non**, contrairement à ce que §6 avançait à partir de la 2.4.5. `liquidsoap -h http.post` dans l'image 2.4 rend `string` avec les méthodes `status_code`, `status_message`, `headers` : `answer.status_code` reste valide, et `http.post.full` n'existe pas |
+| `null()` | **Déprécié** (`Warning 5: Deprecated: use null`), 2 occurrences dans `radio.liq`. Le `null` nu est **refusé en 2.3.3** (« this value has no method find ») : la double compatibilité 2.3.3/2.4 est impossible |
+| `on_connect` / `on_disconnect` en **argument** d'`output.harbor` | **Type changé** (`Error 5`), et l'argument est déprécié (« Please use the on_connect source method »). Le rappel ne reçoit plus une liste d'en-têtes mais un enregistrement `{headers, ip, protocol, uri}`. Forme retenue : `radio = output.harbor(...)` puis `radio.on_connect(synchronous=true, fun (client) -> … client.ip …)`, idem pour `on_disconnect` |
+| `output.harbor` lui-même | **Journalise un avertissement au niveau 3** : « output.harbor code has not been update in a long while. Please reach if you wish to contribute to it otherwise we suggest using icecast! ». Rien d'autre ne change |
+| Ce qui reste | Des `Warning 6` de masquage (`url`, `metadata`, `on_track`, `request` ×4), cosmétiques — le même piège qu'en §14 |
+| Signatures vérifiées **inchangées** pour notre usage | `thread.run` (toujours sans `synchronous`), `cross`, `cross.simple`, `input.http` (`start`, `self_sync`, `max_buffer`), `harbor.http.register`, `request.dynamic` (`prefetch`, `set_queue`, `queue`, `skip`, `last_metadata`). `switch` garde `track_sensitive` et `transitions` en 2.4 — **absents en 2.5** |
+
+### 15.2 `fetch()` devient asynchrone, et `/skip-fresh` casse
+
+| Question | Constat |
+|---|---|
+| Le type de `programme.fetch()` | **`unit` en 2.4**, `bool` en 2.3.3 (§12). `liquidsoap -h request.dynamic` : « returns immediately and a new request is fetched in the background » |
+| Ce que la route de §12 donne alors | **3,75 s de silence.** `/skip-fresh` répond en **11 ms**, le journal dit « fetch rendu … file=0 », puis le `skip()` tombe sur une file vide : l'antenne se tait jusqu'à l'entrée fraîche |
+| Le remède, mesuré | `r = request.create(url)` ; `request.resolve(r)` — **bloquant**, ~4 s sur l'épisode lourd simulé ; `programme.add(r)` (`add : (request) -> bool`, « Requests are resolved before being added ») ; puis `skip()`. **Aucun silence** : le ton en cours tient jusqu'au saut, l'entrée fraîche entre au saut |
+| Ce que ce remède coûte | **Deux tirages, comme en §12** — la purge réveille le fil d'avance. L'ordre de la file suit l'ordre de **résolution** |
+| Ce qu'il impose au script | Le gestionnaire appelle `ask_next()` lui-même et **construit la requête**, cas `live:` compris : c'est lui qui a l'URL, `fetch()` ne la lui donne plus |
+
+### 15.3 `normalize` avant `cross` casse `cross` en 2.4
+
+Six manches, mêmes fichiers de 8 s, un seul paramètre : l'ordre des deux
+opérateurs.
+
+| Question | Constat |
+|---|---|
+| `normalize` puis `cross` — l'ordre de `radio.liq` | **`cross` ne fonctionne plus** : aucun `on_metadata` après `cross`, **aucun bloc ICY**, et des jonctions toutes les **8 s** au lieu de 6 s — donc ni recouvrement, ni fondu enchaîné. Un `skip()` rétablit ensuite les métadonnées, **mais pas le recouvrement** |
+| `cross` puis `normalize`, ou `amplify` puis `cross` | **Corrects** : métadonnées à chaque jonction, période de **6 s** (8 s moins les 2 s de recouvrement) |
+| Pourquoi | En 2.4, `normalize` est bâti sur `rms` + `delay_line` + `track_audio_amplify` — visible dans le journal des horloges |
+| État amont | **Zone mouvante** : issue #5382 du 2026-08-31, PR #5378 fusionnée puis annulée |
+
+L'ordre doit donc s'inverser dans `radio.liq` : `cross` d'abord, `normalize`
+ensuite, toujours avant le `switch` du direct.
+
+### 15.4 Ce que `StreamTitle` porte
+
+Maquette ICY décrite en tête, `icy-metaint: 8192` négocié.
+
+| Question | Constat |
+|---|---|
+| Un fichier étiqueté `artist=Un, title=La` | `StreamTitle='Un - La';` — c'est Liquidsoap qui assemble « Artiste - Titre » |
+| Une entrée `annotate:artist=Jingle,title=Top:` | `'Jingle - Top'` : `annotate:` alimente `StreamTitle` comme une étiquette de fichier |
+| Les mêmes entrées en **2.3.3** | **Pas d'`icy-metaint` dans la réponse, aucun bloc.** Le bug de §6 est bien ce qui empêchait tout |
+| Un fichier **sans étiquette** (`c.mp3`) | **Un bloc de longueur 0** : rien n'est émis, et le **titre précédent reste affiché** chez le lecteur. Idem avec `annotate:radio_label=Top horaire:` seul — nos clés `radio_*` ne produisent aucun `StreamTitle` |
+| `annotate:title="Top horaire":/liq/c.mp3` (fichier nu) | `StreamTitle='Top horaire';` — **pas de tiret**, l'artiste absent ne laisse pas de trace |
+| `annotate:title="Jingle top":/liq/a.mp3` (fichier **déjà** étiqueté) | `'Un - Jingle top'` : `title=` écrase le titre du fichier, mais **l'artiste du fichier subsiste** |
+| `annotate:artist="",title="Sans artiste"` | `' - Sans artiste'` : une valeur **vide ne retire pas la clé**, elle la vide. Annoter ne suffit donc pas à obtenir un libellé propre |
+| `metadata.map(strip=true, …)` | **C'est lui qui nettoie.** Avec `metadata.map(strip=true, fun (m) -> if m["radio_kind"] != "" and m["radio_kind"] != "musique" then [("title", m["radio_label"]), ("artist","")] else [] end, s)` : un jingle étiqueté donne `'Top horaire'`, un générique `'Moment · Jazz'`, une musique reste `'Un - La'`. `strip=true` retire bien l'artiste vidé |
+
+### 15.5 Le direct
+
+| Question | Constat |
+|---|---|
+| `input.http` vers un distant qui **envoie** de l'ICY | **Relayé.** `'Un - La'` apparaît à la prise d'antenne (9,22 s, l'audio du direct à 9,25 s) |
+| Un distant qui n'en envoie **pas** — le cas de France Info (docs/franceinfo.md) | **Rien n'est émis**, et le titre d'avant reste affiché pendant toute la case |
+| Titrer le direct depuis le script | `live = metadata.map(insert_missing=true, fun (_) -> [("title","Direct France Info")], live_raw)` donne `'Direct France Info'` à 9,22 s, **à travers** `switch(track_sensitive=false, transitions=…)` posé derrière `cross`. `update=false` si l'on ne veut rien retenir du distant |
+| La variante par la transition | `live_raw.insert_metadata([...])` **dans** la transition donne le même résultat. Elle doit viser la **source brute**, pas le `b` de la transition, pour rester homogène en type |
+| Le **retour** à la musique en milieu de piste | **Aucun bloc n'est rejoué** — `replay_metadata=true` n'y change rien. Sans objet pour `radio.liq` : la fin de direct y purge et saute, donc une piste neuve commence |
+
+### 15.6 Quand le titre change, par rapport au son
+
+Maquette avec `cross(duration=2.)` et `cross.simple(fade_in=1., fade_out=1.)`.
+
+| Question | Constat |
+|---|---|
+| L'instant du `StreamTitle` face au fondu | **Au début du fondu**, soit 0,2 à 0,5 s avant que le ton entrant domine : 6,66 s contre 6,75 s ; 12,29 contre 12,75 ; 18,43 contre 18,75 |
+| L'instant du `on_track` de `request.dynamic` | **2 s plus tôt encore** — c'est la lecture d'avance de `cross` (§11) |
+
+L'auditeur voit donc le titre changer un peu avant de l'entendre changer, et
+l'API l'apprend deux secondes avant lui.
+
+### 15.7 Plusieurs auditeurs : chaque bloc n'est livré qu'à un seul
+
+| Question | Constat |
+|---|---|
+| Trois auditeurs branchés ensemble sur la 2.4 | **Chaque bloc ICY est livré à UN SEUL client.** Deux manches : `x` reçoit les titres 1 à 3, `z` le 4e, `y` **aucun**. Quatre jonctions, quatre blocs, consommés une fois chacun |
+| Un auditeur qui rejoint **en cours** de morceau | **Ne reçoit pas le titre courant** : il attend la jonction suivante, et encore faut-il qu'il gagne le tirage |
+| La cause amont | PR **#5003** : « metadata was previously consumed by the first listener in the list per frame, leaving all others stale ». Fusionnée sur `main` le **2026-04-28**, **pas** sur `v2.4.x` |
+| La même maquette sur `rolling-release-v2.5.x` | **Corrigée** : `x` et `y` reçoivent tous les titres, et `z`, branché en retard, reçoit le titre courant dès son premier bloc |
+| Passer en 2.5 pour autant ? | **Non, mesuré impossible en l'état** : la 2.5 refuse notre script (`switch` sans `track_sensitive`, §15.1), et `normalize` → `cross` y donne des jonctions à 4 s, non expliquées |
+
+### Ce que cela change
+
+- **L'épingle bouge**, et par condensat : c'est la décision de l'auteur
+  (GOAL-088-T02). Aucune version publiée ne porte le correctif ICY, donc rien
+  d'autre qu'une image de branche ne peut annoncer un titre.
+- **`radio.liq` migre d'un bloc** : `synchronous=true` sur `on_track`, `null`
+  nu, `on_connect`/`on_disconnect` par méthode, `fetch()` remplacé par
+  `request.resolve` + `add`, `cross` **avant** `normalize`, masquages renommés.
+  Il n'existe pas de version qui satisfasse les deux images à la fois.
+- **Le libellé hors chanson se construit dans le script**, pas dans
+  l'annotation : `title=` seul laisse l'artiste du fichier, et une valeur vide
+  ne retire pas la clé. Seul `metadata.map(strip=true, …)` d'après
+  `radio_kind`/`radio_label` donne ce que l'interface affiche (GOAL-088-T04).
+- **Le défaut multi-auditeurs est accepté et consigné** (SPECS.md §7 n°47,
+  décision de l'auteur), à revoir quand l'amont porte #5003 sur 2.4. Tant qu'il
+  dure, un titre affiché par un lecteur ne dit rien de ce que les autres voient.
+- **Des relevés antérieurs cessent d'être garantis**, parce qu'ils ont tous été
+  faits sur la 2.3.3. À rejouer sur 2.4 en GOAL-088-T03 : §1.5, §3 et §6
+  (en-têtes, ICY) ; §5.bis et §9 (`on_connect` par méthode, annoncer avant de
+  rendre l'antenne, `on_track` synchrone, direct) ; §10 et §11 (reliquat, muet
+  de reprise, rampe, avec `cross` devant `normalize`) ; §12 et §14
+  (`/skip-fresh` réécrit) ; §1.4 et §7 (les fondus `liq_fade_*`, à l'écoute) ;
+  §5 (`input.http` sur la pile Compose) ; §11 (le premier appel HTTP en 523) ;
+  et le coût en CPU et en mémoire, l'image passant de 967 Mo à 1,12 Go.
+
+### Points incertains
+
+- [ ] **Les rappels `synchronous=false`** : sérialisés ou non, non mesuré. Le
+      script ne s'en sert nulle part, mais §11 a montré que `thread.run` ne
+      sérialise rien — rien ne dit que ces rappels-là font mieux.
+- [ ] **Le régime lent de §11 sur la 2.4** : ce que la sortie tire pendant que
+      l'entrée fraîche se résout n'a pas été rejoué. C'est GOAL-088-T03.
+- [ ] **Le comportement de `cross` en 2.5** : les jonctions à 4 s avec
+      `normalize` → `cross` n'ont pas d'explication, et la 2.5 n'accepte pas
+      le script tel quel. Sans objet tant que l'épingle reste sur la 2.4.
+- [ ] **La pochette** reste hors d'atteinte : le protocole ne transporte que
+      `StreamTitle` et `StreamUrl` (§6). L'auteur a écarté `StreamUrl`, la
+      question ne se rouvre donc pas de ce côté.
+- [ ] **Un changement de titre peut-il faire décrocher un lecteur ?** Aucune
+      maquette ne le dira : `curl` ne décroche de rien. C'est GOAL-088-T06, à
+      l'écoute, sur de vrais lecteurs (docs/flux-icy.md §4, AGENTS.md §4.1).
