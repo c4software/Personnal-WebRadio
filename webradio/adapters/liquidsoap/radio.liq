@@ -71,18 +71,32 @@ live = metadata.map(
 
 # Ce qu'il faut faire de l'avance quand le direct rend l'antenne. Un `ref` de
 # fonction parce que `stop_live` est défini avant `programme` ; rempli plus bas.
-vider_l_avance = ref(fun () -> ())
+# Elle reçoit de quoi sortir le direct de l'antenne, et choisit quand : le
+# morceau frais est résolu avant, le saut vient après.
+vider_l_avance = ref(fun (rendre) -> rendre())
 
 def stop_live(why) =
   if live_pending() then
-    live_pending := false
-    live_raw.stop()
     log("le direct se termine : #{why}")
     # L'avance a dormi sous le direct : elle a été tirée à l'ouverture de la
     # case, pas à sa fermeture. Même rassise qu'après une longue pause
     # (SPECS.md §7 n°30).
+    #
+    # La purge tient l'ordre entier, arrêt du direct compris : elle résout le
+    # morceau frais tant que le direct est encore à l'antenne, puis coupe. Sans
+    # cela, les deux secondes que `cross` tient du morceau gelé passent à plein
+    # volume et le frais entre à froid deux secondes plus tard
+    # (docs/liquidsoap.md §16.4). Le direct se prolonge du temps de résolution,
+    # ce que SPECS.md §7 n°22 tolère ; un blanc, non.
+    #
+    # Le fil est celui du `thread.run` de `start_live`, pas celui de la
+    # diffusion : `request.resolve` peut y bloquer, avec le budget de
+    # `settings.request.timeout`.
     purger = vider_l_avance()
-    purger()
+    purger(fun () -> begin
+      live_pending := false
+      live_raw.stop()
+    end)
   end
 end
 
@@ -314,9 +328,41 @@ harbor.http.register(port=port, method="POST", "/skip-fresh", on_skip_fresh)
 # La purge de fin de direct, maintenant que `programme` existe. Le script ne
 # choisit rien : il jette ce qui a rassis et redemande à l'API
 # (ARCHITECTURE.md §4).
-vider_l_avance := fun () -> begin
+#
+# Même mécanique que `on_skip_fresh`, pour la même raison : `set_queue` détruit
+# les requêtes de la file, la résolution ne peut donc pas le précéder
+# (docs/liquidsoap.md §14), et `fetch()` résout en arrière-plan en 2.4, ce qui
+# laisserait la file vide au saut (§15.2). Ici la résolution a un second effet :
+# elle se fait direct encore à l'antenne, donc sans blanc (SPECS.md §7 n°22).
+#
+# Le témoin est armé avant que le direct ne rende l'antenne, pas après :
+# `gain_antenne` épargne un direct à l'antenne, l'armer tôt n'a donc aucun effet
+# audible, tandis que l'armer après `live_raw.stop()` laisserait la sortie
+# servir le reliquat gelé à plein volume le temps que l'arrêt rende la main
+# (docs/liquidsoap.md §16.4). Le saut, lui, vient après : sous le direct il
+# ferait commencer le morceau frais hors antenne.
+#
+# Les deux sous la garde de `piste_commencee` : sans piste en cours, aucune
+# transition ne viendrait consommer le témoin et l'antenne resterait muette.
+vider_l_avance := fun (rendre) -> begin
   log("fin du direct : l'avance rassie est jetée, le reliquat coupé")
   programme.set_queue([])
+  fraiche = next_entry()
+  if null.defined(fraiche) then
+    r = null.get(fraiche)
+    if request.resolve(r) then
+      ignore(programme.add(r))
+      log("morceau frais résolu avant que le direct ne rende l'antenne")
+    else
+      log(level=2, "le morceau frais ne s'est pas résolu, la fin du direct aura un blanc")
+    end
+  else
+    # Une API à court, ou un nouveau direct : le tirage d'avance que la purge
+    # réveille reste le seul recours.
+    log(level=2, "aucun morceau frais à mettre en file")
+  end
+  if piste_commencee() then reliquat_a_taire := true end
+  rendre()
   if piste_commencee() then sauter() end
 end
 

@@ -140,12 +140,42 @@ def test_un_direct_annonce_son_libelle_aux_lecteurs() -> None:
 
 def test_la_fin_d_un_direct_jette_l_avance_rassie() -> None:
     """L'avance a été tirée à l'ouverture du direct, pas à sa fermeture : elle
-    est rassise et doit être purgée (docs/liquidsoap.md §9, GOAL-051)."""
+    est rassise et doit être purgée (docs/liquidsoap.md §9, GOAL-051).
+
+    La purge tient l'ordre entier, arrêt du direct compris : elle est appelée
+    avant `live_raw.stop()`, pour que le morceau frais soit résolu pendant que
+    le direct est encore à l'antenne (docs/liquidsoap.md §16.4, GOAL-090)."""
     code = _code()
     fin_du_direct = re.search(r"def stop_live.*?\nend\n", code, re.DOTALL)
     assert fin_du_direct is not None
-    assert "purger()" in fin_du_direct.group()
+    corps = fin_du_direct.group()
+    assert "purger(" in corps
+    assert corps.index("purger(") < corps.index("live_raw.stop()"), (
+        "le direct ne quitte l'antenne qu'une fois le morceau frais résolu"
+    )
     assert "programme.set_queue([])" in code.split("vider_l_avance :=", 1)[1]
+
+
+def test_la_fin_d_un_direct_resout_le_morceau_frais_avant_de_couper() -> None:
+    """Purger puis sauter laissait passer les deux secondes que `cross` tient du
+    morceau gelé, puis le frais entrait à froid le temps de se résoudre
+    (docs/liquidsoap.md §16.4). Même mécanique que `/skip-fresh` : l'ordre est
+    imposé par `set_queue`, qui détruit les requêtes de la file (§14), et
+    `fetch()` ne convient pas, il résout en arrière-plan (§15.2).
+
+    Le témoin est armé avant que le direct ne rende l'antenne — `gain_antenne`
+    épargne un direct à l'antenne — et le saut vient après (GOAL-090)."""
+    code = _code()
+    purge = re.search(r"vider_l_avance := fun.*?\nend\n", code, re.DOTALL)
+    assert purge is not None
+    corps = purge.group()
+    assert "programme.fetch()" not in corps, (
+        "en 2.4 il est asynchrone : le saut trouve la file vide"
+    )
+    assert corps.index("programme.set_queue([])") < corps.index("request.resolve(")
+    assert corps.index("request.resolve(") < corps.index("programme.add(")
+    assert corps.index("programme.add(") < corps.index("reliquat_a_taire := true")
+    assert corps.index("reliquat_a_taire := true") < corps.index("sauter()")
 
 
 def test_un_saut_a_antenne_vide_ne_laisse_aucun_reliquat_au_premier_auditeur() -> None:
