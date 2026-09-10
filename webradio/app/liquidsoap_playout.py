@@ -128,6 +128,23 @@ def _longueur_lue(secondes: str | None) -> Length | None:
         return None
 
 
+def _fin_d_un_direct(entry: str) -> datetime | None:
+    """La fin portée par une instruction `live:<fin en secondes Unix>:…`, en UTC,
+    ou `None` si l'instruction est tronquée ou mal datée.
+
+    Un direct n'est pas annoté (`_decrire`) : sa fin ne se lit que là. Le libellé
+    n'a pas de deux-points (`show_scheduler`), l'URL en a : les trois premiers
+    champs se lisent, le reste est l'adresse.
+    """
+    champs = entry.split(":", 3)
+    if len(champs) < 4:
+        return None
+    try:
+        return datetime.fromtimestamp(int(champs[1]), tz=UTC)
+    except ValueError:
+        return None
+
+
 def _adresse(entry: str) -> str:
     """L'adresse d'une entrée, sans son préfixe d'annotation.
 
@@ -392,6 +409,9 @@ class LiquidsoapPlayout:
             return
         debut = self._maintenant() if started_at is None else self._dans_le_fuseau(started_at)
         with self._verrou:
+            if self._une_musique_sous_un_direct(entry, debut):
+                logger.info("annonce de %s sous le direct, ignorée", entry.split("?", 1)[0])
+                return
             pending = self._en_attente.pop(entry, None)
             if pending is None:
                 pending = self._reprendre_une_entree_replacee(entry)
@@ -434,6 +454,28 @@ class LiquidsoapPlayout:
             started_at=debut,
             skippable=pending.skippable,
         )
+
+    def _une_musique_sous_un_direct(self, entry: str, instant: datetime | None) -> bool:
+        """Vrai si `entry` est un morceau annoncé alors qu'un direct tient
+        l'antenne et que sa fin n'est pas passée. À appeler sous le verrou.
+
+        Le diffuseur consomme la source musicale en sourdine sous un direct
+        (docs/liquidsoap.md §16.1) : les morceaux tirés à l'ouverture de la case
+        défilent et s'annoncent sans que personne les entende. Rien de tout cela
+        ne prend l'antenne (SPECS.md §4.9).
+
+        La fin de la case ferme la garde : le direct s'y prolonge du temps de
+        résolution du morceau frais (SPECS.md §7 n°22), donc l'annonce du frais
+        arrive après la fin portée par l'instruction et elle est acceptée.
+        """
+        en_cours = self._entree_en_cours
+        if instant is None or en_cours is None or not en_cours.startswith(LIVE):
+            return False
+        attendue = self._en_attente.get(entry)
+        if attendue is None or attendue.kind is not Kind.MUSIC:
+            return False
+        fin = _fin_d_un_direct(en_cours)
+        return fin is not None and instant < fin
 
     def _maintenant(self) -> datetime | None:
         return None if self._horloge is None else self._horloge.now()
@@ -496,21 +538,16 @@ class LiquidsoapPlayout:
 
         Un direct n'est pas annoté (`_decrire`) : c'est l'instruction
         `live:<fin en secondes Unix>:<libellé>:<url>` qui porte son libellé et
-        sa fin. Le libellé n'a pas de deux-points (`show_scheduler`), l'URL en
-        a : les trois premiers champs se lisent, le reste est l'adresse.
+        sa fin (`_fin_d_un_direct`).
 
         Rien n'est inscrit au programme : un direct ne laisse aucune trace en
         base (SPECS.md §7 n°22).
         """
-        champs = entry.split(":", 3)
-        if len(champs) < 4:
+        fin = _fin_d_un_direct(entry)
+        if fin is None:
             logger.info("instruction de direct illisible, l'antenne reste inconnue : %s", entry)
             return False
-        try:
-            fin = datetime.fromtimestamp(int(champs[1]), tz=UTC)
-        except ValueError:
-            logger.info("fin de direct illisible, l'antenne reste inconnue : %s", champs[1])
-            return False
+        champs = entry.split(":", 3)
         logger.info("direct d'avant ce démarrage, restauré par son instruction : %s", champs[2])
         self._radio.declare(
             Kind.SHOW,

@@ -192,6 +192,21 @@ class FakeProgrammeEpieLeVerrou(RadioProgramme):
         super().replay_later(entry, kind, track, label, length, skippable)
 
 
+class FakeProgrammeQuiNoteLesPrisesDAntenne(RadioProgramme):
+    """Un programme qui retient les morceaux déclarés à l'antenne (GOAL-090-T03).
+
+    `track_started` n'a pas d'effet observable de l'extérieur : il retire le
+    morceau de ce qu'un encore peut rendre. On le note ici.
+    """
+
+    def noter(self) -> None:
+        self.prises: list[Track] = []
+
+    def track_started(self, track: Track) -> None:
+        self.prises.append(track)
+        super().track_started(track)
+
+
 class FakeEtatQuiCompteSesLectures(SqliteState):
     """Une base qui compte ses lectures de scores (GOAL-075-T05).
 

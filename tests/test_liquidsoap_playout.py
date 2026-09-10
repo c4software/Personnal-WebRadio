@@ -10,6 +10,7 @@ import pytest
 from tests.fakes import (
     FakeDiffuseur,
     FakeProgrammeEpieLeVerrou,
+    FakeProgrammeQuiNoteLesPrisesDAntenne,
     FakeSource,
     FakeSourceEpieLeVerrou,
     track,
@@ -65,6 +66,7 @@ def _playout(
     programme_class: type[RadioProgramme] = RadioProgramme,
     draws: list[int] | None = None,
     order_skip_fresh: Callable[[], None] | None = None,
+    journal: Callable[[str, str, str], None] | None = None,
 ) -> tuple[LiquidsoapPlayout, LiveRadio, FrozenClock]:
     clock = clock if clock is not None else FrozenClock(MIDI)
     random = ScriptedRandom(draws if draws is not None else [0] * 100)
@@ -93,6 +95,7 @@ def _playout(
         requeue=lambda: branche[0].stash_for_replay(),
         skip_fresh=_piocher_un_autre_episode,
         clock=clock,
+        journal=journal,
     )
     programme = programme_class(
         queue=Queue(source, random, Window(width=1), lookahead=lookahead),
@@ -1098,10 +1101,16 @@ def _playout_avec_direct(
     return playout, radio
 
 
-def _un_direct_et_sa_fin(playout: LiquidsoapPlayout, clock: FrozenClock) -> tuple[str, str]:
+def _un_direct_et_sa_fin(
+    playout: LiquidsoapPlayout, clock: FrozenClock, *, annoncer_le_gele: bool = False
+) -> tuple[str, str]:
     """Rejoue la séquence du script : un direct, le morceau qu'il redemande
     aussitôt et qui gèle sous la case, puis la purge de la fin du direct et le
     morceau frais (radio.liq, `vider_l_avance`).
+
+    `annoncer_le_gele` ajoute ce que fait vraiment le diffuseur : la source
+    musicale défile en sourdine sous le direct et chaque morceau s'annonce
+    (GOAL-090).
 
     Rend le morceau gelé et le morceau frais.
     """
@@ -1111,6 +1120,8 @@ def _un_direct_et_sa_fin(playout: LiquidsoapPlayout, clock: FrozenClock) -> tupl
     gele = playout.next_entry()
     assert gele is not None
     playout.playing(direct)
+    if annoncer_le_gele:
+        playout.playing(gele)
     clock.advance(timedelta(minutes=6))
     frais = playout.next_entry()
     assert frais is not None and frais != gele
@@ -1129,6 +1140,63 @@ def test_l_avance_gelee_sous_un_direct_n_est_plus_annoncee_a_suivre(tmp_path: Pa
 
     _gele, _frais = _un_direct_et_sa_fin(playout, clock)
 
+    a_suivre = playout.up_next()
+    assert a_suivre is not None and a_suivre[1] is not None
+    assert a_suivre[1].genre == "rock", "l'électro gelée sous le direct a été jetée"
+
+
+def test_un_morceau_annonce_sous_un_direct_ne_prend_pas_l_antenne(tmp_path: Path) -> None:
+    """Le diffuseur consomme la source musicale en sourdine sous un direct
+    (docs/liquidsoap.md §16.1) : les morceaux gelés s'annoncent sans que
+    personne les entende. Ni antenne, ni journal, ni encore (GOAL-090)."""
+    clock = FrozenClock(MIDI)
+    journal: list[tuple[str, str, str]] = []
+    playout, radio = _playout_avec_direct(
+        tmp_path,
+        clock,
+        catalogue=TROIS,
+        journal=lambda nature, titre, artiste: journal.append((nature, titre, artiste)),
+        programme_class=FakeProgrammeQuiNoteLesPrisesDAntenne,
+    )
+    espion = playout._programme
+    assert isinstance(espion, FakeProgrammeQuiNoteLesPrisesDAntenne)
+    espion.noter()
+    playout.declare_listeners(1)
+    direct = playout.next_entry()
+    assert direct is not None and direct.startswith("live:")
+    gele = playout.next_entry()
+    assert gele is not None
+    playout.playing(direct)
+    journal.clear()
+
+    playout.playing(gele)
+
+    antenne = radio.on_air_now()
+    assert antenne is not None
+    assert antenne.kind is NatureWeb.SHOW, "le direct tient toujours l'antenne"
+    assert antenne.title == DIRECT.name
+    assert journal == [], "le morceau gelé n'entre pas au journal des titres"
+    assert espion.prises == [], "l'encore doit encore pouvoir rendre le morceau gelé"
+
+
+def test_un_morceau_annonce_apres_la_fin_du_direct_est_pris_et_le_gele_jete(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """Le direct se prolonge du temps de résolution du morceau frais
+    (SPECS.md §7 n°22) : l'annonce du frais arrive après la fin portée par son
+    instruction, elle est acceptée, et l'ordre des demandes apprend que le
+    morceau gelé a été jeté (n°22, GOAL-090)."""
+    clock = FrozenClock(MIDI)
+    playout, radio = _playout_avec_direct(
+        tmp_path, clock, bands=PLAGES_AUTOUR_DU_DIRECT, catalogue=AUTOUR_DU_DIRECT
+    )
+
+    with caplog.at_level(logging.INFO):
+        gele, _frais = _un_direct_et_sa_fin(playout, clock, annoncer_le_gele=True)
+
+    antenne = radio.on_air_now()
+    assert antenne is not None and antenne.kind is NatureWeb.MUSIC
+    assert f"demandée puis jetée par le diffuseur : {gele.split('?', 1)[0]}" in caplog.text
     a_suivre = playout.up_next()
     assert a_suivre is not None and a_suivre[1] is not None
     assert a_suivre[1].genre == "rock", "l'électro gelée sous le direct a été jetée"
