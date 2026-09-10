@@ -873,7 +873,9 @@ affiche** :
 - un **direct** s'annonce par le nom de l'émission, celui du TOML. Son flux
   n'envoie aucune métadonnée (docs/franceinfo.md), donc le libellé voyage dans
   l'instruction (§7 n°22) et le diffuseur le pose à la prise d'antenne ; au
-  retour, la musique se réannonce.
+  retour, la musique se réannonce. Un morceau que le diffuseur annonce sous le
+  direct, sans que personne l'entende, n'écrit rien : ni l'antenne, ni le
+  journal des titres, ni l'« encore » (§7 n°22, révision du 2026-09-10).
 
 Un lecteur voit le titre changer un peu avant de l'entendre changer : le
 changement tombe au début du fondu enchaîné (docs/liquidsoap.md §15.6). Un
@@ -963,7 +965,9 @@ avec trois différences qui tiennent à la nature d'un direct :
   à la seconde, sans attendre une jonction, puisqu'il n'y en a pas. **Et sur
   un morceau frais** : celui qui attendait avait été tiré à l'ouverture de la
   case, pour une plage qui n'est peut-être plus ouverte (§7 n°22, révision du
-  2026-09-02).
+  2026-09-02). Le morceau frais est prêt avant la coupure : le direct se
+  prolonge du temps de le résoudre, et lui cède en fondu, sans blanc ni
+  reliquat (révision du 2026-09-10).
 - **Elle n'a pas de rattrapage** (§7 n°13 ne s'applique pas) : ce qui compte est
   ce qui passe *maintenant* sur la station captée. Si la case est déjà
   entamée quand la jonction arrive, on capte pour **le temps qui reste** ; si la
@@ -1615,6 +1619,20 @@ a une durée obligatoire, pas de rattrapage, pas de trace en base.
 > l'ordre des demandes — ce qui commence est plus récent que ce qui a été jeté.
 > L'avance gelée cesse donc d'être annoncée dans « À suivre », et de revenir à
 > l'antenne au premier battement après l'heure pleine (n°33).
+>
+> **Révision du 2026-09-10** (GOAL-090) : **la purge se fait direct encore à
+> l'antenne, et le reliquat est tu.** Jeter l'avance à la coupure laissait
+> deux secondes du morceau gelé à plein volume, puis un blanc le temps de
+> résoudre le morceau frais, qui entrait à froid. Constaté à l'antenne à 8 h 10
+> le matin même, et mesuré (docs/liquidsoap.md §20). Le diffuseur résout donc
+> le morceau frais **avant** de rendre l'antenne : le direct se prolonge du
+> temps de résolution, quelques secondes au plus, et cède au morceau frais en
+> fondu de prise d'antenne, comme après une longue pause (n°30). Aucun blanc
+> n'est toléré. Sous la case, le diffuseur fait défiler la musique en sourdine
+> et l'annonce (docs/liquidsoap.md §16.1) : l'API ignore ces annonces tant que
+> la fin du direct n'est pas passée — ni antenne, ni journal des titres, ni
+> « encore » (§4.9). La garde du diffuseur elle-même reste ouverte : c'est la
+> question de GOAL-089-T02.
 
 **n°23 — ffmpeg à la main, ou Liquidsoap ? Liquidsoap.** Tranchée le 2026-08-30
 par l'auteur, sur relevé ([docs/liquidsoap.md](./docs/liquidsoap.md)). Le

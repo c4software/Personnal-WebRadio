@@ -3478,3 +3478,71 @@ l'amont portera #5003 sur 2.4.
   `jingle` au lieu du titre de leur fichier ;
 - le **flash de midi** dans un vrai lecteur, et le titre qui revient à la
   musique à la fin de la case.
+
+---
+
+## GOAL-090 — La fin d'un direct enchaîne sur le morceau frais, sans reliquat ni blanc
+
+Ouvert le 2026-09-10 sur constat de l'auteur à l'antenne, à 08 h 10, à la fin
+de la Matinale franceinfo : deux secondes d'un morceau que personne n'avait
+choisi, à plein volume, puis le morceau frais entré à froid. Les journaux du
+diffuseur le confirment : `Analysis … (1.99s / 0.00s)`, aucun `Switch to blank`,
+le frais préparé deux secondes après la coupure. Deux causes, déjà relevées en
+docs/liquidsoap.md §16.4 et §17.2 sans avoir été traitées :
+
+- `sauter()` n'arme `reliquat_a_taire` qu'à antenne vide (radio.liq), condition
+  écrite pour la purge de reprise (SPECS.md §7 n°30) et jamais vraie à la fin
+  d'une case écoutée : le tampon de `cross` passe, sous un fondu d'une seconde ;
+- `normalize` consomme la source musicale sous le direct (§16.1), la garde
+  `source.available` n'étant fermée qu'à antenne vide : les morceaux tirés à
+  l'ouverture de la case défilent en sourdine, et chacun s'annonce par
+  `/playout/playing`. Ce matin, l'interface a affiché « Olivio » à la place de
+  la Matinale de 08 h 08 à 08 h 10, et deux titres jamais diffusés sont entrés
+  au journal.
+
+Décisions de l'auteur : à la fin d'un direct, le morceau frais est résolu
+**avant** d'arrêter le direct, qui se prolonge d'autant ; aucun blanc n'est
+toléré ; le reliquat est jeté comme à la reprise (n°30). Côté API, une annonce
+musicale reçue tant qu'un direct est à l'antenne est ignorée. La garde
+`source.available` n'est pas touchée : sa bascule en milieu de morceau reste la
+question ouverte de GOAL-089-T02.
+
+- [x] **GOAL-090-T01** — `vider_l_avance` reprend la mécanique de `on_skip_fresh`
+      (`set_queue([])`, `next_entry()`, `request.resolve`, `programme.add`) puis
+      arme `reliquat_a_taire` avant `sauter()` ; `stop_live` purge avant
+      `live_raw.stop()`. Tests textuels dans test_liquidsoap_script.py (ordre des
+      appels, compte des `sauter()`), `liquidsoap --check` par verifier.sh.
+      Fait le 2026-09-10 : la purge reçoit la fonction qui coupe le direct et
+      choisit quand l'appeler ; le témoin est armé avant la coupure, le saut
+      après. Vérifié : ruff, mypy, interdits et 952 tests (94 %) ici ;
+      `liquidsoap --check` sur la 2.4 épinglée exécuté sur `frontal`, Docker
+      étant inaccessible sur le poste de développement.
+- [x] **GOAL-090-T02** — Maquette fidèle (docs/liquidsoap.md §17.2) : rejouer la
+      manche « prise et fin d'un direct » sur le script modifié. Mesurer que plus
+      aucune fenêtre de `d` ne passe, qu'aucun `Switch to blank` n'apparaît, et de
+      combien le direct se prolonge. Consigner le relevé en §20, points incertains
+      compris.
+      Fait le 2026-09-10 : deux manches, témoin sur `frontal` et corrigée sur
+      le poste, docs/liquidsoap.md §20. Au témoin, 1,5 s du morceau gelé puis le
+      frais 1,97 s après la demande ; corrigé, le direct cède au frais sous la
+      rampe, aucune fenêtre du gelé, aucun `Switch to blank`, direct prolongé
+      de 89 ms sur un fichier local. Le `d` de l'avance n'a jamais été à
+      l'antenne : `set_queue` le détruit dans les deux cas.
+- [x] **GOAL-090-T03** — `LiquidsoapPlayout.playing` ignore une annonce musicale
+      tant que l'entrée en cours est un direct dont la fin n'est pas passée : ni
+      antenne, ni journal, ni `track_started`. L'entrée reste en attente et sera
+      signalée comme jetée par l'ordre des demandes (n°22). Tests sur la fixture
+      `_un_direct_et_sa_fin`, annonce du morceau gelé pendant la case.
+      Fait le 2026-09-10 : la garde lit la fin dans l'instruction `live:` en
+      cours et l'horloge injectée ; un flash ou un épisode non-direct n'est pas
+      couvert, faute de cas. Vérifié : les deux tests échouent sans la garde ;
+      `./verifier.sh` complet, 954 tests, 94 %.
+- [x] **GOAL-090-T04** — SPECS.md §7 n°22 (révision datée : le direct se prolonge
+      du temps de résolution, le reliquat est tu) et §4.9 (une annonce musicale
+      sous un direct n'écrit rien) ; clôture du Goal.
+      Fait le 2026-09-10 : révision datée de n°22, complément de §4.9 et §4.11.
+
+**Reste à écouter** (AGENTS.md §4.1) : une vraie fin de direct, la Matinale de
+demain à 08 h 10 : le direct doit céder au morceau frais en fondu, sans
+seconde d'un autre titre ni blanc, et la page ne doit afficher que la Matinale
+pendant la case.

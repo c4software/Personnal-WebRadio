@@ -261,9 +261,19 @@ horaire et un générique, le flash de midi et le retour à la musique.
 **GOAL-089 est ouvert** par cette clôture : trois résidus qui demandent l'amont,
 une manche de plus ou la pile réelle.
 
-**Prochaine tâche** : GOAL-090-T01 (la fin d'un direct enchaîne sans
-reliquat), puis GOAL-082-T04 (le seuil de vivier de l'ancre d'`artist_fan`), puis
-GOAL-075-T03, qui attend le déploiement.
+**GOAL-090 est clos le 2026-09-10**, le jour même du constat : à 8 h 10, la fin
+de la Matinale laissait passer deux secondes d'un morceau gelé sous la case,
+puis le morceau frais entrait à froid deux secondes plus tard. Le diffuseur
+résout maintenant le morceau frais avant de rendre l'antenne et jette le
+reliquat comme après une longue pause ; l'API ignore les annonces musicales
+que la source, consommée en sourdine sous le direct, envoie pendant la case.
+Mesuré sur la maquette (docs/liquidsoap.md §20), pas encore entendu. La garde
+`source.available` reste ouverte sous le direct : c'est GOAL-089-T02.
+**Reste à écouter** (AGENTS.md §4.1) : une vraie fin de direct après
+déploiement, et la page pendant la case.
+
+**Prochaine tâche** : GOAL-082-T04 (le seuil de vivier de l'ancre
+d'`artist_fan`), puis GOAL-075-T03, qui attend le déploiement.
 
 ---
 
@@ -487,67 +497,6 @@ verrouillage pendant l'émission de dimanche prochain.
 
 ---
 
-## GOAL-090 — La fin d'un direct enchaîne sur le morceau frais, sans reliquat ni blanc
-
-Ouvert le 2026-09-10 sur constat de l'auteur à l'antenne, à 08 h 10, à la fin
-de la Matinale franceinfo : deux secondes d'un morceau que personne n'avait
-choisi, à plein volume, puis le morceau frais entré à froid. Les journaux du
-diffuseur le confirment : `Analysis … (1.99s / 0.00s)`, aucun `Switch to blank`,
-le frais préparé deux secondes après la coupure. Deux causes, déjà relevées en
-docs/liquidsoap.md §16.4 et §17.2 sans avoir été traitées :
-
-- `sauter()` n'arme `reliquat_a_taire` qu'à antenne vide (radio.liq), condition
-  écrite pour la purge de reprise (SPECS.md §7 n°30) et jamais vraie à la fin
-  d'une case écoutée : le tampon de `cross` passe, sous un fondu d'une seconde ;
-- `normalize` consomme la source musicale sous le direct (§16.1), la garde
-  `source.available` n'étant fermée qu'à antenne vide : les morceaux tirés à
-  l'ouverture de la case défilent en sourdine, et chacun s'annonce par
-  `/playout/playing`. Ce matin, l'interface a affiché « Olivio » à la place de
-  la Matinale de 08 h 08 à 08 h 10, et deux titres jamais diffusés sont entrés
-  au journal.
-
-Décisions de l'auteur : à la fin d'un direct, le morceau frais est résolu
-**avant** d'arrêter le direct, qui se prolonge d'autant ; aucun blanc n'est
-toléré ; le reliquat est jeté comme à la reprise (n°30). Côté API, une annonce
-musicale reçue tant qu'un direct est à l'antenne est ignorée. La garde
-`source.available` n'est pas touchée : sa bascule en milieu de morceau reste la
-question ouverte de GOAL-089-T02.
-
-- [x] **GOAL-090-T01** — `vider_l_avance` reprend la mécanique de `on_skip_fresh`
-      (`set_queue([])`, `next_entry()`, `request.resolve`, `programme.add`) puis
-      arme `reliquat_a_taire` avant `sauter()` ; `stop_live` purge avant
-      `live_raw.stop()`. Tests textuels dans test_liquidsoap_script.py (ordre des
-      appels, compte des `sauter()`), `liquidsoap --check` par verifier.sh.
-      Fait le 2026-09-10 : la purge reçoit la fonction qui coupe le direct et
-      choisit quand l'appeler ; le témoin est armé avant la coupure, le saut
-      après. Vérifié : ruff, mypy, interdits et 952 tests (94 %) ici ;
-      `liquidsoap --check` sur la 2.4 épinglée exécuté sur `frontal`, Docker
-      étant inaccessible sur le poste de développement.
-- [-] **GOAL-090-T02** — Maquette fidèle (docs/liquidsoap.md §17.2) : rejouer la
-      manche « prise et fin d'un direct » sur le script modifié. Mesurer que plus
-      aucune fenêtre de `d` ne passe, qu'aucun `Switch to blank` n'apparaît, et de
-      combien le direct se prolonge. Consigner le relevé en §20, points incertains
-      compris.
-- [x] **GOAL-090-T03** — `LiquidsoapPlayout.playing` ignore une annonce musicale
-      tant que l'entrée en cours est un direct dont la fin n'est pas passée : ni
-      antenne, ni journal, ni `track_started`. L'entrée reste en attente et sera
-      signalée comme jetée par l'ordre des demandes (n°22). Tests sur la fixture
-      `_un_direct_et_sa_fin`, annonce du morceau gelé pendant la case.
-      Fait le 2026-09-10 : la garde lit la fin dans l'instruction `live:` en
-      cours et l'horloge injectée ; un flash ou un épisode non-direct n'est pas
-      couvert, faute de cas. Vérifié : les deux tests échouent sans la garde ;
-      `./verifier.sh` complet, 954 tests, 94 %.
-- [ ] **GOAL-090-T04** — SPECS.md §7 n°22 (révision datée : le direct se prolonge
-      du temps de résolution, le reliquat est tu) et §4.9 (une annonce musicale
-      sous un direct n'écrit rien) ; clôture du Goal.
-
-**Reste à écouter** (AGENTS.md §4.1) : une vraie fin de direct, la Matinale de
-demain à 08 h 10 : le direct doit céder au morceau frais en fondu, sans
-seconde d'un autre titre ni blanc, et la page ne doit afficher que la Matinale
-pendant la case.
-
----
-
 ## GOAL-089 — Les résidus du passage à la branche 2.4
 
 Ouvert le 2026-09-07 par la clôture de GOAL-088. Trois points que le Goal a
@@ -666,7 +615,7 @@ ou la pile réelle.
 | GOAL-087 | Après un « Passer », les deux entrées en vol sont des épisodes | `[x]` — clos le 2026-09-06 ; **reste à écouter** un vrai « Passer » en plage, l'épisode qui prend l'antenne et celui qui suit |
 | GOAL-088 | Le flux annonce le titre en cours aux lecteurs (ICY) | `[x]` — clos le 2026-09-07 ; **écoute validée le 2026-09-07** pour le titre affiché ; **reste à écouter** un changement de titre sans décrochage, deux lecteurs en même temps, et le reste de la matrice des lecteurs |
 | GOAL-089 | Les résidus du passage à la branche 2.4 | `[ ]` — ouvert le 2026-09-07 par la clôture de GOAL-088 |
-| GOAL-090 | La fin d'un direct enchaîne sur le morceau frais, sans reliquat ni blanc | `[ ]` — ouvert le 2026-09-10 sur constat de l'auteur à 08 h 10 |
+| GOAL-090 | La fin d'un direct enchaîne sur le morceau frais, sans reliquat ni blanc | `[x]` — clos le 2026-09-10 ; **reste à écouter** une vraie fin de direct après déploiement, et la page pendant la case |
 
 Le détail de chacun — tâches, décisions prises, dettes, incidents — est dans
 [TASKS.archive.md](./TASKS.archive.md).
