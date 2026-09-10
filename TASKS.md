@@ -523,16 +523,20 @@ question ouverte de GOAL-089-T02.
       après. Vérifié : ruff, mypy, interdits et 952 tests (94 %) ici ;
       `liquidsoap --check` sur la 2.4 épinglée exécuté sur `frontal`, Docker
       étant inaccessible sur le poste de développement.
-- [ ] **GOAL-090-T02** — Maquette fidèle (docs/liquidsoap.md §17.2) : rejouer la
+- [-] **GOAL-090-T02** — Maquette fidèle (docs/liquidsoap.md §17.2) : rejouer la
       manche « prise et fin d'un direct » sur le script modifié. Mesurer que plus
       aucune fenêtre de `d` ne passe, qu'aucun `Switch to blank` n'apparaît, et de
       combien le direct se prolonge. Consigner le relevé en §20, points incertains
       compris.
-- [-] **GOAL-090-T03** — `LiquidsoapPlayout.playing` ignore une annonce musicale
+- [x] **GOAL-090-T03** — `LiquidsoapPlayout.playing` ignore une annonce musicale
       tant que l'entrée en cours est un direct dont la fin n'est pas passée : ni
       antenne, ni journal, ni `track_started`. L'entrée reste en attente et sera
       signalée comme jetée par l'ordre des demandes (n°22). Tests sur la fixture
       `_un_direct_et_sa_fin`, annonce du morceau gelé pendant la case.
+      Fait le 2026-09-10 : la garde lit la fin dans l'instruction `live:` en
+      cours et l'horloge injectée ; un flash ou un épisode non-direct n'est pas
+      couvert, faute de cas. Vérifié : les deux tests échouent sans la garde ;
+      `./verifier.sh` complet, 954 tests, 94 %.
 - [ ] **GOAL-090-T04** — SPECS.md §7 n°22 (révision datée : le direct se prolonge
       du temps de résolution, le reliquat est tu) et §4.9 (une annonce musicale
       sous un direct n'écrit rien) ; clôture du Goal.
