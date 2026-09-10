@@ -937,7 +937,7 @@ rendu à l'heure dite ; deux cases enchaînées.
 | §9 : le direct prend l'antenne ~1 s après le début de piste qui l'arme | Instants de l'`on_track` et du `Switch to live with transition` | **Plus rapide, et l'écart s'explique** : **10 ms** (`on_track` à 25,126 s, bascule et annonce à 25,136 s). §9 mesurait le délai de remplissage d'un `input.http` démarré à l'instant ; ici il coulait depuis 20 s. La règle « à la jonction, jamais au milieu » tient dans les deux cas |
 | §9 : l'annonce du direct vient de la **transition**, une seule fois | Corps reçu par `/playout/playing` | **Identique** : `PLAYING live:1788794282:http://…` — l'entrée telle que l'API l'a rendue, **une** fois par prise d'antenne, sur les deux cases |
 | §9 : l'avance dort **sous** le direct | Journal pendant la case | **Identique** : `d` est préparé et annoncé pendant que le direct est à l'antenne |
-| §9 : la fin du direct purge et saute | Fin de case, avec un auditeur branché | **Identique** : « l'avance rassie est jetée, le reliquat coupé », `Analysis … (2.00 s / 0.00 s)`, nouveau `on_track` **1,9 s** après. Les deux secondes que `cross` tient du morceau gelé **passent quand même** (1,25 s de `d` mesurées à l'antenne) : `reliquat_a_taire` n'est armé qu'à antenne vide, et la case s'est terminée devant un auditeur. C'est le comportement de §10, pas un écart de version |
+| §9 : la fin du direct purge et saute | Fin de case, avec un auditeur branché | **Identique** : « l'avance rassie est jetée, le reliquat coupé », `Analysis … (2.00 s / 0.00 s)`, nouveau `on_track` **1,9 s** après. Les deux secondes que `cross` tient du morceau gelé **passent quand même** (1,25 s de `d` mesurées à l'antenne) : `reliquat_a_taire` n'est armé qu'à antenne vide, et la case s'est terminée devant un auditeur. C'est le comportement de §10, pas un écart de version. **Corrigé depuis, et mesuré en §20** : le morceau frais est résolu avant que le direct ne rende l'antenne, et le témoin est armé avant la coupure |
 
 ### 16.5 Le reliquat, le muet et la rampe (§10, §11)
 
@@ -1250,3 +1250,223 @@ format.
       n'est pas mesuré ici — la maquette imite France Info, qui n'envoie rien.
 - [ ] **Ce qu'un vrai lecteur fait** d'un titre qui change à la prise d'antenne
       puis revient à la musique : c'est GOAL-088-T06 (AGENTS.md §4.1).
+
+---
+
+## 20. Dix-huitième relevé — la fin d'un direct enchaîne sur le morceau frais (GOAL-090-T02, le 2026-09-10)
+
+> **Même image épinglée** que §16 à §19
+> (`savonet/liquidsoap@sha256:b27b11cfccd466265f605cd3de143bc019f4e0ed58db464297f04ed6ebea3efc`,
+> 2.4.6+git@284f9c903, `Liquidsoap 2.4.6+git@284f9c903` au journal des deux
+> manches) et **même maquette fidèle** : le `radio.liq` du dépôt monté en
+> lecture seule dans le conteneur, `--network host`, devant la fausse API
+> horodatée de §16, qui sert `/playout/next`, `/playout/playing` et
+> `/playout/listeners` sur le port 18080 ; le diffuseur écoute sur 18000.
+> Quatre tons purs de 25 s étiquetés (a = 440 Hz « Un - La », b = 660 « Deux -
+> Le », c = 880 « Trois - Mi », d = 1100 « Quatre - Fa »), un auditeur
+> `curl -H "Icy-MetaData: 1"` branché 3 s après le démarrage, le flux MP3 reçu
+> mesuré par fenêtres de 0,25 s : RMS en dB pleine échelle et fréquence
+> dominante par passages à zéro. Le direct est simulé par la même API,
+> `/live.mp3` : un ton de 1500 Hz débité à 16 000 o/s, sans aucune métadonnée,
+> comme France Info (docs/franceinfo.md).
+>
+> Scénario servi par `/playout/next`, une entrée par demande : `a`, puis
+> `live:+40` (une case close 40 s après l'instant où l'API la sert), `c` (le
+> morceau qui gèle sous la case), `d` (l'avance tirée pendant la case), `b` (le
+> morceau frais de la fin de case), `a`. Manche de 95 s, `icy-metaint: 8192`
+> négocié.
+>
+> Deux manches, même scénario, même durée de case : **témoin**, le script
+> d'avant la tâche (`git show 275e4a2:webradio/adapters/liquidsoap/radio.liq`),
+> et **corrigée**, celui du commit `b552fda`.
+
+Une précaution de lecture vaut pour les deux tableaux : la fréquence est
+obtenue par passages à zéro, elle ne désigne un morceau que sur un ton seul.
+Dans un fondu, elle rend une valeur qui n'est celle d'aucune des deux sources
+(1016 Hz entre `c` à 880 et `b` à 660), et l'étiquette que `mesure.py` en tire
+est alors fausse. Les blocs ICY insérés dans le flux capturé font par ailleurs
+rejeter quelques trames par ffmpeg au décodage.
+
+### 20.1 Le constat en production
+
+Le 2026-09-10 à 08 h 10, à la fin de la Matinale franceinfo : deux secondes
+d'un morceau que personne n'avait choisi, à plein volume, puis le morceau frais
+entré à froid deux secondes plus tard. Les journaux du diffuseur portent
+`Analysis … (1.99s / 0.00s)`, aucun `Switch to blank`, et le frais préparé deux
+secondes après la coupure. C'est exactement ce que §16.4 avait mesuré en
+maquette sans le traiter : `reliquat_a_taire` n'est armé qu'à antenne vide, or
+une fin de case se produit devant un auditeur ; et le morceau frais n'est
+demandé qu'une fois le direct coupé.
+
+### 20.2 La manche témoin
+
+Fenêtres de 0,25 s autour de la fin de case (instants comptés depuis le premier
+octet reçu par l'auditeur) :
+
+| Instant | RMS | Hz | Ce qui passe |
+|---|---|---|---|
+| 38,50 s | −25,0 dB | 1500 | le direct |
+| 38,75 s | −24,5 dB | 1440 | le direct |
+| 39,00 s | −22,9 dB | 1458 | le direct |
+| 39,25 s | −22,0 dB | 844 | `c`, le morceau gelé |
+| 39,50 s | −24,1 dB | 880 | `c` |
+| 39,75 s | −23,3 dB | 884 | `c` |
+| 40,00 s | −23,1 dB | 880 | `c` |
+| 40,25 s | −23,2 dB | 936 | `c` |
+| 40,50 s | −22,3 dB | 880 | `c` |
+| 40,75 s | −22,0 dB | 1016 | le fondu `c` → `b` |
+| 41,00 s | −22,6 dB | 806 | le fondu `c` → `b` |
+| 41,25 s | −19,2 dB | 662 | `b`, le morceau frais |
+| 41,50 s | −23,9 dB | 660 | `b` |
+
+Six fenêtres de `c`, soit **1,5 s** du morceau gelé à plein volume, à −22 dB
+comme le direct qui précède : aucune atténuation. Puis 0,5 s de fondu, et `b`
+qui entre au niveau du plateau, sans rampe de prise d'antenne. Aucune fenêtre
+de `d` : `set_queue([])` a détruit l'avance avant qu'elle ne serve, dans cette
+manche comme dans l'autre. Aucune fenêtre de silence après le démarrage.
+
+Le journal du script :
+
+```
+09:06:34 [lang:3] le direct se termine : heure de fin atteinte
+09:06:34 [lang:3] fin du direct : l'avance rassie est jetée, le reliquat coupé
+09:06:34 [switch:3] Switch to source.3 with transition.
+09:06:34 [cross:3] Analysis: -24.530614dB / -nandB (2.00s / 0.00s)
+09:06:34 [lang:3] suivant : annotate:…:/liq/b.mp3
+09:06:36 [programme:3] Prepared "/liq/b.mp3" (RID 3).
+```
+
+`(2.00 s / 0.00 s)` : `cross` a deux secondes du morceau gelé et rien en face,
+donc il les sert. Pas de `Switch to blank`, ni ici ni ailleurs dans la manche
+après le démarrage. Les instants de l'API, à la milliseconde :
+
+| Instant | Ce que l'API voit |
+|---|---|
+| 09:06:17.801 | `PLAYING …/liq/c.mp3`, le morceau gelé annoncé sous la case |
+| 09:06:17.821 | `PLAYING live:1789023994:Le direct:…` |
+| 09:06:34.092 | `NEXT#4` : le morceau frais demandé, après `live_raw.stop()` |
+| 09:06:34.170 | `LIVE débranché` : la socket du direct se ferme, 78 ms plus tard |
+| 09:06:36.057 | `PLAYING …/liq/b.mp3`, 1,97 s après la demande |
+
+Deux secondes s'écoulent donc entre la coupure et l'entrée du morceau frais, et
+ce sont celles que `cross` remplit avec le reliquat de `c`. §16.4 est reproduit,
+sur un morceau gelé (`c`) au lieu de l'avance (`d`), et le défaut de production
+avec lui.
+
+### 20.3 La manche corrigée
+
+Mêmes fenêtres, script du commit `b552fda` :
+
+| Instant | RMS | Hz | Ce qui passe |
+|---|---|---|---|
+| 38,50 s | −25,0 dB | 1500 | le direct |
+| 38,75 s | −24,7 dB | 1420 | le direct |
+| 39,00 s | −27,1 dB | 1290 | la bascule, direct et `b` mêlés |
+| 39,25 s | −42,8 dB | 698 | `b` sous la rampe |
+| 39,50 s | −37,1 dB | 660 | `b` |
+| 39,75 s | −32,6 dB | 664 | `b` |
+| 40,00 s | −29,4 dB | 660 | `b` |
+| 40,25 s | −27,4 dB | 670 | `b` |
+| 40,50 s | −24,7 dB | 660 | `b` |
+| 40,75 s | −23,0 dB | 708 | `b` |
+| 41,00 s | −21,5 dB | 660 | `b`, le plateau |
+| 41,25 s | −21,7 dB | 670 | `b` |
+| 41,50 s | −20,8 dB | 660 | `b` |
+
+Aucune fenêtre de `c`, aucune de `d`, aucune de silence : le direct passe la
+main au morceau frais en une fenêtre. `b` entre à −42,8 dB et atteint le
+plateau à −21,5 dB en 1,75 s, ce qui est la rampe de prise d'antenne de 2 s de
+§16.5 et §17.2, réarmée par la transition.
+
+Le journal, tout entier dans la même seconde sauf mention :
+
+```
+09:10:09 [lang:3] le direct se termine : heure de fin atteinte
+09:10:09 [lang:3] fin du direct : l'avance rassie est jetée, le reliquat coupé
+09:10:09 [lang:3] suivant : annotate:…:/liq/b.mp3
+09:10:09 [lang:3] morceau frais résolu avant que le direct ne rende l'antenne
+09:10:09 [programme:3] Prepared "/liq/b.mp3" (RID 3).
+09:10:09 [switch:3] Switch to source.3 with transition.
+09:10:09 [cross:3] Analysis: -24.531333dB / -24.529855dB (2.00s / 2.00s)
+09:10:09 [lang:3] saut à antenne vide : le reliquat est jeté, le morceau frais entre seul
+```
+
+`(2.00 s / 2.00 s)` : `cross` a bien ses deux secondes de chaque côté, et c'est
+la transition `enchainer` qui jette le reliquat au lieu de le mêler, sur le
+témoin armé avant la coupure. Toujours pas de `Switch to blank`. Les instants
+de l'API :
+
+| Instant | Ce que l'API voit |
+|---|---|
+| 09:09:52.258 | `PLAYING …/liq/c.mp3`, le morceau gelé annoncé sous la case, comme au témoin |
+| 09:09:52.271 | `PLAYING live:1789024209:Le direct:…` |
+| 09:10:09.002 | `NEXT#4` : le morceau frais demandé, direct encore à l'antenne |
+| 09:10:09.091 | `NEXT#5` : le tirage d'avance réveillé par `sauter()` |
+| 09:10:09.092 | `LIVE débranché` |
+| 09:10:09.093 | `PLAYING …/liq/b.mp3`, 91 ms après la demande |
+
+Le direct s'est prolongé de **89 ms** au plus : c'est tout ce qui sépare la
+demande du morceau frais du débranchement, et cela couvre la résolution, l'ajout
+en file et `live_raw.stop()`.
+
+Une chose que le témoin annonce à l'API et que la manche corrigée annonce aussi :
+`PLAYING` du morceau gelé, pendant la case. Le script ne peut pas s'en abstenir,
+c'est `on_track` de `programme` qui l'émet ; c'est la charnière qui l'ignore
+depuis GOAL-090-T03.
+
+### Ce que cela établit
+
+- **Le reliquat ne passe plus.** Armé avant `live_raw.stop()`,
+  `reliquat_a_taire` est encore vrai quand la transition arrive : 1,5 s de `c` à
+  plein volume au témoin, zéro fenêtre à la manche corrigée. Le témoin armé sous
+  un direct n'a aucun effet audible entre-temps, les deux dernières fenêtres du
+  direct restant à −25,0 dB, ce que prévoit `gain_antenne` en épargnant un
+  direct à l'antenne.
+- **Le blanc de deux secondes disparaît.** Résoudre avant de couper ramène
+  l'entrée du morceau frais de 2,25 s après la dernière fenêtre du direct à
+  0,25 s, sans `Switch to blank` ni fenêtre de silence.
+- **La rampe de prise d'antenne s'applique** au morceau frais, de −42,8 dB au
+  plateau en moins de deux secondes, au lieu d'une entrée au niveau plein.
+- **Le prolongement du direct est ici de 89 ms**, résolution d'un fichier local
+  et arrêt du direct compris. SPECS.md §7 n°22 le tolère ; reste à savoir ce
+  qu'il vaut sur un vrai tirage.
+- **`d` ne passe dans aucune des deux manches** : `set_queue([])` détruit
+  l'avance rassie avant qu'elle ne serve, comme en §14. La question de §16.4
+  portait sur le tampon de `cross`, pas sur la file.
+
+### Points incertains
+
+- [ ] **Le prolongement mesuré ne vaut pas pour la production.** La maquette
+      résout un fichier local, et l'API répond dans la milliseconde : les 89 ms
+      mesurées sont un plancher. En production le tirage passe par Subsonic, et
+      le constat du 2026-09-10 donne environ 2 s entre la coupure et la
+      préparation du frais. Le direct se prolongerait d'autant, et cela n'a pas
+      été mesuré.
+- [ ] **La durée propre de `live_raw.stop()` n'est pas isolée.** Les 89 ms
+      couvrent la résolution, `programme.add` et l'arrêt du direct ensemble. Le
+      témoin donne 78 ms entre le retour de `live_raw.stop()` et la fermeture
+      de socket vue par l'API, ce qui n'est pas la même grandeur.
+- [ ] **La fenêtre entre l'armement du témoin et `live_pending := false`.**
+      `reliquat_a_taire` est posé avant que le direct ne rende l'antenne : si une
+      jonction de `programme` tombait pendant ce court intervalle, elle
+      consommerait le témoin et le vrai passage à l'antenne n'en aurait plus. La
+      garde `piste_commencee` ne couvre pas ce cas, et aucune manche ne l'a
+      provoqué.
+- [ ] **L'échec de `request.resolve` n'est pas mesuré.** Le script journalise
+      « le morceau frais ne s'est pas résolu, la fin du direct aura un blanc » et
+      coupe quand même : le blanc est assumé, mais sa durée et ce que la sortie
+      sert alors n'ont pas été observés.
+- [ ] **Le direct est simulé**, comme en §16 à §19 : un ton servi par l'API en
+      local, pas France Info. Un distant lent à se fermer, ou qui coupe de
+      lui-même avant l'heure de fin, n'est pas couvert.
+- [ ] **L'ordre des deux tirages réveillés.** La purge résout `b` puis `sauter()`
+      réveille un tirage d'avance qui prend `a` : ici le second arrive 89 ms
+      après le premier et ne dispute rien. Sur une API lente, c'est la course de
+      §12 et §14, et rien ne dit lequel des deux gagne.
+- [ ] **Les deux manches n'ont pas été jouées sur la même machine** : le témoin
+      sur `frontal`, la corrigée sur le poste de développement, faute d'accès au
+      démon Docker au moment du témoin. Même image, même version, mais les
+      millisecondes ne se comparent que dans leur ordre de grandeur.
+- [ ] **Rien de tout cela ne s'entend** (AGENTS.md §4.1) : que la bascule du
+      direct au morceau frais sonne comme une jonction et non comme un accroc ne
+      se constate qu'à l'écoute d'une vraie fin de case.
